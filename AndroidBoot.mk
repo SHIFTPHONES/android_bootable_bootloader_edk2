@@ -1,0 +1,52 @@
+#Android makefile to build lk bootloader as a part of Android Build
+
+CLANG_BIN := $(ANDROID_BUILD_TOP)/$(LLVM_PREBUILTS_PATH)/
+
+# Set flags if we need to include security libs
+ifeq ($(TARGET_BOOTIMG_SIGNED),true)
+	SIGNED_KERNEL := SIGNED_KERNEL=1
+else
+	SIGNED_KERNEL := SIGNED_KERNEL=0
+endif
+
+ifeq ($(BOOTLOADER_PLATFORM),)
+	BOOTLOADER_PLATFORM := $(TARGET_BOARD_PLATFORM)
+endif
+
+ifeq ($(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SUPPORTS_VERITY),true)
+	VERIFIED_BOOT := VERIFIED_BOOT=1
+else
+	VERIFIED_BOOT := VERIFIED_BOOT=0
+endif
+
+ifneq ($(TARGET_BUILD_VARIANT),user)
+	DEVICE_STATUS := DEFAULT_UNLOCK=true
+endif
+
+ifeq ($(TARGET_BUILD_VARIANT),user)
+	BUILD_VARIANT := USER_BUILD_VARIANT=true
+endif
+
+# ABL ELF output
+TARGET_ABL := $(PRODUCT_OUT)/abl.elf
+ABL_OUT := $(TARGET_OUT_INTERMEDIATES)/ABL_OBJ
+
+abl_clean:
+	$(hide) rm -f $(TARGET_ABL)
+
+$(ABL_OUT):
+	mkdir -p $(ABL_OUT)
+
+# Top level target
+$(TARGET_ABL): abl_clean | $(ABL_OUT) $(INSTALLED_KEYSTOREIMAGE_TARGET)
+	$(MAKE) -C bootable/bootloader/edk2 BOOTLOADER_OUT=../../../$(ABL_OUT) all $(SIGNED_KERNEL) $(VERIFIED_BOOT) $(DEVICE_STATUS) $(BUILD_VARIANT) CLANG_BIN=$(CLANG_BIN)
+
+# Keep build default for targets still using TARGET_BOOTLOADER
+#TARGET_BOOTLOADER := $(PRODUCT_OUT)/EMMCBOOT.MBN
+
+TARGET_EMMC_BOOTLOADER := $(PRODUCT_OUT)/abl.elf
+$(TARGET_EMMC_BOOTLOADER): $(ABL_OUT) | $(TARGET_ABL)
+
+.PHONY: abl
+
+abl: $(TARGET_ABL)
