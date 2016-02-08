@@ -23,8 +23,3 @@ LIBS = -lCommon
 ifeq ($(CYGWIN), CYGWIN)
   LIBS += -L/lib/e2fsprogs -luuid
 endif
-
-ifeq ($(LINUX), Linux)
-  LIBS += -luuid
-endif
-
