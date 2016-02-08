@@ -95,7 +95,7 @@
 
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x2f
 
-  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x80000400
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x80000440
 
   #gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask|0x07
 

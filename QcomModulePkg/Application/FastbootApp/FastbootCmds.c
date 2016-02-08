@@ -795,8 +795,6 @@ STATIC VOID CmdFlash(
 		return;
 	}
 
-	DEBUG((EFI_D_ERROR, "Partition is : %a\n", PartitionName));
-
 	/* Find the lun number from input string */
 	Token = AsciiStrStr(arg, ":");
 	DEBUG((EFI_D_ERROR, "Token is : %a\n", Token));
@@ -847,7 +845,7 @@ STATIC VOID CmdFlash(
 	if (Status == EFI_NOT_FOUND)
 	{
 		FastbootFail("No such partition.");
-		DEBUG((EFI_D_ERROR, " (%s) No such partition\n", PartitionName));
+		DEBUG((EFI_D_ERROR, " (%a) No such partition\n", PartitionName));
 		goto out;
 	}
 	else if (EFI_ERROR (Status))
