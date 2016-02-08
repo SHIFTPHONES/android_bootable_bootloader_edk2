@@ -114,6 +114,7 @@
 	gQcomTokenSpaceGuid.KernelLoadAddress
 	gQcomTokenSpaceGuid.TagsAddress
 	gQcomTokenSpaceGuid.RamdiskLoadAddress
+	gQcomTokenSpaceGuid.EnablePartialGoods
 
 [Depex]
 	TRUE

@@ -62,6 +62,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 	STATIC UINT32* CmdLine;
 	STATIC UINTN BaseMemory;
 	UINT64 Time;
+	INTN Ret;
 
 	KernelSize = ((boot_img_hdr*)(ImageBuffer))->kernel_size;
 	RamdiskSize = ((boot_img_hdr*)(ImageBuffer))->ramdisk_size;
@@ -140,6 +141,16 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 	UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , (CHAR8*)Final_CmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
 
 	CopyMem (RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
+
+	if (FixedPcdGetBool(EnablePartialGoods))
+	{
+		Ret = UpdatePartialGoodsNode((VOID*)DeviceTreeLoadAddr);
+		if (Ret != 0)
+		{
+			DEBUG((EFI_D_ERROR, "Failed to update device tree for partial goods\n"));
+			ASSERT(0);
+		}
+	}
 
 	Time = GetPerformanceCounter();
 	DEBUG((EFI_D_ERROR, "BootTime %lld ns\n", Time));
