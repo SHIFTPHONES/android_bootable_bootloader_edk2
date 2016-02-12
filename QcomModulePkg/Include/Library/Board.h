@@ -58,7 +58,13 @@ UINT32 BoardPmicModel(UINT32 PmicDeviceIndex);
 
 UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex);
 
-EFI_STATUS BoardInit(struct BoardInfo *platform_board_info);
+EFI_STATUS BoardInit();
 
 EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len);
+UINT32 BoardPlatformRawChipId();
+EFIChipInfoVersionType BoardPlatformChipVersion();
+EFIChipInfoFoundryIdType BoardPlatformFoundryId();
+EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
+UINT32 BoardPlatformVersion();
+UINT32 BoardPlatormSubType();
 #endif
