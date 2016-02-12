@@ -136,7 +136,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 	/* Get the msm-id prop from DTB */
 	plat_prop = (const char *)fdt_getprop(dtb, root_offset, "qcom,msm-id", &len_plat_id);
 	if (!plat_prop || len_plat_id <= 0) {
-		DEBUG ((EFI_D_INFO, "qcom,msm-id entry not found\n"));
+		DEBUG ((EFI_D_VERBOSE, "qcom,msm-id entry not found\n"));
 		return FALSE;
 	} else if (len_plat_id % min_plat_id_len) {
 		DEBUG ((EFI_D_ERROR, "qcom, msm-id in device tree is (%d) not a multiple of (%d)\n",
@@ -489,7 +489,7 @@ STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_e
 		dt_node_tmp = dt_entry_list_init();
 		CopyMem((VOID *)dt_node_tmp->dt_entry_m,(VOID *)cur_dt_entry, sizeof(struct dt_entry));
 
-		DEBUG((EFI_D_INFO, "Add DTB entry 0x%x/%08x/0x%08x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x\n",
+		DEBUG((EFI_D_VERBOSE, "Add DTB entry 0x%x/%08x/0x%08x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x\n",
 					dt_node_tmp->dt_entry_m->platform_id, dt_node_tmp->dt_entry_m->variant_id,
 					dt_node_tmp->dt_entry_m->board_hw_subtype, dt_node_tmp->dt_entry_m->soc_rev,
 					dt_node_tmp->dt_entry_m->pmic_rev[0], dt_node_tmp->dt_entry_m->pmic_rev[1],
@@ -615,7 +615,7 @@ int platform_dt_absolute_compat_match(struct dt_entry_node *dt_list, UINT32 dtb_
 		}
 
 		if (delete_current_dt) {
-			DEBUG((EFI_D_INFO, "Delete don't fit DTB entry %u/%08x/0x%08x/%x/%x/%x/%x/%x/%x/%x\n",
+			DEBUG((EFI_D_VERBOSE, "Delete don't fit DTB entry %u/%08x/0x%08x/%x/%x/%x/%x/%x/%x/%x\n",
 						dt_node_tmp1->dt_entry_m->platform_id, dt_node_tmp1->dt_entry_m->variant_id,
 						dt_node_tmp1->dt_entry_m->board_hw_subtype, dt_node_tmp1->dt_entry_m->soc_rev,
 						dt_node_tmp1->dt_entry_m->pmic_rev[0], dt_node_tmp1->dt_entry_m->pmic_rev[1],
@@ -728,7 +728,7 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 		}
 
 		if (current_info != best_info) {
-			DEBUG((EFI_D_INFO, "Delete don't fit DTB entry %u/%08x/0x%08x/%x/%x/%x/%x/%x/%x/%x\n",
+			DEBUG((EFI_D_VERBOSE, "Delete don't fit DTB entry %u/%08x/0x%08x/%x/%x/%x/%x/%x/%x/%x\n",
 						dt_node_tmp1->dt_entry_m->platform_id, dt_node_tmp1->dt_entry_m->variant_id,
 						dt_node_tmp1->dt_entry_m->board_hw_subtype, dt_node_tmp1->dt_entry_m->soc_rev,
 						dt_node_tmp1->dt_entry_m->pmic_rev[0], dt_node_tmp1->dt_entry_m->pmic_rev[1],

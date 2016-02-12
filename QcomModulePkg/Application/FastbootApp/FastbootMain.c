@@ -216,12 +216,12 @@ EFI_STATUS HandleUsbEvents()
   if (UsbDeviceEventDeviceStateChange == Msg) 
   {
     if (UsbDeviceStateConnected == Payload.DeviceState) {
-      DEBUG ((EFI_D_INFO, "Fastboot Device connected\n"));
+      DEBUG ((EFI_D_VERBOSE, "Fastboot Device connected\n"));
       /* Queue receive buffer */
       Status = Fbd.UsbDeviceProtocol->Send(0x1, 511, Fbd.gRxBuffer);
     }
     if (UsbDeviceStateDisconnected == Payload.DeviceState) {
-      DEBUG ((EFI_D_INFO, "Fastboot Device disconnected\n"));
+      DEBUG ((EFI_D_VERBOSE, "Fastboot Device disconnected\n"));
     }
   }
   else if (UsbDeviceEventTransferNotification == Msg) {
