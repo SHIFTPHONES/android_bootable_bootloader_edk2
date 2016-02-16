@@ -30,8 +30,6 @@
 
 // Variables to initialize board data
 
-STATIC struct BoardInfo platform_board_info;
-
 STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_entry_node *dt_list);
 STATIC struct dt_entry *platform_dt_match_best(struct dt_entry_node *dt_list);
 
@@ -275,20 +273,20 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 								dt_entry_array[i].variant_id,
 								dt_entry_array[i].soc_rev,
 								dt_entry_array[i].board_hw_subtype,
-								platform_board_info.RawChipId,
-								platform_board_info.PlatformInfo.platform,
-								platform_board_info.ChipVersion,
-								platform_board_info.PlatformInfo.subtype));
+								BoardPlatformRawChipId(),
+								BoardPlatformType(),
+								BoardPlatformChipVersion(),
+								BoardPlatformSubType()));
 				} else {
 					DEBUG((EFI_D_WARN, "Device tree's msm_id doesn't match the board: <0x%x 0x%x 0x%x 0x%x> != <0x%x 0x%x 0x%x 0x%x>\n",
 								dt_entry_array[i].platform_id,
 								dt_entry_array[i].variant_id,
 								dt_entry_array[i].soc_rev,
 								dt_entry_array[i].board_hw_subtype,
-								platform_board_info.RawChipId,
-								platform_board_info.PlatformInfo.platform,
-								platform_board_info.ChipVersion,
-								platform_board_info.PlatformInfo.subtype));
+								BoardPlatformRawChipId(),
+								BoardPlatformType(),
+								BoardPlatformChipVersion(),
+								BoardPlatformSubType()));
 				}
 			}
 
@@ -316,6 +314,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
  */
 VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VOID *tags)
 {
+	EFI_STATUS Status;
 	VOID *kernel_end = kernel + kernel_size;
 	UINT32 app_dtb_offset = 0;
 	VOID *dtb = NULL;
@@ -326,7 +325,12 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	struct dt_entry_node *dt_node_tmp1 = NULL;
 	struct dt_entry_node *dt_node_tmp2 = NULL;
 
-	BoardInit(&platform_board_info);
+	Status = BoardInit();
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error finding board information: %x\n", Status));
+		return NULL;
+	}
 
 	/* Initialize the dtb entry node*/
 	dt_entry_queue = (struct dt_entry_node *) 
@@ -475,11 +479,11 @@ STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_e
 	 *  3. otherwise return 0
 	 */
 
-	if((cur_dt_msm_id == (platform_board_info.RawChipId & 0x0000ffff)) &&
-			(cur_dt_hw_platform == platform_board_info.PlatformInfo.platform) &&
-			(cur_dt_hw_subtype == platform_board_info.PlatformInfo.subtype) &&
+	if((cur_dt_msm_id == (BoardPlatformRawChipId() & 0x0000ffff)) &&
+			(cur_dt_hw_platform == BoardPlatformType()) &&
+			(cur_dt_hw_subtype == BoardPlatformSubType()) &&
 			(cur_dt_hlos_ddr == (0x0 & 0x700)) &&
-			(cur_dt_entry->soc_rev <= platform_board_info.ChipVersion) &&
+			(cur_dt_entry->soc_rev <= BoardPlatformChipVersion()) &&
 			((cur_dt_entry->variant_id & 0x00ffff00) <= (0x10008 & 0x00ffff00)) &&
 			((cur_dt_entry->pmic_rev[0] & 0x00ffff00) <= (BoardPmicTarget(0) & 0x00ffff00)) &&
 			((cur_dt_entry->pmic_rev[1] & 0x00ffff00) <= (BoardPmicTarget(1) & 0x00ffff00)) &&
@@ -526,7 +530,7 @@ int platform_dt_absolute_compat_match(struct dt_entry_node *dt_list, UINT32 dtb_
 		switch(dtb_info) {
 			case DTB_FOUNDRY:
 				current_info = ((dt_node_tmp1->dt_entry_m->platform_id) & 0x00ff0000);
-				board_info = platform_board_info.FoundryId << 16;
+				board_info = BoardPlatformFoundryId() << 16;
 				break;
 			case DTB_PMIC_MODEL:
 				for (i = 0; i < 4; i++) {
@@ -648,11 +652,11 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 		switch(dtb_info) {
 			case DTB_SOC:
 				current_info = dt_node_tmp1->dt_entry_m->soc_rev;
-				board_info = platform_board_info.ChipVersion;
+				board_info = BoardPlatformChipVersion();
 				break;
 			case DTB_MAJOR_MINOR:
 				current_info = ((dt_node_tmp1->dt_entry_m->variant_id) & 0x00ffff00);
-				board_info = platform_board_info.PlatformInfo.platform;
+				board_info = BoardPlatformType();
 				break;
 			case DTB_PMIC0:
 				current_info =((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00); // = 0; for 8998
