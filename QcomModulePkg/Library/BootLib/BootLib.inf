@@ -48,6 +48,7 @@
 	UpdateDeviceTree.c
 	LinuxLoaderLib.c
 	UpdateCmdLine.c
+	KeyPad.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec

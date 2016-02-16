@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,45 +26,56 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef __BOARD_H__
-#define __BOARD_H__
-
 #include <Uefi.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/MemoryAllocationLib.h>
-#include <Protocol/EFIRamPartition.h>
-#include <Protocol/EFIChipInfo.h>
-#include <Protocol/EFIPmicVersion.h>
-#include <Protocol/EFIPlatformInfo.h>
 
-typedef enum
+EFI_STATUS GetKeyPress(UINT32 *KeyPressed)
 {
-	EMMC = 0,
-	UFS  = 1,
-} MemCardType;
+	EFI_STATUS Status;
+	EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *InputEx;
+	EFI_KEY_DATA KeyData;
+	Status = gBS->OpenProtocol (
+			gST->ConsoleInHandle,
+			&gEfiSimpleTextInputExProtocolGuid,
+			(VOID**)&InputEx,
+			gImageHandle,
+			NULL,
+			EFI_OPEN_PROTOCOL_GET_PROTOCOL
+			);
+	ASSERT_EFI_ERROR (Status);
+	SetMem(&KeyData, sizeof(KeyData), 0);
 
-struct BoardInfo {
-	EFI_PLATFORMINFO_PLATFORM_INFO_TYPE PlatformInfo;
-	UINT32 RawChipId;
-	EFIChipInfoVersionType ChipVersion;
-	EFIChipInfoFoundryIdType FoundryId;
-};
+	Status = InputEx->ReadKeyStrokeEx (InputEx, &KeyData);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error reading the key press: %x\n", Status));
+		return EFI_DEVICE_ERROR;
+	}
 
-EFI_STATUS BaseMem(UINTN *BaseMemory);
+	DEBUG((EFI_D_VERBOSE,"Key Stroke Read\n"));
+	DEBUG((EFI_D_VERBOSE, "ScanCode = (0x%x), UnicodeChar =(0x%x)\n",
+                  KeyData.Key.ScanCode, KeyData.Key.UnicodeChar));
+	DEBUG((EFI_D_VERBOSE, "ShiftState=(0x%x), ToggleState==(0x%x)\n",
+                  KeyData.KeyState.KeyShiftState, KeyData.KeyState.KeyToggleState ));
 
-UINT32 BoardPmicModel(UINT32 PmicDeviceIndex);
+	Status = InputEx->Reset(InputEx, FALSE);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error resetting the input key status: %x\n", Status));
+		return Status;
+	}
 
-UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex);
+	*KeyPressed = KeyData.Key.ScanCode;
 
-EFI_STATUS BoardInit();
+	gBS->CloseProtocol (
+			gST->ConsoleInHandle,
+			&gEfiSimpleTextInputExProtocolGuid,
+			gImageHandle,
+			NULL
+		);
 
-EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len);
-UINT32 BoardPlatformRawChipId();
-EFIChipInfoVersionType BoardPlatformChipVersion();
-EFIChipInfoFoundryIdType BoardPlatformFoundryId();
-EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
-UINT32 BoardPlatformVersion();
-UINT32 BoardPlatormSubType();
-#endif
+	return Status;
+}

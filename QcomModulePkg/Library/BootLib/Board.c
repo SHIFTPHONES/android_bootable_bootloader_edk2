@@ -30,6 +30,8 @@
 #include <Protocol/EFICardInfo.h>
 #include <LinuxLoaderLib.h>
 
+STATIC struct BoardInfo platform_board_info;
+
 EFI_STATUS BaseMem(UINTN *BaseMemory)
 {
 	EFI_STATUS Status = EFI_NOT_FOUND;
@@ -88,10 +90,10 @@ STATIC EFI_STATUS GetChipInfo(struct BoardInfo *platform_board_info)
 	Status = pChipInfoProtocol->GetFoundryId(pChipInfoProtocol, &platform_board_info->FoundryId);
 	if (EFI_ERROR(Status))
 		return Status;
-	DEBUG((EFI_D_WARN, "Platform Info : 0x%x\n", platform_board_info->PlatformInfo.platform));
-	DEBUG((EFI_D_WARN, "Raw Chip Id   : 0x%x\n", platform_board_info->RawChipId));
-	DEBUG((EFI_D_WARN, "Chip Version  : 0x%x\n", platform_board_info->ChipVersion));
-	DEBUG((EFI_D_WARN, "Foundry Id    : 0x%x\n", platform_board_info->FoundryId));
+	DEBUG((EFI_D_VERBOSE, "Platform Info : 0x%x\n", platform_board_info->PlatformInfo.platform));
+	DEBUG((EFI_D_VERBOSE, "Raw Chip Id   : 0x%x\n", platform_board_info->RawChipId));
+	DEBUG((EFI_D_VERBOSE, "Chip Version  : 0x%x\n", platform_board_info->ChipVersion));
+	DEBUG((EFI_D_VERBOSE, "Foundry Id    : 0x%x\n", platform_board_info->FoundryId));
 	return Status;
 }
 
@@ -159,15 +161,16 @@ UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex)
 	return target;
 }
 
-EFI_STATUS BoardInit(struct BoardInfo *platform_board_info)
+EFI_STATUS BoardInit()
 {
 	EFI_STATUS Status;
-	Status = GetChipInfo(platform_board_info);
+	Status = GetChipInfo(&platform_board_info);
 	if (EFI_ERROR(Status))
 		return Status;
-	Status = GetPlatformInfo(platform_board_info);
+	Status = GetPlatformInfo(&platform_board_info);
 	if (EFI_ERROR(Status))
 		return Status;
+
 	return Status;
 }
 
@@ -232,4 +235,35 @@ EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 			 AsciiSPrint(StrSerialNum, Len, "%x", CardInfoData.product_serial_num);
 	}
 	return Status;
+}
+
+/* Helper APIs for device tree selection */
+UINT32 BoardPlatformRawChipId()
+{
+	return platform_board_info.RawChipId;
+}
+
+EFIChipInfoVersionType BoardPlatformChipVersion()
+{
+	return platform_board_info.ChipVersion;
+}
+
+EFIChipInfoFoundryIdType BoardPlatformFoundryId()
+{
+	return platform_board_info.FoundryId;
+}
+
+EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType()
+{
+	return platform_board_info.PlatformInfo.platform;
+}
+
+UINT32 BoardPlatformVersion()
+{
+	return platform_board_info.PlatformInfo.version;
+}
+
+UINT32 BoardPlatformSubType()
+{
+	return platform_board_info.PlatformInfo.subtype;
 }

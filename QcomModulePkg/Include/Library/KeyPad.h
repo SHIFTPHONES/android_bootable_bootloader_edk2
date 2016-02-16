@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,45 +26,10 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef __BOARD_H__
-#define __BOARD_H__
+#ifndef __KEYPAD_H__
+#define __KEYPAD_H__
 
-#include <Uefi.h>
-#include <Library/UefiLib.h>
-#include <Library/DebugLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/MemoryAllocationLib.h>
-#include <Protocol/EFIRamPartition.h>
-#include <Protocol/EFIChipInfo.h>
-#include <Protocol/EFIPmicVersion.h>
-#include <Protocol/EFIPlatformInfo.h>
+#include <Protocol/SimpleTextIn.h>
 
-typedef enum
-{
-	EMMC = 0,
-	UFS  = 1,
-} MemCardType;
-
-struct BoardInfo {
-	EFI_PLATFORMINFO_PLATFORM_INFO_TYPE PlatformInfo;
-	UINT32 RawChipId;
-	EFIChipInfoVersionType ChipVersion;
-	EFIChipInfoFoundryIdType FoundryId;
-};
-
-EFI_STATUS BaseMem(UINTN *BaseMemory);
-
-UINT32 BoardPmicModel(UINT32 PmicDeviceIndex);
-
-UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex);
-
-EFI_STATUS BoardInit();
-
-EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len);
-UINT32 BoardPlatformRawChipId();
-EFIChipInfoVersionType BoardPlatformChipVersion();
-EFIChipInfoFoundryIdType BoardPlatformFoundryId();
-EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
-UINT32 BoardPlatformVersion();
-UINT32 BoardPlatormSubType();
+EFI_STATUS GetKeyPress(UINT32 *KeyPressed);
 #endif
