@@ -32,6 +32,7 @@
 
 #include "LinuxLoaderLib.h"
 #include "BootLinux.h"
+#include "KeyPad.h"
 
 //Reboot modes
 #if USE_HARD_REBOOT
@@ -61,6 +62,7 @@ EFI_GUID RecoveryImgPartitionType =
 STATIC struct device_info device = {DEVICE_MAGIC, 0, 0, 0, 0, {0}, {0}, {0}, 1};
 STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
+STATIC BOOLEAN BootIntoRecovery = FALSE;
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
 STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType)
@@ -147,34 +149,6 @@ STATIC UINT8 GetRebootReason()
 	return RebootMode;
 }
 
-EFI_STATUS GetKeyPress(UINT32 *KeyPressed)
-{
-	EFI_STATUS Status;
-	EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *SimpleEx;
-	EFI_KEY_DATA testKeyData;
-	Status = gBS->OpenProtocol (
-			gST->ConsoleInHandle,
-			&gEfiSimpleTextInputExProtocolGuid,
-			(VOID**)&SimpleEx,
-			gImageHandle,
-			NULL,
-			EFI_OPEN_PROTOCOL_GET_PROTOCOL
-			);
-	ASSERT_EFI_ERROR (Status);
-	Status = SimpleEx->ReadKeyStrokeEx (SimpleEx, &testKeyData);
-	AsciiPrint("++++++++++++++++++++++++++++++++++++++++++++++\n");
-	AsciiPrint("Key Stroke Read\n");
-	AsciiPrint("ScanCode = (0x%x), UnicodeChar =(0x%x)\n",
-                  testKeyData.Key.ScanCode, testKeyData.Key.UnicodeChar);
-	AsciiPrint("ShiftState=(0x%x), ToggleState==(0x%x)\n",
-                  testKeyData.KeyState.KeyShiftState, testKeyData.KeyState.KeyToggleState );
-	AsciiPrint("++++++++++++++++++++++++++++++++++++++++++++++\n");
-
-	return Status;
-
-
-}
-
 /**
   Linux Loader Application EntryPoint
 
@@ -193,6 +167,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	UINT32 BootReason = NORMAL_MODE;
 	UINT32 KeyPressed;
+	CHAR8* Fastboot[] = {"fv2:Fastboot"};
 
 	// Read Device Info here
 
@@ -204,45 +179,74 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	// Check for keys
 	Status = GetKeyPress(&KeyPressed);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error reading key status\n"));
+		return Status;
+	}
+	if (KeyPressed == SCAN_DOWN)
+		BootIntoFastboot = TRUE;
+	if (KeyPressed == SCAN_UP)
+		BootIntoRecovery = TRUE;
+
 	// check for reboot mode
 	BootReason = GetRebootReason(); //Substitue the function with real api
 
-	// Assign Partition GUID based on normal boot or recovery boot
-	if(BootReason == RECOVERY_MODE)
-		PartitionType = &RecoveryImgPartitionType;
-	else
-		PartitionType = &BootImgPartitionType;
+	switch (BootReason)
+	{
+		case FASTBOOT_MODE:
+			BootIntoFastboot = TRUE;
+			break;
+		case RECOVERY_MODE:
+			BootIntoRecovery = TRUE;
+			break;
+		case ALARM_BOOT:
+			BootReasonAlarm = TRUE;
+			break;
+		case DM_VERITY_ENFORCING:
+			device.verity_mode = 1;
+			// write to device info
+			break;
+		case DM_VERITY_LOGGING:
+			device.verity_mode = 0;
+			// write to device info
+			break;
+		case DM_VERITY_KEYSCLEAR:
+			// send delete keys to TZ
+			break;
+		default:
+			break;
+	}
 
-	if(BootReason == ALARM_BOOT)
-		BootReasonAlarm = TRUE;
-	else if(BootReason == DM_VERITY_ENFORCING)
-	{
-		device.verity_mode = 1;
-		//write to device info
-	}
-	else if(BootReason == DM_VERITY_LOGGING)
-	{
-		device.verity_mode = 0;
-		//write_device_info info
-	}
-	else if(BootReason == DM_VERITY_KEYSCLEAR)
-	{
-		//send delete keys to TZ
-	}
 	if (!BootIntoFastboot)
 	{
+		// Assign Partition GUID based on normal boot or recovery boot
+		if(BootIntoRecovery == TRUE)
+		{
+			DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
+			PartitionType = &RecoveryImgPartitionType;
+		}
+		else
+		{
+			DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
+			PartitionType = &BootImgPartitionType;
+		}
+
 		Status = LoadLinux(PartitionType);
 		if (Status != EFI_SUCCESS)
 		{
-			DEBUG((EFI_D_ERROR, "Launching fastboot\n"));
-			CHAR8* argv[] = {"fv2:Fastboot"};
-			Status = BdsStartCmd(sizeof(argv)/sizeof(*argv), argv);
-			if (EFI_ERROR(Status))
-			{
-				DEBUG((EFI_D_ERROR, "Failed to Launch Fastboot App: %d\n", Status));
-				return Status;
-			}
+			DEBUG((EFI_D_ERROR, "Failed to boot Linux\n"));
+			return Status;
 		}
 	}
+
+	DEBUG((EFI_D_INFO, "Launching fastboot\n"));
+	Status = BdsStartCmd(sizeof(Fastboot)/sizeof(*Fastboot), Fastboot);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Failed to Launch Fastboot App: %d\n", Status));
+		return Status;
+	}
+
 	return Status;
 }
