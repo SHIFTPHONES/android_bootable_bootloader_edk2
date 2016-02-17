@@ -98,7 +98,7 @@ STATIC UINT8 *mDataBuffer = NULL;
 
 STATIC struct StoragePartInfo       Ptable[MAX_LUNS];
 STATIC UINT32 MaxLuns;
-STATIC INT32 Lun = -1;
+STATIC INT32 Lun = NO_LUN;
 STATIC BOOLEAN LunSet;
 
 STATIC FASTBOOT_CMD *cmdlist;
@@ -241,6 +241,8 @@ EnumeratePartitions ()
 							gEfiUfsLU7Guid,
 						  };
 
+	SetMem((VOID*) Ptable, (sizeof(struct StoragePartInfo) * MAX_LUNS), 0);
+
 	/* By default look for emmc partitions if not found look for UFS */
 	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
 
@@ -291,6 +293,41 @@ EnumeratePartitions ()
 }
 
 EFI_STATUS
+PartitionDump ()
+{
+	EFI_STATUS Status;
+	BOOLEAN                  PartitionFound = FALSE;
+	CHAR8                    PartitionNameAscii[MAX_GPT_NAME_SIZE];
+	EFI_PARTITION_ENTRY     *PartEntry;
+	UINT16                   i;
+	UINT32                   j;
+	/* By default the LunStart and LunEnd would point to '0' and max value */
+	UINT32 LunStart = 0;
+	UINT32 LunEnd = MaxLuns;
+
+	/* If Lun is set in the Handle flash command then find the block io for that lun */
+	if (LunSet)
+	{
+		LunStart = Lun;
+		LunEnd = Lun + 1;
+	}
+	for (i = LunStart; i < LunEnd; i++)
+	{
+		for (j = 0; j < Ptable[i].MaxHandles; j++)
+		{
+			Status = gBS->HandleProtocol(Ptable[i].HandleInfoList[j].Handle, &gEfiPartitionRecordGuid, (VOID **)&PartEntry);
+			if (EFI_ERROR (Status))
+			{
+				DEBUG((EFI_D_VERBOSE, "Error getting the partition record for Lun %d and Handle: %d : %r\n", i, j,Status));
+				continue;
+			}
+			UnicodeStrToAsciiStr(PartEntry->PartitionName, PartitionNameAscii);
+			DEBUG((EFI_D_INFO, "Name:[%a] StartLba: %u EndLba:%u\n", PartitionNameAscii, PartEntry->StartingLBA, PartEntry->EndingLBA));
+		}
+	}
+}
+
+EFI_STATUS
 PartitionGetInfo (
   IN CHAR8  *PartitionName,
   OUT EFI_BLOCK_IO_PROTOCOL **BlockIo,
@@ -320,7 +357,7 @@ PartitionGetInfo (
 			Status = gBS->HandleProtocol(Ptable[i].HandleInfoList[j].Handle, &gEfiPartitionRecordGuid, (VOID **)&PartEntry);
 			if (EFI_ERROR (Status))
 			{
-			continue;
+				continue;
 			}
 			UnicodeStrToAsciiStr(PartEntry->PartitionName, PartitionNameAscii);
 			if (!(AsciiStrCmp (PartitionName, PartitionNameAscii)))
@@ -636,12 +673,6 @@ HandleRawImgFlash(
 	UINTN                    PartitionSize;
 	EFI_HANDLE *Handle = NULL;
 
-	if (!AsciiStrCmp(PartitionName, "partition"))
-	{
-		DEBUG((EFI_D_ERROR, "Attempting to update partition table"));
-		return EFI_UNSUPPORTED;
-	}
-
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
 		return Status;
@@ -773,6 +804,11 @@ STATIC VOID CmdDownload(
 	DEBUG((EFI_D_VERBOSE, "CmdDownload: Send 12 %a\n", GetFastbootDeviceData().gTxBuffer));
 }
 
+/*  Function needed for event notification callback */
+VOID BlockIoCallback(IN EFI_EVENT Event,IN VOID *Context)
+{
+}
+
 /* Handle Flash Command */
 STATIC VOID CmdFlash(
 	IN CONST CHAR8 *arg,
@@ -785,8 +821,12 @@ STATIC VOID CmdFlash(
 	meta_header_t   *meta_header;
 	CHAR8 *PartitionName = (CHAR8 *)arg;
 	CHAR8 *Token = NULL;
-	UINT32 Len = 0;
+	INTN Len = -1;
 	LunSet = FALSE;
+	EFI_EVENT gBlockIoRefreshEvt;
+	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
+					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
+
 
 	if (mDataBuffer == NULL)
 	{
@@ -797,7 +837,6 @@ STATIC VOID CmdFlash(
 
 	/* Find the lun number from input string */
 	Token = AsciiStrStr(arg, ":");
-	DEBUG((EFI_D_ERROR, "Token is : %a\n", Token));
 
 	if (Token)
 	{
@@ -819,18 +858,47 @@ STATIC VOID CmdFlash(
 
 	if (!AsciiStrCmp(PartitionName, "partition"))
 	{
-		DEBUG((EFI_D_WARN, "Attemping to update partition table\n"));
-		//Status = UpdatePartitionTable(arg, sz, Lun, Ptable);
+		DEBUG((EFI_D_INFO, "Attemping to update partition table\n"));
+		DEBUG((EFI_D_INFO, "*************** Current partition Table Dump Start *******************\n"));
+		PartitionDump();
+		DEBUG((EFI_D_INFO, "*************** Current partition Table Dump End   *******************\n"));
+		Status = UpdatePartitionTable(data, sz, Lun, Ptable);
 		/* Signal the Block IO to updae and reenumerate the parition table */
 		if (Status == EFI_SUCCESS)
-			Status = EnumeratePartitions();
-		if (EFI_ERROR(Status))
 		{
-			FastbootFail("Partition table update failed\n");
+			Status = gBS->CreateEventEx(EVT_NOTIFY_SIGNAL,
+						                TPL_CALLBACK, BlockIoCallback, NULL,
+						                &gBlockIoRefreshGuid, &gBlockIoRefreshEvt);
+			if (Status != EFI_SUCCESS)
+			{
+				DEBUG((EFI_D_ERROR, "Error Creating event for Block Io refresh:%x\n", Status));
+				FastbootFail("Failed to update partition Table\n");
+				goto out;
+			}
+			Status = gBS->SignalEvent(gBlockIoRefreshEvt);
+			if (Status != EFI_SUCCESS)
+			{
+				DEBUG((EFI_D_ERROR, "Error Signalling event for Block Io refresh:%x\n", Status));
+				FastbootFail("Failed to update partition Table\n");
+				goto out;
+			}
+			Status = EnumeratePartitions();
+			if (EFI_ERROR(Status))
+			{
+				FastbootFail("Partition table update failed\n");
+				goto out;
+			}
+			DEBUG((EFI_D_INFO, "*************** New partition Table Dump Start *******************\n"));
+			PartitionDump();
+			DEBUG((EFI_D_INFO, "*************** New partition Table Dump End   *******************\n"));
+			FastbootOkay("");
 			goto out;
 		}
-		FastbootOkay("");
-		goto out;
+		else
+		{
+			FastbootFail("Error Updating partition Table\n");
+			goto out;
+		}
 	}
 	sparse_header = (sparse_header_t *) mDataBuffer;
 	meta_header   = (meta_header_t *) mDataBuffer;

@@ -231,7 +231,7 @@ ProcessBulkXfrCompleteTx(
   // Switch on the transfer status
   switch (Uto->Status) {
     case UsbDeviceTransferStatusCompleteOK:
-      DEBUG((EFI_D_ERROR, "UsbDeviceTransferStatusCompleteOK\n"));
+      DEBUG((EFI_D_VERBOSE, "UsbDeviceTransferStatusCompleteOK\n"));
       /* Just Queue the next recieve, must be a Command */
       Status = Fbd.UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize() , Fbd.gRxBuffer);
       break;
