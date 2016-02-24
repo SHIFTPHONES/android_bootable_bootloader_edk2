@@ -83,6 +83,7 @@
 [BuildOptions.AARCH64]
   GCC:*_*_AARCH64_ARCHCC_FLAGS  == -mtune=cortex-a53 -w
   GCC:*_*_AARCH64_ARCHPP_FLAGS  ==
+  GCC:*_*_AARCH64_DLINK_FLAGS = -Ttext=0x0
 
 [PcdsFixedAtBuild.common]
 
