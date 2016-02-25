@@ -142,6 +142,14 @@ FastbootUsbDeviceStart(VOID)
     return Status;
   }
 
+  /* Register fastboot commands, allocate usb buffer*/
+  Status = FastbootCmdsInit();
+  if (Status  != EFI_SUCCESS)
+  {
+    DEBUG((EFI_D_ERROR, "couldnt init fastboot , exiting"));
+    return Status;
+  }
+
   /* Build the descriptor for fastboot */
   BuildDefaultDescriptors(&DevDesc, &Descriptors, &SSDevDesc, &SSDescriptors);
 
@@ -204,7 +212,10 @@ ProcessBulkXfrCompleteRx(
   switch (Uto->Status) 
   {
     case UsbDeviceTransferStatusCompleteOK:
-      DataReady(Uto->BytesCompleted, Fbd.gRxBuffer);
+      if (FastbootCurrentState() == ExpectDataState)
+        DataReady(Uto->BytesCompleted, FastbootDloadBuffer());
+      else
+        DataReady(Uto->BytesCompleted, Fbd.gRxBuffer);
       break;
 
     case UsbDeviceTransferStatusCancelled:
@@ -233,7 +244,10 @@ ProcessBulkXfrCompleteTx(
     case UsbDeviceTransferStatusCompleteOK:
       DEBUG((EFI_D_VERBOSE, "UsbDeviceTransferStatusCompleteOK\n"));
       /* Just Queue the next recieve, must be a Command */
-      Status = Fbd.UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize() , Fbd.gRxBuffer);
+      if (FastbootCurrentState() == ExpectDataState)
+         Status = Fbd.UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize(), FastbootDloadBuffer());
+      else
+         Status = Fbd.UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize() , Fbd.gRxBuffer);
       break;
 
     case UsbDeviceTransferStatusCancelled:
@@ -307,13 +321,6 @@ FastbootAppEntryPoint(
 {
   EFI_STATUS                      Status     = EFI_SUCCESS;
 
-  /* Any fastboot initiazation if needed */
-  Status = FastbootAppInit();
-  if (Status  != EFI_SUCCESS)
-  {
-    DEBUG((EFI_D_ERROR, "couldnt init fastboot , exiting"));
-    return Status;
-  }
   /* Start the USB device enumeration */
   Status = FastbootUsbDeviceStart();
   if (Status  != EFI_SUCCESS)
@@ -335,7 +342,7 @@ FastbootAppEntryPoint(
   }
 
   /* Close the fastboot app and stop USB device */
-  Status = FastbootAppUnInit();
+  Status = FastbootCmdsUnInit();
   if (Status  != EFI_SUCCESS)
   {
     DEBUG((EFI_D_ERROR, "couldnt uninit fastboot\n"));

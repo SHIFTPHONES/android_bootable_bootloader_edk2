@@ -49,7 +49,7 @@
 #define MAX_NUM_PARTITIONS      128
 #define ERASE_BUFF_SIZE         256*1024
 #define ERASE_BUFF_BLOCKS       256*2
-#define USB_BUFFER_SIZE         1024*1024
+#define USB_BUFFER_SIZE         1024*1024*16
 #define VERSION_STR_LEN         96
 #define MAX_LUNS                8
 #define NO_LUN                  -1
@@ -133,15 +133,20 @@ VOID FastbootFail(CONST CHAR8 *reason);
 
 /* Initializes the Fastboot App */
 EFI_STATUS
-FastbootAppInit ( VOID );
+FastbootCmdsInit ( VOID );
 
 /* Uninitializes the Fastboot App */
 EFI_STATUS
-FastbootAppUnInit( VOID );
+FastbootCmdsUnInit( VOID );
   
 /* Called when a message/download data passed to the app */
 VOID DataReady (IN UINTN Size, IN VOID *Data);
 
 BOOLEAN FastbootFatal();
 EFI_STATUS PartitionDump();
+
+VOID *FastbootDloadBuffer();
+
+ANDROID_FASTBOOT_STATE FastbootCurrentState();
+
 #endif
