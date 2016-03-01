@@ -34,6 +34,7 @@
 #include "BootLinux.h"
 #include "KeyPad.h"
 #include <Library/MemoryAllocationLib.h>
+#include "BootStats.h"
 
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
@@ -103,7 +104,9 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	ImageBuffer = AllocateAlignedPages (ImageSize / 4096, 4096);
 	ASSERT(ImageBuffer);
 
+	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
 	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, PartitionType);
+	BootStatsSetTimeStamp(BS_KERNEL_LOAD_DONE);
 
 	if (Status != EFI_SUCCESS)
 	{
@@ -169,6 +172,8 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	UINTN i;
 	CHAR8 pname[MAX_PNAME_LENGTH];
 	DEBUG((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
+
+	BootStatsSetTimeStamp(BS_BL_START);
 
 	// Initialize verified boot & Read Device Info
 	Status = ReadWriteDeviceInfo(READ_CONFIG, &DevInfo, sizeof(DevInfo));

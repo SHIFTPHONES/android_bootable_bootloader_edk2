@@ -32,6 +32,7 @@
 
 
 #include "BootLinux.h"
+#include "BootStats.h"
 
 VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR8 *pname)
 {
@@ -165,6 +166,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 	Status = PreparePlatformHardware ();
 	ASSERT_EFI_ERROR(Status);
 
+	BootStatsSetTimeStamp(BS_KERNEL_ENTRY);
 	//
 	// Start the Linux Kernel
 	//

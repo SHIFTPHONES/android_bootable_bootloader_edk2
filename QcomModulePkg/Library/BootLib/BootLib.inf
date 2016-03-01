@@ -50,6 +50,7 @@
 	UpdateCmdLine.c
 	KeyPad.c
 	Recovery.c
+	BootStats.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
