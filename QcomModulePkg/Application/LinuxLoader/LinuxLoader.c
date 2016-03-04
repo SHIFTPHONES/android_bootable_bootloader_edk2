@@ -179,15 +179,18 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	// Check for keys
 	Status = GetKeyPress(&KeyPressed);
-	if (Status != EFI_SUCCESS)
+	if (Status == EFI_SUCCESS)
 	{
-		DEBUG((EFI_D_ERROR, "Error reading key status\n"));
+		if (KeyPressed == SCAN_DOWN)
+			BootIntoFastboot = TRUE;
+		if (KeyPressed == SCAN_UP)
+			BootIntoRecovery = TRUE;
+	}
+	else if (Status == EFI_DEVICE_ERROR)
+	{
+		DEBUG((EFI_D_ERROR, "Error reading key status: %r\n", Status));
 		return Status;
 	}
-	if (KeyPressed == SCAN_DOWN)
-		BootIntoFastboot = TRUE;
-	if (KeyPressed == SCAN_UP)
-		BootIntoRecovery = TRUE;
 
 	// check for reboot mode
 	BootReason = GetRebootReason(); //Substitue the function with real api
