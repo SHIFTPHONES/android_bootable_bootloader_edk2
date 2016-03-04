@@ -83,7 +83,7 @@ int decompress(unsigned char *in_buf, unsigned int in_len,
 		return rc;
 	}
 	if (out_buf_len < in_len) {
-		DEBUG((EFI_D_ERROR, "the available length of out_buf is not enough.\n"));
+		DEBUG((EFI_D_ERROR, "the available length: %u of out_buf is not enough, need %u.\n", out_buf_len, in_len));
 		return rc;
 	}
 
