@@ -50,16 +50,13 @@ EFI_STATUS GetKeyPress(UINT32 *KeyPressed)
 
 	Status = InputEx->ReadKeyStrokeEx (InputEx, &KeyData);
 	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Error reading the key press: %x\n", Status));
-		return EFI_DEVICE_ERROR;
-	}
+		return Status;
 
 	DEBUG((EFI_D_VERBOSE,"Key Stroke Read\n"));
 	DEBUG((EFI_D_VERBOSE, "ScanCode = (0x%x), UnicodeChar =(0x%x)\n",
-                  KeyData.Key.ScanCode, KeyData.Key.UnicodeChar));
+			               KeyData.Key.ScanCode, KeyData.Key.UnicodeChar));
 	DEBUG((EFI_D_VERBOSE, "ShiftState=(0x%x), ToggleState==(0x%x)\n",
-                  KeyData.KeyState.KeyShiftState, KeyData.KeyState.KeyToggleState ));
+			               KeyData.KeyState.KeyShiftState, KeyData.KeyState.KeyToggleState ));
 
 	Status = InputEx->Reset(InputEx, FALSE);
 	if (Status != EFI_SUCCESS)

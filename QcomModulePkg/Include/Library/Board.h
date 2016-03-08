@@ -67,4 +67,5 @@ EFIChipInfoFoundryIdType BoardPlatformFoundryId();
 EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
 UINT32 BoardPlatformVersion();
 UINT32 BoardPlatormSubType();
+UINT32 BoardTargetId();
 #endif

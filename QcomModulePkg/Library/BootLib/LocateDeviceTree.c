@@ -380,17 +380,17 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	if (best_match_dt_entry){
 		bestmatch_tag = (VOID *)best_match_dt_entry->offset;
 		bestmatch_tag_size = best_match_dt_entry->size;
-		AsciiPrint("Best match DTB tags %u/%08x/0x%08x/%x/%x/%x/%x/%x/%x/%x\n",
+		DEBUG((EFI_D_INFO,"Best match DTB tags %u/%08x/0x%08x/%x/%x/%x/%x/%x/(offset)0x%08x/(size)0x%08x\n",
 				best_match_dt_entry->platform_id, best_match_dt_entry->variant_id,
 				best_match_dt_entry->board_hw_subtype, best_match_dt_entry->soc_rev,
 				best_match_dt_entry->pmic_rev[0], best_match_dt_entry->pmic_rev[1],
 				best_match_dt_entry->pmic_rev[2], best_match_dt_entry->pmic_rev[3],
-				best_match_dt_entry->offset, best_match_dt_entry->size);
-		AsciiPrint("Using pmic info 0x%0x/0x%x/0x%x/0x%0x for device 0x%0x/0x%x/0x%x/0x%0x\n",
+				best_match_dt_entry->offset, best_match_dt_entry->size));
+		DEBUG((EFI_D_INFO, "Using pmic info 0x%0x/0x%x/0x%x/0x%0x for device 0x%0x/0x%x/0x%x/0x%0x\n",
 				best_match_dt_entry->pmic_rev[0], best_match_dt_entry->pmic_rev[1],
 				best_match_dt_entry->pmic_rev[2], best_match_dt_entry->pmic_rev[3],
 				BoardPmicTarget(0), BoardPmicTarget(1),
-				BoardPmicTarget(2), BoardPmicTarget(3));
+				BoardPmicTarget(2), BoardPmicTarget(3)));
 	}
 	/* free queue's memory */
 	list_for_every_entry(&dt_entry_queue->node, dt_node_tmp1, dt_node, node) {
@@ -456,7 +456,6 @@ int DeviceTreeValidate (UINT8* DeviceTreeBuff, UINT32 PageSize, UINT32* DeviceTr
 
 STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_entry_node *dt_list)
 {
-	UINT32 cur_dt_hlos_ddr;
 	UINT32 cur_dt_hw_platform;
 	UINT32 cur_dt_hw_subtype;
 	UINT32 cur_dt_msm_id;
@@ -470,9 +469,6 @@ STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_e
 	cur_dt_hw_platform = (cur_dt_entry->variant_id & 0x000000ff);
 	cur_dt_hw_subtype = (cur_dt_entry->board_hw_subtype & 0xff);
 
-	/* Determine the bits 10:8 to check the DT with the DDR Size */
-	cur_dt_hlos_ddr = (cur_dt_entry->board_hw_subtype & 0x700);
-
 	/* 1. must match the msm_id, platform_hw_id, platform_subtype and DDR size
 	 *  soc, board major/minor, pmic major/minor must less than board info
 	 *  2. find the matched DTB then return 1
@@ -482,9 +478,8 @@ STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_e
 	if((cur_dt_msm_id == (BoardPlatformRawChipId() & 0x0000ffff)) &&
 			(cur_dt_hw_platform == BoardPlatformType()) &&
 			(cur_dt_hw_subtype == BoardPlatformSubType()) &&
-			(cur_dt_hlos_ddr == (0x0 & 0x700)) &&
 			(cur_dt_entry->soc_rev <= BoardPlatformChipVersion()) &&
-			((cur_dt_entry->variant_id & 0x00ffff00) <= (0x10008 & 0x00ffff00)) &&
+			((cur_dt_entry->variant_id & 0x00ffff00) <= (BoardTargetId() & 0x00ffff00)) &&
 			((cur_dt_entry->pmic_rev[0] & 0x00ffff00) <= (BoardPmicTarget(0) & 0x00ffff00)) &&
 			((cur_dt_entry->pmic_rev[1] & 0x00ffff00) <= (BoardPmicTarget(1) & 0x00ffff00)) &&
 			((cur_dt_entry->pmic_rev[2] & 0x00ffff00) <= (BoardPmicTarget(2) & 0x00ffff00)) &&
@@ -536,20 +531,7 @@ int platform_dt_absolute_compat_match(struct dt_entry_node *dt_list, UINT32 dtb_
 				for (i = 0; i < 4; i++) {
 					current_pmic_model[i] = (dt_node_tmp1->dt_entry_m->pmic_rev[i] & 0xff);
 					board_pmic_model[i] = BoardPmicModel(i);
-					// 8998 hacks
-					//current_pmic_model[i] = 0; //(dt_node_tmp1->dt_entry_m->pmic_rev[i] & 0xff);
-					//board_pmic_model[i] = 0; //BoardPmicModel(i);
 				}
-				break;
-			case DTB_PANEL_TYPE:
-				current_info = ((dt_node_tmp1->dt_entry_m->board_hw_subtype) & 0x1800);
-				board_info = 0;
-				//board_info = (target_get_hlos_subtype() & 0x1800);
-				break;
-			case DTB_BOOT_DEVICE:
-				current_info = ((dt_node_tmp1->dt_entry_m->board_hw_subtype) & 0xf0000);
-				board_info = 0x0;
-				//board_info = (target_get_hlos_subtype() & 0xf0000);
 				break;
 			default:
 				DEBUG((EFI_D_ERROR, "ERROR: Unsupported version (%d) in dt node check \n",
@@ -588,15 +570,7 @@ int platform_dt_absolute_compat_match(struct dt_entry_node *dt_list, UINT32 dtb_
 			case DTB_PMIC_MODEL:
 				for (i = 0; i < 4; i++) {
 					current_pmic_model[i] = (dt_node_tmp1->dt_entry_m->pmic_rev[i] & 0xff);
-					// 8998 hacks
-					//current_pmic_model[i] = 0; //(dt_node_tmp1->dt_entry_m->pmic_rev[i] & 0xff);
 				}
-				break;
-			case DTB_PANEL_TYPE:
-				current_info = ((dt_node_tmp1->dt_entry_m->board_hw_subtype) & 0x1800);
-				break;
-			case DTB_BOOT_DEVICE:
-				current_info = ((dt_node_tmp1->dt_entry_m->board_hw_subtype) & 0xf0000);
 				break;
 			default:
 				DEBUG((EFI_D_ERROR, "ERROR: Unsupported version (%d) in dt node check \n",
@@ -659,19 +633,19 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 				board_info = BoardPlatformType();
 				break;
 			case DTB_PMIC0:
-				current_info =((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00); // = 0; for 8998
+				current_info =((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00);
 				board_info = BoardPmicTarget(0) & 0x00ffff00;
 				break;
 			case DTB_PMIC1:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[1]) & 0x00ffff00); // = 0 for 8998
+				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[1]) & 0x00ffff00);
 				board_info = BoardPmicTarget(1) & 0x00ffff00;
 				break;
 			case DTB_PMIC2:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[2]) & 0x00ffff00);  // = 0 for 8998
+				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[2]) & 0x00ffff00);
 				board_info = BoardPmicTarget(2) & 0x00ffff00;
 				break;
 			case DTB_PMIC3:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[3]) & 0x00ffff00);  // = 0 for 8998
+				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[3]) & 0x00ffff00);
 				board_info = BoardPmicTarget(3) & 0x00ffff00;
 				break;
 			default:
@@ -763,20 +737,6 @@ STATIC struct dt_entry *platform_dt_match_best(struct dt_entry_node *dt_list)
 	 * if couldn't find the exact match from DTB, will exact match 0x0.
 	 */
 	if (!platform_dt_absolute_compat_match(dt_list, DTB_PMIC_MODEL))
-		return NULL;
-
-	/* check panel type
-	 * the panel  type must exact match board panel type, this is compatibility check,
-	 * if couldn't find the exact match from DTB, will exact match 0x0.
-	 */
-	if (!platform_dt_absolute_compat_match(dt_list, DTB_PANEL_TYPE))
-		return NULL;
-
-	/* check boot device subtype
-	 * the boot device subtype must exact match board boot device subtype, this is compatibility check,
-	 * if couldn't find the exact match from DTB, will exact match 0x0.
-	 */
-	if (!platform_dt_absolute_compat_match(dt_list, DTB_BOOT_DEVICE))
 		return NULL;
 
 	/* check soc version

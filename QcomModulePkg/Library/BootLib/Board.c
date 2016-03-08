@@ -123,7 +123,6 @@ STATIC EFI_STATUS GetPlatformInfo(struct BoardInfo *platform_board_info)
 		goto endtest;
 	}
 
-	//AsciiPrint ("Version:  %d.%d\n", PlatformInfo.version >> 16, PlatformInfo.version & 0xFFFF);
 
 endtest:
 	return eResult;
@@ -136,28 +135,47 @@ STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *p
 	Status = gBS->LocateProtocol (&gQcomPmicVersionProtocolGuid, NULL,
 			(VOID **) &pPmicVersionProtocol);
 	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error locating pmic protocol: %r\n", Status));
 		return Status;
+	}
 	Status = pPmicVersionProtocol->GetPmicInfo(PmicDeviceIndex, pmic_info);
 	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error getting pmic info: %r\n", Status));
 		return Status;
+	}
 	return Status;
 }
 
 UINT32 BoardPmicModel(UINT32 PmicDeviceIndex)
 {
+	EFI_STATUS Status;
 	EFI_PM_DEVICE_INFO_TYPE pmic_info;
-	GetPmicInfo(PmicDeviceIndex, &pmic_info);
-	DEBUG((EFI_D_WARN, "PMIC Model 0x%x: 0x%x\n", PmicDeviceIndex, pmic_info.PmicModel));
+	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error getting pmic model info: %r\n", Status));
+		ASSERT(0);
+	}
+	DEBUG((EFI_D_VERBOSE, "PMIC Model 0x%x: 0x%x\n", PmicDeviceIndex, pmic_info.PmicModel));
 	return pmic_info.PmicModel;
 }
 
 UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex)
 {
 	UINT32 target;
+	EFI_STATUS Status;
+
 	EFI_PM_DEVICE_INFO_TYPE pmic_info;
-	GetPmicInfo(PmicDeviceIndex, &pmic_info);
+	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error finding board pmic info: %r\n", Status));
+		ASSERT(0);
+	}
 	target = (pmic_info.PmicAllLayerRevision << 16) | pmic_info.PmicModel;
-	DEBUG((EFI_D_WARN, "PMIC Target 0x%x: 0x%x\n", PmicDeviceIndex, target));
+	DEBUG((EFI_D_VERBOSE, "PMIC Target 0x%x: 0x%x\n", PmicDeviceIndex, target));
 	return target;
 }
 
@@ -266,4 +284,16 @@ UINT32 BoardPlatformVersion()
 UINT32 BoardPlatformSubType()
 {
 	return platform_board_info.PlatformInfo.subtype;
+}
+
+UINT32 BoardTargetId()
+{
+	UINT32 Target;
+
+	Target = (((platform_board_info.PlatformInfo.subtype & 0xff) << 24) |
+			 (((platform_board_info.PlatformInfo.version >> 16) & 0xff) << 16) |
+			 ((platform_board_info.PlatformInfo.version & 0xff) << 8) |
+			 (platform_board_info.PlatformInfo.platform & 0xff));
+
+	return Target;
 }
