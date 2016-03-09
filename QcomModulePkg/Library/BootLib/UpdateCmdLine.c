@@ -34,10 +34,11 @@
 #include "UpdateCmdLine.h"
 #include <Library/PrintLib.h>
 #include <Protocol/EFICardInfo.h>
+#include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/Print2.h>
 #include <DeviceInfo.h>
 
-STATIC CONST CHAR8 *emmc_cmdline = " androidboot.bootdevice=7464900.sdhci";
+STATIC CONST CHAR8 *bootdev_cmdline = " androidboot.bootdevice=1DA4000.ufshc";
 STATIC CONST CHAR8 *usb_sn_cmdline = " androidboot.serialno=";
 STATIC CONST CHAR8 *androidboot_mode = " androidboot.mode=";
 STATIC CONST CHAR8 *loglevel         = " quite";
@@ -57,7 +58,6 @@ STATIC CHAR8 *baseband_dsda2   = " androidboot.baseband=dsda2";
 STATIC CHAR8 *baseband_sglte2  = " androidboot.baseband=sglte2";
 
 STATIC CHAR8 *display = " mdss_mdp.panel=1:dsi:0:qcom,mdss_dsi_sharp_wqxga_video:1:qcom,mdss_dsi_sharp_wqxga_video:cfg:split_dsi";
-//STATIC CHAR8 *misc = "sched_enable_hmp=1 sched_enable_power_aware=1"; // earlycon=msm_hsl_uart,0xc1b0000";
 
 /* Assuming unauthorized kernel image by default */
 STATIC INT32 auth_kernel_img = 0;
@@ -88,13 +88,6 @@ BOOLEAN get_ffbm(CHAR8 *ffbm, UINT32 size)
 	return 0;
 }
 
-/*Function that returns whether the boot is emmc boot
- *Assumes always eMMC boot, hard-coded to return 1*/
-INT32 target_is_emmc_boot(VOID)
-{
-	return 1;
-}
-
 /*Function that returns whether the kernel is signed
  *Currently assumed to be signed*/
 BOOLEAN target_use_signed_kernel(VOID)
@@ -104,11 +97,23 @@ BOOLEAN target_use_signed_kernel(VOID)
 
 /*Determine correct androidboot.baseband to use
  *Currently assumed to always be MSM*/
-UINT32 target_baseband()
+STATIC UINT32 TargetBaseBand()
 {
-	return BASEBAND_MSM;
-}
+	UINT32 Baseband;
+	UINT32 Platform = BoardPlatformRawChipId();
 
+	switch(Platform)
+	{
+		case EFICHIPINFO_ID_MSMCOBALT:
+			Baseband = BASEBAND_MSM;
+			break;
+		default:
+			DEBUG((EFI_D_ERROR, "Unsupported platform: %u\n", Platform));
+			ASSERT(0);
+	};
+
+	return Baseband;
+}
 
 /*Determines whether to pause for batter charge,
  *Serves only performance purposes, defaults to return zero*/
@@ -158,10 +163,8 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline)
 	}
 	cmdline_len += AsciiStrLen(verity_mode) + AsciiStrLen(vbvm[device.verity_mode]);
 #endif
-	if (target_is_emmc_boot())
-	{
-		cmdline_len += AsciiStrLen(emmc_cmdline);
-	}
+
+	cmdline_len += AsciiStrLen(bootdev_cmdline);
 
 	cmdline_len += AsciiStrLen(usb_sn_cmdline);
 	cmdline_len += AsciiStrLen(StrSerialNum);
@@ -185,7 +188,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline)
 	}
 
 	/* Determine correct androidboot.baseband to use */
-	switch(target_baseband())
+	switch(TargetBaseBand())
 	{
 		case BASEBAND_APQ:
 			cmdline_len += AsciiStrLen(baseband_apq);
@@ -243,13 +246,11 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline)
 			src = cmdline;
 			STR_COPY(dst,src);
 		}
-		if (target_is_emmc_boot())
-		{
-			src = emmc_cmdline;
-			if (have_cmdline) --dst;
-			have_cmdline = 1;
-			STR_COPY(dst,src);
-		}
+
+		src = bootdev_cmdline;
+		if (have_cmdline) --dst;
+		have_cmdline = 1;
+		STR_COPY(dst,src);
 
 		src = usb_sn_cmdline;
 		if (have_cmdline) --dst;
@@ -287,7 +288,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline)
 			STR_COPY(dst,src);
 		}
 
-		switch(target_baseband())
+		switch(TargetBaseBand())
 		{
 			case BASEBAND_APQ:
 				src = baseband_apq;
