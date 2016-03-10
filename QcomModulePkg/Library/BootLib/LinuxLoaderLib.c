@@ -354,7 +354,7 @@ EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUI
 
 **/
 EFI_STATUS
-BdsStartCmd (
+LaunchApp (
   IN UINTN  Argc,
   IN CHAR8  **Argv
   )

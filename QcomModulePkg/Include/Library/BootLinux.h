@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -75,5 +75,5 @@ typedef VOID (*LINUX_KERNEL)(UINTN ParametersBase, UINTN Reserved0, UINTN Reserv
 
 VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device);
 
-EFI_STATUS BdsStartCmd(IN UINTN  Argc, IN CHAR8  **Argv);
+EFI_STATUS LaunchApp(IN UINTN  Argc, IN CHAR8  **Argv);
 #endif
