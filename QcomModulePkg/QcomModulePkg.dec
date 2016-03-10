@@ -96,3 +96,4 @@
   gQcomTokenSpaceGuid.KernelLoadAddress|0x00080000|UINT32|0x00015000
   gQcomTokenSpaceGuid.TagsAddress|0x01E00000|UINT32|0x00015001
   gQcomTokenSpaceGuid.RamdiskLoadAddress|0x02200000|UINT32|0x00015002
+  gQcomTokenSpaceGuid.EnablePartialGoods|TRUE|BOOLEAN|0x00015003

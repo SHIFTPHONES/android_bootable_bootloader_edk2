@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -37,9 +37,34 @@
 #include <Protocol/EFIRamPartition.h>
 #include <Library/UefiBootServicesTableLib.h>
 
+#define DTB_MAX_SUBNODE                128
+#define ARRAY_SIZE(a)                  sizeof(a)/sizeof(*a)
+
+enum property_type
+{
+	DEVICE_TYPE = 1,
+	STATUS_TYPE,
+};
+
+/* Sub node name, property pair */
+struct SubNodeList
+{
+	CONST CHAR8 *SubNode;    /* Subnode name */
+	CONST CHAR8 *Property;   /* Property name */
+};
+
+/* Look up table for partial goods */
+struct PartialGoods
+{
+	UINT32 Val; /* Value for the defect */
+	CONST CHAR8 *ParentNode; /* Parent Node name*/
+	struct SubNodeList SubNode[DTB_MAX_SUBNODE]; /* Sub node name list*/
+};
+
 INTN dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
 
 INTN dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
 
 EFI_STATUS UpdateDeviceTree(VOID* fdt, CONST CHAR8* cmdline, VOID* ramdisk,	UINT32 ramdisk_size);
+EFI_STATUS UpdatePartialGoodsNode(VOID *fdt);
 #endif

@@ -90,11 +90,6 @@
 	gEfiPartitionRecordGuid
 
 [FixedPcd]
-	gArmTokenSpaceGuid.PcdSystemMemoryBase
-	gArmTokenSpaceGuid.PcdSystemMemorySize
-	gQcomTokenSpaceGuid.KernelLoadAddress
-	gQcomTokenSpaceGuid.TagsAddress
-	gQcomTokenSpaceGuid.RamdiskLoadAddress
 
 [Depex]
 	TRUE
