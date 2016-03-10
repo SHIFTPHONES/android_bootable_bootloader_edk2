@@ -40,7 +40,7 @@ EFI_USB_DEVICE_DESCRIPTOR
 DeviceDescriptor = {
   sizeof(EFI_USB_DEVICE_DESCRIPTOR),  // uint8  bLength;
   USB_DESC_TYPE_DEVICE,               // uint8  bDescriptorType;
-  0x0200,                             // uint16 bcdUSB;
+  0x0210,                             // uint16 bcdUSB;
   0x00,                               // uint8  bDeviceClass;
   0x00,                               // uint8  bDeviceSubClass;
   0x00,                               // uint8  bDeviceProtocol;
@@ -54,6 +54,24 @@ DeviceDescriptor = {
   1                                   // uint8  bNumConfigurations;
 };
 
+STATIC
+EFI_USB_DEVICE_DESCRIPTOR
+SSDeviceDescriptor = {
+  sizeof(EFI_USB_DEVICE_DESCRIPTOR),  // uint8  bLength;
+  USB_DESC_TYPE_DEVICE,               // uint8  bDescriptorType;
+  0x0300,                             // uint16 bcdUSB;
+  0x00,                               // uint8  bDeviceClass;
+  0x00,                               // uint8  bDeviceSubClass;
+  0x00,                               // uint8  bDeviceProtocol;
+  9,                                  // uint8  bMaxPacketSize0;
+  FAST_BOOT_VENDOR,                   // uint16 idVendor;
+  FAST_BOOT_IDPRODUCT,                // uint16 idProduct;
+  0x100,                              // uint16 bcdDevice;
+  1,                                  // uint8  iManufacturer;
+  2,                                  // uint8  iProduct;
+  3,                                  // uint8  iSerialNumber;
+  1                                   // uint8  bNumConfigurations;
+};
 
 EFI_USB_DEVICE_QUALIFIER_DESCRIPTOR
 DeviceQualifier = {
@@ -66,6 +84,68 @@ DeviceQualifier = {
   64,                                           // uint8  bMaxPacketSize0;
   1,                                            // uint8  bNumConfigurations;
   0                                             // uint8  bReserved;
+};
+
+STATIC
+struct _SSCfgDescTree {
+  EFI_USB_CONFIG_DESCRIPTOR    ConfigDescriptor;
+  EFI_USB_INTERFACE_DESCRIPTOR InterfaceDescriptor;
+  EFI_USB_ENDPOINT_DESCRIPTOR  EndpointDescriptor0;
+  EFI_USB_SS_ENDPOINT_COMPANION_DESCRIPTOR EndpointCompanionDescriptor0;
+  EFI_USB_ENDPOINT_DESCRIPTOR  EndpointDescriptor1;
+  EFI_USB_SS_ENDPOINT_COMPANION_DESCRIPTOR EndpointCompanionDescriptor1;
+} TotalSSConfigDescriptor = {
+  {
+    sizeof(EFI_USB_CONFIG_DESCRIPTOR),      // uint8  bLength;
+    USB_DESC_TYPE_CONFIG,                   // uint8  bDescriptorType;
+    sizeof(TotalSSConfigDescriptor),        // uint16 wTotalLength;
+    1,                                      // uint8  bNumInterfaces;
+    1,                                      // uint8  bConfigurationValue;
+    0,                                      // uint8  iConfiguration;
+    0x80,                                   // uint8  bmAttributes;
+    0x10                                    // uint8  bMaxPower;
+  },
+  {
+    sizeof(EFI_USB_INTERFACE_DESCRIPTOR), // uint8  bLength;
+    USB_DESC_TYPE_INTERFACE,              // uint8  bDescriptorType;
+    0,                                    // uint8  bInterfaceNumber;
+    0,                                    // uint8  bAlternateSetting;
+    2,                                    // uint8  bNumEndpoints;
+    0xff,                                 // uint8  bInterfaceClass;
+    0x42,                                 // uint8  bInterfaceSubClass;
+    0x03,                                 // uint8  bInterfaceProtocol;
+    4
+  },
+  {
+    sizeof(EFI_USB_ENDPOINT_DESCRIPTOR), // uint8  bLength;
+    USB_DESC_TYPE_ENDPOINT,              // uint8  bDescriptorType;
+    ENDPOINT_ADDR(USBLB_BULK_EP, TRUE),  // uint8  bEndpointAddress;
+    USB_ENDPOINT_BULK,                   // uint8  bmAttributes;
+    1024,                                // uint16 wMaxPacketSize; SS=1024, HS=512 , FS=64
+    0                                    // uint8  bInterval;
+  },
+  {
+    sizeof(EFI_USB_SS_ENDPOINT_COMPANION_DESCRIPTOR), // uint8 bLength
+    USB_DESC_TYPE_SS_ENDPOINT_COMPANION,                      // uint8 bDescriptorType
+    4,                                                        // uint8 bMaxBurst,    0 => max burst 1
+    0,                                                        // uint8 bmAttributes, 0 => no stream
+    0,                                                        // uint8 wBytesPerInterval. Does not apply to BULK
+  },
+  {
+    sizeof(EFI_USB_ENDPOINT_DESCRIPTOR), // uint8  bLength;
+    USB_DESC_TYPE_ENDPOINT,              // uint8  bDescriptorType;
+    ENDPOINT_ADDR(USBLB_BULK_EP, FALSE), // uint8  bEndpointAddress;
+    USB_ENDPOINT_BULK,                   // uint8  bmAttributes;
+    1024,                                // uint16 wMaxPacketSize; SS=1024, HS=512 , FS=64
+    0                                    // uint8  bInterval;
+  },
+  {
+    sizeof(EFI_USB_SS_ENDPOINT_COMPANION_DESCRIPTOR), // uint8 bLength
+    USB_DESC_TYPE_SS_ENDPOINT_COMPANION,                      // uint8 bDescriptorType
+    4,                                                        // uint8 bMaxBurst,    0 => max burst 1
+    0,                                                        // uint8 bmAttributes, 0 => no stream
+    0,                                                        // uint8 wBytesPerInterval. Does not apply to BULK
+  }
 };
 
 #pragma pack(1)
@@ -182,10 +262,13 @@ EFI_USB_STRING_DESCRIPTOR *StrDescriptors[5]=
 VOID
 BuildDefaultDescriptors(
   OUT USB_DEVICE_DESCRIPTOR  **DevDesc,
-  OUT VOID                  **Descriptors)
+  OUT VOID                  **Descriptors,
+  OUT USB_DEVICE_DESCRIPTOR  **SSDevDesc,
+  OUT VOID                  **SSDescriptors)
 {
   UINT8                        Index = 0;
   UINT8                        NumCfg = 0; 
+  UINT8                        NumCfgSS = 0;
   CHAR8                        Str_UUID[64];
   UINT32                       i;
   EFI_STATUS                   Status;
@@ -205,17 +288,29 @@ BuildDefaultDescriptors(
   }
 
   *DevDesc = &DeviceDescriptor;
+  *SSDevDesc = &SSDeviceDescriptor;
   NumCfg   = DeviceDescriptor.NumConfigurations;
+  NumCfgSS   = SSDeviceDescriptor.NumConfigurations;
 
   *Descriptors = AllocatePool(NumCfg * sizeof (struct _CfgDescTree *));
   if (Descriptors == NULL)
   {
-    DEBUG ((EFI_D_ERROR, "Error Allocating memory for config descriptors\n"));
+    DEBUG ((EFI_D_ERROR, "Error Allocating memory for HS config descriptors\n"));
     return;
   }
 
+  *SSDescriptors = AllocatePool(NumCfg * sizeof (struct _SSCfgDescTree *));
+  if (SSDescriptors == NULL)
+  {
+    DEBUG ((EFI_D_ERROR, "Error Allocating memory for SS config descriptors\n"));
+    return;
+  }
   for (Index = 0; Index < NumCfg; Index++)
   {
     Descriptors[Index] = &TotalConfigDescriptor;
+  }
+  for (Index = 0; Index < NumCfg; Index++)
+  {
+    SSDescriptors[Index] = &TotalSSConfigDescriptor;
   }
 }
