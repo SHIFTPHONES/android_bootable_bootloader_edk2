@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,6 +30,7 @@
  * Function adds memory map entries to the device tree binary
  * dev_tree_add_mem_info() is called at every time when memory type matches conditions */
 
+#include <Protocol/EFIChipInfoTypes.h>
 #include "UpdateDeviceTree.h"
 
 #define DTB_PAD_SIZE          1024
@@ -244,4 +245,127 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	fdt_pack(fdt);
 
 	return ret;
+}
+
+/* Update device tree for partial goods */
+EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
+{
+	INTN i;
+	INTN ParentOffset = 0;
+	INTN SubNodeOffset = 0;
+	INTN Ret = 0;
+	INTN PropLen = 0;
+	UINT32 PartialGoodType = 0;
+	UINT32 PropType = 0;
+	struct SubNodeList *SList = NULL;
+	CONST struct fdt_property *Prop = NULL;
+	CHAR8* ReplaceStr = NULL;
+	struct PartialGoods *Table;
+	INTN TableSz;
+
+	if (BoardPlatformRawChipId() == EFICHIPINFO_ID_MSMCOBALT)
+	{
+		struct PartialGoods PlatformTable[] =
+		{
+			{0x1, "/cpus", {{"cpu@100", "device_type"},
+			                {"cpu@101", "device_type"},
+			                {"cpu@102", "device_type"},
+			                {"cpu@103", "device_type"},}},
+			{0x4, "/soc",   {{"qcom,mss", "status"},}},
+		};
+
+		Table = PlatformTable;
+		TableSz = ARRAY_SIZE(PlatformTable);
+
+		PartialGoodType = *(volatile UINT32 *)(0x78013C);
+	}
+
+	if (!PartialGoodType)
+		return EFI_SUCCESS;
+
+	Ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt));
+	if (Ret != 0)
+	{
+		DEBUG((EFI_D_ERROR, "Error loading the DTB buffer: %x\n", Ret));
+		return Ret;
+	}
+
+	for (i = 0 ; i < TableSz; i++)
+	{
+		if (PartialGoodType & Table[i].Val)
+		{
+			/* Find the parent node */
+			Ret = fdt_path_offset(fdt, Table[i].ParentNode);
+			if (Ret < 0)
+			{
+				DEBUG((EFI_D_ERROR, "Failed to Get parent node: %a\terror: %d\n", Table[i].ParentNode, Ret));
+				return Ret;
+			}
+			ParentOffset = Ret;
+			/* Find the subnode */
+			SList = Table[i].SubNode;
+			while (SList->SubNode)
+			{
+				Ret = fdt_subnode_offset(fdt, ParentOffset, SList->SubNode);
+				if (Ret < 0)
+				{
+					DEBUG((EFI_D_ERROR, "Failed to get subnode: %a\terror:%d\n", SList->SubNode, Ret));
+					return Ret;
+				}
+
+				SubNodeOffset = Ret;
+				/* Find the property node and its length */
+				Prop = fdt_get_property(fdt, SubNodeOffset, SList->Property, &PropLen);
+				if (!Prop)
+				{
+					DEBUG((EFI_D_ERROR, "Failed to get property: %a\terror:%d\n", SList->Property, PropLen));
+					return PropLen;
+				}
+
+				/* Replace the property value based on the property value and length */
+				if (!(AsciiStrnCmp(SList->Property, "device_type", sizeof(SList->Property))))
+					PropType = DEVICE_TYPE;
+				else if (!(AsciiStrnCmp(SList->Property, "status", sizeof(SList->Property))))
+					PropType = STATUS_TYPE;
+				else
+					{
+						DEBUG((EFI_D_ERROR, "%a: Property type not supported\n", SList->Property));
+						return EFI_UNSUPPORTED;
+					}
+				switch(PropType)
+				{
+					case DEVICE_TYPE:
+						ReplaceStr = "nak";
+						break;
+					case STATUS_TYPE:
+						if (PropLen == sizeof("ok"))
+							ReplaceStr = "no";
+						else if (PropLen == sizeof("okay"))
+							ReplaceStr = "dsbl";
+						else
+						{
+							DEBUG((EFI_D_ERROR, "Property value length: %u is invalid for property: %a\n", PropLen, SList->Property));
+							return EFI_UNSUPPORTED;
+						}
+						break;
+					default:
+						/* Control would not come here, as this gets taken care while setting property type */
+						break;
+				};
+				/* Replace the property with new value */
+				Ret = fdt_setprop_inplace(fdt, SubNodeOffset, SList->Property, (CONST VOID *)ReplaceStr, PropLen);
+				if (!Ret)
+					DEBUG((EFI_D_INFO, "Partial goods (%a) status property disabled\n", SList->SubNode));
+				else
+				{
+					DEBUG((EFI_D_ERROR, "Failed to update property: %a: error no: %d\n", SList->Property, Ret));
+					return Ret;
+				}
+				SList++;
+			}
+		}
+	}
+	fdt_pack(fdt);
+
+	return Ret;
 }
