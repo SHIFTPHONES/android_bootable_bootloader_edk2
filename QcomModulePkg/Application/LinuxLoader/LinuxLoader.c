@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -52,6 +52,9 @@
 #define DM_VERITY_ENFORCING 0x77665509
 #define DM_VERITY_KEYSCLEAR 0x7766550A
 #endif
+
+#define MAX_APP_STR_LEN      64
+#define MAX_NUM_FS           10
 
 EFI_GUID BootImgPartitionType =
 { 0x20117f86, 0xe985, 0x4357, { 0xb9, 0xee, 0x37, 0x4b, 0xc1, 0xd8, 0x48, 0x7d } };
@@ -167,7 +170,9 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	UINT32 BootReason = NORMAL_MODE;
 	UINT32 KeyPressed;
-	CHAR8* Fastboot[] = {"fv2:Fastboot"};
+	CHAR8 Fastboot[MAX_APP_STR_LEN];
+	CHAR8 *AppList[] = {Fastboot};
+	UINTN i;
 
 	// Read Device Info here
 
@@ -244,7 +249,13 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	}
 
 	DEBUG((EFI_D_INFO, "Launching fastboot\n"));
-	Status = BdsStartCmd(sizeof(Fastboot)/sizeof(*Fastboot), Fastboot);
+	for (i = 0 ; i < MAX_NUM_FS; i++)
+	{
+		SetMem(Fastboot, MAX_APP_STR_LEN, 0);
+		AsciiSPrint(Fastboot, MAX_APP_STR_LEN, "fs%d:Fastboot", i);
+		Status = LaunchApp(1, AppList);
+	}
+
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Failed to Launch Fastboot App: %d\n", Status));
