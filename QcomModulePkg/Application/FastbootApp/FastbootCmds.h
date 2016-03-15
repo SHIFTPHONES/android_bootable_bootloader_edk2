@@ -52,6 +52,7 @@
 #define USB_BUFFER_SIZE         1024*1024
 #define VERSION_STR_LEN         96
 #define MAX_LUNS                8
+#define NO_LUN                  -1
 #define FASTBOOT_STRING_MAX_LENGTH  256
 #define FASTBOOT_COMMAND_MAX_LENGTH 64
 #define MAX_GET_VAR_NAME_SIZE       32
@@ -142,5 +143,5 @@ FastbootAppUnInit( VOID );
 VOID DataReady (IN UINTN Size, IN VOID *Data);
 
 BOOLEAN FastbootFatal();
-
+EFI_STATUS PartitionDump();
 #endif

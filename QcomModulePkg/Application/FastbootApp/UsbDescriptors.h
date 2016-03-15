@@ -51,5 +51,6 @@ extern EFI_USB_DEVICE_QUALIFIER_DESCRIPTOR       DeviceQualifier;
 extern EFI_USB_STRING_DESCRIPTOR *StrDescriptors[5];
 
 VOID
-BuildDefaultDescriptors(OUT USB_DEVICE_DESCRIPTOR **DevDesc, OUT VOID **Descriptors);
+BuildDefaultDescriptors(OUT USB_DEVICE_DESCRIPTOR **DevDesc, OUT VOID **Descriptors,
+			            OUT USB_DEVICE_DESCRIPTOR **SSDevDesc, OUT VOID **SSDescriptors);
 #endif /* _USBFN_DESCAPP_H_ */

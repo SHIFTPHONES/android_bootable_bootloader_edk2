@@ -58,6 +58,41 @@
 
 /* Global fastboot data */
 static FastbootDeviceData Fbd;
+static USB_DEVICE_DESCRIPTOR_SET DescSet;
+
+STATIC
+CONST
+struct {
+  EFI_USB_BOS_DESCRIPTOR                BosDescriptor;
+  EFI_USB_USB_20_EXTENSION_DESCRIPTOR   Usb2ExtDescriptor;
+  EFI_USB_SUPERSPEED_USB_DESCRIPTOR     SsUsbDescriptor;
+} BinaryObjectStore = {
+  // BOS Descriptor
+  {
+    sizeof(EFI_USB_BOS_DESCRIPTOR),               // Descriptor Size
+    USB_DESC_TYPE_BOS,                            // Descriptor Type
+    sizeof(BinaryObjectStore),                    // Total Length
+    2                                             // Number of device capabilities
+  },
+  // USB2 Extension Desc
+  {
+    sizeof(EFI_USB_USB_20_EXTENSION_DESCRIPTOR),  // Descriptor Size
+    USB_DESC_TYPE_DEVICE_CAPABILITY,              // Device Capability Type descriptor
+    USB_DEV_CAP_TYPE_USB_20_EXTENSION,            // USB 2.0 Extension Capability Type
+    0x6                                           // Supported device level features
+  },
+  // Super Speed Device Capability Desc
+  {
+    sizeof(EFI_USB_SUPERSPEED_USB_DESCRIPTOR),    // Descriptor Size
+    USB_DESC_TYPE_DEVICE_CAPABILITY,              // Device Capability Type descriptor
+    USB_DEV_CAP_TYPE_SUPERSPEED_USB,              // SuperSpeed Device Capability Type
+    0x00,                                         // Supported device level features
+    0x0E,                                         // Speeds Supported by the device: SS, HS and FS
+    0x01,                                         // Functionality support
+    0x07,                                         // U1 Device Exit Latency
+    0x65                                          // U2 Device Exit Latency
+  }
+};
 
 FastbootDeviceData GetFastbootDeviceData()
 {
@@ -74,7 +109,9 @@ FastbootUsbDeviceStart(VOID)
 {
   EFI_STATUS                    Status;
   USB_DEVICE_DESCRIPTOR         *DevDesc;
+  USB_DEVICE_DESCRIPTOR         *SSDevDesc;
   VOID                          *Descriptors;
+  VOID                          *SSDescriptors;
   EFI_EVENT                     UsbConfigEvt;
   EFI_GUID                      UsbDeviceProtolGuid =
                                 { 0xd9d9ce48, 0x44b8, 0x4f49,
@@ -106,10 +143,19 @@ FastbootUsbDeviceStart(VOID)
   }
 
   /* Build the descriptor for fastboot */
-  BuildDefaultDescriptors(&DevDesc, &Descriptors);
-  
+  BuildDefaultDescriptors(&DevDesc, &Descriptors, &SSDevDesc, &SSDescriptors);
+
+  DescSet.DeviceDescriptor = DevDesc;
+  DescSet.Descriptors = &Descriptors;
+  DescSet.SSDeviceDescriptor = SSDevDesc;
+  DescSet.SSDescriptors = &SSDescriptors;
+  DescSet.DeviceQualifierDescriptor = &DeviceQualifier;
+  DescSet.BinaryDeviceOjectStore =  (VOID *) &BinaryObjectStore;
+  DescSet.StringDescriptorCount = 5;
+  DescSet.StringDescritors = StrDescriptors;
+
   /* Start the usb device */
-  Status = Fbd.UsbDeviceProtocol->Start(DevDesc, &Descriptors, &DeviceQualifier, NULL, 5, StrDescriptors);
+  Status = Fbd.UsbDeviceProtocol->StartEx(&DescSet);
 
   /* Allocate buffers required to receive the data from Host*/
   Status = Fbd.UsbDeviceProtocol->AllocateTransferBuffer(USB_BUFF_SIZE, &Fbd.gRxBuffer);
@@ -185,7 +231,7 @@ ProcessBulkXfrCompleteTx(
   // Switch on the transfer status
   switch (Uto->Status) {
     case UsbDeviceTransferStatusCompleteOK:
-      DEBUG((EFI_D_ERROR, "UsbDeviceTransferStatusCompleteOK\n"));
+      DEBUG((EFI_D_VERBOSE, "UsbDeviceTransferStatusCompleteOK\n"));
       /* Just Queue the next recieve, must be a Command */
       Status = Fbd.UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize() , Fbd.gRxBuffer);
       break;

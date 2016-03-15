@@ -325,13 +325,6 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	struct dt_entry_node *dt_node_tmp1 = NULL;
 	struct dt_entry_node *dt_node_tmp2 = NULL;
 
-	Status = BoardInit();
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Error finding board information: %x\n", Status));
-		return NULL;
-	}
-
 	/* Initialize the dtb entry node*/
 	dt_entry_queue = (struct dt_entry_node *) 
 				AllocatePool(sizeof(struct dt_entry_node));

@@ -228,6 +228,13 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	if (!BootIntoFastboot)
 	{
+		Status = BoardInit();
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Error finding board information: %x\n", Status));
+			return Status;
+		}
+
 		// Assign Partition GUID based on normal boot or recovery boot
 		if(BootIntoRecovery == TRUE)
 		{
