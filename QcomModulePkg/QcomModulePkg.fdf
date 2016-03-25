@@ -106,7 +106,7 @@ READ_ENABLED_CAP   = TRUE
 READ_STATUS        = TRUE
 READ_LOCK_CAP      = TRUE
 READ_LOCK_STATUS   = TRUE
-
+FvNameGuid         = 046fae99-cf2e-49ed-a6a8-a1488b7e80d3
 
 INF QcomModulePkg/Application/FastbootApp/FastbootApp.inf
 INF QcomModulePkg/Application/LinuxLoader/LinuxLoader.inf
