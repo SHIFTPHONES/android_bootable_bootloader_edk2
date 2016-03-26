@@ -83,9 +83,9 @@ struct GetVarPartitionInfo part_info[] =
 };
 
 STATIC FASTBOOT_VAR *Varlist;
-STATIC EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *mTextOut;
 BOOLEAN         Finished = FALSE;
 CHAR8           StrSerialNum[64];
+CHAR8           FullProduct[64] = "unsupported";
 
 STATIC ANDROID_FASTBOOT_STATE mState = ExpectCmdState;
 
@@ -967,7 +967,6 @@ STATIC VOID AcceptData (IN  UINTN  Size, IN  VOID  *Data)
 	Size = RemainingBytes;
 	}
 
-	CopyMem (&mDataBuffer[mBytesReceivedSoFar], Data, Size);
 	mBytesReceivedSoFar += Size;
 
 	/* Either queue the max transfer size 1 MB or only queue the remaining
@@ -982,8 +981,8 @@ STATIC VOID AcceptData (IN  UINTN  Size, IN  VOID  *Data)
 	}
 	else
 	{
-		GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize(), GetFastbootDeviceData().gRxBuffer);
-		DEBUG((EFI_D_VERBOSE, "AcceptData: Send %d: %a\n", GetXfrSize(), GetFastbootDeviceData().gTxBuffer));
+		GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize(), (mDataBuffer + mBytesReceivedSoFar));
+		DEBUG((EFI_D_VERBOSE, "AcceptData: Send %d: %a\n", GetXfrSize(), (mDataBuffer + mBytesReceivedSoFar)));
 	}
 }
 
@@ -1022,17 +1021,26 @@ BOOLEAN FastbootFatal()
  * as the main Fastboot Buffer. Also Frees Variable data Structure
  */
 EFI_STATUS
-FastbootAppUnInit(VOID)
+FastbootCmdsUnInit(VOID)
 {
+	EFI_STATUS Status;
+
 	if (mDataBuffer)
-		FreePool(mDataBuffer);
+	{
+		Status = GetFastbootDeviceData().UsbDeviceProtocol->FreeTransferBuffer((VOID*)mDataBuffer);
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Failed to free up fastboot buffer\n"));
+			return Status;
+		}
+	}
 	FastbootUnInit();
 	GetFastbootDeviceData().UsbDeviceProtocol->Stop();
 	return EFI_SUCCESS;
 }
 
 EFI_STATUS
-FastbootAppInit (VOID)
+FastbootCmdsInit (VOID)
 {
 	EFI_STATUS                      Status;
 	EFI_EVENT                       mFatalSendErrorEvent;
@@ -1046,14 +1054,6 @@ FastbootAppInit (VOID)
 	if (EFI_ERROR (Status))
 	{
 		DEBUG ((EFI_D_ERROR, "Fastboot: Couldn't initialise Fastboot Protocol: %r\n", Status));
-		return Status;
-	}
-
-	/* Locate the Fastboot USB Transport Protocol UsbDevice */
-	Status = gBS->LocateProtocol (&gEfiSimpleTextOutProtocolGuid, NULL, (VOID **) &mTextOut);
-	if (EFI_ERROR (Status))
-	{
-		DEBUG ((EFI_D_ERROR, "Fastboot: Couldn't open UsbDevice Protocol: %r\n", Status));
 		return Status;
 	}
 
@@ -1076,8 +1076,8 @@ FastbootAppInit (VOID)
 	ASSERT_EFI_ERROR (Status);
 
 	/* Allocate buffer used to store images passed by the download command */
-	FastBootBuffer = AllocatePool(MAX_BUFFER_SIZE);
-	if (!FastBootBuffer) 
+	Status = GetFastbootDeviceData().UsbDeviceProtocol->AllocateTransferBuffer(MAX_BUFFER_SIZE, (VOID**) &FastBootBuffer);
+	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Not enough memory to Allocate Fastboot Buffer"));
 		ASSERT(FALSE);
@@ -1353,46 +1353,26 @@ STATIC VOID AcceptCmd(
 	IN  CHAR8 *Data
 	)
 {
-	CHAR8    *CmdBuffer;
 	FASTBOOT_CMD *cmd;
   
-	CmdBuffer = AllocateZeroPool (1024);
-	if (CmdBuffer == NULL)
-	{
-		DEBUG((EFI_D_ERROR, "Allocation Failed\n"));
-		FastbootFail("Allocation Failed");
-		return;
-	}
-
 	Data[Size] = '\0';
-	AsciiStrnCpy(CmdBuffer, Data, Size);
   
-	CmdBuffer[Size] = 0;
-	DEBUG((EFI_D_INFO, "Handling Cmd: %a\n", CmdBuffer));
+	DEBUG((EFI_D_INFO, "Handling Cmd: %a\n", Data));
 	if (!Data)
 	{
 		FastbootFail("Invalid input command");
-		if (CmdBuffer)
-			FreePool (CmdBuffer);
 		return;
 	}
 
 	for (cmd = cmdlist; cmd; cmd = cmd->next)
 	{
-		if (AsciiStrnCmp(CmdBuffer, cmd->prefix, cmd->prefix_len))
+		if (AsciiStrnCmp(Data, cmd->prefix, cmd->prefix_len))
 			continue;
-		cmd->handle((CONST CHAR8*) CmdBuffer + cmd->prefix_len, (VOID *) mDataBuffer, mBytesReceivedSoFar);
-		{
-			if (CmdBuffer)
-				FreePool (CmdBuffer);
+		cmd->handle((CONST CHAR8*) Data + cmd->prefix_len, (VOID *) mDataBuffer, mBytesReceivedSoFar);
 			return;
-		}
 	}
 	DEBUG((EFI_D_ERROR, "\nFastboot Send Fail\n"));
 	FastbootFail("unknown command");
-
-	if (CmdBuffer)
-		FreePool (CmdBuffer);
 }
 
 STATIC EFI_STATUS PublishGetVarPartitionInfo(
@@ -1439,7 +1419,6 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	mNumDataBytes = size;
 
 	/* Find all Software Partitions in the User Partition */
-	CHAR8                    FullProduct[64] = "unsupported";
 	UINT32 i;
 
 	struct FastbootCmdDesc cmd_list[] =
@@ -1494,4 +1473,14 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		FastbootRegister(cmd_list[i].name, cmd_list[i].cb);
 
 	return EFI_SUCCESS;
+}
+
+VOID *FastbootDloadBuffer()
+{
+	return (VOID *)mDataBuffer;
+}
+
+ANDROID_FASTBOOT_STATE FastbootCurrentState()
+{
+	return mState;
 }

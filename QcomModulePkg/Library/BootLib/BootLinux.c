@@ -122,6 +122,14 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Offset: 0x%x\n", RamdiskOffset));
 	DEBUG((EFI_D_VERBOSE, "Device TreeOffset: 0x%x\n", DeviceTreeOffset));
 
+	/* Populate board data required for dtb selection and command line */
+	Status = BoardInit();
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error finding board information: %x\n", Status));
+		ASSERT(0);
+	}
+
 	/*Updates the command line from boot image, appends device serial no., baseband information, etc
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine);
