@@ -55,7 +55,7 @@ extern EFI_GUID gEfiLogFSPartitionGuid;
 extern EFI_GUID gEfiPlatPartitionTypeGuid;
 
 extern EFI_GUID gQcomMemoryCaptureGuid;
-
+UINT32 TimerFreq, FactormS;
 /**
   Returns a list of BlkIo handles based on required criteria
 SelectionAttrib : Bitmask representing the conditions that need
@@ -305,7 +305,7 @@ EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUI
 	HandleFilter.PartitionType = PartitionType;
 	HandleFilter.VolumeName = 0;
 
-	DEBUG ((DEBUG_ERROR, "Loading Image: %d\n", GetPerformanceCounter()));
+	DEBUG ((DEBUG_INFO, "Loading Image Start : %u ms\n", GetTimerCountms()));
 
 	MaxHandles = sizeof(HandleInfoList)/sizeof(*HandleInfoList);
 
@@ -328,8 +328,8 @@ EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUI
 
 	if(Status == EFI_SUCCESS)
 	{
-		DEBUG ((DEBUG_ERROR, "Done Loading Image: %d\n", GetPerformanceCounter()));
-		DEBUG ((DEBUG_ERROR, "Image partition size: %d Bytes\n", *ImageSize));
+		DEBUG ((DEBUG_INFO, "Loading Image Done : %u ms\n",GetTimerCountms()));
+		DEBUG ((DEBUG_INFO, "Total Image Read size : %d Bytes\n", *ImageSize));
 	}
 
 	return Status;
@@ -426,4 +426,29 @@ LaunchApp (
   }
 
   return Status;
+}
+
+UINT32
+GetTimerCountms (VOID)
+{
+	UINT64 TempFreq, StartVal, EndVal;
+	UINT32 TimerCount, Ms;
+
+	if (!TimerFreq && !FactormS)
+	{
+		TempFreq = GetPerformanceCounterProperties (&StartVal, &EndVal);
+
+		if (StartVal > EndVal)
+		{
+			DEBUG((EFI_D_ERROR, "Error getting counter property\n"));
+			return 0;
+		}
+
+		TimerFreq = (UINT32)(TempFreq & 0xFFFFFFFFULL);
+		FactormS  = TimerFreq / 1000;
+	}
+
+	TimerCount = (UINT32) GetPerformanceCounter();
+	Ms = TimerCount / FactormS;
+	return Ms;
 }

@@ -150,4 +150,5 @@ GetBlkIOHandles (
                   IN OUT  UINT32*                  MaxBlkIopCnt
                  );
 
+UINT32 GetTimerCountms (VOID);
 #endif

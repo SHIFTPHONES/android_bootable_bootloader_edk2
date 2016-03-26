@@ -86,7 +86,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 		// compressed kernel
 		out_avai_len = DeviceTreeLoadAddr - KernelLoadAddr;
 
-		DEBUG((EFI_D_INFO, "decompressing kernel image: start\n"));
+		DEBUG((EFI_D_INFO, "decompressing kernel image start: %u ms\n", GetTimerCountms()));
 		Status = decompress(
 				(unsigned char *)(ImageBuffer + PageSize), //Read blob using BlockIo
 				KernelSize,                                 //Blob size
@@ -100,7 +100,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 			ASSERT(0);
 		}
 
-		DEBUG((EFI_D_INFO, "decompressing kernel image: done\n"));
+		DEBUG((EFI_D_INFO, "decompressing kernel image done: %u ms\n", GetTimerCountms()));
 	}
 
 	/*Finds out the location of device tree image and ramdisk image within the boot image
@@ -154,10 +154,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 		}
 	}
 
-	Time = GetPerformanceCounter();
-	DEBUG((EFI_D_ERROR, "BootTime %lld ns\n", Time));
-
-	DEBUG((EFI_D_ERROR, "\nStarting the kernel ...\n\n"));
+	DEBUG((EFI_D_ERROR, "\nShutting Down UEFI Boot Services ...\n\n"));
 
 	/*Shut down UEFI boot services*/
 	Status = ShutdownUefiBootServices ();
@@ -170,7 +167,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 	ASSERT_EFI_ERROR(Status);
 
 	//
-	// Start the Linux Kernel, loaded at 0x80000
+	// Start the Linux Kernel
 	//
 	LinuxKernel = (LINUX_KERNEL)(UINTN)KernelLoadAddr;
 	LinuxKernel ((UINTN)DeviceTreeLoadAddr, 0, 0, 0);
@@ -181,5 +178,5 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 
 Exit:
 	// Only be here if we fail to start Linux
-	Print (L"ERROR  : Can not start the kernel. Status=0x%X\n", Status);
+	ASSERT(0);
 }

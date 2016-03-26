@@ -176,6 +176,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	CHAR8 *AppList[] = {Fastboot};
 	UINTN i;
 
+	DEBUG((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
 	// Read Device Info here
 
 	// Check Alarm Boot
