@@ -38,7 +38,7 @@
 #include <Protocol/Print2.h>
 #include <DeviceInfo.h>
 
-STATIC CONST CHAR8 *bootdev_cmdline = " androidboot.bootdevice=1DA4000.ufshc";
+STATIC CONST CHAR8 *bootdev_cmdline = " androidboot.bootdevice=1da4000.ufshc";
 STATIC CONST CHAR8 *usb_sn_cmdline = " androidboot.serialno=";
 STATIC CONST CHAR8 *androidboot_mode = " androidboot.mode=";
 STATIC CONST CHAR8 *loglevel         = " quite";
