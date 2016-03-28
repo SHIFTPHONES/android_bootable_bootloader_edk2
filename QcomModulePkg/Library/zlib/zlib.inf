@@ -8,7 +8,7 @@
 
 
 [BuildOptions.AARCH64]
-  GCC:*_*_*_CC_FLAGS = -DZ_SOLO
+  GCC:*_*_*_CC_FLAGS = -O2 -DZ_SOLO
 
 [Sources]
   zutil.c
