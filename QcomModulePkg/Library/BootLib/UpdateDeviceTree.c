@@ -70,7 +70,7 @@ EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 	DEBUG ((EFI_D_WARN, "RAM Partitions\r\n"));
 	for (i = 0; i < NumPartitions; i++)
 	{
-		DEBUG((EFI_D_WARN, "Adding Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
+		DEBUG((EFI_D_INFO, "Adding Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
 		ret = dev_tree_add_mem_infoV64(fdt, memory_node_offset, RamPartitions[i].Base, RamPartitions[i].AvailableLength);
 		if (ret)
 		{

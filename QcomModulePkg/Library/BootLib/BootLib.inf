@@ -73,6 +73,7 @@
 	FdtLib
 	TimerLib
 	BaseStackCheckLib
+	MemoryAllocationLib
 
 [Guids]
 	gEfiFileInfoGuid

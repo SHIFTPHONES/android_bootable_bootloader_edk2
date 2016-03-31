@@ -56,6 +56,7 @@
 #include <Library/UefiApplicationEntryPoint.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/UncachedMemoryAllocationLib.h>
 #include <Protocol/BlockIo.h>
 
 #include <Guid/EventGroup.h>
@@ -365,7 +366,7 @@ PartitionGetInfo (
 				PartitionFound = TRUE;
 				*BlockIo = Ptable[i].HandleInfoList[j].BlkIo;
 				*Handle = Ptable[i].HandleInfoList[j].Handle;
-				break;
+				goto out;
 			}
 		}
 	}
@@ -375,7 +376,7 @@ PartitionGetInfo (
 		DEBUG((EFI_D_ERROR, "Partition not found : %a\n", PartitionName));
 		return EFI_NOT_FOUND;
 	}
-
+out:
 	return Status;
 }
 
@@ -389,32 +390,7 @@ WriteToDisk (
 	IN UINT64 offset
 	)
 {
-	UINT32 MediaId = BlockIo->Media->MediaId;
-	UINT32 Status;
-	EFI_DISK_IO_PROTOCOL    *DiskIo;
-
-	Status = gBS->OpenProtocol(
-								Handle,
-								&gEfiDiskIoProtocolGuid,
-								(VOID **) &DiskIo,
-								gImageHandle,
-								NULL,
-								EFI_OPEN_PROTOCOL_GET_PROTOCOL
-							   );
-
-	ASSERT_EFI_ERROR (Status);
-	if (Image == NULL)
-	{
-		DEBUG((EFI_D_ERROR, "No image to flash\n"));
-		return EFI_NO_MEDIA;
-	}
-
-	Status = DiskIo->WriteDisk(DiskIo, MediaId, offset, Size, Image);
-	if (EFI_ERROR (Status))
-		return Status;
-
-	BlockIo->FlushBlocks(BlockIo);
-	return Status;
+	return BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, offset, ROUND_TO_PAGE(Size, BlockIo->Media->BlockSize - 1), Image);
 }
 
 /* Handle Sparse Image Flashing */
@@ -545,7 +521,7 @@ HandleSparseImgFlash(
 			}
 
 			/* Data is validated, now write to the disk */
-			Status = WriteToDisk(BlockIo, Handle, Image, chunk_data_sz, (UINT64)total_blocks*sparse_header->blk_sz);
+			Status = WriteToDisk(BlockIo, Handle, Image, chunk_data_sz, (UINT64)total_blocks);
 			if (EFI_ERROR(Status))
 			{
 				FastbootFail("Flash Write Failure");
@@ -596,7 +572,7 @@ HandleSparseImgFlash(
 					return EFI_VOLUME_FULL;
 				}
 
-				Status = WriteToDisk(BlockIo, Handle, (VOID *) fill_buf, sparse_header->blk_sz, (UINT64)total_blocks*sparse_header->blk_sz);
+				Status = WriteToDisk(BlockIo, Handle, (VOID *) fill_buf, sparse_header->blk_sz, (UINT64)total_blocks);
 				if (EFI_ERROR(Status))
 				{
 					FastbootFail("Flash write failure for FILL Chunk");
@@ -687,7 +663,7 @@ HandleRawImgFlash(
 		return EFI_VOLUME_FULL;
 	}
 
-	return WriteToDisk(BlockIo, Handle, Image, Size, 0);
+	return BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, 0, ROUND_TO_PAGE(Size, BlockIo->Media->BlockSize - 1), Image);
 }
 
 /* Meta Image flashing */
@@ -1076,12 +1052,8 @@ FastbootCmdsInit (VOID)
 	ASSERT_EFI_ERROR (Status);
 
 	/* Allocate buffer used to store images passed by the download command */
-	Status = GetFastbootDeviceData().UsbDeviceProtocol->AllocateTransferBuffer(MAX_BUFFER_SIZE, (VOID**) &FastBootBuffer);
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Not enough memory to Allocate Fastboot Buffer"));
-		ASSERT(FALSE);
-	}
+	FastBootBuffer = UncachedAllocateAlignedPool(MAX_BUFFER_SIZE, 4096);
+	ASSERT(FastBootBuffer);
 
 	FastbootCommandSetup( (void*) FastBootBuffer, MAX_BUFFER_SIZE);
 	return EFI_SUCCESS;
@@ -1387,7 +1359,10 @@ STATIC EFI_STATUS PublishGetVarPartitionInfo(
 
 	for (i = 0; i < num_parts; i++)
 	{
-		PartitionGetInfo((CHAR8 *)info[i].part_name, &BlockIo, &Handle); 
+		Status = PartitionGetInfo((CHAR8 *)info[i].part_name, &BlockIo, &Handle);
+		if (Status != EFI_SUCCESS)
+			return Status;
+
 		AsciiSPrint(info[i].size_response, MAX_RSP_SIZE, " 0x%llx", (UINT64)(BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize);
 
 		Status = AsciiStrCatS(info[i].getvar_size_str, MAX_GET_VAR_NAME_SIZE, info[i].part_name);
@@ -1455,7 +1430,9 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	FastbootPublishVar("max-download-size", MAX_DOWNLOAD_SIZE_STR);
 	FastbootPublishVar("product", FullProduct);
 	FastbootPublishVar("serial", StrSerialNum);
-	PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
+	Status = PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
+	if (Status != EFI_SUCCESS)
+		DEBUG((EFI_D_ERROR, "Partition Table info is not populated\n"));
 
   /* To Do: Add the following
    * 1. charger-screen-enabled

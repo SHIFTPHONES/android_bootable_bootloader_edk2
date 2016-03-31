@@ -27,7 +27,7 @@
 */
 
 #include "LinuxLoaderLib.h"
-
+#include <Library/BootLinux.h>
 /* Volume Label size 11 chars, round off to 16 */
 #define VOLUME_LABEL_SIZE      16
 
@@ -324,7 +324,7 @@ EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUI
 
 	BlkIo = HandleInfoList[0].BlkIo;
 
-	Status = BlkIo->ReadBlocks (BlkIo, BlkIo->Media->MediaId, 0, *ImageSize, ImageBuffer);
+	Status = BlkIo->ReadBlocks (BlkIo, BlkIo->Media->MediaId, 0, ROUND_TO_PAGE(*ImageSize, BlkIo->Media->BlockSize - 1), ImageBuffer);
 
 	if(Status == EFI_SUCCESS)
 	{

@@ -54,7 +54,6 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 	STATIC VOID* DeviceTreeLoadAddr = 0;
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DtbOffset = 0;
-	STATIC UINT32 DeviceTreeSize = 0;
 	UINT8* Final_CmdLine;
 
 	STATIC UINT32 out_len = 0;
@@ -68,7 +67,6 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 	RamdiskSize = ((boot_img_hdr*)(ImageBuffer))->ramdisk_size;
 	SecondSize = ((boot_img_hdr*)(ImageBuffer))->second_size;
 	PageSize = ((boot_img_hdr*)(ImageBuffer))->page_size;
-	DeviceTreeSize = ((boot_img_hdr*)(ImageBuffer))->dt_size;
 	CmdLine = (UINT32*)&(((boot_img_hdr*)(ImageBuffer))->cmdline[0]);
 	KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
 	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
@@ -134,18 +132,14 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device)
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine);
 
-	if (DeviceTreeSize) {
-		DEBUG((EFI_D_ERROR, "dt.img is not supported. Please switch to appended device tree instead\n"));
+	// appended device tree
+	void *dtb;
+	dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
+	if (!dtb) {
+		DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
 		ASSERT(0);
-	} else {
-		// appended device tree
-		void *dtb;
-		dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
-		if (!dtb) {
-			DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
-			ASSERT(0);
-		}
 	}
+
 	UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , (CHAR8*)Final_CmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
 
 	CopyMem (RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);

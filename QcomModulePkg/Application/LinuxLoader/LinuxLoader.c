@@ -33,6 +33,7 @@
 #include "LinuxLoaderLib.h"
 #include "BootLinux.h"
 #include "KeyPad.h"
+#include <Library/MemoryAllocationLib.h>
 
 //Reboot modes
 #if USE_HARD_REBOOT
@@ -91,7 +92,7 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType)
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DeviceTreeSize = 0;
 
-	ImageHdrBuffer = AllocatePages (ImageHdrSize / 4096);
+	ImageHdrBuffer = AllocateAlignedPages (ImageHdrSize / 4096, 4096);
 	ASSERT(ImageHdrBuffer);
 	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, PartitionType);
 
@@ -116,27 +117,28 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType)
 	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
 	DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, PageSize - 1);
 	ImageSizeActual = PageSize + KernelSizeActual + RamdiskSizeActual + DtSizeActual;
-	ImageSize = ROUND_TO_PAGE(ImageSizeActual, PageSize - 1);
+	ImageSize = ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1));
 
-	ImageBuffer = AllocatePages (ImageSize / 4096);
+	ImageBuffer = AllocateAlignedPages (ImageSize / 4096, 4096);
 	ASSERT(ImageBuffer);
 
 	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, PartitionType);
 
 	if (Status != EFI_SUCCESS)
 	{
+	    DEBUG((EFI_D_VERBOSE, "Failed Kernel Size   : 0x%x\n", ImageSize));
 		return Status;
 	}
 
 	DEBUG((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
-	DEBUG((EFI_D_VERBOSE, "Kernel Size 1: 0x%x\n", KernelSize));
-	DEBUG((EFI_D_VERBOSE, "Kernel Size 2: 0x%x\n", SecondSize));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Size : 0x%x\n", DeviceTreeSize));
-	DEBUG((EFI_D_VERBOSE, "Ramdisk Size: 0x%x\n", RamdiskSize));
-	DEBUG((EFI_D_VERBOSE, "Kernel Load Address 1 : 0x%p\n", KernelLoadAddr));
+	DEBUG((EFI_D_VERBOSE, "Kernel Size 1            : 0x%x\n", KernelSize));
+	DEBUG((EFI_D_VERBOSE, "Kernel Size 2            : 0x%x\n", SecondSize));
+	DEBUG((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
+	DEBUG((EFI_D_VERBOSE, "Ramdisk Size             : 0x%x\n", RamdiskSize));
+	DEBUG((EFI_D_VERBOSE, "Kernel Load Address 1    : 0x%p\n", KernelLoadAddr));
 	DEBUG((EFI_D_VERBOSE, "Device Tree Load Address : 0x%p\n", DeviceTreeLoadAddr));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Size : 0x%x\n", DeviceTreeSize));
-	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr: 0x%x\n", RamdiskLoadAddr));
+	DEBUG((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
+	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr        : 0x%x\n", RamdiskLoadAddr));
 
 	// call start Linux here
 	BootLinux(ImageBuffer, ImageSizeActual, device);
