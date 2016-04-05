@@ -245,10 +245,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 		Status = LoadLinux(PartitionType);
 		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Failed to boot Linux\n"));
-			return Status;
-		}
+			DEBUG((EFI_D_ERROR, "Failed to boot Linux, Reverting to fastboot mode\n"));
 	}
 
 	DEBUG((EFI_D_INFO, "Launching fastboot\n"));
