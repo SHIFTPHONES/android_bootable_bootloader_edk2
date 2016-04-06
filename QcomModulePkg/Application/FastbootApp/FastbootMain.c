@@ -321,6 +321,8 @@ FastbootAppEntryPoint(
 {
   EFI_STATUS                      Status     = EFI_SUCCESS;
 
+  DEBUG((EFI_D_INFO, "Fastboot Build Info: %a %a\n", __DATE__, __TIME__));
+
   /* Start the USB device enumeration */
   Status = FastbootUsbDeviceStart();
   if (Status  != EFI_SUCCESS)

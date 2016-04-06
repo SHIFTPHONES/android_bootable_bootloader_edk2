@@ -55,6 +55,7 @@
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   QcomModulePkg/QcomModulePkg.dec
+  ArmPkg/ArmPkg.dec
 
 [LibraryClasses]
   UefiApplicationEntryPoint
@@ -62,6 +63,7 @@
   PcdLib
   BootLib
   DebugLib
+  UncachedMemoryAllocationLib
 
 [Protocols]
   gEfiSimpleTextInProtocolGuid

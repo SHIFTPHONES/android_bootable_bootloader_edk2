@@ -356,6 +356,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline)
 		STR_COPY(dst,src);
 
 	}
+	DEBUG((EFI_D_INFO, "Cmdline: %a\n", cmdline_final));
 
 	return (UINT8 *)cmdline_final;
 }

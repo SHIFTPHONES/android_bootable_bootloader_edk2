@@ -70,7 +70,7 @@ EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 	DEBUG ((EFI_D_WARN, "RAM Partitions\r\n"));
 	for (i = 0; i < NumPartitions; i++)
 	{
-		DEBUG((EFI_D_WARN, "Adding Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
+		DEBUG((EFI_D_INFO, "Adding Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
 		ret = dev_tree_add_mem_infoV64(fdt, memory_node_offset, RamPartitions[i].Base, RamPartitions[i].AvailableLength);
 		if (ret)
 		{
@@ -260,23 +260,13 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	struct SubNodeList *SList = NULL;
 	CONST struct fdt_property *Prop = NULL;
 	CHAR8* ReplaceStr = NULL;
-	struct PartialGoods *Table;
+	struct PartialGoods *Table = NULL;
 	INTN TableSz;
 
 	if (BoardPlatformRawChipId() == EFICHIPINFO_ID_MSMCOBALT)
 	{
-		struct PartialGoods PlatformTable[] =
-		{
-			{0x1, "/cpus", {{"cpu@100", "device_type"},
-			                {"cpu@101", "device_type"},
-			                {"cpu@102", "device_type"},
-			                {"cpu@103", "device_type"},}},
-			{0x4, "/soc",   {{"qcom,mss", "status"},}},
-		};
-
-		Table = PlatformTable;
-		TableSz = ARRAY_SIZE(PlatformTable);
-
+		TableSz = ARRAY_SIZE(MsmCobaltTable);
+		Table = MsmCobaltTable;
 		PartialGoodType = *(volatile UINT32 *)(0x78013C);
 	}
 
@@ -299,7 +289,7 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 			if (Ret < 0)
 			{
 				DEBUG((EFI_D_ERROR, "Failed to Get parent node: %a\terror: %d\n", Table[i].ParentNode, Ret));
-				return Ret;
+				goto out;
 			}
 			ParentOffset = Ret;
 			/* Find the subnode */
@@ -309,8 +299,10 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 				Ret = fdt_subnode_offset(fdt, ParentOffset, SList->SubNode);
 				if (Ret < 0)
 				{
-					DEBUG((EFI_D_ERROR, "Failed to get subnode: %a\terror:%d\n", SList->SubNode, Ret));
-					return Ret;
+					DEBUG((EFI_D_ERROR, "Subnode : %a is not present, ignore\n", SList->SubNode));
+					Ret = 0;
+					SList++;
+					continue;
 				}
 
 				SubNodeOffset = Ret;
@@ -319,7 +311,8 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 				if (!Prop)
 				{
 					DEBUG((EFI_D_ERROR, "Failed to get property: %a\terror:%d\n", SList->Property, PropLen));
-					return PropLen;
+					Ret = PropLen;
+					goto out;
 				}
 
 				/* Replace the property value based on the property value and length */
@@ -330,7 +323,8 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 				else
 					{
 						DEBUG((EFI_D_ERROR, "%a: Property type not supported\n", SList->Property));
-						return EFI_UNSUPPORTED;
+						Ret = EFI_UNSUPPORTED;
+						goto out;
 					}
 				switch(PropType)
 				{
@@ -344,8 +338,9 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 							ReplaceStr = "dsbl";
 						else
 						{
-							DEBUG((EFI_D_ERROR, "Property value length: %u is invalid for property: %a\n", PropLen, SList->Property));
-							return EFI_UNSUPPORTED;
+							DEBUG((EFI_D_INFO, "Property  (%a) is already disabled\n", SList->SubNode));
+							SList++;
+							continue;
 						}
 						break;
 					default:
@@ -359,13 +354,14 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 				else
 				{
 					DEBUG((EFI_D_ERROR, "Failed to update property: %a: error no: %d\n", SList->Property, Ret));
-					return Ret;
+					goto out;
 				}
 				SList++;
 			}
 		}
 	}
-	fdt_pack(fdt);
 
+out:
+	fdt_pack(fdt);
 	return Ret;
 }

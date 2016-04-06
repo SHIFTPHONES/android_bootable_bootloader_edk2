@@ -61,6 +61,18 @@ struct PartialGoods
 	struct SubNodeList SubNode[DTB_MAX_SUBNODE]; /* Sub node name list*/
 };
 
+static struct PartialGoods MsmCobaltTable[] =
+{
+	{0x1, "/cpus", {{"cpu@100", "device_type"},
+	                {"cpu@101", "device_type"},
+	                {"cpu@102", "device_type"},
+	                {"cpu@103", "device_type"},}},
+	{0x2, "/soc",  {{"qcom,kgsl-3d0", "status"},
+	                {"qcom,vidc", "status"},
+	                {"qcom,msm-adsp-loader", "status"},}},
+	{0x4, "/soc",   {{"qcom,mss", "status"},}},
+};
+
 INTN dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
 
 INTN dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
