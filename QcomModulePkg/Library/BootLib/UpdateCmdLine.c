@@ -105,6 +105,7 @@ STATIC UINT32 TargetBaseBand()
 	switch(Platform)
 	{
 		case EFICHIPINFO_ID_MSMCOBALT:
+		case EFICHIPINFO_ID_MSMHAMSTER:
 			Baseband = BASEBAND_MSM;
 			break;
 		default:
