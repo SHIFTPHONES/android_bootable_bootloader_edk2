@@ -907,6 +907,7 @@ STATIC VOID CmdFlash(
 out:
 	if (Token)
 		FreePool(PartitionName);
+	LunSet = FALSE;
 }
 
 STATIC VOID CmdErase(
@@ -1123,18 +1124,14 @@ STATIC VOID CmdContinue(
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DeviceTreeSize = 0;
 
-	DEBUG((EFI_D_ERROR, "Continue received\n 1"));
 	ImageHdrBuffer = AllocatePages(ImageHdrSize / 4096);
 	ASSERT(ImageHdrBuffer);
-	DEBUG((EFI_D_ERROR, "Continue received\n 2"));
 	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, &BootImgPartitionType);
-	DEBUG((EFI_D_ERROR, "Continue received\n 3"));
 	if (Status != EFI_SUCCESS)
 	{
 		FastbootFail("Failed to Load Image Header from Partition");
 		return;
 	}
-	DEBUG((EFI_D_ERROR, "Continue received\n 4"));
 	//Add check for boot image header and kernel page size
 	//ensure kernel command line is terminated
 	if(CompareMem((void *)((boot_img_hdr*)(ImageHdrBuffer))->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE))
@@ -1143,7 +1140,6 @@ STATIC VOID CmdContinue(
 		return;
 	}
 
-	DEBUG((EFI_D_ERROR, "Continue received\n 5"));
 	KernelSize = ((boot_img_hdr*)(ImageHdrBuffer))->kernel_size;
 	RamdiskSize = ((boot_img_hdr*)(ImageHdrBuffer))->ramdisk_size;
 	PageSize = ((boot_img_hdr*)(ImageHdrBuffer))->page_size;
@@ -1155,10 +1151,8 @@ STATIC VOID CmdContinue(
     ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
     ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
 	ImageSize = ROUND_TO_PAGE(ImageSizeActual, PageSize - 1);
-	DEBUG((EFI_D_ERROR, "Continue received\n 6"));
 	ImageBuffer = AllocatePages (ImageSize / 4096);
 	ASSERT(ImageBuffer);
-	DEBUG((EFI_D_ERROR, "Continue received\n 7"));
 	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, &BootImgPartitionType);
 
 	if (Status != EFI_SUCCESS)
