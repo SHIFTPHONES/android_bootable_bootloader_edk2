@@ -57,8 +57,6 @@ STATIC CHAR8 *baseband_dsda    = " androidboot.baseband=dsda";
 STATIC CHAR8 *baseband_dsda2   = " androidboot.baseband=dsda2";
 STATIC CHAR8 *baseband_sglte2  = " androidboot.baseband=sglte2";
 
-STATIC CHAR8 *display = " mdss_mdp.panel=1:dsi:0:qcom,mdss_dsi_sharp_wqxga_video:1:qcom,mdss_dsi_sharp_wqxga_video:cfg:split_dsi";
-
 /* Assuming unauthorized kernel image by default */
 STATIC INT32 auth_kernel_img = 0;
 
@@ -229,8 +227,6 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline)
 			break;
 	}
 
-	cmdline_len += AsciiStrLen(display);
-
 #define STR_COPY(dst,src)  {while (*src){*dst = *src; ++src; ++dst; } *dst = 0; ++dst;}
 	if (cmdline_len > 0)
 	{
@@ -351,10 +347,6 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline)
 				STR_COPY(dst,src);
 				break;
 		}
-
-		src = display;
-		if (have_cmdline) --dst;
-		STR_COPY(dst,src);
 
 	}
 	DEBUG((EFI_D_INFO, "Cmdline: %a\n", cmdline_final));
