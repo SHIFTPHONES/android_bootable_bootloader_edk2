@@ -39,6 +39,7 @@ typedef enum
   /** @cond */
   EFICHIPINFO_ID_UNKNOWN    = 0,  /**< Unknown chip. */
   EFICHIPINFO_ID_MSMCOBALT  = 292,
+  EFICHIPINFO_ID_MSMHAMSTER  = 306,
 
   EFICHIPINFO_NUM_IDS        = 301,
   EFICHIPINFO_ID_32BITS      = 0x7FFFFFF
