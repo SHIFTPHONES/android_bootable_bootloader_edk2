@@ -21,6 +21,7 @@
 #include <Library/PrintLib.h>
 #include <Library/SerialPortLib.h>
 #include <Library/BdsLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 #include <Guid/ArmMpCoreInfo.h>
 #include <Guid/GlobalVariable.h>
 #include <Guid/FileInfo.h>
@@ -94,4 +95,17 @@ EFI_STATUS PreparePlatformHardware (VOID)
 	ArmDisableMmu ();
 	ArmInvalidateTlb();
 	return EFI_SUCCESS;
+}
+
+VOID RebootDevice(UINT8 RebootReason)
+{
+	struct ResetDataType ResetData;
+	EFI_STATUS Status = EFI_INVALID_PARAMETER;
+
+	AsciiStrnCpy(ResetData.DataBuffer, STR_RESET_PARAM, sizeof(ResetData.DataBuffer));
+	ResetData.Bdata = RebootReason;
+	if (RebootReason == NORMAL_MODE)
+		Status = EFI_SUCCESS;
+
+	gRT->ResetSystem (EfiResetCold, Status, sizeof(struct ResetDataType), (VOID *) &ResetData);
 }
