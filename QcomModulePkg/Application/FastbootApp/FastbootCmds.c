@@ -56,7 +56,6 @@
 #include <Library/UefiApplicationEntryPoint.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
-#include <Library/UncachedMemoryAllocationLib.h>
 #include <Protocol/BlockIo.h>
 
 #include <Guid/EventGroup.h>
@@ -1053,8 +1052,12 @@ FastbootCmdsInit (VOID)
 	ASSERT_EFI_ERROR (Status);
 
 	/* Allocate buffer used to store images passed by the download command */
-	FastBootBuffer = UncachedAllocateAlignedPool(MAX_BUFFER_SIZE, 4096);
-	ASSERT(FastBootBuffer);
+	Status = GetFastbootDeviceData().UsbDeviceProtocol->AllocateTransferBuffer(MAX_BUFFER_SIZE, (VOID**) &FastBootBuffer);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Not enough memory to Allocate Fastboot Buffer"));
+		ASSERT(FALSE);
+	}
 
 	FastbootCommandSetup( (void*) FastBootBuffer, MAX_BUFFER_SIZE);
 	return EFI_SUCCESS;
