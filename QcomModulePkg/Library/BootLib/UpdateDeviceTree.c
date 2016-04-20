@@ -268,10 +268,17 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 		TableSz = ARRAY_SIZE(MsmCobaltTable);
 		Table = MsmCobaltTable;
 		PartialGoodType = *(volatile UINT32 *)(0x78013C);
+		PartialGoodType = (PartialGoodType & 0xF800000) >> 23;
 	}
 
 	if (!PartialGoodType)
 		return EFI_SUCCESS;
+
+	if (PartialGoodType == 0x10)
+	{
+		DEBUG((EFI_D_INFO, "The part is Bin T, Device tree patching not needed\n"));
+		return EFI_SUCCESS;
+	}
 
 	Ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt));
 	if (Ret != 0)
