@@ -49,6 +49,7 @@
 	LinuxLoaderLib.c
 	UpdateCmdLine.c
 	KeyPad.c
+	Recovery.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
@@ -89,6 +90,7 @@
 	gEfiLogFSPartitionGuid
 	gEfiUfsLU0Guid
 	gEfiEmmcUserPartitionGuid
+	gEfiMiscPartitionGuid
 
 [Protocols]
 	gEfiSimpleTextInputExProtocolGuid

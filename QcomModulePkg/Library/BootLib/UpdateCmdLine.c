@@ -32,6 +32,7 @@
  **/
 
 #include "UpdateCmdLine.h"
+#include "Recovery.h"
 #include <Library/PrintLib.h>
 #include <Protocol/EFICardInfo.h>
 #include <Protocol/EFIChipInfoTypes.h>
@@ -78,14 +79,6 @@ STATIC struct verified_boot_state_name vbsn[] =
 };
 #endif
 
-/*Function that returns value of boolean boot_into_ffbm
- *A condition at update_cmdline( ) function
- *Serves performance purpose only, hard-coded to return zero */
-BOOLEAN get_ffbm(CHAR8 *ffbm, UINT32 size)
-{
-	return 0;
-}
-
 /*Function that returns whether the kernel is signed
  *Currently assumed to be signed*/
 BOOLEAN target_use_signed_kernel(VOID)
@@ -124,20 +117,26 @@ UINT32 target_pause_for_battery_charge(VOID)
 
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
-UINT8 *update_cmdline(CONST CHAR8 * cmdline)
+UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname)
 {
 	EFI_STATUS Status;
 	UINT32 cmdline_len = 0;
 	UINT32 have_cmdline = 0;
 	CHAR8  *cmdline_final = NULL;
 	UINT32 pause_at_bootup = 0; //this would have to come from protocol
-	//UINT32 boot_state = ORANGE;
-	/*
-	BOOLEAN	warm_boot = FALSE; // not needed
-	BOOLEAN gpt_exists = TRUE; // this is needed
-	*/
-	CHAR8 ffbm[10];
-	UINTN boot_into_ffbm = get_ffbm(ffbm, sizeof(ffbm));
+	BOOLEAN boot_into_ffbm = FALSE;
+
+	CHAR8 ffbm[FFBM_MODE_BUF_SIZE];
+	if (!AsciiStrnCmp(pname, "boot", AsciiStrLen(pname)))
+	{
+		SetMem(ffbm, FFBM_MODE_BUF_SIZE, 0);
+		Status = GetFfbmCommand(ffbm, sizeof(ffbm));
+		if (Status == EFI_NOT_FOUND)
+			DEBUG((EFI_D_ERROR, "No Ffbm cookie found, ignore\n"));
+		else if (Status == EFI_SUCCESS)
+			boot_into_ffbm = TRUE;
+	}
+
 	MEM_CARD_INFO card_info = {};
 	EFI_MEM_CARDINFO_PROTOCOL *pCardInfoProtocol=NULL;
 	CHAR8 StrSerialNum[64];

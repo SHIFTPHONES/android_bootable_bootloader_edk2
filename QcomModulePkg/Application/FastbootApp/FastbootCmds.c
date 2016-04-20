@@ -1177,7 +1177,7 @@ STATIC VOID CmdContinue(
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, device);
+	BootLinux(ImageBuffer, ImageSizeActual, device, "boot");
 }
 
 STATIC VOID CmdGetVarAll()
@@ -1279,7 +1279,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
     }
     FastbootOkay("");
     FastbootUsbDeviceStop();
-    BootLinux(data, ImageSizeActual, device);
+    BootLinux(data, ImageSizeActual, device, "boot");
 }
 
 STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
