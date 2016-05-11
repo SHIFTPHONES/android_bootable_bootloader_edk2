@@ -65,15 +65,17 @@
 #include "Decompress.h"
 #include "LinuxLoaderLib.h"
 #include "Board.h"
+#include "Recovery.h"
 
 #define ALIGN32_BELOW(addr)   ALIGN_POINTER(addr - 32,32)
 #define LOCAL_ROUND_TO_PAGE(x,y) (((x) + (y - 1)) & (~(y - 1)))
 #define ROUND_TO_PAGE(x,y) (((x) + (y)) & (~(y)))
 #define DECOMPRESS_SIZE_FACTOR 8
+#define MAX_PNAME_LENGTH 64
 
 typedef VOID (*LINUX_KERNEL)(UINTN ParametersBase, UINTN Reserved0, UINTN Reserved1, UINTN Reserved2);
 
-VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device);
+VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device, CHAR8 *pname);
 
 EFI_STATUS LaunchApp(IN UINTN  Argc, IN CHAR8  **Argv);
 #endif

@@ -69,7 +69,7 @@ STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
-STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType)
+STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 {
 	EFI_STATUS Status;
 	VOID* ImageBuffer;
@@ -141,7 +141,7 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType)
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr        : 0x%x\n", RamdiskLoadAddr));
 
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, device);
+	BootLinux(ImageBuffer, ImageSizeActual, device, pname);
 	// would never return here
 	return EFI_ABORTED;
 }
@@ -175,7 +175,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	CHAR8 Fastboot[MAX_APP_STR_LEN];
 	CHAR8 *AppList[] = {Fastboot};
 	UINTN i;
-
+	CHAR8 pname[MAX_PNAME_LENGTH];
 	DEBUG((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
 	// Read Device Info here
 
@@ -229,21 +229,30 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			break;
 	}
 
+	Status = RecoveryInit(&BootIntoRecovery);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error in RecoveryInit: %r\n", Status));
+		return Status;
+	}
+
 	if (!BootIntoFastboot)
 	{
 		// Assign Partition GUID based on normal boot or recovery boot
 		if(BootIntoRecovery == TRUE)
 		{
 			DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
+			AsciiStrnCpy(pname, "recovery", MAX_PNAME_LENGTH);
 			PartitionType = &RecoveryImgPartitionType;
 		}
 		else
 		{
 			DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
+			AsciiStrnCpy(pname, "boot", MAX_PNAME_LENGTH);
 			PartitionType = &BootImgPartitionType;
 		}
 
-		Status = LoadLinux(PartitionType);
+		Status = LoadLinux(PartitionType, pname);
 		if (Status != EFI_SUCCESS)
 			DEBUG((EFI_D_ERROR, "Failed to boot Linux, Reverting to fastboot mode\n"));
 	}
