@@ -40,6 +40,9 @@
 #define DTB_MAX_SUBNODE                128
 #define ARRAY_SIZE(a)                  sizeof(a)/sizeof(*a)
 
+#define MSMCOBALT_PGOOD_FUSE		0x78013C
+#define MSMCOBALT_PGOOD_SUBBIN_FUSE	0x780324
+
 enum property_type
 {
 	DEVICE_TYPE = 1,
@@ -51,6 +54,8 @@ struct SubNodeList
 {
 	CONST CHAR8 *SubNode;    /* Subnode name */
 	CONST CHAR8 *Property;   /* Property name */
+	UINT32 SubBinVersion;   /* version to maintain backward compatibility */
+	UINT32 SubBinValue;   /* SubBinning defect value */
 };
 
 /* Look up table for partial goods */
@@ -63,14 +68,29 @@ struct PartialGoods
 
 static struct PartialGoods MsmCobaltTable[] =
 {
-	{0x1, "/cpus", {{"cpu@100", "device_type"},
-	                {"cpu@101", "device_type"},
-	                {"cpu@102", "device_type"},
-	                {"cpu@103", "device_type"},}},
-	{0x2, "/soc",  {{"qcom,kgsl-3d0", "status"},
-	                {"qcom,vidc", "status"},
-	                {"qcom,msm-adsp-loader", "status"},}},
-	{0x4, "/soc",   {{"qcom,mss", "status"},}},
+	{0x1, "/cpus", {{"cpu@100", "device_type", 1, 0x1},
+	                {"cpu@101", "device_type", 1, 0x2},
+	                {"cpu@102", "device_type", 1, 0x4},
+	                {"cpu@103", "device_type", 1, 0x8},}},
+	{0x2, "/soc",  {{"qcom,kgsl-3d0", "status", 1, 0x10},
+	                {"qcom,vidc", "status", 1, 0x20},
+	                {"qcom,msm-cam", "status", 2, 0x20},
+	                {"qcom,csiphy", "status", 2, 0x20},
+	                {"qcom,csid", "status", 2, 0x20},
+	                {"qcom,cam_smmu", "status", 2, 0x20},
+	                {"qcom,fd", "status", 2, 0x20},
+	                {"qcom,cpp", "status", 2, 0x20},
+	                {"qcom,ispif", "status", 2, 0x20},
+	                {"qcom,vfe0", "status", 2, 0x20},
+	                {"qcom,vfe1", "status", 2, 0x20},
+	                {"qcom,cci", "status", 2, 0x20},
+	                {"qcom,jpeg", "status", 2, 0x20},
+			{"qcom,camera-flash", "status", 2, 0x20},
+	                {"qcom,mdss_mdp", "status", 2, 0x40},
+	                {"qcom,mdss_dsi_pll", "status", 2, 0x40},
+	                {"qcom,mdss_dp_pll", "status",  2, 0x40},
+	                {"qcom,msm-adsp-loader", "status", 1, 0x80},}},
+	{0x4, "/soc",   {{"qcom,mss", "status", 1, 0x0},}},
 };
 
 INTN dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
