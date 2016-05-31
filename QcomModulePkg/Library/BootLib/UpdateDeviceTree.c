@@ -253,9 +253,15 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	INTN i;
 	INTN ParentOffset = 0;
 	INTN SubNodeOffset = 0;
+	INTN SubNodeOffsetTemp = 0;
 	INTN Ret = 0;
 	INTN PropLen = 0;
 	UINT32 PartialGoodType = 0;
+	UINT32 SubBinValue = 0;
+	BOOLEAN SubBinSupported = FALSE;
+	BOOLEAN SubBinReplace = FALSE;
+	BOOLEAN SubBinA = FALSE;
+	BOOLEAN SubBinB = FALSE;
 	UINT32 PropType = 0;
 	struct SubNodeList *SList = NULL;
 	CONST struct fdt_property *Prop = NULL;
@@ -267,8 +273,15 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	{
 		TableSz = ARRAY_SIZE(MsmCobaltTable);
 		Table = MsmCobaltTable;
-		PartialGoodType = *(volatile UINT32 *)(0x78013C);
+		PartialGoodType = *(volatile UINT32 *)(MSMCOBALT_PGOOD_FUSE);
 		PartialGoodType = (PartialGoodType & 0xF800000) >> 23;
+
+		/* Check for Sub binning*/
+		SubBinValue = *(volatile UINT32 *)(MSMCOBALT_PGOOD_SUBBIN_FUSE);
+		SubBinValue = (SubBinValue >> 16) & 0xFF;
+		if (SubBinValue)
+			SubBinSupported = TRUE;
+		DEBUG((EFI_D_INFO, "PartialGoodType:%x, SubBin: %x\n", PartialGoodType, SubBinValue));
 	}
 
 	if (!PartialGoodType)
@@ -301,8 +314,40 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 			ParentOffset = Ret;
 			/* Find the subnode */
 			SList = Table[i].SubNode;
+
+			if (SubBinSupported) {
+				if ((!(AsciiStrnCmp(Table[i].ParentNode, "/cpus", sizeof(Table[i].ParentNode)))))
+				{
+					SubBinA = TRUE;
+					SubBinB = FALSE;
+				} else {
+					SubBinA = FALSE;
+					SubBinB = TRUE;
+				}
+			}
+
 			while (SList->SubNode)
 			{
+				if (SubBinSupported)
+				{
+					SubBinReplace = FALSE;
+					if ((SubBinA && (SList->SubBinValue & (SubBinValue & 0x0F))) ||
+							(SubBinB && (SList->SubBinValue & (SubBinValue & 0xF0))))
+					{
+						SubBinReplace = TRUE;
+					}
+
+					if ((SList->SubBinValue) && (!SubBinReplace))
+					{
+						SList++;
+						continue;
+					}
+				} else if (SList->SubBinVersion > 1)
+				{
+					SList++;
+					continue;
+				}
+
 				Ret = fdt_subnode_offset(fdt, ParentOffset, SList->SubNode);
 				if (Ret < 0)
 				{
@@ -313,13 +358,16 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 				}
 
 				SubNodeOffset = Ret;
+retry:
 				/* Find the property node and its length */
 				Prop = fdt_get_property(fdt, SubNodeOffset, SList->Property, &PropLen);
 				if (!Prop)
 				{
-					DEBUG((EFI_D_ERROR, "Failed to get property: %a\terror:%d\n", SList->Property, PropLen));
-					Ret = PropLen;
-					goto out;
+					/* Need to continue with next SubNode List instead of bailing out*/
+					DEBUG((EFI_D_INFO, "Property: %a not found for (%a)\tLen:%d, continue with next subnode\n",
+								SList->Property,SList->SubNode, PropLen));
+					SList++;
+					continue;
 				}
 
 				/* Replace the property value based on the property value and length */
@@ -356,9 +404,16 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 				};
 				/* Replace the property with new value */
 				Ret = fdt_setprop_inplace(fdt, SubNodeOffset, SList->Property, (CONST VOID *)ReplaceStr, PropLen);
-				if (!Ret)
+				if (!Ret) {
 					DEBUG((EFI_D_INFO, "Partial goods (%a) status property disabled\n", SList->SubNode));
-				else
+					SubNodeOffsetTemp = fdt_next_subnode(fdt, SubNodeOffset);
+					if (SubNodeOffsetTemp && (SubNodeOffsetTemp != (-FDT_ERR_NOTFOUND)))
+					{
+						SubNodeOffset = SubNodeOffsetTemp;
+						goto retry;
+					}
+
+				} else
 				{
 					DEBUG((EFI_D_ERROR, "Failed to update property: %a: error no: %d\n", SList->Property, Ret));
 					goto out;
