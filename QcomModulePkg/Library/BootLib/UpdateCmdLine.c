@@ -63,6 +63,11 @@ STATIC CHAR8 *baseband_sglte2  = " androidboot.baseband=sglte2";
 /* Assuming unauthorized kernel image by default */
 STATIC INT32 auth_kernel_img = 0;
 
+/* Display command line related structures */
+#define MAX_DISPLAY_CMD_LINE 256
+CHAR8 display_cmdline[MAX_DISPLAY_CMD_LINE];
+UINTN display_cmdline_len = sizeof(display_cmdline);
+
 #if VERIFIED_BOOT
 STATIC CONST CHAR8 *verity_mode = " androidboot.veritymode=";
 STATIC CONST CHAR8 *verified_state = " androidboot.verifiedbootstate=";
@@ -169,6 +174,22 @@ UINT32 target_pause_for_battery_charge(VOID)
 		return 1;
 	else
 		return 0;
+}
+
+VOID GetDisplayCmdline()
+{
+	EFI_STATUS Status;
+
+	Status = gRT->GetVariable(
+			L"DisplayPanelConfiguration",
+			&gQcomTokenSpaceGuid,
+			NULL,
+			&display_cmdline_len,
+			display_cmdline);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
+	}
 }
 
 /*Update command line: appends boot information to the original commandline
@@ -282,6 +303,9 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 			cmdline_len += AsciiStrLen(baseband_dsda2);
 			break;
 	}
+
+	GetDisplayCmdline();
+	cmdline_len += AsciiStrLen(display_cmdline);
 
 #define STR_COPY(dst,src)  {while (*src){*dst = *src; ++src; ++dst; } *dst = 0; ++dst;}
 	if (cmdline_len > 0)
@@ -404,6 +428,9 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 				break;
 		}
 
+		src = display_cmdline;
+		if (have_cmdline) --dst;
+		STR_COPY(dst,src);
 	}
 	DEBUG((EFI_D_INFO, "Cmdline: %a\n", cmdline_final));
 
