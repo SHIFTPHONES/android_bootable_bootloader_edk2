@@ -33,10 +33,10 @@
 typedef struct _EFI_RESETREASON_PROTOCOL EFI_RESETREASON_PROTOCOL;
 /** @endcond */
 
-/** @addtogroup efi_resetReason_constants 
+/** @addtogroup efi_resetReason_constants
 @{ */
 /**
-  Protocol version. 
+  Protocol version.
 */
 #define EFI_RESETREASON_PROTOCOL_REVISION 0x0000000000010000
 /** @} */ /* end_addtogroup efi_resetReason_constants */
@@ -45,11 +45,25 @@ typedef struct _EFI_RESETREASON_PROTOCOL EFI_RESETREASON_PROTOCOL;
 /** @ingroup efi_resetReason_protocol */
 #define EFI_RESETREASON_PROTOCOL_GUID \
    { 0xA022155A, 0x4828, 0x4535, { 0xA4, 0x99, {0x11, 0xF1, 0x52, 0x40, 0xB9, 0x1B} } }
+
   
+#define STR_RESET_PARAM          L"RESET_PARAM"
+#define STR_RESET_UNKNOWN               L"UNKNOWN"
+
+/*
+ *  Sample call to ResetSystem and the ResetReasonData returned using this protocol
+ *
+ *  gRT->ResetSystem ([EfiResetCold|EfiResetWarm|EfiResetShutdown],
+ *                    [EFI_NO_MAPPING|EFI_INVALID_PARAMETER],
+ *                    DataSize,  // total bytes of ResetData ResetReasonString + ResetReasonData
+ *                    ResetData  // NULL terminated CHAR16 String ResetReasonString + 1 Byte ResetReasonData 
+ *                   )
+ */
+
 /** @cond */
 /**
-  External reference to the RESETREASON Protocol GUID defined 
-  in the .dec file. 
+  External reference to the RESETREASON Protocol GUID defined
+  in the .dec file.
 */
 extern EFI_GUID gEfiResetReasonProtocolGuid;
 /** @endcond */
@@ -61,7 +75,6 @@ extern EFI_GUID gEfiResetReasonProtocolGuid;
                              API IMPLEMENTATION
 
 ==============================================================================*/
-
 /* ============================================================================
 **  Function : EFI_ResetReason_GetResetReason
 ** ============================================================================
@@ -69,39 +82,42 @@ extern EFI_GUID gEfiResetReasonProtocolGuid;
 /** @ingroup efi_resetReason_getResetReason
   @par Summary
   Gets the reset reason
-    
-  @param[in]     This                     Pointer to the EFI_RESETREASON_PROTOCOL instance.
-  @param[in out] ResetReasonData          Pointer to Reset Data, allocated by caller
-  @param[in out] ResetReasonDataSize      Pointer to UINTN that has size of ResetReasonData on 
-                                          output, and size of input ResetReasonData buffer on input
+
+  @param[in]   This                  Pointer to the EFI_RESETREASON_PROTOCOL instance.
+  @param[in out]  ResetReason        Pointer to a UINT32 passed by the caller that
+                                     will be populated by the driver.
+  @param[in out]  ResetReasonString  Pointer to a CHAR16 buffer, populated by driver
+  @param[in out]  ResetReasonStrLen  Pointer to a UINT32 passed by the caller that
+                                     will be populated by the driver with length of reset
+                                     reason string.
 
   @return
   EFI_SUCCESS           -- Function completed successfully. \n
-  EFI_BUFFER_TOO_SMALL  -- ResetReason Data Buffer is not large enough for reason
   EFI_INVALID_PARAMETER -- Input parameter is INVALID. \n
-  EFI_PROTOCOL_ERROR    -- Error occurred during the operation.
+  EFI_BUFFER_TOO_SMALL  -- Input ResetReasonString buffer is not long enough,
+                           Length will be returned in ResetReasonStrLen
 */
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_RESETREASON_GETRESETREASON)(
    IN EFI_RESETREASON_PROTOCOL *This,
-   IN OUT  VOID                *ResetReasonData,
-   IN OUT  UINTN               *ResetReasonDataSize
+   IN OUT UINT32               *ResetReason,
+   IN OUT CHAR16               *ResetReasonString  OPTIONAL,
+   IN OUT UINT32               *ResetReasonStrLen  OPTIONAL
    );
 
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
-/** @ingroup efi_resetReason_protocol 
+/** @ingroup efi_resetReason_protocol
   @par Summary
-  Ram Information Protocol interface.
+  Reset Reason Information Protocol interface.
 
   @par Parameters
 */
 struct _EFI_RESETREASON_PROTOCOL {
    UINT64                                  Revision;
-   EFI_RESETREASON_GETRESETREASON          GetResetReasons;
-}; 
+   EFI_RESETREASON_GETRESETREASON          GetResetReason;
+};
 
 #endif /* __EFIRESETREASON_H__ */
-

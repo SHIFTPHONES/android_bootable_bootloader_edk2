@@ -110,6 +110,7 @@
 	gEfiPrint2ProtocolGuid
 	gEfiPartitionRecordGuid
 	gEfiRamPartitionProtocolGuid
+	gEfiResetReasonProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase

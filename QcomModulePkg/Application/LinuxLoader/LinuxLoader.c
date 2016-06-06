@@ -35,25 +35,6 @@
 #include "KeyPad.h"
 #include <Library/MemoryAllocationLib.h>
 
-//Reboot modes
-#if USE_HARD_REBOOT
-#define NORMAL_MODE         0
-#define RECOVERY_MODE       0x10
-#define FASTBOOT_MODE       0X20
-#define ALARM_BOOT          0X30
-#define DM_VERITY_LOGGING   0X40
-#define DM_VERITY_ENFORCING 0X50
-#define DM_VERITY_KEYSCLEAR 0X60
-#else
-#define NORMAL_MODE			0
-#define RECOVERY_MODE       0x77665500
-#define FASTBOOT_MODE       0x77665502
-#define ALARM_BOOT          0x77665503
-#define DM_VERITY_LOGGING   0x77665508
-#define DM_VERITY_ENFORCING 0x77665509
-#define DM_VERITY_KEYSCLEAR 0x7766550A
-#endif
-
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
 
@@ -146,12 +127,21 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	return EFI_ABORTED;
 }
 
-STATIC UINT8 GetRebootReason()
+STATIC UINT8 GetRebootReason(UINT32 *ResetReason)
 {
-	UINT8 RebootMode = 0;
+	EFI_RESETREASON_PROTOCOL *RstReasonIf;
+	EFI_STATUS Status;
+	extern EFI_GUID gEfiResetReasonProtocolGuid;
 
-	// Place holder for protocol
-	return RebootMode;
+	Status = gBS->LocateProtocol(&gEfiResetReasonProtocolGuid, NULL, (VOID **) &RstReasonIf);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error locating the reset reason protocol\n"));
+		return Status;
+	}
+
+	RstReasonIf->GetResetReason(RstReasonIf, ResetReason, NULL, NULL);
+	return Status;
 }
 
 /**
@@ -201,7 +191,12 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	}
 
 	// check for reboot mode
-	BootReason = GetRebootReason(); //Substitue the function with real api
+	Status = GetRebootReason(&BootReason);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Failed to get Reboot reason: %r\n", Status));
+		return Status;
+	}
 
 	switch (BootReason)
 	{

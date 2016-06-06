@@ -1087,12 +1087,12 @@ STATIC VOID CmdReboot(
 	IN UINT32 sz
 	)
 {
-	DEBUG((EFI_D_INFO, "rebooting"));
+	DEBUG((EFI_D_INFO, "rebooting the device"));
 	FastbootOkay("");
-	gRT->ResetSystem (EfiResetCold, EFI_SUCCESS, 0, NULL);
+
+	RebootDevice(NORMAL_MODE);
 
 	// Shouldn't get here
-	DEBUG ((EFI_D_ERROR, "Fastboot: gRT->Resetystem didn't work\n"));
 	FastbootFail("Failed to reboot");
 }
 
@@ -1284,6 +1284,12 @@ STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
 STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
+	DEBUG((EFI_D_INFO, "Rebooting the device into bootloader mode\n"));
+	FastbootOkay("");
+	RebootDevice(FASTBOOT_MODE);
+
+	// Shouldn't get here
+	FastbootFail("Failed to reboot");
 
 }
 
