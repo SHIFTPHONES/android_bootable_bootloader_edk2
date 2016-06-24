@@ -38,7 +38,7 @@ typedef struct _EFI_RESETREASON_PROTOCOL EFI_RESETREASON_PROTOCOL;
 /**
   Protocol version.
 */
-#define EFI_RESETREASON_PROTOCOL_REVISION 0x0000000000010000
+#define EFI_RESETREASON_PROTOCOL_REVISION 0x0000000000010001
 /** @} */ /* end_addtogroup efi_resetReason_constants */
 
 /*  Protocol GUID definition */
@@ -106,6 +106,27 @@ EFI_STATUS
    IN OUT UINT32               *ResetReasonStrLen  OPTIONAL
    );
 
+/* ============================================================================
+ * **  Function : EFI_ResetReason_ClearResetReason
+ * ** ============================================================================
+ * */
+/** @ingroup efi_resetReason_clearResetReason
+ *   @par Summary
+ *   Clears the reset reason
+ *
+ *    @param[in]   This Pointer to the EFI_RESETREASON_PROTOCOL instance.
+ *
+ *    @return
+ *    EFI_SUCCESS           -- Function completed successfully. \n
+ *    EFI_INVALID_PARAMETER -- Input parameter is INVALID. \n
+ *    EFI_DEVICE_ERROR      -- Unable to store reset reason \n
+ **/
+typedef
+EFI_STATUS
+(EFIAPI *EFI_RESETREASON_CLEARRESETREASON)(
+   IN EFI_RESETREASON_PROTOCOL *This
+   );
+
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -118,6 +139,7 @@ EFI_STATUS
 struct _EFI_RESETREASON_PROTOCOL {
    UINT64                                  Revision;
    EFI_RESETREASON_GETRESETREASON          GetResetReason;
+   EFI_RESETREASON_CLEARRESETREASON        ClearResetReason;
 };
 
 #endif /* __EFIRESETREASON_H__ */
