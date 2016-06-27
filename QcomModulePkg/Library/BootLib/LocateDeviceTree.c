@@ -315,7 +315,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VOID *tags)
 {
 	EFI_STATUS Status;
-	VOID *kernel_end = kernel + kernel_size;
+	uintptr_t kernel_end = (uintptr_t)kernel + kernel_size;
 	UINT32 app_dtb_offset = 0;
 	VOID *dtb = NULL;
 	VOID *bestmatch_tag = NULL;
