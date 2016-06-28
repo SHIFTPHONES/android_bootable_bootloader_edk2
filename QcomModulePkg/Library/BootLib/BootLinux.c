@@ -33,7 +33,7 @@
 
 #include "BootLinux.h"
 
-VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device, CHAR8 *pname)
+VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR8 *pname)
 {
 
 	EFI_STATUS Status;
@@ -129,7 +129,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, struct device_info device, C
 
 	/*Updates the command line from boot image, appends device serial no., baseband information, etc
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
-	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname);
+	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, deviceinfo);
 
 	// appended device tree
 	void *dtb;

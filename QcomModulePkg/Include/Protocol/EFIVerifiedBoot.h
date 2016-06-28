@@ -85,8 +85,8 @@ typedef enum _boot_state_t
 
 typedef struct _device_info_vb_t
 {
-	bool is_unlocked;
-	bool is_unlock_critical;
+	BOOLEAN is_unlocked;
+	BOOLEAN is_unlock_critical;
 }device_info_vb_t;
 
 /*===========================================================================
@@ -131,7 +131,7 @@ EFI_STATUS
   IN     QCOM_VERIFIEDBOOT_PROTOCOL *This,
   IN     vb_device_state_op_t       op,
   IN OUT UINT8                      *buf,
-  IN OUT UINT32                     *buf_len,
+  IN OUT UINT32                     *buf_len
 );
 
 /**
@@ -151,7 +151,7 @@ EFI_STATUS
 (EFIAPI *QCOM_VB_DEVICE_INIT )
 (
   IN  QCOM_VERIFIEDBOOT_PROTOCOL *This,
-  IN  device_info_vb_t           *devinfo,
+  IN  device_info_vb_t           *devinfo
 );
 
 /**
@@ -167,7 +167,7 @@ typedef
 EFI_STATUS
 (EFIAPI *QCOM_VB_SEND_ROT )
 (
-  IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This,
+  IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This
 );
 
 /**
@@ -198,7 +198,7 @@ EFI_STATUS
   IN     UINT8                      pname[MAX_PNAME_LENGTH],
   IN     UINT8                      *img,
   IN     UINT32                     img_len,
-  OUT    boot_state_t               bootstate,
+  OUT    boot_state_t               bootstate
 );
 
 /**
@@ -213,7 +213,7 @@ typedef
 EFI_STATUS
 (EFIAPI *QCOM_VB_RESET_STATE )
 (
-  IN     QCOM_VERIFIEDBOOT_PROTOCOL   *This,
+  IN     QCOM_VERIFIEDBOOT_PROTOCOL   *This
 );
 /*===========================================================================
   PROTOCOL INTERFACE

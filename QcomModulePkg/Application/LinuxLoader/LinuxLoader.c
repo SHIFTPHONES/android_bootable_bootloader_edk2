@@ -44,10 +44,10 @@ EFI_GUID BootImgPartitionType =
 EFI_GUID RecoveryImgPartitionType =
 { 0x9D72D4E4, 0x9958, 0x42DA, { 0xAC, 0x26, 0xBE, 0xA7, 0xA9, 0x0B, 0x04, 0x34 } };
 
-STATIC struct device_info device = {DEVICE_MAGIC, 0, 0, 0, 0, {0}, {0}, {0}, 1};
 STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
+DeviceInfo DevInfo;
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
 STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
@@ -122,7 +122,7 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr        : 0x%x\n", RamdiskLoadAddr));
 
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, device, pname);
+	BootLinux(ImageBuffer, ImageSizeActual, &DevInfo, pname);
 	// would never return here
 	return EFI_ABORTED;
 }
@@ -169,8 +169,28 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	UINTN i;
 	CHAR8 pname[MAX_PNAME_LENGTH];
 	DEBUG((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
-	// Read Device Info here
 
+	// Initialize verified boot & Read Device Info
+	Status = ReadWriteDeviceInfo(READ_CONFIG, &DevInfo, sizeof(DevInfo));
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		return Status;
+	}
+	if (CompareMem((VOID *)DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE))
+	{
+		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
+		DevInfo.is_unlocked = TRUE;
+		DevInfo.is_unlock_critical = TRUE;
+		DevInfo.is_charger_screen_enabled = FALSE;
+		DevInfo.verity_mode = FALSE;
+		Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
+			return Status;
+		}
+	}
 	// Check Alarm Boot
 
 	// Populate Serial number
@@ -212,12 +232,24 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			BootReasonAlarm = TRUE;
 			break;
 		case DM_VERITY_ENFORCING:
-			device.verity_mode = 1;
+			DevInfo.verity_mode = 1;
 			// write to device info
+			Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
+			if (Status != EFI_SUCCESS)
+			{
+				DEBUG((EFI_D_ERROR, "VBRwDeviceState Returned error: %r\n", Status));
+				return Status;
+			}
 			break;
 		case DM_VERITY_LOGGING:
-			device.verity_mode = 0;
+			DevInfo.verity_mode = 0;
 			// write to device info
+			Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
+			if (Status != EFI_SUCCESS)
+			{
+				DEBUG((EFI_D_ERROR, "VBRwDeviceState Returned error: %r\n", Status));
+				return Status;
+			}
 			break;
 		case DM_VERITY_KEYSCLEAR:
 			// send delete keys to TZ

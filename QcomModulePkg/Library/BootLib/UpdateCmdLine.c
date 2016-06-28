@@ -131,7 +131,6 @@ UINT32 target_pause_for_battery_charge(VOID)
 
 	/* Passing 0 for PMIC device Index since the protocol infers internally */
 	Status = PmicPonProtocol->GetPonReason(0, &pon_reason);
-
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Error getting pon reason: %r\n", Status));
@@ -172,10 +171,9 @@ UINT32 target_pause_for_battery_charge(VOID)
 		return 0;
 }
 
-
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname)
+UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 {
 	EFI_STATUS Status;
 	UINT32 cmdline_len = 0;
@@ -232,8 +230,9 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname)
 		/* reduce kernel console messages to speed-up boot */
 		cmdline_len += AsciiStrLen(loglevel);
 	}
-	else if (target_pause_for_battery_charge())
+	else if (target_pause_for_battery_charge() && devinfo->is_charger_screen_enabled)
 	{
+		DEBUG((EFI_D_INFO, "Device will boot into off mode charging mode\n"));
 		pause_at_bootup = 1;
 		cmdline_len += AsciiStrLen(battchg_pause);
 	}

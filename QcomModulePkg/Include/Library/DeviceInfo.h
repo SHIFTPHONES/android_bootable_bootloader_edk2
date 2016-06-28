@@ -42,26 +42,16 @@ enum unlock_type {
 	UNLOCK_CRITICAL,
 };
 
-struct device_info
+typedef struct device_info
 {
 	CHAR8 magic[DEVICE_MAGIC_SIZE];
 	BOOLEAN is_unlocked;
-	BOOLEAN is_tampered;
 	BOOLEAN is_unlock_critical;
-	BOOLEAN CHAR8ger_screen_enabled;
-	CHAR8 display_panel[MAX_PANEL_ID_LEN];
+	BOOLEAN is_charger_screen_enabled;
 	CHAR8 bootloader_version[MAX_VERSION_LEN];
 	CHAR8 radio_version[MAX_VERSION_LEN];
 	BOOLEAN verity_mode; // TRUE = enforcing, FALSE = logging
-};
-
-enum boot_state
-{
-	GREEN,
-	ORANGE,
-	YELLOW,
-	RED,
-};
+}DeviceInfo;
 
 struct verified_boot_verity_mode
 {

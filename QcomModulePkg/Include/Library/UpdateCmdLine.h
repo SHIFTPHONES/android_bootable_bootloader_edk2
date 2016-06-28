@@ -39,6 +39,7 @@
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/MemoryAllocationLib.h>
+#include <Library/DeviceInfo.h>
 
 enum baseband {
 	BASEBAND_MSM = 0,
@@ -73,6 +74,6 @@ UINT32 target_pause_for_battery_charge(VOID);
 /*Determine correct androidboot.baseband to use*/
 UINT32 target_baseband(VOID);
 
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname);
+UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo);
 
 #endif
