@@ -58,5 +58,20 @@ ENTRY
     dialog.ok "Run script app_path_set.cmm to set path to AppPkg Src/Obj directories"
     end
   )
+  ; Sanity check App Obj Path has "Build" subdirectory
+  &path="&AppObjPath/Build"
+  if (os.access("&path", "r")!=TRUE())
+  (
+    dialog.ok "Obj Path does not contain _Build_ subdirectory!" "Run script app_path_set.cmm to set path to AppPkg Src/Obj directories"
+    end
+  )
+  ; Sanity check App Src Path has "MdePkg" subdirectory
+  &path="&AppSrcPath/MdePkg"
+  if (os.access("&path", "r")!=TRUE())
+  (
+    dialog.ok "Src Path does not contain _MdePkg_ subdirectory!" "Run script app_path_set.cmm to set path to AppPkg Src/Obj directories"
+    end
+  )
+
 
 enddo
