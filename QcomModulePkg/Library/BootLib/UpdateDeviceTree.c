@@ -254,6 +254,8 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	INTN ParentOffset = 0;
 	INTN SubNodeOffset = 0;
 	INTN SubNodeOffsetTemp = 0;
+	INTN Status = EFI_SUCCESS;
+	INTN Offset = 0;
 	INTN Ret = 0;
 	INTN PropLen = 0;
 	UINT32 PartialGoodType = 0;
@@ -296,8 +298,8 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	Ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt));
 	if (Ret != 0)
 	{
-		DEBUG((EFI_D_ERROR, "Error loading the DTB buffer: %x\n", Ret));
-		return Ret;
+		DEBUG((EFI_D_ERROR, "Error loading the DTB buffer: %x\n", Status));
+		return EFI_LOAD_ERROR;
 	}
 
 	for (i = 0 ; i < TableSz; i++)
@@ -305,13 +307,14 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 		if (PartialGoodType & Table[i].Val)
 		{
 			/* Find the parent node */
-			Ret = fdt_path_offset(fdt, Table[i].ParentNode);
-			if (Ret < 0)
+			Offset = fdt_path_offset(fdt, Table[i].ParentNode);
+			if (Offset < 0)
 			{
-				DEBUG((EFI_D_ERROR, "Failed to Get parent node: %a\terror: %d\n", Table[i].ParentNode, Ret));
+				DEBUG((EFI_D_ERROR, "Failed to Get parent node: %a\terror: %d\n", Table[i].ParentNode, Offset));
+				Status = EFI_NOT_FOUND;
 				goto out;
 			}
-			ParentOffset = Ret;
+			ParentOffset = Offset;
 			/* Find the subnode */
 			SList = Table[i].SubNode;
 
@@ -348,16 +351,15 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 					continue;
 				}
 
-				Ret = fdt_subnode_offset(fdt, ParentOffset, SList->SubNode);
-				if (Ret < 0)
+				Offset = fdt_subnode_offset(fdt, ParentOffset, SList->SubNode);
+				if (Offset < 0)
 				{
 					DEBUG((EFI_D_ERROR, "Subnode : %a is not present, ignore\n", SList->SubNode));
-					Ret = 0;
 					SList++;
 					continue;
 				}
 
-				SubNodeOffset = Ret;
+				SubNodeOffset = Offset;
 retry:
 				/* Find the property node and its length */
 				Prop = fdt_get_property(fdt, SubNodeOffset, SList->Property, &PropLen);
@@ -378,7 +380,7 @@ retry:
 				else
 					{
 						DEBUG((EFI_D_ERROR, "%a: Property type not supported\n", SList->Property));
-						Ret = EFI_UNSUPPORTED;
+						Status = EFI_UNSUPPORTED;
 						goto out;
 					}
 				switch(PropType)
@@ -415,7 +417,8 @@ retry:
 
 				} else
 				{
-					DEBUG((EFI_D_ERROR, "Failed to update property: %a: error no: %d\n", SList->Property, Ret));
+					DEBUG((EFI_D_ERROR, "Failed to update property: %a: error no: %d\n", SList->Property, Status));
+					Status = EFI_NOT_FOUND;
 					goto out;
 				}
 				SList++;
@@ -425,5 +428,5 @@ retry:
 
 out:
 	fdt_pack(fdt);
-	return Ret;
+	return Status;
 }
