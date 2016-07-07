@@ -29,11 +29,9 @@
 
 #include "BootLinux.h"
 #include "BootStats.h"
+#include "Reg.h"
 
 #define BS_INFO_OFFSET	(0x6B0)
-#define REG32(addr) ((volatile UINT32 *)(addr))
-#define READL(addr)  (*REG32(addr))
-#define WRITEL(addr, val)  (*REG32(addr) = (val))
 
 STATIC UINT32 KernelLoadStart;
 STATIC UINT64 SharedImemAddress;
