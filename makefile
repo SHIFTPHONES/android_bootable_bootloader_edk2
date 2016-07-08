@@ -6,7 +6,7 @@ endif
 export $(BOOTLOADER_OUT)
 
 BUILDDIR=$(shell pwd)
-export CLANG35_AARCH64_PREFIX := $(ANDROID_TOOLCHAIN)/aarch64-linux-android-
+export CLANG35_AARCH64_PREFIX := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-$(TARGET_GCC_VERSION)/bin/aarch64-linux-android-
 export CLANG35_BIN := $(CLANG_BIN)
 ANDROID_PRODUCT_OUT := $(BOOTLOADER_OUT)/Build
 
