@@ -111,6 +111,8 @@
 	gEfiPartitionRecordGuid
 	gEfiRamPartitionProtocolGuid
 	gEfiResetReasonProtocolGuid
+	gQcomPmicPonProtocolGuid
+	gQcomChargerExProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
