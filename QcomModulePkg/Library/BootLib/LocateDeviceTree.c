@@ -316,7 +316,6 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 {
 	EFI_STATUS Status;
 	uintptr_t kernel_end = (uintptr_t)kernel + kernel_size;
-	UINT32 app_dtb_offset = 0;
 	VOID *dtb = NULL;
 	VOID *bestmatch_tag = NULL;
 	struct dt_entry *best_match_dt_entry = NULL;
@@ -336,15 +335,15 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	}
 	list_initialize(&dt_entry_queue->node);
 
-	if (dtb_offset)
-		app_dtb_offset = dtb_offset;
-	else
-		CopyMem((VOID*) &app_dtb_offset, (VOID*) (kernel + dtb_offset), sizeof(UINT32));
-
-	if (((uintptr_t)kernel + (uintptr_t)app_dtb_offset) < (uintptr_t)kernel) {
+	if (!dtb_offset){
+		DEBUG((EFI_D_ERROR, "DTB offset is NULL\n"));
 		return NULL;
 	}
-	dtb = kernel + app_dtb_offset;
+
+	if (((uintptr_t)kernel + (uintptr_t)dtb_offset) < (uintptr_t)kernel) {
+		return NULL;
+	}
+	dtb = kernel + dtb_offset;
 	while (((uintptr_t)dtb + sizeof(struct fdt_header)) < (uintptr_t)kernel_end) {
 		struct fdt_header dtb_hdr;
 		UINT32 dtb_size;
@@ -395,7 +394,7 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	if(bestmatch_tag) {
 		CopyMem(tags, bestmatch_tag, bestmatch_tag_size);
 		/* clear out the old DTB magic so kernel doesn't find it */
-		*((UINT32 *)(kernel + app_dtb_offset)) = 0;
+		*((UINT32 *)(kernel + dtb_offset)) = 0;
 		return tags;
 	}
 
