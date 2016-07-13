@@ -247,6 +247,33 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	return ret;
 }
 
+STATIC EFI_STATUS UpdatePartialGoodsBinA(UINT32 *PartialGoodType)
+{
+	EFI_LIMITS_THROTTLE_TYPE Throttle;
+	EFI_LIMITS_PROTOCOL *Limits_Protocol;
+	UINT32 Value;
+	INTN Status;
+	extern EFI_GUID gEfiLimitsProtocolGuid;
+
+	Status = gBS->LocateProtocol(&gEfiLimitsProtocolGuid, NULL, (VOID **) &Limits_Protocol);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error locating the throttle limits protocol\n"));
+		return Status;
+	}
+	Status = Limits_Protocol->SubSysThrottle(Limits_Protocol, EFI_LIMITS_SUBSYS_APC1, &Throttle, &Value);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error setting the APC1 throttle value\n"));
+		return Status;
+	}
+	if (Throttle == EFI_LIMITS_THROTTLE_MAX_DISABLE){
+		DEBUG((EFI_D_INFO, "Disabling the gold cluster because of High APC1 throttle value\n"));
+		(*PartialGoodType) |= 0xF;
+	}
+	return Status;
+}
+
 /* Update device tree for partial goods */
 EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 {
@@ -284,6 +311,13 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 		if (SubBinValue)
 			SubBinSupported = TRUE;
 		DEBUG((EFI_D_INFO, "PartialGoodType:%x, SubBin: %x\n", PartialGoodType, SubBinValue));
+	}
+
+	Status = UpdatePartialGoodsBinA(&PartialGoodType);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error updating BinA partial goods.\n"));
+		return Status;
 	}
 
 	if (!PartialGoodType)

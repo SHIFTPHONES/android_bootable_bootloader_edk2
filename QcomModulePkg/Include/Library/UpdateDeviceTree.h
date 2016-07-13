@@ -35,6 +35,7 @@
 #include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
 #include <Protocol/EFIRamPartition.h>
+#include <Protocol/EFILimits.h>
 #include <Library/UefiBootServicesTableLib.h>
 
 #define DTB_MAX_SUBNODE                128

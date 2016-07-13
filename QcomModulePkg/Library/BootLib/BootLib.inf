@@ -114,6 +114,7 @@
 	gEfiResetReasonProtocolGuid
 	gQcomPmicPonProtocolGuid
 	gQcomChargerExProtocolGuid
+	gEfiLimitsProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
