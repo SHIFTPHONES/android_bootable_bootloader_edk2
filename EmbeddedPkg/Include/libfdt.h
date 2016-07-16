@@ -1410,7 +1410,7 @@ static inline int fdt_appendprop_cell(void *fdt, int nodeoffset,
  *	-FDT_ERR_TRUNCATED, standard meanings
  */
 #define fdt_appendprop_string(fdt, nodeoffset, name, str) \
-	fdt_appendprop((fdt), (nodeoffset), (name), (str), strlen(str)+1)
+	fdt_appendprop_str((fdt), (nodeoffset), (name), (str), strlen(str)+1)
 
 /**
  * fdt_delprop - delete a property
