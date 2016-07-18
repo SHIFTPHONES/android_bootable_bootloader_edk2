@@ -216,7 +216,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	if(cmdline)
 	{
 		/* Adding the cmdline to the chosen node */
-		ret = fdt_setprop_string(fdt, offset, (CONST char*)"bootargs", (CONST VOID*)cmdline);
+		ret = fdt_appendprop_string(fdt, offset, (CONST char*)"bootargs", (CONST VOID*)cmdline);
 		if (ret)
 		{
 			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [bootargs] ...\n"));
