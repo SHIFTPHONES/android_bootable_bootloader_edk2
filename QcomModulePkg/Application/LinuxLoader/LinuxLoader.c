@@ -98,7 +98,9 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
 	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
 	DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, PageSize - 1);
-	ImageSizeActual = PageSize + KernelSizeActual + RamdiskSizeActual + DtSizeActual;
+	ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
+	ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
+	ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
 	ImageSize = ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1));
 
 	ImageBuffer = AllocateAlignedPages (ImageSize / 4096, 4096);
