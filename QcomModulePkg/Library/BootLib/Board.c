@@ -90,7 +90,6 @@ STATIC EFI_STATUS GetChipInfo(struct BoardInfo *platform_board_info)
 	Status = pChipInfoProtocol->GetFoundryId(pChipInfoProtocol, &platform_board_info->FoundryId);
 	if (EFI_ERROR(Status))
 		return Status;
-	DEBUG((EFI_D_VERBOSE, "Platform Info : 0x%x\n", platform_board_info->PlatformInfo.platform));
 	DEBUG((EFI_D_VERBOSE, "Raw Chip Id   : 0x%x\n", platform_board_info->RawChipId));
 	DEBUG((EFI_D_VERBOSE, "Chip Version  : 0x%x\n", platform_board_info->ChipVersion));
 	DEBUG((EFI_D_VERBOSE, "Foundry Id    : 0x%x\n", platform_board_info->FoundryId));
@@ -123,7 +122,7 @@ STATIC EFI_STATUS GetPlatformInfo(struct BoardInfo *platform_board_info)
 		goto endtest;
 	}
 
-
+	DEBUG((EFI_D_VERBOSE, "Platform Info : 0x%x\n", platform_board_info->PlatformInfo.platform));
 endtest:
 	return eResult;
 }
