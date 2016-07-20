@@ -138,6 +138,51 @@ error:
 	return Status;
 }
 
+UINT32 fdt_check_header_ext(VOID *fdt)
+{
+	uintptr_t fdt_start, fdt_end;
+	UINT64 sum;
+	fdt_start = fdt;
+
+	if(fdt_start + fdt_totalsize(fdt) < fdt_start)
+		return FDT_ERR_BADOFFSET;
+	fdt_end = fdt_start + fdt_totalsize(fdt);
+
+	if(CHECK_ADD64((UINT64)fdt_start , (UINT64)fdt_off_dt_struct(fdt)))
+		return FDT_ERR_BADOFFSET;
+	else
+		sum = fdt_start + fdt_off_dt_struct(fdt);
+
+	if (sum > fdt_end)
+		return FDT_ERR_BADOFFSET;
+
+	if(CHECK_ADD64(sum, (UINT64)fdt_size_dt_struct(fdt)))
+		return FDT_ERR_BADOFFSET;
+	else
+		sum += fdt_size_dt_struct(fdt);
+
+	if (sum > fdt_end)
+		return FDT_ERR_BADOFFSET;
+
+	if(CHECK_ADD64((UINT64)fdt_start , (UINT64)fdt_off_dt_strings(fdt)))
+		return FDT_ERR_BADOFFSET;
+	else
+		sum = fdt_start + fdt_off_dt_strings(fdt);
+
+	if (sum > fdt_end)
+		return FDT_ERR_BADOFFSET;
+
+	if(CHECK_ADD64(sum, (UINT64)fdt_size_dt_strings(fdt)))
+		return FDT_ERR_BADOFFSET;
+	else
+		sum += fdt_size_dt_strings(fdt);
+
+	if (sum > fdt_end)
+		return FDT_ERR_BADOFFSET;
+
+	return 0;
+}
+
 EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 {
 	EFI_STATUS Status = EFI_NOT_FOUND;
@@ -276,7 +321,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	UINT32 offset;
 
 	/* Check the device tree header */
-	ret = fdt_check_header(fdt);
+	ret = fdt_check_header(fdt)|| fdt_check_header_ext(fdt);
 	if (ret)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Invalid device tree header ...\n"));
