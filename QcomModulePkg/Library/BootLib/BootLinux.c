@@ -51,6 +51,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 	STATIC VOID* KernelLoadAddr;
 	STATIC UINT32 RamdiskSize;
 	STATIC VOID* RamdiskLoadAddr;
+	STATIC VOID* RamdiskEndAddr;
 	STATIC UINT32 SecondSize;
 	STATIC VOID* DeviceTreeLoadAddr = 0;
 	STATIC UINT32 PageSize = 0;
@@ -142,6 +143,11 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 
 	UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , (CHAR8*)Final_CmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
 
+	RamdiskEndAddr = BaseMemory | PcdGet32(RamdiskEndAddress);
+	if (RamdiskEndAddr - RamdiskLoadAddr < RamdiskSize){
+		DEBUG((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
+		ASSERT(0);
+	}
 	CopyMem (RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
 
 	if (FixedPcdGetBool(EnablePartialGoods))
