@@ -131,6 +131,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 
 	/*Updates the command line from boot image, appends device serial no., baseband information, etc
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
+	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
 	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, deviceinfo);
 
 	// appended device tree
