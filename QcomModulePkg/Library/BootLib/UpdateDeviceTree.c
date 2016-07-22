@@ -34,6 +34,109 @@
 #include "UpdateDeviceTree.h"
 
 #define DTB_PAD_SIZE          1024
+#define NUM_SPLASHMEM_PROP_ELEM   4
+
+STATIC struct DisplaySplashBufferInfo splashBuf;
+STATIC UINTN splashBufSize = sizeof(splashBuf);
+
+VOID PrintSplashMemInfo(CHAR8 *data, INTN datalen)
+{
+	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM];
+
+	for (i = 0; (i < NUM_SPLASHMEM_PROP_ELEM) && datalen; i++) {
+		memcpy(&val[i], data, sizeof(UINT32));
+		val[i] = fdt32_to_cpu(val[i]);
+		data += sizeof(UINT32);
+		datalen -= sizeof(UINT32);
+	}
+
+	DEBUG ((EFI_D_VERBOSE, "reg = <0x%08x 0x%08x 0x%08x 0x%08x>\n",
+		val[0], val[1], val[2], val[3]));
+}
+
+EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
+{
+	EFI_STATUS Status = 0;
+	CONST struct fdt_property *Prop = NULL;
+	INTN PropLen = 0;
+	INTN ret = 0;
+	UINT32 offset;
+	CHAR8* tmp;
+	UINT32 CONST SplashMemPropSize = NUM_SPLASHMEM_PROP_ELEM * sizeof(UINT32);
+
+	Status = gRT->GetVariable(
+			L"DisplaySplashBufferInfo",
+			&gQcomTokenSpaceGuid,
+			NULL,
+			&splashBufSize,
+			&splashBuf);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to get splash buffer info, %r\n", Status));
+		goto error;
+	}
+
+	DEBUG((EFI_D_VERBOSE, "Version=%d\nAddr=0x%08x\nSize=0x%08x\n",
+		splashBuf.uVersion,
+		splashBuf.uFrameAddr,
+		splashBuf.uFrameSize));
+
+	/* Get offset of the splash memory reservation node */
+	ret = fdt_path_offset(fdt, "/reserved-memory/splash_region");
+	if (ret < 0)
+	{
+		DEBUG ((EFI_D_ERROR, "ERROR: Could not get splash memory region node\n"));
+		return ret;
+	}
+	offset = ret;
+	DEBUG ((EFI_D_VERBOSE, "FB mem node name: %a\n", fdt_get_name(fdt, offset, NULL)));
+
+	/* Get the property that specifies the splash memory details */
+	Prop = fdt_get_property(fdt, offset, "reg", &PropLen);
+	if (!Prop)
+	{
+		DEBUG ((EFI_D_ERROR, "ERROR: Could not find the splash reg property\n"));
+		return PropLen;
+	}
+
+	/*
+	 * The format of the "reg" field is as follows:
+	 *       <0x0 FBAddress 0x0 FBSize>
+	 * The expected size of this property is 4 * sizeof(UINT32)
+	 */
+	if (PropLen != SplashMemPropSize)
+	{
+		DEBUG ((EFI_D_ERROR, "ERROR: splash mem reservation node size. Expected: %d, Actual: %d\n",
+			SplashMemPropSize, PropLen));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	DEBUG ((EFI_D_VERBOSE, "Splash memory region before updating:\n"));
+	PrintSplashMemInfo(Prop->data, PropLen);
+
+	/* First, update the FBAddress */
+	tmp = Prop->data + sizeof(UINT32);
+	splashBuf.uFrameAddr = cpu_to_fdt32(splashBuf.uFrameAddr);
+	memcpy(tmp, &splashBuf.uFrameAddr, sizeof(UINT32));
+
+	/* Next, update the FBSize */
+	tmp += (2 * sizeof(UINT32));
+	splashBuf.uFrameSize = cpu_to_fdt32(splashBuf.uFrameSize);
+	memcpy(tmp, &splashBuf.uFrameSize, sizeof(UINT32));
+
+	/* Update the property value in place */
+	ret = fdt_setprop_inplace(fdt, offset, "reg", Prop->data, PropLen);
+	if (ret < 0)
+	{
+		DEBUG ((EFI_D_ERROR, "ERROR: Could not update splash mem info\n"));
+		return ret;
+	}
+
+	DEBUG ((EFI_D_VERBOSE, "Splash memory region after updating:\n"));
+	PrintSplashMemInfo(Prop->data, PropLen);
+error:
+	return Status;
+}
 
 EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 {
@@ -203,6 +306,8 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 		DEBUG ((EFI_D_ERROR, "ERROR: Cannot update memory node\n"));
 		return ret;
 	}
+
+	UpdateSplashMemInfo(fdt);
 
 	/* Get offset of the chosen node */
 	ret = fdt_path_offset(fdt, "/chosen");
