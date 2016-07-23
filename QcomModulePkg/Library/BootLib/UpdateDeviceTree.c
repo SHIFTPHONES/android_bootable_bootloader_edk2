@@ -269,7 +269,7 @@ STATIC EFI_STATUS UpdatePartialGoodsBinA(UINT32 *PartialGoodType)
 	}
 	if (Throttle == EFI_LIMITS_THROTTLE_MAX_DISABLE){
 		DEBUG((EFI_D_INFO, "Disabling the gold cluster because of High APC1 throttle value\n"));
-		(*PartialGoodType) |= 0xF;
+		(*PartialGoodType) |= PARTIAL_GOOD_GOLD_DISABLE;
 	}
 	return Status;
 }
