@@ -106,6 +106,9 @@ STATIC UINT32 TargetBaseBand()
 		case EFICHIPINFO_ID_MSMHAMSTER:
 			Baseband = BASEBAND_MSM;
 			break;
+		case EFICHIPINFO_ID_APQCOBALT:
+			Baseband = BASEBAND_APQ;
+			break;
 		default:
 			DEBUG((EFI_D_ERROR, "Unsupported platform: %u\n", Platform));
 			ASSERT(0);
