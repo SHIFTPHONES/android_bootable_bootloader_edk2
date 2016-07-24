@@ -35,6 +35,7 @@
 #include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
 #include <Protocol/EFIRamPartition.h>
+#include <Protocol/EFILimits.h>
 #include <Library/UefiBootServicesTableLib.h>
 
 #define DTB_MAX_SUBNODE                128
@@ -42,6 +43,8 @@
 
 #define MSMCOBALT_PGOOD_FUSE		0x78013C
 #define MSMCOBALT_PGOOD_SUBBIN_FUSE	0x780324
+
+#define PARTIAL_GOOD_GOLD_DISABLE 0x1
 
 enum property_type
 {

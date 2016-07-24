@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,41 +26,12 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef __EFICHIPINFOTYPES_H__
-#define __EFICHIPINFOTYPES_H__
 
-/** @addtogroup efi_chipInfo_data_types 
-@{ */
+#ifndef _REG_H
+#define _REG_H
 
-/** Chip identification. */
-/* Any new IDs must be added to the end. */
-typedef enum
-{
-  /** @cond */
-  EFICHIPINFO_ID_UNKNOWN    = 0,  /**< Unknown chip. */
-  EFICHIPINFO_ID_MSMCOBALT  = 292,
-  EFICHIPINFO_ID_APQCOBALT  = 319,
-  EFICHIPINFO_ID_MSMHAMSTER  = 306,
+#define REG32(addr) ((volatile UINT32 *)(addr))
+#define READL(addr)  (*REG32(addr))
+#define WRITEL(addr, val)  (*REG32(addr) = (val))
 
-  EFICHIPINFO_NUM_IDS        = 301,
-  EFICHIPINFO_ID_32BITS      = 0x7FFFFFF
-/** @endcond */
-} EFIChipInfoIdType;
-
-/** Chip family. This is the family type of the chip on which the software is 
-  running. Each family may include multiple chip IDs.
-*/
-typedef enum
-{
-  /** @cond */
-  EFICHIPINFO_FAMILY_UNKNOWN    = 0,  /**< Unknown family. */
-  EFICHIPINFO_FAMILY_MSMCOBALT  = 67,
-/** @cond */
-  EFICHIPINFO_NUM_FAMILIES      = 71,
-  EFICHIPINFO_FAMILY_32BITS     = 0x7FFFFFF
-/** @endcond */
-} EFIChipInfoFamilyType;
-
-
-#endif /* __EFICHIPINFOTYPES_H__ */
-
+#endif

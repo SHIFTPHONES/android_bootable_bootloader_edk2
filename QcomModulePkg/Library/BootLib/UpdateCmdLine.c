@@ -37,6 +37,8 @@
 #include <Protocol/EFICardInfo.h>
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/Print2.h>
+#include <Protocol/EFIPmicPon.h>
+#include <Protocol/EFIChargerEx.h>
 #include <DeviceInfo.h>
 
 STATIC CONST CHAR8 *bootdev_cmdline = " androidboot.bootdevice=1da4000.ufshc";
@@ -60,6 +62,11 @@ STATIC CHAR8 *baseband_sglte2  = " androidboot.baseband=sglte2";
 
 /* Assuming unauthorized kernel image by default */
 STATIC INT32 auth_kernel_img = 0;
+
+/* Display command line related structures */
+#define MAX_DISPLAY_CMD_LINE 256
+CHAR8 display_cmdline[MAX_DISPLAY_CMD_LINE];
+UINTN display_cmdline_len = sizeof(display_cmdline);
 
 #if VERIFIED_BOOT
 STATIC CONST CHAR8 *verity_mode = " androidboot.veritymode=";
@@ -99,6 +106,9 @@ STATIC UINT32 TargetBaseBand()
 		case EFICHIPINFO_ID_MSMHAMSTER:
 			Baseband = BASEBAND_MSM;
 			break;
+		case EFICHIPINFO_ID_APQCOBALT:
+			Baseband = BASEBAND_APQ;
+			break;
 		default:
 			DEBUG((EFI_D_ERROR, "Unsupported platform: %u\n", Platform));
 			ASSERT(0);
@@ -111,13 +121,83 @@ STATIC UINT32 TargetBaseBand()
  *Serves only performance purposes, defaults to return zero*/
 UINT32 target_pause_for_battery_charge(VOID)
 {
-	return 0;
+	EFI_STATUS Status;
+	EFI_PM_PON_REASON_TYPE pon_reason;
+	EFI_QCOM_PMIC_PON_PROTOCOL *PmicPonProtocol;
+	EFI_QCOM_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
+	BOOLEAN chgpresent;
+	BOOLEAN WarmRtStatus;
+	BOOLEAN IsColdBoot;
+
+	Status = gBS->LocateProtocol(&gQcomPmicPonProtocolGuid, NULL,
+			(VOID **) &PmicPonProtocol);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error locating pmic pon protocol: %r\n", Status));
+		return Status;
+	}
+
+	/* Passing 0 for PMIC device Index since the protocol infers internally */
+	Status = PmicPonProtocol->GetPonReason(0, &pon_reason);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error getting pon reason: %r\n", Status));
+		return Status;
+	}
+	Status = PmicPonProtocol->WarmResetStatus(0, &WarmRtStatus);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error getting warm reset status: %r\n", Status));
+		return Status;
+	}
+	IsColdBoot = !WarmRtStatus;
+	Status = gBS->LocateProtocol(&gQcomChargerExProtocolGuid, NULL, (void **) &ChgDetectProtocol);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error locating charger detect protocol: %r\n", Status));
+		return Status;
+	}
+	Status = ChgDetectProtocol->GetChargerPresence(&chgpresent);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error getting charger info: %r\n", Status));
+		return Status;
+	}
+	DEBUG((EFI_D_INFO, " pon_reason is %d cold_boot:%d charger path: %d\n",
+		pon_reason, IsColdBoot, chgpresent));
+	/* In case of fastboot reboot,adb reboot or if we see the power key
+	 * pressed we do not want go into charger mode.
+	 * fastboot/adb reboot is warm boot with PON hard reset bit set.
+	 */
+	if (IsColdBoot &&
+			(!(pon_reason.HARD_RESET) &&
+			(!(pon_reason.KPDPWR)) &&
+			(pon_reason.PON1) &&
+			(chgpresent)))
+		return 1;
+	else
+		return 0;
 }
 
+VOID GetDisplayCmdline()
+{
+	EFI_STATUS Status;
+
+	Status = gRT->GetVariable(
+			L"DisplayPanelConfiguration",
+			&gQcomTokenSpaceGuid,
+			NULL,
+			&display_cmdline_len,
+			display_cmdline);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
+	}
+}
 
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname)
+UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 {
 	EFI_STATUS Status;
 	UINT32 cmdline_len = 0;
@@ -174,8 +254,9 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname)
 		/* reduce kernel console messages to speed-up boot */
 		cmdline_len += AsciiStrLen(loglevel);
 	}
-	else if (target_pause_for_battery_charge())
+	else if (target_pause_for_battery_charge() && devinfo->is_charger_screen_enabled)
 	{
+		DEBUG((EFI_D_INFO, "Device will boot into off mode charging mode\n"));
 		pause_at_bootup = 1;
 		cmdline_len += AsciiStrLen(battchg_pause);
 	}
@@ -225,6 +306,9 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname)
 			cmdline_len += AsciiStrLen(baseband_dsda2);
 			break;
 	}
+
+	GetDisplayCmdline();
+	cmdline_len += AsciiStrLen(display_cmdline);
 
 #define STR_COPY(dst,src)  {while (*src){*dst = *src; ++src; ++dst; } *dst = 0; ++dst;}
 	if (cmdline_len > 0)
@@ -347,6 +431,9 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname)
 				break;
 		}
 
+		src = display_cmdline;
+		if (have_cmdline) --dst;
+		STR_COPY(dst,src);
 	}
 	DEBUG((EFI_D_INFO, "Cmdline: %a\n", cmdline_final));
 

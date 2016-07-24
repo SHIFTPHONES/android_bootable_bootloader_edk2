@@ -216,7 +216,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	if(cmdline)
 	{
 		/* Adding the cmdline to the chosen node */
-		ret = fdt_setprop_string(fdt, offset, (CONST char*)"bootargs", (CONST VOID*)cmdline);
+		ret = fdt_appendprop_string(fdt, offset, (CONST char*)"bootargs", (CONST VOID*)cmdline);
 		if (ret)
 		{
 			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [bootargs] ...\n"));
@@ -245,6 +245,33 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	fdt_pack(fdt);
 
 	return ret;
+}
+
+STATIC EFI_STATUS UpdatePartialGoodsBinA(UINT32 *PartialGoodType)
+{
+	EFI_LIMITS_THROTTLE_TYPE Throttle;
+	EFI_LIMITS_PROTOCOL *Limits_Protocol;
+	UINT32 Value;
+	INTN Status;
+	extern EFI_GUID gEfiLimitsProtocolGuid;
+
+	Status = gBS->LocateProtocol(&gEfiLimitsProtocolGuid, NULL, (VOID **) &Limits_Protocol);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error locating the throttle limits protocol\n"));
+		return Status;
+	}
+	Status = Limits_Protocol->SubSysThrottle(Limits_Protocol, EFI_LIMITS_SUBSYS_APC1, &Throttle, &Value);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error setting the APC1 throttle value\n"));
+		return Status;
+	}
+	if (Throttle == EFI_LIMITS_THROTTLE_MAX_DISABLE){
+		DEBUG((EFI_D_INFO, "Disabling the gold cluster because of High APC1 throttle value\n"));
+		(*PartialGoodType) |= PARTIAL_GOOD_GOLD_DISABLE;
+	}
+	return Status;
 }
 
 /* Update device tree for partial goods */
@@ -284,6 +311,13 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 		if (SubBinValue)
 			SubBinSupported = TRUE;
 		DEBUG((EFI_D_INFO, "PartialGoodType:%x, SubBin: %x\n", PartialGoodType, SubBinValue));
+	}
+
+	Status = UpdatePartialGoodsBinA(&PartialGoodType);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error updating BinA partial goods.\n"));
+		return Status;
 	}
 
 	if (!PartialGoodType)

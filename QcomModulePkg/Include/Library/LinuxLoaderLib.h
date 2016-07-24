@@ -52,10 +52,11 @@
 #include <Protocol/SerialIo.h>
 #include <Protocol/FirmwareVolume2.h>
 #include <Protocol/LoadedImage.h>
+#include <Protocol/EFIVerifiedBoot.h>
 #include <Guid/FileSystemInfo.h>
 #include <Guid/FileInfo.h>
 #include <Guid/Gpt.h>
-
+#include "DeviceInfo.h"
 /**
   gQcomTokenSpaceGuid GUID definition.
  */
@@ -127,6 +128,7 @@ typedef struct {
 /* Load image from partition to buffer */
 EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUID *PartitionType);
 
+EFI_STATUS ReadWriteDeviceInfo(vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz);
 /**
   Returns a list of BlkIo handles based on required criteria
   SelectionAttrib : Bitmask representing the conditions that need

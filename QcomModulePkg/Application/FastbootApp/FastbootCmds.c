@@ -102,6 +102,7 @@ STATIC INT32 Lun = NO_LUN;
 STATIC BOOLEAN LunSet;
 
 STATIC FASTBOOT_CMD *cmdlist;
+DeviceInfo FbDevInfo;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
 STATIC VOID AcceptCmd (IN  UINTN Size,IN  CHAR8 *Data);
@@ -817,7 +818,7 @@ STATIC VOID CmdFlash(
 	{
 		/* Copy over the partition name alone for flashing */
 		Len = Token - arg;
-		PartitionName = AllocatePool(Len);
+		PartitionName = AllocatePool(Len+1);
 		AsciiStrnCpy(PartitionName, arg, Len);
 		PartitionName[Len] = '\0';
 		/* Skip past ":" to the lun number */
@@ -1177,7 +1178,7 @@ STATIC VOID CmdContinue(
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, device, "boot");
+	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, "boot");
 }
 
 STATIC VOID CmdGetVarAll()
@@ -1279,7 +1280,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
     }
     FastbootOkay("");
     FastbootUsbDeviceStop();
-    BootLinux(data, ImageSizeActual, device, "boot");
+    BootLinux(data, ImageSizeActual, &FbDevInfo, "boot");
 }
 
 STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
@@ -1310,17 +1311,57 @@ STATIC VOID CmdOemDeviceInfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
 STATIC VOID CmdOemEnableChargerScreen(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
+	EFI_STATUS Status;
+	DEBUG((EFI_D_INFO, "Enabling Charger Screen\n"));
 
+	FbDevInfo.is_charger_screen_enabled = TRUE;
+	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	if (Status != EFI_SUCCESS)
+		DEBUG((EFI_D_ERROR, "Error Enabling charger screen, power-off charging will not work: %r\n", Status));
+	FastbootOkay("");
 }
 
 STATIC VOID CmdOemDisableChargerScreen(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
+	EFI_STATUS Status;
+	DEBUG((EFI_D_INFO, "Disabling Charger Screen\n"));
 
+	FbDevInfo.is_charger_screen_enabled = FALSE;
+	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	if (Status != EFI_SUCCESS)
+		DEBUG((EFI_D_ERROR, "Error Disabling charger screen: %r\n", Status));
+	FastbootOkay("");
 }
 
 STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 
+}
+
+STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+{
+	EFI_STATUS Status;
+	CHAR8 resp[MAX_RSP_SIZE] = "Selecting Panel: ";
+	AsciiStrCatS(resp, sizeof(resp), arg);
+
+	/* Update the environment variable with the selected panel */
+	Status = gRT->SetVariable(
+			L"DisplayPanelOverride",
+			&gQcomTokenSpaceGuid,
+			EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
+			AsciiStrLen(arg),
+			arg);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Failed to set panel name, %r\n", Status));
+		AsciiStrCatS(resp, sizeof(resp), ": failed");
+		FastbootFail(resp);
+	}
+	else
+	{
+		AsciiStrCatS(resp, sizeof(resp), ": done");
+		FastbootOkay(resp);
+	}
 }
 
 STATIC VOID AcceptCmd(
@@ -1416,6 +1457,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		{ "oem enable-charger-screen", CmdOemEnableChargerScreen },
 		{ "oem disable-charger-screen", CmdOemDisableChargerScreen },
 		{ "oem off-mode-charge", CmdOemOffModeCharger },
+		{ "oem select-display-panel", CmdOemSelectDisplayPanel },
 		{ "getvar:", CmdGetVar },
 		{ "download:", CmdDownload },
 #endif
@@ -1451,6 +1493,14 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	UINT32 FastbootCmdCnt = sizeof(cmd_list)/sizeof(cmd_list[0]);
 	for (i = 1 ; i < FastbootCmdCnt; i++)
 		FastbootRegister(cmd_list[i].name, cmd_list[i].cb);
+
+	// Read Device Info
+	Status = ReadWriteDeviceInfo(READ_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		return Status;
+	}
 
 	return EFI_SUCCESS;
 }
