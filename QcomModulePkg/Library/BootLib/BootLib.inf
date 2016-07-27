@@ -54,6 +54,7 @@
 	DrawUI.c
 	MenuKeysDetection.c
 	UnlockMenu.c
+	FastbootMenu.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
