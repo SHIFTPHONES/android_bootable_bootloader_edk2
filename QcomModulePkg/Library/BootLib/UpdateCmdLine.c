@@ -317,7 +317,8 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 
 		CHAR8* dst;
 		dst = AllocatePool (cmdline_len + 4);
-		//ASSERT(dst != NULL);
+		ASSERT(dst != NULL);
+		SetMem(dst, cmdline_len + 4, 0x0);
 
 		/* Save start ptr for debug print */
 		cmdline_final = dst;
