@@ -53,6 +53,7 @@
 	BootStats.c
 	DrawUI.c
 	MenuKeysDetection.c
+	UnlockMenu.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
