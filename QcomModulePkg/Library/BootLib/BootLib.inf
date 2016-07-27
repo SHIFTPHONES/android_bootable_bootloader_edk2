@@ -51,6 +51,7 @@
 	KeyPad.c
 	Recovery.c
 	BootStats.c
+	DrawUI.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
