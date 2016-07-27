@@ -62,6 +62,7 @@
   PcdLib
   BootLib
   DebugLib
+  UefiHiiServicesLib
 
 [Protocols]
   gEfiSimpleTextInProtocolGuid

@@ -56,6 +56,8 @@
 #include <Library/UefiApplicationEntryPoint.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/MenuKeysDetection.h>
+
 #include <Protocol/BlockIo.h>
 
 #include <Guid/EventGroup.h>
@@ -1173,6 +1175,9 @@ STATIC VOID CmdContinue(
 	DEBUG((EFI_D_VERBOSE, "Device Tree Size : 0x%x\n", DeviceTreeSize));
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr: 0x%x\n", RamdiskLoadAddr));
 
+	/* Exit keys' detection firstly */
+	ExitMenuKeysDetection();
+
 	FastbootOkay("");
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
@@ -1277,6 +1282,10 @@ STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
         FastbootFail("BootImage: Size os greater than boot image buffer can hold");
         return;
     }
+
+    /* Exit keys' detection firstly */
+    ExitMenuKeysDetection();
+
     FastbootOkay("");
     FastbootUsbDeviceStop();
     BootLinux(data, ImageSizeActual, &FbDevInfo, "boot");
