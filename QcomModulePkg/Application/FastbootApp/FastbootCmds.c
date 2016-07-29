@@ -72,8 +72,7 @@
 #include "MetaFormat.h"
 #include "BootImage.h"
 #include "BootLinux.h"
-
-#define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : MAX_UINT32
+#include "LinuxLoaderLib.h"
 
 struct GetVarPartitionInfo part_info[] =
 {

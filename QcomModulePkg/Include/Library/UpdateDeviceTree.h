@@ -37,6 +37,7 @@
 #include <Protocol/EFIRamPartition.h>
 #include <Protocol/EFILimits.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 
 #define DTB_MAX_SUBNODE                128
 #define ARRAY_SIZE(a)                  sizeof(a)/sizeof(*a)
@@ -94,6 +95,15 @@ static struct PartialGoods MsmCobaltTable[] =
 	                {"qcom,mdss_dp_pll", "status",  2, 0x40},
 	                {"qcom,msm-adsp-loader", "status", 1, 0x80},}},
 	{0x4, "/soc",   {{"qcom,mss", "status", 1, 0x0},}},
+};
+
+struct DisplaySplashBufferInfo {
+	/* Version number used to track changes to the structure */
+	UINT32 uVersion;
+	/* Physical address of the frame buffer */
+	UINT32 uFrameAddr;
+	/* Frame buffer size */
+	UINT32 uFrameSize;
 };
 
 INTN dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);

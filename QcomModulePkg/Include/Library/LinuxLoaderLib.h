@@ -92,6 +92,8 @@
 #define PARTITIONED_TYPE_MBR    0x01
 #define PARTITIONED_TYPE_GPT    0x02
 
+/* Macro to avoid integer overflow */
+#define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : MAX_UINT32
 /**
   External reference to the gQcomTokenSpaceGuid GUID.
  */
