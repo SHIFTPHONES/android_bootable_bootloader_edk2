@@ -47,6 +47,9 @@
 
 #define PARTIAL_GOOD_GOLD_DISABLE 0x1
 
+/* Return True if integer overflow will occur */
+#define CHECK_ADD64(a, b) ((MAX_UINT64 - b < a) ? TRUE : FALSE)
+
 enum property_type
 {
 	DEVICE_TYPE = 1,
@@ -112,4 +115,6 @@ INTN dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size
 
 EFI_STATUS UpdateDeviceTree(VOID* fdt, CONST CHAR8* cmdline, VOID* ramdisk,	UINT32 ramdisk_size);
 EFI_STATUS UpdatePartialGoodsNode(VOID *fdt);
+
+UINT32 fdt_check_header_ext(VOID *fdt);
 #endif

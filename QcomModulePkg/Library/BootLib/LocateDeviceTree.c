@@ -27,7 +27,7 @@
 */
 
 #include "LocateDeviceTree.h"
-
+#include "UpdateDeviceTree.h"
 // Variables to initialize board data
 
 STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_entry_node *dt_list);
@@ -318,6 +318,8 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	uintptr_t kernel_end = (uintptr_t)kernel + kernel_size;
 	VOID *dtb = NULL;
 	VOID *bestmatch_tag = NULL;
+	uintptr_t RamdiskLoadAddr;
+	STATIC UINTN BaseMemory;
 	struct dt_entry *best_match_dt_entry = NULL;
 	UINT32 bestmatch_tag_size;
 	struct dt_entry_node *dt_entry_queue = NULL;
@@ -352,16 +354,11 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 		 * and operate on it separately */
 		CopyMem(&dtb_hdr, dtb, sizeof(struct fdt_header));
 		if (fdt_check_header((const VOID *)&dtb_hdr) != 0 ||
+				fdt_check_header_ext((const VOID *)&dtb_hdr) != 0 ||
 				((uintptr_t)dtb + (uintptr_t)fdt_totalsize((const VOID *)&dtb_hdr) < (uintptr_t)dtb) ||
 				((uintptr_t)dtb + (uintptr_t)fdt_totalsize((const VOID *)&dtb_hdr) > (uintptr_t)kernel_end))
 			break;
 		dtb_size = fdt_totalsize(&dtb_hdr);
-
-		/* comment out for now
-		   if (check_aboot_addr_range_overlap((UINT32)tags, dtb_size)) {
-		   DEBUG((EFI_D_ERROR, "Tags addresses overlap with aboot addresses.\n");
-		   return NULL;
-		   } */
 
 		DeviceTreeCompatible(dtb, dtb_size, dt_entry_queue);
 
@@ -392,6 +389,19 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	}
 
 	if(bestmatch_tag) {
+		Status = BaseMem(&BaseMemory);
+		if (Status != EFI_SUCCESS)
+			ASSERT(0);
+
+		RamdiskLoadAddr = BaseMemory | PcdGet32(RamdiskLoadAddress);
+		if((RamdiskLoadAddr - (uintptr_t)tags) > RamdiskLoadAddr){
+			DEBUG((EFI_D_ERROR, "Tags address is not valid\n"));
+			return NULL;
+		}
+		if((RamdiskLoadAddr - (uintptr_t)tags) < bestmatch_tag_size){
+			DEBUG((EFI_D_ERROR, "Tag size is over the limit\n"));
+			return NULL;
+		}
 		CopyMem(tags, bestmatch_tag, bestmatch_tag_size);
 		/* clear out the old DTB magic so kernel doesn't find it */
 		*((UINT32 *)(kernel + dtb_offset)) = 0;
