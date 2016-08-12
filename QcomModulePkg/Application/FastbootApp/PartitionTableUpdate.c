@@ -459,7 +459,7 @@ STATIC INTN WriteGpt(INTN Lun, UINT32 Sz, UINT8 *Gpt)
 		return FAILURE;
 	}
 	FlashingGpt = 0;
-	SetMem((VOID *)PrimaryGptHdr, 0x0, Sz);
+	SetMem((VOID *)PrimaryGptHdr, Sz, 0x0);
 
 	DEBUG((EFI_D_ERROR, "Updated Partition Table Successfully\n"));
 	return SUCCESS;
