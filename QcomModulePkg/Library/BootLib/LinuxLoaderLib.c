@@ -518,3 +518,49 @@ out:
 	FreePool(DevInfoBuf);
 	return Status;
 }
+
+EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg)
+{
+	EFI_STATUS Status;
+	EFI_BLOCK_IO_PROTOCOL *BlkIo = NULL;
+	PartiSelectFilter HandleFilter;
+	HandleInfo HandleInfoList[1];
+	UINT32 MaxHandles;
+	UINT32 BlkIOAttrib = 0;
+
+	if (Msg == NULL)
+		return EFI_INVALID_PARAMETER;
+
+	BlkIOAttrib = BLK_IO_SEL_PARTITIONED_GPT;
+	BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
+	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID;
+
+	HandleFilter.RootDeviceType = NULL;
+	HandleFilter.PartitionType = Ptype;
+	HandleFilter.VolumeName = 0;
+
+	MaxHandles = ARRAY_SIZE(HandleInfoList);
+	Status = GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
+
+	if(Status == EFI_SUCCESS)
+	{
+		if(MaxHandles == 0)
+			return EFI_NO_MEDIA;
+
+		if(MaxHandles != 1)
+		{
+			//Unable to deterministically load from single partition
+			DEBUG((EFI_D_INFO, "%s: multiple partitions found.\r\n", __func__));
+			return EFI_LOAD_ERROR;
+		}
+	}
+
+	BlkIo = HandleInfoList[0].BlkIo;
+
+	Status = BlkIo->WriteBlocks(BlkIo, BlkIo->Media->MediaId, 0, BlkIo->Media->BlockSize, Msg);
+
+	if(Status != EFI_SUCCESS)
+		return Status;
+
+	return Status;
+}
