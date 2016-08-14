@@ -55,6 +55,7 @@
 	MenuKeysDetection.c
 	UnlockMenu.c
 	FastbootMenu.c
+	VerifiedBootMenu.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
