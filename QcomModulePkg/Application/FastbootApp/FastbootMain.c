@@ -49,6 +49,8 @@
 #include <Protocol/EFIUsbDevice.h>
 #include <Library/DebugLib.h>
 #include <Library/LinuxLoaderLib.h>
+#include <Library/FastbootMenu.h>
+#include <Library/MenuKeysDetection.h>
 
 #include "UsbDescriptors.h"
 #include "FastbootCmds.h"
@@ -331,6 +333,8 @@ FastbootAppEntryPoint(
     return Status;
   }
 
+  DisplayFastbootMenu();
+
   /* Wait for USB events in tight loop */
   while (1)
   {
@@ -350,6 +354,8 @@ FastbootAppEntryPoint(
     DEBUG((EFI_D_ERROR, "couldnt uninit fastboot\n"));
     return Status;
   }
+
+  ExitMenuKeysDetection();
 
   Status = FastbootUsbDeviceStop();
   return Status;
