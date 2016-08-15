@@ -48,6 +48,7 @@ enum {
 	DM_VERITY_LOGGING   = 0x4,
 	DM_VERITY_ENFORCING = 0x5,
 	DM_VERITY_KEYSCLEAR = 0x6,
+	EMERGENCY_DLOAD     = 0xFF,
 } RebootReasonType;
 
 

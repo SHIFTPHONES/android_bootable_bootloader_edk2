@@ -212,6 +212,8 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			BootIntoFastboot = TRUE;
 		if (KeyPressed == SCAN_UP)
 			BootIntoRecovery = TRUE;
+		if (KeyPressed == SCAN_ESC)
+			RebootDevice(EMERGENCY_DLOAD);
 	}
 	else if (Status == EFI_DEVICE_ERROR)
 	{
