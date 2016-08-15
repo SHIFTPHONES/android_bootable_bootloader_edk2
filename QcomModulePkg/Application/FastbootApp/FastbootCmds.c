@@ -773,6 +773,13 @@ STATIC VOID CmdDownload(
 		return;
 	}
 
+	if (mNumDataBytes > MAX_DOWNLOAD_SIZE)
+	{
+		DEBUG((EFI_D_ERROR, "ERROR: Data size (%d) is more than max download size (%d)", mNumDataBytes, MAX_DOWNLOAD_SIZE));
+		FastbootFail("Requested download size is more than max allowed\n");
+		return;
+	}
+
 	UnicodeSPrint (OutputString, sizeof (OutputString), L"Downloading %d bytes\r\n", mNumDataBytes);
 	AsciiStrnCpy (Response + 4, NumBytesString, 8);
 	CopyMem(GetFastbootDeviceData().gTxBuffer, Response, 12);
