@@ -418,13 +418,13 @@ EFI_STATUS EFIAPI MenuKeysDetectionInit(IN VOID *mMenuInfo)
 			MenuInfo,
 			&CallbackKeyDetection
 		);
-		DEBUG((EFI_D_INFO, "Create keys detection event: %r\n", Status));
+		DEBUG((EFI_D_VERBOSE, "Create keys detection event: %r\n", Status));
 
 		if (!EFI_ERROR (Status)) {
 			Status = gBS->SetTimer(CallbackKeyDetection,
 				TimerPeriodic,
 				500000);
-			DEBUG((EFI_D_INFO, "Set keys detection Timer: %r\n", Status));
+			DEBUG((EFI_D_VERBOSE, "Set keys detection Timer: %r\n", Status));
 		}
 	}
 	return Status;

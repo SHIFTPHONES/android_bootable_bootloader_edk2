@@ -79,9 +79,12 @@ STATIC MENU_MSG_INFO mUnlockMenuMsgInfo[] = {
   Draw the unlock menu
   @param[in] type               Unlock menu type
   @param[out] OptionMenuInfo    Unlock option info
+  @retval     EFI_SUCCESS       The entry point is executed successfully.
+  @retval     other	        Some error occurs when executing this entry point.
  **/
-STATIC VOID UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type)
+STATIC EFI_STATUS UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type)
 {
+	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Location = 0;
 	UINT32 Height = 0;
 	UINT32 i = 0;
@@ -100,7 +103,9 @@ STATIC VOID UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type)
 			}
 		}
 		OptionMenuInfo->Info.MsgInfo[i].Location = Location;
-		DrawMenu(&OptionMenuInfo->Info.MsgInfo[i], &Height);
+		Status = DrawMenu(&OptionMenuInfo->Info.MsgInfo[i], &Height);
+		if (Status != EFI_SUCCESS)
+			return Status;
 		Location += Height;
 	}
 
@@ -113,6 +118,8 @@ STATIC VOID UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type)
 
 	/* Initialize the option index */
 	OptionMenuInfo->Info.OptionIndex = UNLOCK_OPTION_NUM;
+
+	return Status;
 }
 
 /**
@@ -123,6 +130,7 @@ STATIC VOID UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type)
 **/
 VOID DisplayUnlockMenu(INTN Type)
 {
+	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO *OptionMenuInfo;
 	OptionMenuInfo = &gMenuInfo;
 
@@ -131,10 +139,14 @@ VOID DisplayUnlockMenu(INTN Type)
 		OptionMenuInfo->LastMenuType =
 			OptionMenuInfo->Info.MenuType;
 
-		UnlockMenuShowScreen(OptionMenuInfo, Type);
+		Status = UnlockMenuShowScreen(OptionMenuInfo, Type);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Unable to show unlock menu on screen: %r\n", Status));
+			return;
+		}
 
 		MenuKeysDetectionInit(OptionMenuInfo);
-		DEBUG((EFI_D_INFO, "Creating unlock keys detect event\n"));
+		DEBUG((EFI_D_VERBOSE, "Creating unlock keys detect event\n"));
 	} else {
 		DEBUG((EFI_D_INFO, "Display menu is not enabled!\n"));
 	}

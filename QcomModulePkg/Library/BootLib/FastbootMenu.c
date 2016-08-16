@@ -85,6 +85,7 @@ STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
  **/
 EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation)
 {
+	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32  Location = 0;
 	UINT32  Height = 0;
 	MENU_MSG_INFO *FastbootLineInfo = NULL;
@@ -102,17 +103,24 @@ EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation)
 		LINEATION,
 		Location,
 		NOACTION);
-	DrawMenu(FastbootLineInfo, &Height);
+	Status = DrawMenu(FastbootLineInfo, &Height);
+	if (Status != EFI_SUCCESS)
+		goto Exit;
 	Location += Height;
 
 	mFastbootOptionTitle[OptionItem].Location = Location;
-	DrawMenu(mFastbootOptionTitle[OptionItem].Msg, &Height);
+	Status = DrawMenu(mFastbootOptionTitle[OptionItem].Msg, &Height);
+	if (Status != EFI_SUCCESS)
+		goto Exit;
 	Location += Height;
 
 	FastbootLineInfo->Location = Location;
-	DrawMenu(FastbootLineInfo, &Height);
+	Status = DrawMenu(FastbootLineInfo, &Height);
+	if (Status != EFI_SUCCESS)
+		goto Exit;
 	Location += Height;
 
+	Exit:
 	if (FastbootLineInfo) {
 		FreePool(FastbootLineInfo);
 		FastbootLineInfo = NULL;
@@ -121,7 +129,7 @@ EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation)
 	if (pLocation != NULL)
 		*pLocation = Location;
 
-	return EFI_SUCCESS;
+	return Status;
 }
 
 /**
@@ -132,7 +140,7 @@ EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation)
  **/
 STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 {
-	EFI_STATUS Status;
+	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32  Location = 0;
 	UINT32  OptionItem = 0;
 	UINT32  Height = 0;
@@ -164,7 +172,9 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 		OptionMenuInfo->Info.OptionItems[i] = i;
 	}
 	OptionItem = OptionMenuInfo->Info.OptionItems[OptionMenuInfo->Info.OptionIndex];
-	UpdateFastbootOptionItem(OptionItem, &Location);
+	Status = UpdateFastbootOptionItem(OptionItem, &Location);
+	if (Status != EFI_SUCCESS)
+		goto Exit;
 
 	/* Update fastboot common message */
 	for (i = 0; i < ARRAY_SIZE(mFastbootCommonMsgInfo); i++) {
@@ -212,19 +222,22 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 		}
 
 		mFastbootCommonMsgInfo[i].Location = Location;
-		DrawMenu(&mFastbootCommonMsgInfo[i], &Height);
+		Status = DrawMenu(&mFastbootCommonMsgInfo[i], &Height);
+		if (Status != EFI_SUCCESS)
+			goto Exit;
 		Location += Height;
 	}
 
 	OptionMenuInfo->Info.MenuType = DISPLAY_MENU_FASTBOOT;
 	OptionMenuInfo->Info.OptionNum = ARRAY_SIZE(mFastbootOptionTitle);
 
+	Exit:
 	if (DevInfo) {
 		FreePool(DevInfo);
 		DevInfo = NULL;
 	}
 
-	return EFI_SUCCESS;
+	return Status;
 }
 
 /* Draw the fastboot menu and start to detect the key's status */
@@ -245,7 +258,7 @@ VOID DisplayFastbootMenu()
 		}
 
 		MenuKeysDetectionInit(OptionMenuInfo);
-		DEBUG((EFI_D_INFO, "Creating fastboot menu keys detect event\n"));
+		DEBUG((EFI_D_VERBOSE, "Creating fastboot menu keys detect event\n"));
 	} else {
 		DEBUG((EFI_D_INFO, "Display menu is not enabled!\n"));
 	}

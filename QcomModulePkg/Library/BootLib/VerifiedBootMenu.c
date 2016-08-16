@@ -133,9 +133,12 @@ STATIC MENU_MSG_INFO mOptionMenuMsgInfo[] = {
 /**
   Draw the verified boot option menu
   @param[out] OptionMenuInfo  The option info
+  @retval     EFI_SUCCESS       The entry point is executed successfully.
+  @retval     other	       Some error occurs when executing this entry point.
  **/
-VOID VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
+EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 {
+	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Location = 0;
 	UINT32 Height = 0;
 	UINT32 i = 0;
@@ -154,7 +157,9 @@ VOID VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 			}
 		}
 		OptionMenuInfo->Info.MsgInfo[i].Location = Location;
-		DrawMenu(&OptionMenuInfo->Info.MsgInfo[i], &Height);
+		Status = DrawMenu(&OptionMenuInfo->Info.MsgInfo[i], &Height);
+		if (Status != EFI_SUCCESS)
+			return Status;
 		Location += Height;
 	}
 
@@ -163,16 +168,21 @@ VOID VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 
 	/* Initialize the option index */
 	OptionMenuInfo->Info.OptionIndex = VERIFIED_BOOT_OPTION_NUM;
+
+	return Status;
 }
 
 /**
   Draw the verified boot menu
   @param[in]  Type              The warning menu type
   @param[out] OptionMenuInfo    The option info
+  @retval     EFI_SUCCESS       The entry point is executed successfully.
+  @retval     other	       Some error occurs when executing this entry point.
  **/
-VOID VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
+EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
 	INTN Type)
 {
+	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Location = 0;
 	UINT32 Height = 0;
 	UINT32 URLFgColor = 0;
@@ -184,33 +194,45 @@ VOID VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
 
 	for (i = 0; i < ARRAY_SIZE(mTitleMsgInfo); i++) {
 		mTitleMsgInfo[i].Location = Location;
-		DrawMenu(&mTitleMsgInfo[i], &Height);
+		Status = DrawMenu(&mTitleMsgInfo[i], &Height);
+		if (Status != EFI_SUCCESS)
+			return Status;
 		Location += Height;
 	}
 
 	mCommonMsgInfo[Type].WarningMsg.Location = Location;
-	DrawMenu(&mCommonMsgInfo[Type].WarningMsg, &Height);
+	Status = DrawMenu(&mCommonMsgInfo[Type].WarningMsg, &Height);
+	if (Status != EFI_SUCCESS)
+		return Status;
 	Location += Height;
 
 	mCommonMsgInfo[Type].UrlMsg.Location = Location;
-	DrawMenu(&mCommonMsgInfo[Type].UrlMsg, &Height);
+	Status = DrawMenu(&mCommonMsgInfo[Type].UrlMsg, &Height);
+	if (Status != EFI_SUCCESS)
+		return Status;
 	Location += Height;
 
 	if (Type == DISPLAY_MENU_YELLOW) {
 		mCommonMsgInfo[Type].Fingerprint.Location = Location;
 		AsciiSPrint(mCommonMsgInfo[Type].Fingerprint.Msg,
 			MAX_MSG_SIZE, "ID: %a\n", "unsupported");
-		DrawMenu(&mCommonMsgInfo[Type].Fingerprint, &Height);
+		Status = DrawMenu(&mCommonMsgInfo[Type].Fingerprint, &Height);
+		if (Status != EFI_SUCCESS)
+			return Status;
 		Location += Height;
 	}
 
 	mCommonMsgInfo[Type].CommonMsg.Location = Location;
-	DrawMenu(&mCommonMsgInfo[Type].CommonMsg, &Height);
+	Status = DrawMenu(&mCommonMsgInfo[Type].CommonMsg, &Height);
+	if (Status != EFI_SUCCESS)
+		return Status;
 	Location += Height;
 
 	OptionMenuInfo->Info.MenuType = Type;
 	/* Initialize the time out time: 5s */
 	OptionMenuInfo->Info.TimeoutTime = 5;
+
+	return Status;
 }
 
 /**
@@ -223,6 +245,7 @@ VOID VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
 **/
 VOID DisplayVerifiedBootMenu(INTN Type)
 {
+	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO *OptionMenuInfo;
 	OptionMenuInfo = &gMenuInfo;
 
@@ -231,10 +254,14 @@ VOID DisplayVerifiedBootMenu(INTN Type)
 		OptionMenuInfo->LastMenuType =
 			OptionMenuInfo->Info.MenuType;
 
-		VerifiedBootMenuShowScreen(OptionMenuInfo, Type);
+		Status = VerifiedBootMenuShowScreen(OptionMenuInfo, Type);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Unable to show verified menu on screen: %r\n", Status));
+			return;
+		}
 
 		MenuKeysDetectionInit(OptionMenuInfo);
-		DEBUG((EFI_D_INFO, "Creating boot verify keys detect event\n"));
+		DEBUG((EFI_D_VERBOSE, "Creating boot verify keys detect event\n"));
 	} else {
 		DEBUG((EFI_D_INFO, "Display menu is not enabled!\n"));
 	}

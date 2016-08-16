@@ -34,12 +34,12 @@
 
 #if VERIFIED_BOOT
 VOID DisplayVerifiedBootMenu(INTN Type);
-VOID VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo);
-VOID VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type);
+EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo);
+EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type);
 #else
 STATIC inline VOID DisplayVerifiedBootMenu(UINT32 type) {}
-STATIC inline VOID VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo) {}
-STATIC inline VOID VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type) {}
+STATIC inline EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo) {}
+STATIC inline EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type) {}
 #endif
 
 #endif

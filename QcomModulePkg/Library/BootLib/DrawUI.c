@@ -73,17 +73,24 @@ STATIC UINT32 GetResolutionWidth()
 
 	if (GraphicsOutputProtocol == NULL) {
 		ConsoleHandle = gST->ConsoleOutHandle;
-		ASSERT( ConsoleHandle != NULL);
+		if (ConsoleHandle == NULL) {
+			DEBUG((EFI_D_ERROR, "Failed to get the handle for the active console input device.\n"));
+			return 0;
+		}
 
 		gBS->HandleProtocol (
 			ConsoleHandle,
 			&gEfiGraphicsOutputProtocolGuid,
 			(VOID **) &GraphicsOutputProtocol
 		);
-		ASSERT(GraphicsOutputProtocol != NULL);
+		if (GraphicsOutputProtocol == NULL) {
+			DEBUG((EFI_D_ERROR, "Failed to get the graphics output protocol.\n"));
+			return 0;
+		}
 	}
 	Width = GraphicsOutputProtocol->Mode->Info->HorizontalResolution;
-	ASSERT((Width != 0));
+	if (!Width)
+		DEBUG((EFI_D_ERROR, "Failed to get the width of the screen.\n"));
 
 	return Width;
 }
@@ -99,17 +106,24 @@ STATIC UINT32 GetResolutionHeight()
 
 	if (GraphicsOutputProtocol == NULL) {
 		ConsoleHandle = gST->ConsoleOutHandle;
-		ASSERT( ConsoleHandle != NULL);
+		if (ConsoleHandle == NULL) {
+			DEBUG((EFI_D_ERROR, "Failed to get the handle for the active console input device.\n"));
+			return 0;
+		}
 
 		gBS->HandleProtocol (
 			ConsoleHandle,
 			&gEfiGraphicsOutputProtocolGuid,
 			(VOID **) &GraphicsOutputProtocol
 		);
-		ASSERT(GraphicsOutputProtocol != NULL);
+		if (GraphicsOutputProtocol == NULL) {
+			DEBUG((EFI_D_ERROR, "Failed to get the graphics output protocol.\n"));
+			return 0;
+		}
 	}
 	Height = GraphicsOutputProtocol->Mode->Info->VerticalResolution;
-	ASSERT((Height !=0));
+	if (!Height)
+		DEBUG((EFI_D_ERROR, "Failed to get the height of the screen.\n"));
 
 	return Height;
 }
@@ -259,6 +273,11 @@ EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 	UINTN                   RowInfoArraySize;
 	CHAR16                  FontMessage[MAX_MSG_SIZE];
 
+	if (!GetResolutionHeight() || !GetResolutionWidth()) {
+		Status = EFI_OUT_OF_RESOURCES;
+		goto Exit;
+	}
+
 	BltBuffer = AllocateZeroPool (sizeof (EFI_IMAGE_OUTPUT));
 	if (BltBuffer == NULL) {
 		DEBUG((EFI_D_ERROR, "Failed to allocate zero pool for BltBuffer.\n"));
@@ -296,7 +315,10 @@ EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 		&RowInfoArraySize,
 		NULL
 	);
-	ASSERT_EFI_ERROR (Status);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Failed to render a string to the display: %r\n", Status));
+		goto Exit;
+	}
 
 	if (pHeight) {
 		*pHeight = RowInfoArraySize * RowInfoArray[0].LineHeight;
