@@ -120,6 +120,7 @@
 	gQcomPmicPonProtocolGuid
 	gQcomChargerExProtocolGuid
 	gEfiLimitsProtocolGuid
+	gEfiQcomVerifiedBootProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
