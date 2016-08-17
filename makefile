@@ -35,7 +35,7 @@ EDK_TOOLS_BIN:
 
 ABL_FV_IMG: EDK_TOOLS_BIN
 	@. ./edksetup.sh BaseTools && \
-	build -p $(WORKSPACE)/QcomModulePkg/QcomModulePkg.dsc -a AARCH64 -t $(TARGET_TOOLS) -b $(TARGET) -D ABL_OUT_DIR=$(ANDROID_PRODUCT_OUT) -j build_modulepkg.log $*
+	build -p $(WORKSPACE)/QcomModulePkg/QcomModulePkg.dsc -a AARCH64 -t $(TARGET_TOOLS) -b $(TARGET) -D ABL_OUT_DIR=$(ANDROID_PRODUCT_OUT) -D VERIFIED_BOOT=$(VERIFIED_BOOT) -j build_modulepkg.log $*
 	cp $(BUILD_ROOT)/FV/FVMAIN_COMPACT.Fv $(ABL_FV_IMG)
 
 ABL_FV_ELF: ABL_FV_IMG

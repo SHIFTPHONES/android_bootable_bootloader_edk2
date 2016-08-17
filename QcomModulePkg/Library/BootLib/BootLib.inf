@@ -81,6 +81,7 @@
 	TimerLib
 	BaseStackCheckLib
 	MemoryAllocationLib
+	UefiHiiServicesLib
 
 [Guids]
 	gEfiFileInfoGuid

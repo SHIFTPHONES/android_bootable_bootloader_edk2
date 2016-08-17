@@ -45,6 +45,7 @@
 #include <Library/TimerLib.h>
 #include <Library/PrintLib.h>
 #include <Library/CacheMaintenanceLib.h>
+#include <Library/DrawUI.h>
 #include <PiDxe.h>
 #include <Protocol/BlockIo.h>
 #include <Protocol/SimpleFileSystem.h>
@@ -52,6 +53,7 @@
 #include <Protocol/SerialIo.h>
 #include <Protocol/FirmwareVolume2.h>
 #include <Protocol/LoadedImage.h>
+#include <Protocol/EFIVerifiedBoot.h>
 #include <Guid/FileSystemInfo.h>
 #include <Guid/FileInfo.h>
 #include <Guid/Gpt.h>
@@ -75,7 +77,7 @@
 
 typedef VOID (*LINUX_KERNEL)(UINTN ParametersBase, UINTN Reserved0, UINTN Reserved1, UINTN Reserved2);
 
-VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname);
+EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname);
 
 EFI_STATUS LaunchApp(IN UINTN  Argc, IN CHAR8  **Argv);
 #endif

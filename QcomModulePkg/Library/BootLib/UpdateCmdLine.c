@@ -69,6 +69,7 @@ CHAR8 display_cmdline[MAX_DISPLAY_CMD_LINE];
 UINTN display_cmdline_len = sizeof(display_cmdline);
 
 #if VERIFIED_BOOT
+DeviceInfo DevInfo;
 STATIC CONST CHAR8 *verity_mode = " androidboot.veritymode=";
 STATIC CONST CHAR8 *verified_state = " androidboot.verifiedbootstate=";
 STATIC struct verified_boot_verity_mode vbvm[] =
@@ -234,12 +235,12 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 		have_cmdline = 1;
 	}
 #if VERIFIED_BOOT
-	if ((device.verity_mode != 0) && (device.verity_mode != 1))
+	if ((DevInfo.verity_mode != 0) && (DevInfo.verity_mode != 1))
 	{
 		DEBUG((EFI_D_ERROR, "Devinfo partition possibly corrupted!!!. Please erase devinfo partition to continue booting.\n"));
 		ASSERT(0);
 	}
-	cmdline_len += AsciiStrLen(verity_mode) + AsciiStrLen(vbvm[device.verity_mode]);
+	cmdline_len += AsciiStrLen(verity_mode) + AsciiStrLen(vbvm[DevInfo.verity_mode].name);
 #endif
 
 	cmdline_len += AsciiStrLen(bootdev_cmdline);

@@ -173,6 +173,37 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	BootStatsSetTimeStamp(BS_BL_START);
 
 	// Initialize verified boot & Read Device Info
+	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		return Status;
+	}
+
+	if (CompareMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE))
+	{
+		DEBUG((EFI_D_ERROR, "Device Magic does not match\n"));
+		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
+		if (IsSecureBootEnabled())
+		{
+			DevInfo.is_unlocked = FALSE;
+			DevInfo.is_unlock_critical = FALSE;
+		}
+		else
+		{
+			DevInfo.is_unlocked = TRUE;
+			DevInfo.is_unlock_critical = TRUE;
+		}
+		DevInfo.is_charger_screen_enabled = FALSE;
+		DevInfo.verity_mode = TRUE;
+		Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
+			return Status;
+		}
+	}
+
 	Status = ReadWriteDeviceInfo(READ_CONFIG, &DevInfo, sizeof(DevInfo));
 	if (Status != EFI_SUCCESS)
 	{
