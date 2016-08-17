@@ -104,6 +104,7 @@ STATIC BOOLEAN LunSet;
 
 STATIC FASTBOOT_CMD *cmdlist;
 DeviceInfo FbDevInfo;
+STATIC BOOLEAN IsAllowUnlock;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
 STATIC VOID AcceptCmd (IN  UINTN Size,IN  CHAR8 *Data);
@@ -1296,19 +1297,70 @@ STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
 }
 
+STATIC VOID SetDeviceUnlockValue(INTN Type, BOOLEAN Status)
+{
+	if (Type == UNLOCK)
+		FbDevInfo.is_unlocked = Status;
+	else if (Type == UNLOCK_CRITICAL)
+		FbDevInfo.is_unlock_critical = Status;
+
+	ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+}
+
+STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
+{
+	BOOLEAN is_unlocked = FALSE;
+	EFI_GUID MiscPartGUID = {0x82ACC91F, 0x357C, 0x4A68, {0x9C,0x8F,0x68,0x9E,0x1B,0x1A,0x23,0xA1}};
+	char response[MAX_RSP_SIZE] = {0};
+	struct RecoveryMessage Msg;
+
+	if (Type == UNLOCK)
+		is_unlocked = FbDevInfo.is_unlocked;
+	else if (Type == UNLOCK_CRITICAL)
+		is_unlocked == FbDevInfo.is_unlock_critical;
+	if (State == is_unlocked)
+	{
+		AsciiSPrint(response, MAX_RSP_SIZE, "\tDevice already : %a", (State ? "unlocked!" : "locked!"));
+		FastbootFail(response);
+		return;
+	}
+
+	/* If State is TRUE that means set the unlock to true */
+	if (State)
+	{
+		if(!IsAllowUnlock)
+		{
+			FastbootFail("Flashing Unlock is not allowed\n");
+			return;
+		}
+	}
+
+	SetDeviceUnlockValue(Type, State);
+	AsciiSPrint(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data");
+	WriteToPartition(&MiscPartGUID, &Msg);
+
+	FastbootOkay("");
+	RebootDevice(RECOVERY_MODE);
+}
+
 STATIC VOID CmdFlashingUnlock(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
-
+	SetDeviceUnlock(UNLOCK, TRUE);
 }
 
 STATIC VOID CmdFlashingLock(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
-
+	SetDeviceUnlock(UNLOCK, FALSE);
 }
 
-STATIC VOID CmdOemDeviceInfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+STATIC VOID CmdFlashingLockCritical(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
+	SetDeviceUnlock(UNLOCK_CRITICAL, FALSE);
+}
 
+STATIC VOID CmdFlashingUnLockCritical(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+{
+	SetDeviceUnlock(UNLOCK_CRITICAL, TRUE);
 }
 
 STATIC VOID CmdOemEnableChargerScreen(CONST CHAR8 *arg, VOID *data, UINT32 sz)
@@ -1425,6 +1477,32 @@ STATIC EFI_STATUS PublishGetVarPartitionInfo(
 	return Status;
 }
 
+STATIC EFI_STATUS ReadAllowUnlockValue(UINT32 *IsAllowUnlock)
+{
+	EFI_STATUS Status;
+	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
+	EFI_HANDLE *Handle = NULL;
+	UINT8 *Buffer;
+
+	Status = PartitionGetInfo("frp", &BlockIo, &Handle);
+	if (Status != EFI_SUCCESS)
+		return Status;
+
+	if (!BlockIo)
+		return EFI_NOT_FOUND;
+
+	Buffer = AllocatePool(BlockIo->Media->BlockSize);
+	ASSERT(Buffer);
+	Status = BlockIo->ReadBlocks(BlockIo, BlockIo->Media->MediaId, 0, BlockIo->Media->BlockSize, Buffer);
+	if (Status != EFI_SUCCESS)
+		return Status;
+
+	/* IsAllowUnlock value stored at the LSB of last byte*/
+	*IsAllowUnlock = Buffer[BlockIo->Media->BlockSize - 1] & 0x01;
+	FreePool(Buffer);
+	return Status;
+}
+
 /* Registers all Stock commands, Publishes all stock variables
  * and partitiion sizes. base and size are the respective parameters
  * to the Fastboot Buffer used to store the downloaded image for flashing
@@ -1455,7 +1533,6 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		{ "reboot-bootloader", CmdRebootBootloader },
 		{ "flashing unlock", CmdFlashingUnlock },
 		{ "flashing lock", CmdFlashingLock },
-		{ "oem device-info", CmdOemDeviceInfo },
 		{ "oem enable-charger-screen", CmdOemEnableChargerScreen },
 		{ "oem disable-charger-screen", CmdOemDisableChargerScreen },
 		{ "oem off-mode-charge", CmdOemOffModeCharger },
@@ -1497,10 +1574,20 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		FastbootRegister(cmd_list[i].name, cmd_list[i].cb);
 
 	// Read Device Info
-	Status = ReadWriteDeviceInfo(READ_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&FbDevInfo, sizeof(FbDevInfo));
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		return Status;
+	}
+
+	// Read Allow Ulock Flag
+	Status = ReadAllowUnlockValue(&IsAllowUnlock);
+	DEBUG((EFI_D_VERBOSE, "IsAllowUnlock is %d\n", IsAllowUnlock));
+
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error Reading FRP partition: %r\n", Status));
 		return Status;
 	}
 
