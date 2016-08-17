@@ -1104,7 +1104,6 @@ STATIC VOID CmdContinue(
 	IN UINT32 sz
 	)
 {
-	struct device_info device = {DEVICE_MAGIC, 0, 0, 0, 0, {0}, {0}, {0}, 1};
 	EFI_STATUS Status;
 	VOID* ImageBuffer;
 	VOID* ImageHdrBuffer;
@@ -1236,7 +1235,6 @@ STATIC VOID CmdGetVar(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
 STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
-    struct device_info device = {DEVICE_MAGIC, 0, 0, 0, 0, {0}, {0}, {0}, 1};
     struct boot_img_hdr *hdr = (struct boot_img_hdr *) data;
     UINT32 KernelSizeActual;
     UINT32 DtSizeActual;
