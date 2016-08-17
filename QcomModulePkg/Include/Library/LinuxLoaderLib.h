@@ -156,4 +156,5 @@ GetBlkIOHandles (
 
 UINT32 GetTimerCountms (VOID);
 EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
+BOOLEAN IsSecureBootEnabled();
 #endif
