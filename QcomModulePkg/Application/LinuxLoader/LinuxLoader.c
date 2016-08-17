@@ -39,12 +39,6 @@
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
 
-EFI_GUID BootImgPartitionType =
-{ 0x20117f86, 0xe985, 0x4357, { 0xb9, 0xee, 0x37, 0x4b, 0xc1, 0xd8, 0x48, 0x7d } };
-
-EFI_GUID RecoveryImgPartitionType =
-{ 0x9D72D4E4, 0x9958, 0x42DA, { 0xAC, 0x26, 0xBE, 0xA7, 0xA9, 0x0B, 0x04, 0x34 } };
-
 STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
@@ -173,6 +167,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	CHAR8 *AppList[] = {Fastboot};
 	UINTN i;
 	CHAR8 pname[MAX_PNAME_LENGTH];
+
 	DEBUG((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
 
 	BootStatsSetTimeStamp(BS_BL_START);
@@ -281,13 +276,13 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 		{
 			DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
 			AsciiStrnCpy(pname, "recovery", MAX_PNAME_LENGTH);
-			PartitionType = &RecoveryImgPartitionType;
+			PartitionType = &gEfiRecoveryImgPartitionGuid;
 		}
 		else
 		{
 			DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
 			AsciiStrnCpy(pname, "boot", MAX_PNAME_LENGTH);
-			PartitionType = &BootImgPartitionType;
+			PartitionType = &gEfiBootImgPartitionGuid;
 		}
 
 		Status = LoadLinux(PartitionType, pname);

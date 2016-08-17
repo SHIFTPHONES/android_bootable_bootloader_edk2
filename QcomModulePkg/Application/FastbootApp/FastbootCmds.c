@@ -1104,10 +1104,6 @@ STATIC VOID CmdContinue(
 	IN UINT32 sz
 	)
 {
-	EFI_GUID BootImgPartitionType =
-		{
-			0x20117f86, 0xe985, 0x4357, { 0xb9, 0xee, 0x37, 0x4b, 0xc1, 0xd8, 0x48, 0x7d }
-		};
 	struct device_info device = {DEVICE_MAGIC, 0, 0, 0, 0, {0}, {0}, {0}, 1};
 	EFI_STATUS Status;
 	VOID* ImageBuffer;
@@ -1131,7 +1127,7 @@ STATIC VOID CmdContinue(
 
 	ImageHdrBuffer = AllocatePages(ImageHdrSize / 4096);
 	ASSERT(ImageHdrBuffer);
-	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, &BootImgPartitionType);
+	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, &gEfiBootImgPartitionGuid);
 	if (Status != EFI_SUCCESS)
 	{
 		FastbootFail("Failed to Load Image Header from Partition");
@@ -1158,7 +1154,7 @@ STATIC VOID CmdContinue(
 	ImageSize = ROUND_TO_PAGE(ImageSizeActual, PageSize - 1);
 	ImageBuffer = AllocatePages (ImageSize / 4096);
 	ASSERT(ImageBuffer);
-	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, &BootImgPartitionType);
+	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, &gEfiBootImgPartitionGuid);
 
 	if (Status != EFI_SUCCESS)
 	{

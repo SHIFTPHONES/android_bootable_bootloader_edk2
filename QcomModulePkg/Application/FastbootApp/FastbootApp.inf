@@ -84,3 +84,5 @@
   gEfiUfsLU5Guid
   gEfiUfsLU6Guid
   gEfiUfsLU7Guid
+  gEfiBootImgPartitionGuid
+  gEfiRecoveryImgPartitionGuid
