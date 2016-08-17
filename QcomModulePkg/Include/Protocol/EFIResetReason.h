@@ -38,7 +38,7 @@ typedef struct _EFI_RESETREASON_PROTOCOL EFI_RESETREASON_PROTOCOL;
 /**
   Protocol version.
 */
-#define EFI_RESETREASON_PROTOCOL_REVISION 0x0000000000010001
+#define EFI_RESETREASON_PROTOCOL_REVISION 0x0000000000010002
 /** @} */ /* end_addtogroup efi_resetReason_constants */
 
 /*  Protocol GUID definition */
@@ -49,6 +49,7 @@ typedef struct _EFI_RESETREASON_PROTOCOL EFI_RESETREASON_PROTOCOL;
   
 #define STR_RESET_PARAM          L"RESET_PARAM"
 #define STR_RESET_UNKNOWN               L"UNKNOWN"
+#define STR_RESET_PLAT_SPECIFIC_EDL  L"EDL"
 
 /*
  *  Sample call to ResetSystem and the ResetReasonData returned using this protocol
