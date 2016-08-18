@@ -107,5 +107,8 @@ VOID RebootDevice(UINT8 RebootReason)
 	if (RebootReason == NORMAL_MODE)
 		Status = EFI_SUCCESS;
 
+	if (RebootReason == EMERGENCY_DLOAD)
+		gRT->ResetSystem(EfiResetPlatformSpecific, EFI_SUCCESS, StrSize(STR_RESET_PLAT_SPECIFIC_EDL), STR_RESET_PLAT_SPECIFIC_EDL);
+
 	gRT->ResetSystem (EfiResetCold, Status, sizeof(struct ResetDataType), (VOID *) &ResetData);
 }

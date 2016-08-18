@@ -110,3 +110,4 @@
   gQcomTokenSpaceGuid.RamdiskLoadAddress|0x03400000|UINT32|0x00015002
   gQcomTokenSpaceGuid.RamdiskEndAddress|0x05800000|UINT32|0x00015003
   gQcomTokenSpaceGuid.EnablePartialGoods|TRUE|BOOLEAN|0x00015004
+  gQcomTokenSpaceGuid.EnableDisplayMenu|TRUE|BOOLEAN|0x00015005

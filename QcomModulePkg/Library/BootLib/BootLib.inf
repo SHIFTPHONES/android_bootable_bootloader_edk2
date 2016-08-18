@@ -51,6 +51,11 @@
 	KeyPad.c
 	Recovery.c
 	BootStats.c
+	DrawUI.c
+	MenuKeysDetection.c
+	UnlockMenu.c
+	FastbootMenu.c
+	VerifiedBootMenu.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
@@ -124,6 +129,7 @@
 	gQcomTokenSpaceGuid.RamdiskLoadAddress
 	gQcomTokenSpaceGuid.RamdiskEndAddress
 	gQcomTokenSpaceGuid.EnablePartialGoods
+	gQcomTokenSpaceGuid.EnableDisplayMenu
 
 [Depex]
 	TRUE
