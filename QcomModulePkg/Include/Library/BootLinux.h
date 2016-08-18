@@ -69,7 +69,7 @@
 
 #define ALIGN32_BELOW(addr)   ALIGN_POINTER(addr - 32,32)
 #define LOCAL_ROUND_TO_PAGE(x,y) (((x) + (y - 1)) & (~(y - 1)))
-#define ROUND_TO_PAGE(x,y) (((x) + (y)) & (~(y)))
+#define ROUND_TO_PAGE(x,y) ((ADD_OF((x),(y))) & (~(y)))
 #define DECOMPRESS_SIZE_FACTOR 8
 #define MAX_PNAME_LENGTH 64
 

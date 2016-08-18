@@ -95,13 +95,13 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
 	ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
 	ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
-	ImageSize = ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1));
+	ImageSize = ADD_OF(ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1)), PageSize);
 
 	ImageBuffer = AllocateAlignedPages (ImageSize / 4096, 4096);
 	ASSERT(ImageBuffer);
 
 	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
-	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, PartitionType);
+	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, PartitionType);
 	BootStatsSetTimeStamp(BS_KERNEL_LOAD_DONE);
 
 	if (Status != EFI_SUCCESS)

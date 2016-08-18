@@ -1149,12 +1149,12 @@ STATIC VOID CmdContinue(
 	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
 	DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, PageSize - 1);
 	ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
-    ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
-    ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
-	ImageSize = ROUND_TO_PAGE(ImageSizeActual, PageSize - 1);
+	ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
+	ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
+	ImageSize = ADD_OF(ROUND_TO_PAGE(ImageSizeActual, PageSize - 1), PageSize);
 	ImageBuffer = AllocatePages (ImageSize / 4096);
 	ASSERT(ImageBuffer);
-	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, &gEfiBootImgPartitionGuid);
+	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, &gEfiBootImgPartitionGuid);
 
 	if (Status != EFI_SUCCESS)
 	{
