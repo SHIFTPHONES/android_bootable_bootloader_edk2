@@ -1239,7 +1239,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
     UINT32 DtSizeActual;
     UINT32 RamdiskSizeActual;
     UINT32 ImageSizeActual;
-    UINT32 SigActual = 4096;
+    UINT32 SigActual = SIGACTUAL;
 
     // Boot Image header information variables
     UINT32 KernelSize;
