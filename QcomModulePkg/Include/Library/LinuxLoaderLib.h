@@ -94,17 +94,6 @@
 
 /* Macro to avoid integer overflow */
 #define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : MAX_UINT32
-/**
-  External reference to the gQcomTokenSpaceGuid GUID.
- */
-extern EFI_GUID gQcomTokenSpaceGuid;
-
-/**
- * Extern referecen to gEfiPartitionTypeGuid GUID.
- */
-extern GUID gEfiPartitionTypeGuid;
-
-extern EFI_GUID gEfiPartitionRecordGuid;
 
 /* Any data specific to additional attributes can be added here. */
 typedef struct {

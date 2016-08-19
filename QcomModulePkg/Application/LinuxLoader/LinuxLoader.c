@@ -130,7 +130,6 @@ STATIC UINT8 GetRebootReason(UINT32 *ResetReason)
 {
 	EFI_RESETREASON_PROTOCOL *RstReasonIf;
 	EFI_STATUS Status;
-	extern EFI_GUID gEfiResetReasonProtocolGuid;
 
 	Status = gBS->LocateProtocol(&gEfiResetReasonProtocolGuid, NULL, (VOID **) &RstReasonIf);
 	if (Status != EFI_SUCCESS)

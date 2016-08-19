@@ -44,17 +44,6 @@
    we can set FileInfo-size = SIZE_OF_EFI_FILE_INFO + 256*/
 #define FILE_INFO_SIZE (SIZE_OF_EFI_FILE_INFO + 256)
 
-extern EFI_GUID gEfiEmmcUserPartitionGuid;
-extern EFI_GUID gEfiFileInfoGuid;
-extern EFI_GUID gQcomKeypadDeviceGuid;
-//Partition Guid
-extern EFI_GUID gEfiEmmcGppPartition1Guid;
-extern EFI_GUID gEfiEmmcUserPartitionGuid;
-extern EFI_GUID gEfiLogFSPartitionGuid;
-//Partition Type
-extern EFI_GUID gEfiPlatPartitionTypeGuid;
-
-extern EFI_GUID gQcomMemoryCaptureGuid;
 UINT32 TimerFreq, FactormS;
 /**
   Returns a list of BlkIo handles based on required criteria
@@ -569,7 +558,6 @@ BOOLEAN IsSecureBootEnabled()
 {
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
-	extern EFI_GUID gEfiQcomVerifiedBootProtocolGuid;
 	BOOLEAN IsSecure = FALSE;
 
 	// Initialize verified boot & Read Device Info

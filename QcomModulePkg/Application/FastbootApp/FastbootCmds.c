@@ -222,15 +222,6 @@ EnumeratePartitions ()
 	UINT32 i;
 	/* Find the definition of these in QcomModulePkg.dec file */
 	//eMMC Physical Partition GUIDs
-	extern EFI_GUID gEfiEmmcUserPartitionGuid;
-	extern EFI_GUID gEfiUfsLU0Guid;
-	extern EFI_GUID gEfiUfsLU1Guid;
-	extern EFI_GUID gEfiUfsLU2Guid;
-	extern EFI_GUID gEfiUfsLU3Guid;
-	extern EFI_GUID gEfiUfsLU4Guid;
-	extern EFI_GUID gEfiUfsLU5Guid;
-	extern EFI_GUID gEfiUfsLU6Guid;
-	extern EFI_GUID gEfiUfsLU7Guid;
  
 	//UFS LUN GUIDs
 	EFI_GUID LunGuids[] = {
