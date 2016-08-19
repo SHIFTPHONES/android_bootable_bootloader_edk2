@@ -112,3 +112,12 @@ VOID RebootDevice(UINT8 RebootReason)
 
 	gRT->ResetSystem (EfiResetCold, Status, sizeof(struct ResetDataType), (VOID *) &ResetData);
 }
+
+VOID ShutdownDevice()
+{
+	EFI_STATUS Status = EFI_INVALID_PARAMETER;
+	gRT->ResetSystem (EfiResetShutdown, Status, 0, NULL);
+
+	/* Flow never comes here and is fatal if it comes here.*/
+	ASSERT(0);
+}

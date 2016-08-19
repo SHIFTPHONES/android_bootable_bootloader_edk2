@@ -66,4 +66,6 @@ ShutdownUefiBootServices (
 
 EFI_STATUS PreparePlatformHardware (VOID);
 VOID RebootDevice(UINT8 RebootReason);
+VOID ShutdownDevice(VOID);
+
 #endif
