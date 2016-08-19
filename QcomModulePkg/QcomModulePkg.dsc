@@ -70,6 +70,9 @@
   TimerLib|ArmPkg/Library/ArmArchTimerLib/ArmArchTimerLib.inf
   ArmGenericTimerCounterLib|ArmPkg/Library/ArmGenericTimerPhyCounterLib/ArmGenericTimerPhyCounterLib.inf
   Zlib|QcomModulePkg/Library/zlib/zlib.inf
+  DebugLib|MdeModulePkg/Library/PeiDxeDebugLibReportStatusCode/PeiDxeDebugLibReportStatusCode.inf
+  ReportStatusCodeLib|MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf
+  DebugPrintErrorLevelLib|MdeModulePkg/Library/DxeDebugPrintErrorLevelLib/DxeDebugPrintErrorLevelLib.inf
 
 [LibraryClasses.AARCH64]
   ArmLib|ArmPkg/Library/ArmLib/AArch64/AArch64Lib.inf
@@ -99,11 +102,8 @@
 # ASSERT_DEADLOOP_ENABLED    0x20
 
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x2f
-
-  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x80000440
-
-  #gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask|0x07
-
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x80000042
+  gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask|0x06
 
 ################################################################################
 #
