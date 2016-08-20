@@ -43,6 +43,8 @@
 */
 #define QCOM_VERIFIEDBOOT_PROTOCOL_REVISION 0x0000000000010001
 #define MAX_PNAME_LENGTH 32
+#define MAX_VERSION_LEN  64
+
 /*  Protocol GUID definition */
 /** @ingroup efi_verifiedboot_protocol */
 #define EFI_VERIFIEDBOOT_PROTOCOL_GUID \
@@ -52,7 +54,7 @@
   EXTERNAL VARIABLES
 ===========================================================================*/
 /** @ingroup */
-extern EFI_GUID gQcomVerifiedBootProtocolGuid;
+extern EFI_GUID gEfiQcomVerifiedBootProtocolGuid;
 
 /*===========================================================================
   TYPE DEFINITIONS
@@ -122,7 +124,6 @@ typedef struct _device_info_vb_t
 *   			Secure app. Always greater than zero.
 *   Failure:	Error code (negative only).
 */
-//Make this single buf
 
 typedef
 EFI_STATUS
@@ -152,6 +153,37 @@ EFI_STATUS
 (
   IN  QCOM_VERIFIEDBOOT_PROTOCOL *This,
   IN  device_info_vb_t           *devinfo
+);
+
+/**
+* Send Milestone to TZ
+* API will send end milestone command to TZ
+* @return int
+*   Status:
+*     0 - Success
+*     Negative value indicates failure.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *QCOM_VB_SEND_MILESTONE )
+(
+  IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This
+);
+
+/**
+* Return if the device is secure or not
+* API will set the State flag to indicate if its a secure device
+* @return int
+*   Status:
+*     0 - Success
+*     Negative value indicates failure.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *QCOM_VB_IS_DEVICE_SECURE )
+(
+  IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This,
+  OUT BOOLEAN State
 );
 
 /**
@@ -230,8 +262,10 @@ struct _QCOM_VERIFIEDBOOT_PROTOCOL {
   QCOM_VB_RW_DEVICE_STATE           VBRwDeviceState;
   QCOM_VB_DEVICE_INIT               VBDeviceInit;
   QCOM_VB_SEND_ROT                  VBSendRot;
+  QCOM_VB_SEND_MILESTONE            VBSendMilestone;
   QCOM_VB_VERIFY_IMAGE              VBVerifyImage;
   QCOM_VB_RESET_STATE               VBDeviceResetState;
+  QCOM_VB_IS_DEVICE_SECURE          VBIsDeviceSecure;
 };
 
 #endif /* __EFIVERIFIEDBOOT_H__ */

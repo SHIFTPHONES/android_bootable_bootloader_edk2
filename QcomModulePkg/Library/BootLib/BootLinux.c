@@ -30,11 +30,14 @@
  *
  */
 
+#include <Library/VerifiedBootMenu.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
 
-VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR8 *pname)
+STATIC BOOLEAN VerifiedBootEnbled();
+
+EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname)
 {
 
 	EFI_STATUS Status;
@@ -63,6 +66,65 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 	STATIC UINT32* CmdLine;
 	STATIC UINTN BaseMemory;
 	UINT64 Time;
+	boot_state_t BootState = BOOT_STATE_MAX;
+	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
+	device_info_vb_t DevInfo_vb;
+	STATIC CHAR8 StrPartition[MAX_PNAME_LENGTH];
+
+	if (VerifiedBootEnbled())
+	{
+		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid, NULL, (VOID **) &VbIntf);
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Unable to locate VB protocol: %r\n", Status));
+			return Status;
+		}
+		DevInfo_vb.is_unlocked = DevInfo->is_unlocked;
+		DevInfo_vb.is_unlock_critical = DevInfo->is_unlock_critical;
+		Status = VbIntf->VBDeviceInit(VbIntf, (device_info_vb_t *)&DevInfo_vb);
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Error during VBDeviceInit: %r\n", Status));
+			return Status;
+		}
+
+		AsciiStrnCpy(StrPartition, "/", MAX_PNAME_LENGTH);
+		AsciiStrnCat(StrPartition, pname, MAX_PNAME_LENGTH);
+
+		Status = VbIntf->VBVerifyImage(VbIntf, StrPartition, (UINT8 *) ImageBuffer, ImageSize, &BootState);
+		if (Status != EFI_SUCCESS && BootState == BOOT_STATE_MAX)
+		{
+			DEBUG((EFI_D_ERROR, "VBVerifyImage failed with: %r\n", Status));
+			return Status;
+		}
+
+		DEBUG((EFI_D_VERBOSE, "Boot State is : %d\n", BootState));
+		switch (BootState)
+		{
+			case RED:
+				DisplayVerifiedBootMenu(DISPLAY_MENU_RED);
+				MicroSecondDelay(5000000);
+				ShutdownDevice();
+				break;
+			case YELLOW:
+				DisplayVerifiedBootMenu(DISPLAY_MENU_YELLOW);
+				MicroSecondDelay(5000000);
+				break;
+			case ORANGE:
+				DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
+				MicroSecondDelay(5000000);
+				break;
+			default:
+				break;
+		}
+
+		Status = VbIntf->VBSendRot(VbIntf);
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Error sending Rot : %r\n", Status));
+			return Status;
+		}
+	}
 
 	KernelSize = ((boot_img_hdr*)(ImageBuffer))->kernel_size;
 	RamdiskSize = ((boot_img_hdr*)(ImageBuffer))->ramdisk_size;
@@ -132,7 +194,7 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 	/*Updates the command line from boot image, appends device serial no., baseband information, etc
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
-	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, deviceinfo);
+	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, DevInfo);
 
 	// appended device tree
 	void *dtb;
@@ -161,7 +223,16 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 		}
 	}
 
-	DEBUG((EFI_D_ERROR, "\nShutting Down UEFI Boot Services ...\n\n"));
+	if (VerifiedBootEnbled()){
+		DEBUG((EFI_D_INFO, "Sending Milestone Call\n"));
+		Status = VbIntf->VBSendMilestone(VbIntf);
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_INFO, "Error sending milestone call to TZ\n"));
+			return Status;
+		}
+	}
+	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services ...\n\n"));
 
 	/*Shut down UEFI boot services*/
 	Status = ShutdownUefiBootServices ();
@@ -187,4 +258,12 @@ VOID BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *deviceinfo, CHAR
 Exit:
 	// Only be here if we fail to start Linux
 	ASSERT(0);
+}
+
+STATIC BOOLEAN VerifiedBootEnbled()
+{
+#ifdef VERIFIED_BOOT
+	return TRUE;
+#endif
+	return FALSE;
 }

@@ -44,17 +44,6 @@
    we can set FileInfo-size = SIZE_OF_EFI_FILE_INFO + 256*/
 #define FILE_INFO_SIZE (SIZE_OF_EFI_FILE_INFO + 256)
 
-extern EFI_GUID gEfiEmmcUserPartitionGuid;
-extern EFI_GUID gEfiFileInfoGuid;
-extern EFI_GUID gQcomKeypadDeviceGuid;
-//Partition Guid
-extern EFI_GUID gEfiEmmcGppPartition1Guid;
-extern EFI_GUID gEfiEmmcUserPartitionGuid;
-extern EFI_GUID gEfiLogFSPartitionGuid;
-//Partition Type
-extern EFI_GUID gEfiPlatPartitionTypeGuid;
-
-extern EFI_GUID gQcomMemoryCaptureGuid;
 UINT32 TimerFreq, FactormS;
 /**
   Returns a list of BlkIo handles based on required criteria
@@ -563,4 +552,28 @@ EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg)
 		return Status;
 
 	return Status;
+}
+
+BOOLEAN IsSecureBootEnabled()
+{
+	EFI_STATUS Status = EFI_INVALID_PARAMETER;
+	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
+	BOOLEAN IsSecure = FALSE;
+
+	// Initialize verified boot & Read Device Info
+	Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid, NULL, (VOID **) &VbIntf);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to locate VB protocol: %r\n", Status));
+		return Status;
+	}
+
+	Status = VbIntf->VBIsDeviceSecure(VbIntf, &IsSecure);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Error Reading the secure state: %r\n", Status));
+		return FALSE;
+	}
+
+	return IsSecure;
 }

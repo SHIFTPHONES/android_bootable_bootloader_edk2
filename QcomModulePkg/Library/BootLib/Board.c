@@ -197,8 +197,6 @@ EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 	EFI_STATUS                   Status = EFI_INVALID_PARAMETER;
 	MEM_CARD_INFO                CardInfoData;
 	EFI_MEM_CARDINFO_PROTOCOL    *CardInfo;
-	extern EFI_GUID              gEfiEmmcUserPartitionGuid;
-	extern EFI_GUID              gEfiUfsLU0Guid;
 	UINT32                       SerialNo;
 	HandleInfo HandleInfoList[128];
 	UINT32                   Attribs = 0;

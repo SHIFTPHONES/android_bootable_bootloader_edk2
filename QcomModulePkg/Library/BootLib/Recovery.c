@@ -83,7 +83,6 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 {
 	EFI_STATUS Status;
 	struct RecoveryMessage *Msg = NULL;
-	extern EFI_GUID gEfiMiscPartitionGuid;
 
 	Status = ReadFromPartition(&gEfiMiscPartitionGuid, &Msg);
 	if (Status != EFI_SUCCESS)
@@ -120,7 +119,6 @@ EFI_STATUS GetFfbmCommand(CHAR8 *FfbmString, UINT32 Sz)
 	CONST CHAR8 *FfbmCmd = "ffbm-";
 	CHAR8 *FfbmData = NULL;
 	EFI_STATUS Status;
-	extern EFI_GUID gEfiMiscPartitionGuid;
 
 	Status = ReadFromPartition(&gEfiMiscPartitionGuid, &FfbmData);
 	if (Status != EFI_SUCCESS)

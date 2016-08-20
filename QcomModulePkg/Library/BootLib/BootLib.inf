@@ -81,6 +81,7 @@
 	TimerLib
 	BaseStackCheckLib
 	MemoryAllocationLib
+	UefiHiiServicesLib
 
 [Guids]
 	gEfiFileInfoGuid
@@ -120,6 +121,7 @@
 	gQcomPmicPonProtocolGuid
 	gQcomChargerExProtocolGuid
 	gEfiLimitsProtocolGuid
+	gEfiQcomVerifiedBootProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase

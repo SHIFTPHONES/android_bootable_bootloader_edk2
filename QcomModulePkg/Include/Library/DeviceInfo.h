@@ -30,11 +30,8 @@
 #ifndef _DEVINFO_H_
 #define _DEVINFO_H_
 
-typedef struct device_info device_info;
-
 #define DEVICE_MAGIC "ANDROID-BOOT!"
 #define DEVICE_MAGIC_SIZE 13
-#define MAX_PANEL_ID_LEN 64
 #define MAX_VERSION_LEN  64
 
 enum unlock_type {
@@ -63,16 +60,6 @@ struct verified_boot_state_name
 {
 	UINT32 boot_state;
 	CHAR8 *name;
-};
-
-enum boot_verfiy_event
-{
-	BOOT_INIT,
-	DEV_UNLOCK,
-	BOOTIMG_EMBEDDED_CERT_VERIFICATION_PASS,
-	BOOTIMG_KEYSTORE_VERIFICATION_PASS,
-	BOOTIMG_VERIFICATION_FAIL,
-	USER_DENIES,
 };
 
 #endif

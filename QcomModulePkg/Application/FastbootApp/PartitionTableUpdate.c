@@ -190,17 +190,8 @@ STATIC INTN ParseGptHeader(struct GptHeaderData *GptHeader, UINT8 *GptBuffer, UI
 STATIC UINTN GetStorageHandle(INTN Lun, HandleInfo *BlockIoHandle, UINTN *MaxHandles)
 {
 	EFI_STATUS                   Status = EFI_INVALID_PARAMETER;
-	extern EFI_GUID              gEfiEmmcUserPartitionGuid;
 	UINT32                   Attribs = 0;
 	PartiSelectFilter        HandleFilter;
-	extern EFI_GUID gEfiUfsLU0Guid;
-	extern EFI_GUID gEfiUfsLU1Guid;
-	extern EFI_GUID gEfiUfsLU2Guid;
-	extern EFI_GUID gEfiUfsLU3Guid;
-	extern EFI_GUID gEfiUfsLU4Guid;
-	extern EFI_GUID gEfiUfsLU5Guid;
-	extern EFI_GUID gEfiUfsLU6Guid;
-	extern EFI_GUID gEfiUfsLU7Guid;
 
 	//UFS LUN GUIDs
 	EFI_GUID LunGuids[] = {
@@ -342,7 +333,6 @@ STATIC INTN WriteGpt(INTN Lun, UINT32 Sz, UINT8 *Gpt)
 	EFI_ERASE_BLOCK_PROTOCOL *EraseProt = NULL;
 	UINTN TokenIndex;
 	EFI_ERASE_BLOCK_TOKEN EraseToken;
-	extern EFI_GUID gEfiEraseBlockProtocolGuid;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	HandleInfo BlockIoHandle[MAX_HANDLEINF_LST_SIZE];
 	UINTN MaxHandles = MAX_HANDLEINF_LST_SIZE;

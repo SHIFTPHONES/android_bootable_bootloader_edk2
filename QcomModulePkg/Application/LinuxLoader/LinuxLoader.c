@@ -39,12 +39,6 @@
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
 
-EFI_GUID BootImgPartitionType =
-{ 0x20117f86, 0xe985, 0x4357, { 0xb9, 0xee, 0x37, 0x4b, 0xc1, 0xd8, 0x48, 0x7d } };
-
-EFI_GUID RecoveryImgPartitionType =
-{ 0x9D72D4E4, 0x9958, 0x42DA, { 0xAC, 0x26, 0xBE, 0xA7, 0xA9, 0x0B, 0x04, 0x34 } };
-
 STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
@@ -101,13 +95,13 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
 	ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
 	ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
-	ImageSize = ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1));
+	ImageSize = ADD_OF(ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1)), PageSize);
 
 	ImageBuffer = AllocateAlignedPages (ImageSize / 4096, 4096);
 	ASSERT(ImageBuffer);
 
 	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
-	Status = LoadImageFromPartition(ImageBuffer, &ImageSizeActual, PartitionType);
+	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, PartitionType);
 	BootStatsSetTimeStamp(BS_KERNEL_LOAD_DONE);
 
 	if (Status != EFI_SUCCESS)
@@ -136,7 +130,6 @@ STATIC UINT8 GetRebootReason(UINT32 *ResetReason)
 {
 	EFI_RESETREASON_PROTOCOL *RstReasonIf;
 	EFI_STATUS Status;
-	extern EFI_GUID gEfiResetReasonProtocolGuid;
 
 	Status = gBS->LocateProtocol(&gEfiResetReasonProtocolGuid, NULL, (VOID **) &RstReasonIf);
 	if (Status != EFI_SUCCESS)
@@ -173,11 +166,43 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	CHAR8 *AppList[] = {Fastboot};
 	UINTN i;
 	CHAR8 pname[MAX_PNAME_LENGTH];
+
 	DEBUG((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
 
 	BootStatsSetTimeStamp(BS_BL_START);
 
 	// Initialize verified boot & Read Device Info
+	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		return Status;
+	}
+
+	if (CompareMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE))
+	{
+		DEBUG((EFI_D_ERROR, "Device Magic does not match\n"));
+		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
+		if (IsSecureBootEnabled())
+		{
+			DevInfo.is_unlocked = FALSE;
+			DevInfo.is_unlock_critical = FALSE;
+		}
+		else
+		{
+			DevInfo.is_unlocked = TRUE;
+			DevInfo.is_unlock_critical = TRUE;
+		}
+		DevInfo.is_charger_screen_enabled = FALSE;
+		DevInfo.verity_mode = TRUE;
+		Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
+			return Status;
+		}
+	}
+
 	Status = ReadWriteDeviceInfo(READ_CONFIG, &DevInfo, sizeof(DevInfo));
 	if (Status != EFI_SUCCESS)
 	{
@@ -281,13 +306,13 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 		{
 			DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
 			AsciiStrnCpy(pname, "recovery", MAX_PNAME_LENGTH);
-			PartitionType = &RecoveryImgPartitionType;
+			PartitionType = &gEfiRecoveryImgPartitionGuid;
 		}
 		else
 		{
 			DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
 			AsciiStrnCpy(pname, "boot", MAX_PNAME_LENGTH);
-			PartitionType = &BootImgPartitionType;
+			PartitionType = &gEfiBootImgPartitionGuid;
 		}
 
 		Status = LoadLinux(PartitionType, pname);

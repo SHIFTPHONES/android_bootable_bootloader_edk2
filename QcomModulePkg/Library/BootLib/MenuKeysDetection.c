@@ -99,8 +99,6 @@ STATIC VOID SetDeviceUnlockValue(INTN Type, BOOLEAN Status)
 	DeviceInfo *DevInfo = NULL;
 	struct RecoveryMessage Msg;
 
-	extern EFI_GUID gEfiMiscPartitionGuid;
-
 	/* Read Device Info */
 	DevInfo = AllocateZeroPool(sizeof(DeviceInfo));
 	if (DevInfo == NULL) {
@@ -138,8 +136,6 @@ STATIC VOID SetDeviceUnlockValue(INTN Type, BOOLEAN Status)
 STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, INTN Reason)
 {
 	CHAR8 FfbmPageBuffer[FFBM_MODE_BUF_SIZE];
-
-	extern EFI_GUID gEfiMiscPartitionGuid;
 
 	/* Clear the screen */
 	gST->ConOut->ClearScreen (gST->ConOut);

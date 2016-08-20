@@ -403,7 +403,6 @@ STATIC EFI_STATUS UpdatePartialGoodsBinA(UINT32 *PartialGoodType)
 	EFI_LIMITS_PROTOCOL *Limits_Protocol;
 	UINT32 Value;
 	INTN Status;
-	extern EFI_GUID gEfiLimitsProtocolGuid;
 
 	Status = gBS->LocateProtocol(&gEfiLimitsProtocolGuid, NULL, (VOID **) &Limits_Protocol);
 	if (Status != EFI_SUCCESS)

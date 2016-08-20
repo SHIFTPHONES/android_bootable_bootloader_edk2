@@ -70,6 +70,8 @@
 	gEfiGlobalVariableGuid
 	gEfiUfsLU4Guid
 	gEfiLogFSPartitionGuid
+	gEfiBootImgPartitionGuid
+	gEfiRecoveryImgPartitionGuid
 
 [Protocols]
 	gEfiSimpleTextInputExProtocolGuid
