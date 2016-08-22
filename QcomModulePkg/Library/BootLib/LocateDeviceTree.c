@@ -632,7 +632,7 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 				break;
 			case DTB_MAJOR_MINOR:
 				current_info = ((dt_node_tmp1->dt_entry_m->variant_id) & 0x00ffff00);
-				board_info = BoardPlatformType();
+				board_info = BoardTargetId() & 0x00ffff00;
 				break;
 			case DTB_PMIC0:
 				current_info =((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00);
