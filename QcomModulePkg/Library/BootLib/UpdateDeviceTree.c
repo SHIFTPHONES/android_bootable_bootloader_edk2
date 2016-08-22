@@ -445,7 +445,7 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	CONST struct fdt_property *Prop = NULL;
 	CHAR8* ReplaceStr = NULL;
 	struct PartialGoods *Table = NULL;
-	INTN TableSz;
+	INTN TableSz = 0;
 
 	if (BoardPlatformRawChipId() == EFICHIPINFO_ID_MSMCOBALT)
 	{
