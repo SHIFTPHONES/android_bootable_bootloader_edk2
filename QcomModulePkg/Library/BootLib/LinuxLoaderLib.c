@@ -445,66 +445,22 @@ GetTimerCountms (VOID)
 EFI_STATUS ReadWriteDeviceInfo(vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz)
 {
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
-	EFI_BLOCK_IO_PROTOCOL       *BlkIo;
-	PartiSelectFilter            HandleFilter;
-	HandleInfo                   HandleInfoList[1];
-	STATIC UINT32                MaxHandles;
-	STATIC UINT32                BlkIOAttrib = 0;
-	UINT8	*DevInfoBuf;
-	EFI_GUID DevInfoPartGUID = { 0x65ADDCF4, 0x0C5C, 0x4D9A, {0xAC, 0x2D, 0xD9, 0x0B, 0x5C, 0xBF, 0xCD, 0x03}};
+	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 
-	BlkIOAttrib = BLK_IO_SEL_PARTITIONED_MBR;
-	BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_GPT;
-	BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
-	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID;
-
-	if (DevInfo == NULL)
+	Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid, NULL, (VOID **) &VbIntf);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to locate VB protocol: %r\n", Status));
 		return Status;
-
-	HandleFilter.RootDeviceType = NULL;
-	HandleFilter.PartitionType = &DevInfoPartGUID;
-	HandleFilter.VolumeName = 0;
-
-	MaxHandles = sizeof(HandleInfoList)/sizeof(*HandleInfoList);
-
-	Status = GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
-
-	if(Status == EFI_SUCCESS) {
-		if(MaxHandles == 0)
-			return EFI_NO_MEDIA;
-		if(MaxHandles != 1) {
-			//Unable to deterministically load from single partition
-			DEBUG(( EFI_D_INFO, "MaxHandles: %d.\r\n", MaxHandles));
-			return EFI_LOAD_ERROR;
-		}
-	}
-	BlkIo = HandleInfoList[0].BlkIo;
-	DevInfoBuf = AllocatePool(BlkIo->Media->BlockSize);
-	if (DevInfoBuf == NULL) {
-		DEBUG((EFI_D_ERROR, "Fail to allocate buffer to copy devinfo\n"));
-		return EFI_OUT_OF_RESOURCES;
 	}
 
-	if(Mode == READ_CONFIG) {
-		Status = BlkIo->ReadBlocks(BlkIo, BlkIo->Media->MediaId, 0, ROUND_TO_PAGE(Sz, BlkIo->Media->BlockSize - 1), DevInfoBuf);
-	}
-	else if(Mode == WRITE_CONFIG) {
-		CopyMem(DevInfoBuf, DevInfo, Sz);
-		Status = BlkIo->WriteBlocks(BlkIo, BlkIo->Media->MediaId, 0, ROUND_TO_PAGE(Sz, BlkIo->Media->BlockSize - 1), DevInfoBuf);
-	}
-	else{
-		DEBUG((EFI_D_ERROR, "NOT A VALID CONFIG\n"));
-		goto out;
+	Status = VbIntf->VBRwDeviceState(VbIntf, Mode, DevInfo, Sz);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "VBRwDevice failed with: %r\n", Status));
+		return Status;
 	}
 
-	if(Status == !EFI_SUCCESS){
-		DEBUG ((DEBUG_INFO, "Loading Image Fail. Status: %r\n", Status));
-		goto out;
-	}
-
-	CopyMem(DevInfo, DevInfoBuf, Sz);
-out:
-	FreePool(DevInfoBuf);
 	return Status;
 }
 
