@@ -58,6 +58,8 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/MenuKeysDetection.h>
 #include <Library/PartitionTableUpdate.h>
+#include <Library/BoardCustom.h>
+
 #include <Protocol/BlockIo.h>
 
 #include <Guid/EventGroup.h>
@@ -86,8 +88,8 @@ struct GetVarPartitionInfo part_info[] =
 
 STATIC FASTBOOT_VAR *Varlist;
 BOOLEAN         Finished = FALSE;
-CHAR8           StrSerialNum[64];
-CHAR8           FullProduct[64] = "unsupported";
+CHAR8           StrSerialNum[MAX_RSP_SIZE];
+CHAR8           FullProduct[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -1853,6 +1855,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	/* Publish getvar variables */
 	FastbootPublishVar("kernel", "uefi");
 	FastbootPublishVar("max-download-size", MAX_DOWNLOAD_SIZE_STR);
+	AsciiSPrint(FullProduct, sizeof(FullProduct), "%a", PRODUCT_NAME);
 	FastbootPublishVar("product", FullProduct);
 	FastbootPublishVar("serial", StrSerialNum);
 	FastbootPublishVar("secure", IsSecureBootEnabled()? "yes":"no");
