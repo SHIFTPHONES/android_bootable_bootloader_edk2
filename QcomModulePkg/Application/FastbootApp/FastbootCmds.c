@@ -1552,6 +1552,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	FastbootPublishVar("max-download-size", MAX_DOWNLOAD_SIZE_STR);
 	FastbootPublishVar("product", FullProduct);
 	FastbootPublishVar("serial", StrSerialNum);
+	FastbootPublishVar("secure", IsSecureBootEnabled()? "yes":"no");
 	Status = PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
 	if (Status != EFI_SUCCESS)
 		DEBUG((EFI_D_ERROR, "Partition Table info is not populated\n"));
