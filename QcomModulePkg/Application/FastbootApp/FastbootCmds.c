@@ -57,7 +57,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/MenuKeysDetection.h>
-
+#include <Library/PartitionTableUpdate.h>
 #include <Protocol/BlockIo.h>
 
 #include <Guid/EventGroup.h>
@@ -75,6 +75,7 @@
 #include "BootImage.h"
 #include "BootLinux.h"
 #include "LinuxLoaderLib.h"
+#define BOOT_IMG_LUN 0x4
 
 struct GetVarPartitionInfo part_info[] =
 {
@@ -88,8 +89,28 @@ BOOLEAN         Finished = FALSE;
 CHAR8           StrSerialNum[64];
 CHAR8           FullProduct[64] = "unsupported";
 
-STATIC ANDROID_FASTBOOT_STATE mState = ExpectCmdState;
+struct GetVarSlotInfo {
+	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	CHAR8 SlotSuccessfulVar[SLOT_ATTR_SIZE];
+	CHAR8 SlotUnbootableVar[SLOT_ATTR_SIZE];
+	CHAR8 SlotRetryCountVar[SLOT_ATTR_SIZE];
+	CHAR8 SlotSuccessfulVal[ATTR_RESP_SIZE];
+	CHAR8 SlotUnbootableVal[ATTR_RESP_SIZE];
+	CHAR8 SlotRetryCountVal[ATTR_RESP_SIZE];
+};
 
+STATIC struct GetVarSlotInfo *BootSlotInfo = NULL;
+STATIC CHAR8 SlotSuffixArray[SLOT_SUFFIX_ARRAY_SIZE] = {'\0'};
+
+/*This variable is used to skip populating the FastbootVar
+ * When PopulateMultiSlotInfo called while flashing each Lun
+ */
+STATIC BOOLEAN InitialPopulate = FALSE;
+STATIC BOOLEAN FlashingPtable = FALSE;
+STATIC VOID FastbootUpdateAttr(CONST CHAR8 *SlotSuffix);
+extern struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
+
+STATIC ANDROID_FASTBOOT_STATE mState = ExpectCmdState;
 /* When in ExpectDataState, the number of bytes of data to expect: */
 STATIC UINT64 mNumDataBytes;
 /* .. and the number of bytes so far received this data phase */
@@ -298,6 +319,104 @@ PartitionGetInfo (
 	}
 out:
 	return Status;
+}
+
+STATIC VOID FastbootPublishSlotVars() {
+	UINT32 i;
+	UINT32 j;
+	CHAR8 *Suffix = NULL;
+	UINT32 PartitionCount =0;
+	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
+	UINT32 RetryCount = 0;
+	BOOLEAN Set = FALSE;
+	STATIC CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+
+	GetPartitionCount(&PartitionCount);
+	/*Scan through partition entries, populate the attributes*/
+	for (i = 0,j = 0;i < PartitionCount; i++) {
+		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
+		if(!(AsciiStrnCmp(PartitionNameAscii,"boot",AsciiStrLen("boot")))) {
+			Suffix = PartitionNameAscii + AsciiStrLen("boot");
+			AsciiStrnCpy(BootSlotInfo[j].SlotSuffix,Suffix,MAX_SLOT_SUFFIX_SZ);
+
+			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVar,"slot-successful:",SLOT_ATTR_SIZE);
+			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL;
+			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal, Set ? "yes": "no", ATTR_RESP_SIZE);
+			FastbootPublishVar(AsciiStrCat(BootSlotInfo[j].SlotSuccessfulVar,Suffix),BootSlotInfo[j].SlotSuccessfulVal);
+
+			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVar,"slot-unbootable:",SLOT_ATTR_SIZE);
+			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL;
+			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal,Set? "yes": "no",ATTR_RESP_SIZE);
+			FastbootPublishVar(AsciiStrCat(BootSlotInfo[j].SlotUnbootableVar,Suffix),BootSlotInfo[j].SlotUnbootableVal);
+
+			AsciiStrnCpy(BootSlotInfo[j].SlotRetryCountVar,"slot-retry-count:",SLOT_ATTR_SIZE);
+			RetryCount = (PtnEntries[i].PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >> PART_ATT_MAX_RETRY_CNT_BIT;
+			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%llu",RetryCount);
+			FastbootPublishVar(AsciiStrCat(BootSlotInfo[j].SlotRetryCountVar,Suffix),BootSlotInfo[j].SlotRetryCountVal);
+			j++;
+		}
+	}
+	FastbootPublishVar("has-slot:boot","yes");
+	GetCurrentSlotSuffix(CurrentSlot);
+	FastbootPublishVar("current-slot",CurrentSlot);
+	FastbootPublishVar("has-slot:system",PartitionHasMultiSlot("system") ? "yes" : "no");
+	FastbootPublishVar("has-slot:modem",PartitionHasMultiSlot("modem") ? "yes" : "no");
+	return;
+}
+
+/*Function to populate attribute fields
+ *Note: It traverses through the partition entries structure,
+ *populates has-slot, slot-successful,slot-unbootable and
+ *slot-retry-count attributes of the boot slots.
+ */
+void PopulateMultislotMetadata()
+{
+	UINT32 i;
+	UINT32 j;
+	UINT32 SlotCount =0;
+	UINT32 PartitionCount =0;
+	CHAR8 *Suffix = NULL;
+	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
+
+	GetPartitionCount(&PartitionCount);
+	if (!InitialPopulate) {
+		if (FlashingPtable && (Lun!= BOOT_IMG_LUN))
+			return;
+		/*Traverse through partition entries,count matching slots with boot */
+		for (i = 0; i < PartitionCount; i++) {
+			UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
+			if(!(AsciiStrnCmp(PartitionNameAscii,"boot",AsciiStrLen("boot")))) {
+				SlotCount++;
+				Suffix = PartitionNameAscii + AsciiStrLen("boot");
+				if (!AsciiStrStr(SlotSuffixArray, Suffix)) {
+					AsciiStrCatS(SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, Suffix);
+					AsciiStrCatS(SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, ",");
+				}
+			}
+		}
+		i = AsciiStrLen(SlotSuffixArray);
+		SlotSuffixArray[i] = '\0';
+		FastbootPublishVar("slot-suffixes",SlotSuffixArray);
+
+		/*Allocate memory for available number of slots*/
+		BootSlotInfo = AllocatePool(SlotCount * sizeof(struct GetVarSlotInfo));
+		if (BootSlotInfo == NULL)
+		{
+			DEBUG((EFI_D_ERROR,"Unable to allocate memory for BootSlotInfo\n"));
+			return;
+		}
+		SetMem((VOID *) BootSlotInfo, SlotCount * sizeof(struct GetVarSlotInfo), 0);
+		FastbootPublishSlotVars();
+		InitialPopulate = TRUE;
+	} else if (Lun == BOOT_IMG_LUN) {
+		/*While updating gpt from fastboot dont need to populate all the variables as above*/
+		for (i = 0; i < MAX_SLOTS; i++) {
+			AsciiStrnCpy(BootSlotInfo[i].SlotSuccessfulVal,"no",ATTR_RESP_SIZE);
+			AsciiStrnCpy(BootSlotInfo[i].SlotUnbootableVal,"no",ATTR_RESP_SIZE);
+			AsciiSPrint(BootSlotInfo[i].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%d",MAX_RETRY_COUNT);
+		}
+	}
+	return;
 }
 
 /* Helper function to write data to disk */
