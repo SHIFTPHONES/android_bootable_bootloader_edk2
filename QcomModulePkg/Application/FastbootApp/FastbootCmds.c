@@ -107,7 +107,6 @@ STATIC CHAR8 SlotSuffixArray[SLOT_SUFFIX_ARRAY_SIZE] = {'\0'};
  */
 STATIC BOOLEAN InitialPopulate = FALSE;
 STATIC BOOLEAN FlashingPtable = FALSE;
-STATIC VOID FastbootUpdateAttr(CONST CHAR8 *SlotSuffix);
 extern struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 
 STATIC ANDROID_FASTBOOT_STATE mState = ExpectCmdState;
@@ -475,6 +474,15 @@ HandleSparseImgFlash(
 	UINT32 Status;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	EFI_HANDLE *Handle = NULL;
+	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+	BOOLEAN HasSlot = FALSE;
+
+	/* For multislot boot the partition may not support a/b slots.
+	 * Look for default partition, if it does not exist then try for a/b
+	 */
+	if (MultiSlotBoot)
+		HasSlot = GetPartitionHasSlot(PartitionName, SlotSuffix);
 
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
@@ -697,6 +705,38 @@ HandleSparseImgFlash(
 	return EFI_SUCCESS;
 }
 
+STATIC VOID FastbootUpdateAttr(CONST CHAR8 *SlotSuffix)
+{
+	struct PartitionEntry *Ptn_Entries_Ptr = NULL;
+	UINT32 j;
+	INTN Index;
+	CHAR8 PartName[MAX_GPT_NAME_SIZE];
+
+	AsciiStrnCpy(PartName, "boot", MAX_GPT_NAME_SIZE);
+	AsciiStrnCat(PartName, SlotSuffix, MAX_GPT_NAME_SIZE);
+
+	Index = GetPartitionIndex(PartName);
+	if (Index == INVALID_PTN)
+	{
+		DEBUG((EFI_D_ERROR, "Error boot partition for slot: %s not found\n", SlotSuffix));
+		return;
+	}
+
+	Ptn_Entries_Ptr = &PtnEntries[Index];
+	Ptn_Entries_Ptr->PartEntry.Attributes = (Ptn_Entries_Ptr->PartEntry.Attributes | PART_ATT_MAX_RETRY_COUNT_VAL)
+		& (~PART_ATT_SUCCESSFUL_VAL);
+	UpdatePartitionAttributes();
+	for (j = 0; j < MAX_SLOTS; j++)
+	{
+		if(!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix,SlotSuffix,AsciiStrLen(SlotSuffix)))
+		{
+			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal,"no",ATTR_RESP_SIZE);
+			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal,"no",ATTR_RESP_SIZE);
+			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%d",MAX_RETRY_COUNT);
+		}
+	}
+}
+
 /* Raw Image flashing */
 EFI_STATUS
 HandleRawImgFlash(
@@ -709,6 +749,15 @@ HandleRawImgFlash(
 	EFI_BLOCK_IO_PROTOCOL   *BlockIo = NULL;
 	UINTN                    PartitionSize;
 	EFI_HANDLE *Handle = NULL;
+	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+	BOOLEAN HasSlot = FALSE;
+
+	/* For multislot boot the partition may not support a/b slots.
+	 * Look for default partition, if it does not exist then try for a/b
+	 */
+	if (MultiSlotBoot)
+		HasSlot =  GetPartitionHasSlot(PartitionName, SlotSuffix);
 
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
@@ -723,8 +772,10 @@ HandleRawImgFlash(
 
 		return EFI_VOLUME_FULL;
 	}
-
-	return BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, 0, ROUND_TO_PAGE(Size, BlockIo->Media->BlockSize - 1), Image);
+	Status = BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, 0, ROUND_TO_PAGE(Size, BlockIo->Media->BlockSize - 1), Image);
+	if (MultiSlotBoot && HasSlot && !(AsciiStrnCmp(PartitionName,"boot",strlen("boot"))))
+		FastbootUpdateAttr(SlotSuffix);
+	return Status;
 }
 
 /* Meta Image flashing */
@@ -868,6 +919,8 @@ STATIC VOID CmdFlash(
 	INTN Len = -1;
 	LunSet = FALSE;
 	EFI_EVENT gBlockIoRefreshEvt;
+	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
 
@@ -932,6 +985,19 @@ STATIC VOID CmdFlash(
 				FastbootFail("Partition table update failed\n");
 				goto out;
 			}
+			UpdatePartitionEntries();
+
+			/*Check for multislot boot support*/
+			MultiSlotBoot = PartitionHasMultiSlot("boot");
+			if(MultiSlotBoot)
+			{
+				FindPtnActiveSlot();
+				FlashingPtable = TRUE;
+				PopulateMultislotMetadata();
+				FlashingPtable = FALSE;
+				GetCurrentSlotSuffix(CurrentSlot);
+				DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
+			}
 			DEBUG((EFI_D_INFO, "*************** New partition Table Dump Start *******************\n"));
 			PartitionDump();
 			DEBUG((EFI_D_INFO, "*************** New partition Table Dump End   *******************\n"));
@@ -987,6 +1053,16 @@ STATIC VOID CmdErase(
 	EFI_STATUS  Status;
 	CHAR16      OutputString[FASTBOOT_STRING_MAX_LENGTH];
 	CHAR8 *PartitionName = (CHAR8 *)arg;
+	BOOLEAN HasSlot = FALSE;
+	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+
+	/* In A/B to have backward compatibility user can still give fastboot flash boot/system/modem etc
+	 * based on current slot Suffix try to look for "partition"_a/b if not found fall back to look for
+	 * just the "partition" in case some of the partitions are no included for A/B implementation
+	 */
+	if(MultiSlotBoot)
+		HasSlot = GetPartitionHasSlot(PartitionName, SlotSuffix);
 
 	// Build output string
 	UnicodeSPrint (OutputString, sizeof (OutputString), L"Erasing partition %a\r\n", PartitionName);
@@ -998,6 +1074,8 @@ STATIC VOID CmdErase(
 	}
 	else
 	{
+		if (MultiSlotBoot && HasSlot && !(AsciiStrnCmp(PartitionName,"boot",strlen("boot"))))
+			FastbootUpdateAttr(SlotSuffix);
 		FastbootOkay("");
 	}
 }
