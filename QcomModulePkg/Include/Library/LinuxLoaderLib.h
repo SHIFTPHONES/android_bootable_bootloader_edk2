@@ -93,6 +93,9 @@
 #define PARTITIONED_TYPE_GPT    0x02
 
 #define ZERO	0
+#define ARRAY_SIZE(a)                  sizeof(a)/sizeof(*a)
+#define MAX_HANDLE_INFO_LIST     128
+
 /* Macro to avoid integer overflow */
 #define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : ZERO
 

@@ -38,9 +38,9 @@
 #include <Protocol/EFILimits.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/LinuxLoaderLib.h>
 
 #define DTB_MAX_SUBNODE                128
-#define ARRAY_SIZE(a)                  sizeof(a)/sizeof(*a)
 
 #define MSMCOBALT_PGOOD_FUSE		0x78013C
 #define MSMCOBALT_PGOOD_SUBBIN_FUSE	0x780324

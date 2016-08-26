@@ -191,6 +191,68 @@ EFI_STATUS BoardInit()
 	return Status;
 }
 
+EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet)
+{
+	EFI_STATUS Status = EFI_INVALID_PARAMETER;
+	MEM_CARD_INFO CardInfoData;
+	EFI_MEM_CARDINFO_PROTOCOL *CardInfo;
+	UINT32 SerialNo;
+	HandleInfo HandleInfoList[MAX_HANDLE_INFO_LIST];
+	UINT32 Attribs = 0;
+	UINT32 MaxHandles;
+	PartiSelectFilter HandleFilter;
+	MemCardType Type = EMMC;
+
+	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
+
+	MaxHandles = ARRAY_SIZE(HandleInfoList);
+	HandleFilter.PartitionType = 0;
+	HandleFilter.VolumeName = 0;
+	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
+
+	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
+	if (EFI_ERROR (Status) || MaxHandles == 0)
+	{
+		MaxHandles = ARRAY_SIZE(HandleInfoList);
+		HandleFilter.PartitionType = 0;
+		HandleFilter.VolumeName = 0;
+		HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
+
+		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
+		if (EFI_ERROR (Status))
+			return EFI_NOT_FOUND;
+		Type = UFS;
+	}
+
+	Status = gBS->HandleProtocol(HandleInfoList[0].Handle, &gEfiMemCardInfoProtocolGuid, (VOID**)&CardInfo);
+
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR,"Error locating MemCardInfoProtocol:%x\n",Status));
+		return Status;
+	}
+
+	if (CardInfo->Revision < EFI_MEM_CARD_INFO_PROTOCOL_REVISION) {
+		DEBUG((EFI_D_ERROR,"This API not supported in Revision =%u\n",CardInfo->Revision));
+		return EFI_NOT_FOUND;
+	}
+
+	if (IsGet == TRUE) {
+		if (CardInfo->GetBootLU (CardInfo, UfsBootlun) == EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_VERBOSE,"Get BootLun =%u\n",*UfsBootlun));
+			return Status;
+		}
+	} else {
+		if (CardInfo->SetBootLU (CardInfo, *UfsBootlun) == EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_VERBOSE,"SetBootLun =%u\n",*UfsBootlun));
+			return Status;
+		}
+	}
+	return Status;
+}
+
 EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 {
 	EFI_STATUS                   Status = EFI_INVALID_PARAMETER;
