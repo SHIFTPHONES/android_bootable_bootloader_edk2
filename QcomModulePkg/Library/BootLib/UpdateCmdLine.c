@@ -343,10 +343,6 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 		src = StrSerialNum;
 		STR_COPY(dst,src);
 
-		src = loglevel;
-		if (have_cmdline) --dst;
-		STR_COPY(dst,src);
-
 		if (boot_into_ffbm) {
 			src = androidboot_mode;
 			if (have_cmdline) --dst;
