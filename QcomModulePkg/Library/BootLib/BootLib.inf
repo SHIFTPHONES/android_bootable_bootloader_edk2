@@ -95,9 +95,16 @@
 	gEfiFileInfoGuid
 	gEfiGlobalVariableGuid
 	gEfiLogFSPartitionGuid
-	gEfiUfsLU0Guid
 	gEfiEmmcUserPartitionGuid
 	gEfiMiscPartitionGuid
+	gEfiUfsLU0Guid
+	gEfiUfsLU1Guid
+	gEfiUfsLU2Guid
+	gEfiUfsLU3Guid
+	gEfiUfsLU4Guid
+	gEfiUfsLU5Guid
+	gEfiUfsLU6Guid
+	gEfiUfsLU7Guid
 
 [Protocols]
 	gEfiSimpleTextInputExProtocolGuid
