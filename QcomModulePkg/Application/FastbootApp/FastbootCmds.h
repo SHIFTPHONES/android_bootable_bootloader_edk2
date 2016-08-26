@@ -37,26 +37,26 @@
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/LinuxLoaderLib.h>
+#include <Library/PartitionTableUpdate.h>
 
 #define ENDPOINT_IN             0x01
 #define ENDPOINT_OUT            0x81
 
-#define MAX_GPT_NAME_SIZE 72
 #define MAX_DOWNLOAD_SIZE       1024*1024*512
 #define MAX_DOWNLOAD_SIZE_STR   "536870912"
 #define MAX_BUFFER_SIZE         MAX_DOWNLOAD_SIZE
 #define MAX_RSP_SIZE    64
-#define MAX_NUM_PARTITIONS      128
 #define ERASE_BUFF_SIZE         256*1024
 #define ERASE_BUFF_BLOCKS       256*2
 #define USB_BUFFER_SIZE         1024*1024*16
 #define VERSION_STR_LEN         96
-#define MAX_LUNS                8
-#define NO_LUN                  -1
 #define FASTBOOT_STRING_MAX_LENGTH  256
 #define FASTBOOT_COMMAND_MAX_LENGTH 64
 #define MAX_GET_VAR_NAME_SIZE       32
 #define SIGACTUAL		4096
+#define SLOT_SUFFIX_ARRAY_SIZE 10
+#define SLOT_ATTR_SIZE 32
+#define ATTR_RESP_SIZE 4
 
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 
@@ -84,11 +84,6 @@ struct GetVarPartitionInfo
   CHAR8 type_response[MAX_RSP_SIZE];
 };
 
-struct StoragePartInfo
-{
-	HandleInfo HandleInfoList[MAX_NUM_PARTITIONS];
-	UINT32	MaxHandles;
-};
 
 /* Fastboot State */
 typedef enum

@@ -97,8 +97,6 @@ STATIC UINT64 mBytesReceivedSoFar;
 /*  and the buffer to save data into */
 STATIC UINT8 *mDataBuffer = NULL;
 
-STATIC struct StoragePartInfo       Ptable[MAX_LUNS];
-STATIC UINT32 MaxLuns;
 STATIC INT32 Lun = NO_LUN;
 STATIC BOOLEAN LunSet;
 
@@ -108,7 +106,6 @@ STATIC BOOLEAN IsAllowUnlock;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
 STATIC VOID AcceptCmd (IN  UINTN Size,IN  CHAR8 *Data);
-STATIC EFI_STATUS EnumeratePartitions();
 
 /* Enumerate the partitions during init */
 STATIC
@@ -117,8 +114,12 @@ FastbootInit()
 { 
 	EFI_STATUS Status;
 
-	Status = EnumeratePartitions ();
-
+	Status = EnumeratePartitions();
+	if(EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Error enumerating the partitions : %r\n",Status));
+		return Status;
+	}
+	UpdatePartitionEntries();
 	return Status;
 }
 
@@ -212,80 +213,6 @@ VOID FastbootOkay(IN CONST CHAR8 *info)
 	FastbootAck("OKAY", info);
 }
 
-STATIC
-EFI_STATUS
-EnumeratePartitions ()
-{
-	EFI_STATUS               Status;
-	PartiSelectFilter        HandleFilter;
-	UINT32                   Attribs = 0;
-	UINT32 i;
-	/* Find the definition of these in QcomModulePkg.dec file */
-	//eMMC Physical Partition GUIDs
- 
-	//UFS LUN GUIDs
-	EFI_GUID LunGuids[] = {
-							gEfiUfsLU0Guid,
-							gEfiUfsLU1Guid,
-							gEfiUfsLU2Guid,
-							gEfiUfsLU3Guid,
-							gEfiUfsLU4Guid,
-							gEfiUfsLU5Guid,
-							gEfiUfsLU6Guid,
-							gEfiUfsLU7Guid,
-						  };
-
-	SetMem((VOID*) Ptable, (sizeof(struct StoragePartInfo) * MAX_LUNS), 0);
-
-	/* By default look for emmc partitions if not found look for UFS */
-	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
-
-	Ptable[0].MaxHandles = sizeof(Ptable[0].HandleInfoList) / sizeof(Ptable[0].HandleInfoList[0]);
-	HandleFilter.PartitionType = 0;
-	HandleFilter.VolumeName = 0;
-	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
-
-	Status = GetBlkIOHandles(Attribs, &HandleFilter, &Ptable[0].HandleInfoList[0], &Ptable[0].MaxHandles);
-	/* For Emmc devices the Lun concept does not exist, we will always one lun and the lun number is '0'
-	 * to have the partition selection implementation same acros
-	 */
-	if (Status == EFI_SUCCESS && Ptable[0].MaxHandles > 0)
-	{
-		Lun = 0;
-		MaxLuns = 1;
-	}
-	/* If the media is not emmc then look for UFS */
-	else if (EFI_ERROR (Status) || Ptable[0].MaxHandles == 0)
-	{
-	/* By default max 8 luns are supported but HW could be configured to use only few of them or all of them
-	 * Based on the information read update the MaxLuns to reflect the max supported luns */
-		for (i = 0 ; i < MAX_LUNS; i++)
-		{
-			Ptable[i].MaxHandles = sizeof(Ptable[i].HandleInfoList) / sizeof(Ptable[i].HandleInfoList[i]);
-			HandleFilter.PartitionType = 0;
-			HandleFilter.VolumeName = 0;
-			HandleFilter.RootDeviceType = &LunGuids[i];
-	
-			Status = GetBlkIOHandles(Attribs, &HandleFilter, &Ptable[i].HandleInfoList[0], &Ptable[i].MaxHandles);
-			/* If we fail to get block for a lun that means the lun is not configured and unsed, ignore the error
-			 * and continue with the next Lun */
-			if (EFI_ERROR (Status))
-			{
-				DEBUG((EFI_D_ERROR, "Error getting block IO handle for %d lun, Lun may be unused\n", i));
-				continue;
-			}
-		}
-		MaxLuns = i;
-	}
-	else
-	{
-		DEBUG((EFI_D_ERROR, "Error populating block IO handles\n"));
-		return EFI_NOT_FOUND;
-	}
-
-	return Status;
-}
-
 EFI_STATUS
 PartitionDump ()
 {
@@ -297,7 +224,7 @@ PartitionDump ()
 	UINT32                   j;
 	/* By default the LunStart and LunEnd would point to '0' and max value */
 	UINT32 LunStart = 0;
-	UINT32 LunEnd = MaxLuns;
+	UINT32 LunEnd = GetMaxLuns();
 
 	/* If Lun is set in the Handle flash command then find the block io for that lun */
 	if (LunSet)
@@ -336,7 +263,7 @@ PartitionGetInfo (
 	UINT32 j;
 	/* By default the LunStart and LunEnd would point to '0' and max value */
 	UINT32 LunStart = 0;
-	UINT32 LunEnd = MaxLuns;
+	UINT32 LunEnd = GetMaxLuns();
 
 	/* If Lun is set in the Handle flash command then find the block io for that lun */
 	if (LunSet)
@@ -384,6 +311,28 @@ WriteToDisk (
 	)
 {
 	return BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, offset, ROUND_TO_PAGE(Size, BlockIo->Media->BlockSize - 1), Image);
+}
+
+STATIC BOOLEAN GetPartitionHasSlot(CHAR8* PartitionName, CHAR8* SlotSuffix) {
+	INT32 Index = INVALID_PTN;
+	BOOLEAN HasSlot = FALSE;
+	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+
+	Index = GetPartitionIndex(PartitionName);
+	if (Index == INVALID_PTN) {
+		GetCurrentSlotSuffix(CurrentSlot);
+		AsciiStrnCpy(SlotSuffix, CurrentSlot, MAX_SLOT_SUFFIX_SZ);
+		AsciiStrnCat(PartitionName, CurrentSlot, MAX_SLOT_SUFFIX_SZ);
+		HasSlot = TRUE;
+	}
+	else {
+		/*Check for _a or _b slots, if available then copy to SlotSuffix Array*/
+		if (AsciiStrStr(PartitionName, "_a") || AsciiStrStr(PartitionName, "_b")) {
+			AsciiStrnCpy(SlotSuffix, PartitionName[strlen(PartitionName) - 2], MAX_SLOT_SUFFIX_SZ);
+			HasSlot = TRUE;
+		}
+	}
+	return HasSlot;
 }
 
 /* Handle Sparse Image Flashing */
