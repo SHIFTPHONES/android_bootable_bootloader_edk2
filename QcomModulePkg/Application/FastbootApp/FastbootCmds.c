@@ -1002,6 +1002,91 @@ STATIC VOID CmdErase(
 	}
 }
 
+/*Function to set given slot as high priority
+ *Arg: slot Suffix
+ *Note: increase the priority of slot to max priority
+ *at the same time decrease the priority of other
+ *slots.
+ */
+VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
+{
+	UINT32 i;
+	CHAR8 SetActive[MAX_GPT_NAME_SIZE] = "boot";
+	struct PartitionEntry *PartEntriesPtr = NULL;
+	CHAR8 *Ptr = NULL;
+	CONST CHAR8 *Delim = ":";
+	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
+	UINT16 j = 0;
+	BOOLEAN SlotVarUpdateComplete = FALSE;
+	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	UINT32 PartitionCount =0;
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+
+	if(!MultiSlotBoot)
+	{
+		FastbootFail("This Command not supported");
+		return;
+	}
+
+	if (!Arg) {
+		FastbootFail("Invalid Input Parameters");
+		return;
+	}
+
+	Ptr = AsciiStrStr((char *)Arg, Delim);
+	if (Ptr) {
+		Ptr++;
+		if(!AsciiStrStr(SlotSuffixArray, Ptr)) {
+			DEBUG((EFI_D_ERROR,"%s does not exist in partition table\n",SetActive));
+			FastbootFail("slot does not exist");
+			return;
+		}
+		/*Arg will be either _a or _b, so apppend it to boot*/
+		AsciiStrnCat(SetActive, Ptr, MAX_GPT_NAME_SIZE);
+	} else {
+		FastbootFail("set_active:_a or _b should be entered");
+		return;
+	}
+
+	GetPartitionCount(&PartitionCount);
+	for (i=0; i < PartitionCount; i++)
+	{
+		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
+		if (!AsciiStrnCmp(PartitionNameAscii, "boot", AsciiStrLen("boot")))
+		{
+			/*select the slot and increase the priority = 3,retry-count =7,slot_successful = 0 and slot_unbootable =0*/
+			if (!AsciiStrnCmp(PartitionNameAscii, SetActive, AsciiStrLen(SetActive)))
+			{
+				PartEntriesPtr = &PtnEntries[i];
+				PartEntriesPtr->PartEntry.Attributes = (PartEntriesPtr->PartEntry.Attributes | PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL) & (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+				AsciiStrnCpy(CurrentSlot, Ptr, MAX_SLOT_SUFFIX_SZ);
+				SetCurrentSlotSuffix(CurrentSlot);
+			}
+			else
+			{
+				/*Decrement the priority of the other slots by less than active slot*/
+				PartEntriesPtr =  &PtnEntries[i];
+				if (((PtnEntries[i].PartEntry.Attributes & PART_ATT_PRIORITY_VAL) >> PART_ATT_PRIORITY_BIT) ==  MAX_PRIORITY) {
+					PtnEntries[i].PartEntry.Attributes = ((PtnEntries[i].PartEntry.Attributes & (~ PART_ATT_PRIORITY_VAL))  | (((UINT64)MAX_PRIORITY -1) << PART_ATT_PRIORITY_BIT));
+				}
+			}
+		}
+	}
+
+	do {
+		if (!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix, Ptr, strlen(Ptr))) {
+			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal, "no", ATTR_RESP_SIZE);
+			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal, "no", ATTR_RESP_SIZE);
+			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal, sizeof(BootSlotInfo[j].SlotRetryCountVal), "%d", MAX_RETRY_COUNT);
+			SlotVarUpdateComplete = TRUE;
+		}
+		j++;
+	} while(!SlotVarUpdateComplete);
+
+	UpdatePartitionAttributes();
+	FastbootOkay("");
+}
+
 STATIC VOID AcceptData (IN  UINTN  Size, IN  VOID  *Data)
 {
 	UINT32 RemainingBytes = mNumDataBytes - mBytesReceivedSoFar;
@@ -1651,6 +1736,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 #ifndef DISABLE_FASTBOOT_CMDS
 		{ "flash:", CmdFlash },
 		{ "erase:", CmdErase },
+		{ "set_active", CmdSetActive },
 		{ "boot", CmdBoot },
 		{ "continue", CmdContinue },
 		{ "reboot", CmdReboot },
