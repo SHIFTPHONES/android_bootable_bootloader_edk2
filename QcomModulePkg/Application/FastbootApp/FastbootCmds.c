@@ -1354,10 +1354,18 @@ STATIC VOID CmdContinue(
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DeviceTreeSize = 0;
 	STATIC UINT32 tempImgSize = 0;
+	CHAR8 BootableSlot[MAX_GPT_NAME_SIZE];
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 
 	ImageHdrBuffer = AllocatePages(ImageHdrSize / 4096);
 	ASSERT(ImageHdrBuffer);
-	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, &gEfiBootImgPartitionGuid);
+	if (MultiSlotBoot)
+	{
+		FindBootableSlot(BootableSlot);
+		if(!BootableSlot[0])
+			return;
+	}
+	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, BootableSlot);
 	if (Status != EFI_SUCCESS)
 	{
 		FastbootFail("Failed to Load Image Header from Partition");
@@ -1441,8 +1449,7 @@ STATIC VOID CmdContinue(
 		return;
 	}
 
-	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, &gEfiBootImgPartitionGuid);
-
+	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, BootableSlot);
 	if (Status != EFI_SUCCESS)
 	{
 		FastbootFail("Failed to Load Image from Partition");
@@ -1465,7 +1472,7 @@ STATIC VOID CmdContinue(
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, "boot");
+	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, BootableSlot);
 }
 
 STATIC VOID CmdGetVarAll()
@@ -1803,6 +1810,8 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 	mDataBuffer = base;
 	mNumDataBytes = size;
+	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 
 	/* Find all Software Partitions in the User Partition */
 	UINT32 i;
@@ -1846,6 +1855,18 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	Status = PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
 	if (Status != EFI_SUCCESS)
 		DEBUG((EFI_D_ERROR, "Partition Table info is not populated\n"));
+	if (MultiSlotBoot)
+	{
+		/*Find ActiveSlot, bydefault _a will be the active slot
+		 *Populate MultiSlotMeta data will publish fastboot variables
+		 *like slot_successful, slot_unbootable,slot_retry_count and
+		 *CurrenSlot, these can modified using fastboot set_active command
+		 */
+		FindPtnActiveSlot();
+		PopulateMultislotMetadata();
+		GetCurrentSlotSuffix(CurrentSlot);
+		DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
+	}
 
   /* To Do: Add the following
    * 1. charger-screen-enabled
