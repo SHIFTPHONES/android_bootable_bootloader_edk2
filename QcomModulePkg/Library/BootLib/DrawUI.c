@@ -38,7 +38,8 @@
 #include <Library/UpdateDeviceTree.h>
 #include <Protocol/GraphicsOutput.h>
 
-CONST EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutputProtocol = NULL;
+STATIC EFI_GRAPHICS_OUTPUT_PROTOCOL  *GraphicsOutputProtocol;
+STATIC EFI_GRAPHICS_OUTPUT_BLT_PIXEL *LogoBlt;
 
 STATIC CHAR16 *mFactorName[] = {
 	[2] = SYSFONT_2x,
@@ -127,6 +128,105 @@ STATIC UINT32 GetResolutionHeight()
 
 	return Height;
 }
+
+EFI_STATUS BackUpBootLogoBltBuffer()
+{
+	EFI_STATUS Status;
+	UINT32     Width;
+	UINT32     Height;
+	UINT64     BufferSize;
+
+	/* Return directly if it's already backed up the boot logo blt buffer */
+	if (LogoBlt)
+		return EFI_SUCCESS;
+
+	Width = GetResolutionWidth();
+	Height = GetResolutionHeight();
+	if (!Width || !Height) {
+		DEBUG((EFI_D_ERROR, "Failed to get width or height\n"));
+		return EFI_UNSUPPORTED;
+	}
+
+	/* Ensure the Height * Width doesn't overflow */
+	if (Height > DivU64x64Remainder ((UINTN) ~0, Width, NULL)) {
+		DEBUG((EFI_D_ERROR, "Height * Width overflow\n"));
+		return EFI_UNSUPPORTED;
+	}
+	BufferSize = MultU64x64 (Width, Height);
+
+	/* Ensure the BufferSize * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL) doesn't overflow */
+	if (BufferSize > DivU64x32 ((UINTN) ~0, sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL))) {
+		DEBUG((EFI_D_ERROR, "BufferSize * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL) overflow\n"));
+		return EFI_UNSUPPORTED;
+	}
+
+	LogoBlt = AllocateZeroPool ((UINTN)BufferSize * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
+	if (LogoBlt == NULL) {
+		return EFI_OUT_OF_RESOURCES;
+	}
+
+	Status = GraphicsOutputProtocol->Blt (
+		GraphicsOutputProtocol,
+		LogoBlt,
+		EfiBltVideoToBltBuffer,
+		0,
+		0,
+		0,
+		0,
+		Width,
+		Height,
+		Width * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL)
+		);
+
+	return Status;
+}
+
+// This function would restore the boot logo if the display on the screen is changed.
+EFI_STATUS RestoreBootLogoBitBuffer()
+{
+	EFI_STATUS Status;
+	UINT32     Width;
+	UINT32     Height;
+
+	/* Return directly if the boot logo bit buffer is null */
+	if (!LogoBlt)
+		return EFI_UNSUPPORTED;
+
+	Width = GetResolutionWidth();
+	Height = GetResolutionHeight();
+	if (!Width || !Height) {
+		DEBUG((EFI_D_ERROR, "Failed to get width or height\n"));
+		return EFI_UNSUPPORTED;
+	}
+
+	/* Ensure the Height * Width doesn't overflow */
+	if (Height > DivU64x64Remainder ((UINTN) ~0, Width, NULL)) {
+		DEBUG((EFI_D_ERROR, "Height * Width overflow\n"));
+		return EFI_UNSUPPORTED;
+	}
+
+	Status = GraphicsOutputProtocol->Blt (
+		GraphicsOutputProtocol,
+		LogoBlt,
+		EfiBltBufferToVideo,
+		0,
+		0,
+		0,
+		0,
+		Width,
+		Height,
+		Width * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL)
+		);
+
+	return Status;
+}
+
+VOID FreeBootLogoBltBuffer()
+{
+	if(LogoBlt)
+		FreePool (LogoBlt);
+}
+
 
 /* Get Max font count per row */
 STATIC UINT32 GetMaxFontCount()
