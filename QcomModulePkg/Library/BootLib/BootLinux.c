@@ -31,6 +31,7 @@
  */
 
 #include <Library/VerifiedBootMenu.h>
+#include <Library/DrawUI.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
@@ -233,6 +234,9 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		}
 	}
 	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n\n", GetTimerCountms()));
+
+	/* Free the boot logo blt buffer before starting kernel */
+	FreeBootLogoBltBuffer();
 
 	/*Shut down UEFI boot services*/
 	Status = ShutdownUefiBootServices ();
