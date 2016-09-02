@@ -217,7 +217,7 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 		case 8:
 			/* Get device status */
 			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				DevInfo->is_unlocked ? "locked":"unlocked", MAX_RSP_SIZE);
+				DevInfo->is_unlocked ? "unlocked":"locked", MAX_RSP_SIZE);
 			break;
 		}
 
