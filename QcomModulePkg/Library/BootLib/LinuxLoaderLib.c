@@ -80,6 +80,8 @@ GetBlkIOHandles (
 	EFI_DEVICE_PATH_PROTOCOL            *TempDevicePath;
 	VENDOR_DEVICE_PATH                  *RootDevicePath;
 	UINT32                              BlkIoCnt = 0;
+	EFI_PARTITION_ENTRY *PartEntry;
+	CHAR8 Pname[MAX_PNAME_LENGTH];
 
 	if ((MaxBlkIopCnt == 0) || (HandleInfoPtr == 0))
 		return EFI_INVALID_PARAMETER;
@@ -216,7 +218,15 @@ GetBlkIOHandles (
 			else if ((SelectionAttrib & BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID) != 0)
 				continue;
 		}
-
+		/* Check if the Partition name related criteria satisfies */
+		if ((SelectionAttrib & BLK_IO_SEL_MATCH_PARTITION_LABEL) != 0) {
+			Status = gBS->HandleProtocol(BlkIoHandles[i], &gEfiPartitionRecordGuid, (VOID **) &PartEntry);
+			if (Status != EFI_SUCCESS)
+				continue;
+			UnicodeStrToAsciiStr(PartEntry->PartitionName, Pname);
+			if (AsciiStrCmp(Pname, FilterData->PartitionLabel))
+				continue;
+		}
 		/* We came here means, this handle satisfies all the conditions needed,
 		 * Add it into the list */
 		HandleInfoPtr[BlkIoCnt].Handle = BlkIoHandles[i];
@@ -276,7 +286,7 @@ EFI_STATUS GetPartitionSize(UINT32 *ImageSize, EFI_GUID *PartitionType)
 }
 
 /* Load image from partition to buffer */
-EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUID *PartitionType)
+EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR8 *Pname)
 {
 	EFI_STATUS                   Status;
 	EFI_BLOCK_IO_PROTOCOL       *BlkIo;
@@ -288,10 +298,10 @@ EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUI
 	BlkIOAttrib = BLK_IO_SEL_PARTITIONED_MBR;
 	BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_GPT;
 	BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
-	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID;
+	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_LABEL;
 
 	HandleFilter.RootDeviceType = NULL;
-	HandleFilter.PartitionType = PartitionType;
+	HandleFilter.PartitionLabel = Pname;
 	HandleFilter.VolumeName = 0;
 
 	DEBUG ((DEBUG_INFO, "Loading Image Start : %u ms\n", GetTimerCountms()));

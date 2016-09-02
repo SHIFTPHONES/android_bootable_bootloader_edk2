@@ -34,6 +34,8 @@
 #include "UpdateCmdLine.h"
 #include "Recovery.h"
 #include <Library/PrintLib.h>
+#include <Library/BootLinux.h>
+#include <Library/PartitionTableUpdate.h>
 #include <Protocol/EFICardInfo.h>
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/Print2.h>
@@ -59,6 +61,8 @@ STATIC CHAR8 *baseband_sglte   = " androidboot.baseband=sglte";
 STATIC CHAR8 *baseband_dsda    = " androidboot.baseband=dsda";
 STATIC CHAR8 *baseband_dsda2   = " androidboot.baseband=dsda2";
 STATIC CHAR8 *baseband_sglte2  = " androidboot.baseband=sglte2";
+/*Send slot suffix in cmdline with which we have booted*/
+STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
 
 /* Assuming unauthorized kernel image by default */
 STATIC INT32 auth_kernel_img = 0;
@@ -206,6 +210,8 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 	CHAR8  *cmdline_final = NULL;
 	UINT32 pause_at_bootup = 0; //this would have to come from protocol
 	BOOLEAN boot_into_ffbm = FALSE;
+	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	BOOLEAN MultiSlotBoot;
 
 	CHAR8 ffbm[FFBM_MODE_BUF_SIZE];
 	if (!AsciiStrnCmp(pname, "boot", AsciiStrLen(pname)))
@@ -307,6 +313,9 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 			cmdline_len += AsciiStrLen(baseband_dsda2);
 			break;
 	}
+	MultiSlotBoot = PartitionHasMultiSlot("boot");
+	if(MultiSlotBoot)
+		cmdline_len += AsciiStrLen(AndroidSlotSuffix) + 2;
 
 	GetDisplayCmdline();
 	cmdline_len += AsciiStrLen(display_cmdline);
@@ -432,6 +441,17 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 		src = display_cmdline;
 		if (have_cmdline) --dst;
 		STR_COPY(dst,src);
+		if (MultiSlotBoot)
+		{
+			src = AndroidSlotSuffix;
+			if (have_cmdline) --dst;
+			STR_COPY(dst,src);
+			--dst;
+			GetCurrentSlotSuffix(SlotSuffix);
+			src = SlotSuffix;
+			STR_COPY(dst,src);
+		}
+
 	}
 	DEBUG((EFI_D_INFO, "Cmdline: %a\n", cmdline_final));
 
