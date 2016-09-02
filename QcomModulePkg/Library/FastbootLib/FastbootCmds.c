@@ -56,6 +56,7 @@
 #include <Library/UefiApplicationEntryPoint.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/UnlockMenu.h>
 #include <Library/MenuKeysDetection.h>
 #include <Library/PartitionTableUpdate.h>
 #include <Library/BoardCustom.h>
@@ -1748,24 +1749,18 @@ STATIC VOID SetDeviceUnlock(UINT32 Type, BOOLEAN State)
 	}
 
 	/* If State is TRUE that means set the unlock to true */
-	if (State)
-	{
-		if(!IsAllowUnlock)
-		{
-			FastbootFail("Flashing Unlock is not allowed\n");
-			return;
-		}
-	}
-
-	Status = SetDeviceUnlockValue(Type, State);
-	if (Status != EFI_SUCCESS) {
-		AsciiSPrint(response, MAX_RSP_SIZE, "\tSet device %a failed: %r", (State ? "unlocked!" : "locked!"), Status);
-		FastbootFail(response);
+	if (State && !IsAllowUnlock) {
+		FastbootFail("Flashing Unlock is not allowed\n");
 		return;
 	}
 
-	FastbootOkay("");
-	RebootDevice(RECOVERY_MODE);
+	Status = DisplayUnlockMenu(Type, State);
+	if (Status != EFI_SUCCESS) {
+		FastbootFail("Command not support: the display is not enabled");
+		return;
+	} else {
+		FastbootOkay("");
+	}
 }
 #endif
 
