@@ -56,6 +56,7 @@
 #define FASTBOOT_STRING_MAX_LENGTH  256
 #define FASTBOOT_COMMAND_MAX_LENGTH 64
 #define MAX_GET_VAR_NAME_SIZE       32
+#define SIGACTUAL		4096
 
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 

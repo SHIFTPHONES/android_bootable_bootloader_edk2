@@ -92,8 +92,9 @@
 #define PARTITIONED_TYPE_MBR    0x01
 #define PARTITIONED_TYPE_GPT    0x02
 
+#define ZERO	0
 /* Macro to avoid integer overflow */
-#define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : MAX_UINT32
+#define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : ZERO
 
 /* Any data specific to additional attributes can be added here. */
 typedef struct {

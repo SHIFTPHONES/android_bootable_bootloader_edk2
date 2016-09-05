@@ -67,6 +67,7 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	STATIC VOID* DeviceTreeLoadAddr = 0;
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DeviceTreeSize = 0;
+	STATIC UINT32 tempImgSize = 0;
 
 	ImageHdrBuffer = AllocateAlignedPages (ImageHdrSize / 4096, 4096);
 	ASSERT(ImageHdrBuffer);
@@ -89,16 +90,73 @@ STATIC EFI_STATUS LoadLinux (EFI_GUID *PartitionType, CHAR8 *pname)
 	SecondSize = ((boot_img_hdr*)(ImageHdrBuffer))->second_size;
 	PageSize = ((boot_img_hdr*)(ImageHdrBuffer))->page_size;
 	DeviceTreeSize = ((boot_img_hdr*)(ImageHdrBuffer))->dt_size;
+
+	if (!KernelSize || !RamdiskSize || !PageSize)
+	{
+		DEBUG((EFI_D_ERROR, "Invalid image Sizes\n"));
+		DEBUG((EFI_D_ERROR, "KernelSize: %u,  RamdiskSize=%u\nPageSize=%u, DeviceTreeSize=%u\n", KernelSize, RamdiskSize, PageSize, DeviceTreeSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+
 	KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
+	if (!KernelSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Kernel Size = %u\n", KernelSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
 	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
+	if (!RamdiskSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Ramdisk Size = %u\n", RamdiskSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
 	DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, PageSize - 1);
+	if (DeviceTreeSize && !(DtSizeActual))
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Device Tree = %u\n", DeviceTreeSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
 	ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
+	if (!ImageSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Actual Kernel size = %u\n", KernelSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	tempImgSize = ImageSizeActual;
 	ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
+	if (!ImageSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, RamdiskActual=%u\n",tempImgSize, RamdiskSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	tempImgSize = ImageSizeActual;
 	ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
+	if (!ImageSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, DtSizeActual=%u\n", tempImgSize, DtSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	tempImgSize = ImageSizeActual;
 	ImageSize = ADD_OF(ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1)), PageSize);
+	if (!ImageSize)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSize=%u\n", tempImgSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
 
 	ImageBuffer = AllocateAlignedPages (ImageSize / 4096, 4096);
-	ASSERT(ImageBuffer);
+	if (!ImageBuffer)
+	{
+		DEBUG((EFI_D_ERROR, "No resources available for ImageBuffer\n"));
+		return EFI_OUT_OF_RESOURCES;
+	}
 
 	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
 	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, PartitionType);
