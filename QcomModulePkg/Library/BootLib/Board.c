@@ -28,9 +28,16 @@
 
 #include <Board.h>
 #include <Protocol/EFICardInfo.h>
+#include <Library/UpdateDeviceTree.h>
 #include <LinuxLoaderLib.h>
 
 STATIC struct BoardInfo platform_board_info;
+
+STATIC CONST CHAR8 *DeviceType[] = {
+	[EMMC]        = "EMMC",
+	[UFS]         = "UFS",
+	[UNKNOWN]     = "Unknown",
+};
 
 EFI_STATUS BaseMem(UINTN *BaseMemory)
 {
@@ -147,6 +154,67 @@ STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *p
 	return Status;
 }
 
+/**
+ Return a device type
+ @param[out]     HanderInfo  : Pointer to array of HandleInfo structures
+                               in which the output is returned.
+ @param[in, out] MaxHandles  : On input, max number of handle structures
+                               the buffer can hold, On output, the number
+                               of handle structures returned.
+ @retval         Device type : UNKNOWN|UFS|EMMC, default is UNKNOWN
+ **/
+STATIC UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
+{
+	EFI_STATUS               Status = EFI_INVALID_PARAMETER;
+	UINT32                   Attribs = 0;
+	UINT32                   MaxBlKIOHandles = MaxHandles;
+	PartiSelectFilter        HandleFilter;
+	extern EFI_GUID          gEfiEmmcUserPartitionGuid;
+	extern EFI_GUID          gEfiUfsLU0Guid;
+	HandleInfo               *HandleInfoList = HanderInfo;
+	MemCardType              Type = UNKNOWN;
+
+	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
+
+	HandleFilter.PartitionType = 0;
+	HandleFilter.VolumeName = 0;
+	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
+
+	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
+	if (EFI_ERROR (Status) || MaxBlKIOHandles == 0) {
+		MaxBlKIOHandles = MaxHandles;
+		HandleFilter.PartitionType = 0;
+		HandleFilter.VolumeName = 0;
+		HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
+
+		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
+		if (Status == EFI_SUCCESS)
+			Type = UFS;
+	} else {
+		Type = EMMC;
+	}
+	return Type;
+}
+
+/**
+ Get device type
+ @param[out]  StrDeviceType  : Pointer to array of device type string.
+ @param[in]   Len            : The size of the device type string
+ **/
+VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len)
+{
+	HandleInfo  HandleInfoList[HANDLE_MAX_INFO_LIST];
+	UINT32      MaxHandles = ARRAY_SIZE(HandleInfoList);
+	UINT32      Type;
+
+	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
+
+	if (Type < ARRAY_SIZE(DeviceType))
+		AsciiSPrint(StrDeviceType, Len, "%a", DeviceType[Type]);
+	else
+		AsciiSPrint(StrDeviceType, Len, "%a", DeviceType[UNKNOWN]);
+}
+
 UINT32 BoardPmicModel(UINT32 PmicDeviceIndex)
 {
 	EFI_STATUS Status;
@@ -259,37 +327,17 @@ EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 	MEM_CARD_INFO                CardInfoData;
 	EFI_MEM_CARDINFO_PROTOCOL    *CardInfo;
 	UINT32                       SerialNo;
-	HandleInfo HandleInfoList[128];
-	UINT32                   Attribs = 0;
-	UINT32                   MaxHandles;
-	PartiSelectFilter        HandleFilter;
-	MemCardType              Type = EMMC;
+	HandleInfo                   HandleInfoList[HANDLE_MAX_INFO_LIST];
+	UINT32                       MaxHandles = ARRAY_SIZE(HandleInfoList);
+	MemCardType                  Type = EMMC;
 
-	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
-
-	MaxHandles = sizeof(HandleInfoList) / sizeof(*HandleInfoList);
-	HandleFilter.PartitionType = 0;
-	HandleFilter.VolumeName = 0;
-	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
-
-	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
-	if (EFI_ERROR (Status) || MaxHandles == 0)
-	{
-		MaxHandles = sizeof(HandleInfoList) / sizeof(*HandleInfoList);
-		HandleFilter.PartitionType = 0;
-		HandleFilter.VolumeName = 0;
-		HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
-
-		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
-		if (EFI_ERROR (Status))
-			return EFI_NOT_FOUND;
-		Type = UFS;
-	}
+	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
+	if (Type == UNKNOWN)
+		return EFI_NOT_FOUND;
 
 	Status = gBS->HandleProtocol(HandleInfoList[0].Handle,
 								 &gEfiMemCardInfoProtocolGuid,
 								 (VOID**)&CardInfo);
-
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR,"Error locating MemCardInfoProtocol:%x\n",Status));

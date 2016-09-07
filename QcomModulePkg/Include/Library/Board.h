@@ -39,10 +39,13 @@
 #include <Protocol/EFIPmicVersion.h>
 #include <Protocol/EFIPlatformInfo.h>
 
+#define HANDLE_MAX_INFO_LIST    128
+
 typedef enum
 {
 	EMMC = 0,
 	UFS  = 1,
+	UNKNOWN = 2,
 } MemCardType;
 
 struct BoardInfo {
@@ -68,4 +71,5 @@ EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
 UINT32 BoardPlatformVersion();
 UINT32 BoardPlatormSubType();
 UINT32 BoardTargetId();
+VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len);
 #endif
