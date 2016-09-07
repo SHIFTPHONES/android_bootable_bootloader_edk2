@@ -90,6 +90,7 @@ STATIC FASTBOOT_VAR *Varlist;
 BOOLEAN         Finished = FALSE;
 CHAR8           StrSerialNum[MAX_RSP_SIZE];
 CHAR8           FullProduct[MAX_RSP_SIZE];
+CHAR8           StrVariant[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -1813,6 +1814,8 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	)
 {
 	EFI_STATUS Status;
+	CHAR8      HWPlatformBuf[MAX_RSP_SIZE];
+	CHAR8      DeviceType[MAX_RSP_SIZE];
 
 	mDataBuffer = base;
 	mNumDataBytes = size;
@@ -1875,15 +1878,19 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
 	}
 
+	BoardHwPlatformName(HWPlatformBuf, sizeof(HWPlatformBuf));
+	GetRootDeviceType(DeviceType, sizeof(DeviceType));
+	AsciiSPrint(StrVariant, sizeof(StrVariant), "%a %a", HWPlatformBuf, DeviceType);
+	FastbootPublishVar("variant", StrVariant);
+
   /* To Do: Add the following
    * 1. charger-screen-enabled
    * 2. off-mode-charge
    * 3. version-bootloader
    * 4. version-baseband
    * 5. secure
-   * 6. variant
-   * 7. battery-voltage
-   * 8. battery-soc-ok
+   * 6. battery-voltage
+   * 7. battery-soc-ok
    */
 	/* Register handlers for the supported commands*/
 	UINT32 FastbootCmdCnt = sizeof(cmd_list)/sizeof(cmd_list[0]);
