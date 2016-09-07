@@ -28,6 +28,7 @@
 
 #include <Board.h>
 #include <Protocol/EFICardInfo.h>
+#include <Protocol/EFIPlatformInfoTypes.h>
 #include <Library/UpdateDeviceTree.h>
 #include <LinuxLoaderLib.h>
 
@@ -37,6 +38,31 @@ STATIC CONST CHAR8 *DeviceType[] = {
 	[EMMC]        = "EMMC",
 	[UFS]         = "UFS",
 	[UNKNOWN]     = "Unknown",
+};
+
+STATIC CONST CHAR8 *HWPlatformName[] = {
+	[EFI_PLATFORMINFO_TYPE_UNKNOWN]     = "Unknown",
+	[EFI_PLATFORMINFO_TYPE_CDP]         = "CDP",
+	[EFI_PLATFORMINFO_TYPE_FFA]         = "FFA",
+	[EFI_PLATFORMINFO_TYPE_FLUID]       = "Fluid",
+	[EFI_PLATFORMINFO_TYPE_OEM]         = "OEM",
+	[EFI_PLATFORMINFO_TYPE_QT]          = "OT",
+	[EFI_PLATFORMINFO_TYPE_MTP]         = "MTP",
+	[EFI_PLATFORMINFO_TYPE_LIQUID]      = "LIQUID",
+	[EFI_PLATFORMINFO_TYPE_DRAGONBOARD] = "DRAGONBOARD",
+	[EFI_PLATFORMINFO_TYPE_QRD]         = "QRD",
+	[EFI_PLATFORMINFO_TYPE_EVB]         = "EVB",
+	[EFI_PLATFORMINFO_TYPE_RUMI]        = "RUMI",
+	[EFI_PLATFORMINFO_TYPE_VIRTIO]      = "VIRTIO",
+	[EFI_PLATFORMINFO_TYPE_GOBI]        = "GOBI",
+	[EFI_PLATFORMINFO_TYPE_BTS]         = "BTS",
+	[EFI_PLATFORMINFO_TYPE_XPM]         = "XPM",
+	[EFI_PLATFORMINFO_TYPE_RCM]         = "RCM",
+	[EFI_PLATFORMINFO_TYPE_STP]         = "STP",
+	[EFI_PLATFORMINFO_TYPE_SBC]         = "SBC",
+	[EFI_PLATFORMINFO_TYPE_ADP]         = "ADP",
+	[EFI_PLATFORMINFO_TYPE_SDP]         = "SDP",
+	[EFI_PLATFORMINFO_TYPE_RRP]         = "RRP",
 };
 
 EFI_STATUS BaseMem(UINTN *BaseMemory)
@@ -403,4 +429,36 @@ UINT32 BoardTargetId()
 			 (platform_board_info.PlatformInfo.platform & 0xff));
 
 	return Target;
+}
+
+VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len)
+{
+	EFI_STATUS Status;
+	UINT32     HWId;
+
+	if (StrHwPlatform == NULL) {
+		DEBUG((EFI_D_ERROR, "Error: HW Platform string is NULL\n"));
+		return;
+	}
+
+	/* Populate board data */
+	Status = BoardInit();
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Error: Board Initialization failed: %x\n", Status));
+		ASSERT(0);
+	}
+
+	HWId = BoardPlatformType();
+
+	if (HWId > (ARRAY_SIZE(HWPlatformName) - 1)) {
+		DEBUG((EFI_D_ERROR, "Error: Hw Platform Id (0x%x) not found!!\n", HWId));
+		return;
+	}
+
+	if (Len < (AsciiStrLen(HWPlatformName[HWId]) + 1)) {
+		DEBUG((EFI_D_ERROR, "Error: Hw Platform String length (%d) is too small\n\n", Len));
+		return;
+	}
+
+	AsciiSPrint(StrHwPlatform, Len, "%a", HWPlatformName[HWId]);
 }
