@@ -56,6 +56,7 @@
 	UnlockMenu.c
 	FastbootMenu.c
 	VerifiedBootMenu.c
+	PartitionTableUpdate.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec

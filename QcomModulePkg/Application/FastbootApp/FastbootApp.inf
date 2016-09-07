@@ -45,7 +45,6 @@
   FastbootMain.c
   UsbDescriptors.c
   FastbootCmds.c
-  PartitionTableUpdate.c
 
 [BuildOptions.AARCH64]
   GCC:*_*_*_CC_FLAGS = -O2
