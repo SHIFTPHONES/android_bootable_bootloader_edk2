@@ -32,11 +32,33 @@
 
 #include <Library/VerifiedBootMenu.h>
 #include <Library/DrawUI.h>
+#include <Protocol/EFIScmModeSwitch.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
+#include "BootImage.h"
+#include "UpdateDeviceTree.h"
 
 STATIC BOOLEAN VerifiedBootEnbled();
+STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
+
+STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceTreeLoadAddr) {
+	EFI_STATUS Status;
+	EFI_HLOS_BOOT_ARGS HlosBootArgs;
+
+	SetMem((VOID*)&HlosBootArgs, sizeof(HlosBootArgs), 0);
+	HlosBootArgs.el1_x2 = DeviceTreeLoadAddr;
+	/* Write 0 into el1_x4 to switch to 32bit mode */
+	HlosBootArgs.el1_x4 = 0;
+	HlosBootArgs.el1_elr = KernelLoadAddr;
+	Status = pQcomScmModeSwitchProtocol->SwitchTo32bitMode(HlosBootArgs);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "ERROR: Failed to switch to 32 bit mode.Status= %r\n",Status));
+		return Status;
+	}
+	/*Return Unsupported if the execution ever reaches here*/
+	return EFI_NOT_STARTED;
+}
 
 EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname, BOOLEAN Recovery)
 {
@@ -49,6 +71,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	STATIC UINT32 KernelSizeActual;
 	STATIC UINT32 RamdiskSizeActual;
 	STATIC UINT32 SecondSizeActual;
+	struct kernel64_hdr* Kptr = NULL;
 
 	/*Boot Image header information variables*/
 	STATIC UINT32 KernelSize;
@@ -71,6 +94,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 	device_info_vb_t DevInfo_vb;
 	STATIC CHAR8 StrPartition[MAX_PNAME_LENGTH];
+	BOOLEAN BootingWith32BitKernel = FALSE;
 
 	if (VerifiedBootEnbled())
 	{
@@ -168,6 +192,22 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		}
 
 		DEBUG((EFI_D_INFO, "Decompressing kernel image done: %u ms\n", GetTimerCountms()));
+		Kptr = KernelLoadAddr;
+	} else {
+		if (CHECK_ADD64(ImageBuffer, PageSize)) {
+			DEBUG((EFI_D_ERROR, "Integer Overflow: in Kernel header fields addition\n"));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		Kptr = ImageBuffer + PageSize;
+	}
+	if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
+		BootingWith32BitKernel = TRUE;
+		KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress32));
+		if (CHECK_ADD64((VOID*)Kptr, DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR)) {
+			DEBUG((EFI_D_ERROR, "Integer Overflow: in DTB offset addition\n"));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		CopyMem((VOID*)&DtbOffset, ((VOID*)Kptr + DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR), sizeof(DtbOffset));
 	}
 
 	/*Finds out the location of device tree image and ramdisk image within the boot image
@@ -228,6 +268,18 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	}
 	CopyMem (RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
 
+	if (BootingWith32BitKernel) {
+		if (CHECK_ADD64(KernelLoadAddr, KernelSizeActual)) {
+			DEBUG((EFI_D_ERROR, "Integer Overflow: while Kernel image copy\n"));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		if (KernelLoadAddr + KernelSizeActual > DeviceTreeLoadAddr) {
+			DEBUG((EFI_D_ERROR, "Kernel size is over the limit\n"));
+			return EFI_INVALID_PARAMETER;
+		}
+		CopyMem(KernelLoadAddr, ImageBuffer + PageSize, KernelSizeActual);
+	}
+
 	if (FixedPcdGetBool(EnablePartialGoods))
 	{
 		Status = UpdatePartialGoodsNode((VOID*)DeviceTreeLoadAddr);
@@ -247,11 +299,18 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			return Status;
 		}
 	}
-	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n\n", GetTimerCountms()));
 
 	/* Free the boot logo blt buffer before starting kernel */
 	FreeBootLogoBltBuffer();
+	if (BootingWith32BitKernel) {
+		Status = gBS->LocateProtocol(&gQcomScmModeSwithProtocolGuid, NULL, (VOID**)&pQcomScmModeSwitchProtocol);
+		if(EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR,"ERROR: Unable to Locate Protocol handle for ScmModeSwicthProtocol Status=%r\n", Status));
+			return Status;
+		}
+	}
 
+	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n", GetTimerCountms()));
 	/*Shut down UEFI boot services*/
 	Status = ShutdownUefiBootServices ();
 	if(EFI_ERROR(Status)) {
@@ -270,6 +329,11 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	//
 	// Start the Linux Kernel
 	//
+	if (BootingWith32BitKernel) {
+		Status = SwitchTo32bitModeBooting((UINT64)KernelLoadAddr, (UINT64)DeviceTreeLoadAddr);
+		return Status;
+	}
+
 	LinuxKernel = (LINUX_KERNEL)(UINTN)KernelLoadAddr;
 	LinuxKernel ((UINTN)DeviceTreeLoadAddr, 0, 0, 0);
 

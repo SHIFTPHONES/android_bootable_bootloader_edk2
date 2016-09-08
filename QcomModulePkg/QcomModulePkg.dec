@@ -107,6 +107,8 @@
   gEfiLimitsProtocolGuid =              { 0x79d6c879, 0x725e, 0x489e, { 0xa0, 0xa9, 0x27, 0xef, 0xa5, 0xdf, 0xcb, 0x35 } }
   # VerifiedBoot Protocol
   gEfiQcomVerifiedBootProtocolGuid =    { 0x8e5eff91, 0x21b6, 0x47d3, { 0xaf, 0x2b, 0xc1, 0x5a, 0x1, 0xe0, 0x20, 0xec } }
+  # Scm mode switch Protocol
+  gQcomScmModeSwithProtocolGuid =       { 0xf57f73ed, 0x0afc, 0x4723, { 0x93, 0x74, 0x2c, 0xeb, 0xc0, 0x19, 0x8e, 0xf9 } }
 
 [PcdsFixedAtBuild.common]
   # LinuxLoaderCommon
@@ -116,3 +118,4 @@
   gQcomTokenSpaceGuid.RamdiskEndAddress|0x05800000|UINT32|0x00015003
   gQcomTokenSpaceGuid.EnablePartialGoods|TRUE|BOOLEAN|0x00015004
   gQcomTokenSpaceGuid.EnableDisplayMenu|TRUE|BOOLEAN|0x00015005
+  gQcomTokenSpaceGuid.KernelLoadAddress32|0x00008000|UINT32|0x00015006
