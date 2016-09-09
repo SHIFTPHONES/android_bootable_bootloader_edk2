@@ -440,6 +440,7 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	BOOLEAN SubBinReplace = FALSE;
 	BOOLEAN SubBinA = FALSE;
 	BOOLEAN SubBinB = FALSE;
+	BOOLEAN DisableMemLat = FALSE;
 	UINT32 PropType = 0;
 	struct SubNodeList *SList = NULL;
 	CONST struct fdt_property *Prop = NULL;
@@ -459,7 +460,13 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 		SubBinValue = (SubBinValue >> 16) & 0xFF;
 		if (SubBinValue)
 			SubBinSupported = TRUE;
-		DEBUG((EFI_D_INFO, "PartialGoodType:%x, SubBin: %x\n", PartialGoodType, SubBinValue));
+
+		if (((PartialGoodType & 0x1) && !SubBinValue) ||	/* Non-Subbin parts */
+			(SubBinValue & 0x1)) /* Subbin parts- CPU4*/
+			DisableMemLat = TRUE;
+
+		DEBUG((EFI_D_INFO, "PartialGoodType:%x, SubBin: %x, MemLat:%d\n",
+			PartialGoodType, SubBinValue, DisableMemLat));
 	}
 
 	Status = UpdatePartialGoodsBinA(&PartialGoodType);
@@ -523,6 +530,11 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 						SubBinReplace = TRUE;
 					}
 
+					if ((!(AsciiStrnCmp(SList->SubNode, "qcom,memlat-cpu4", sizeof(SList->SubNode)))) && DisableMemLat)
+						SubBinReplace = TRUE;
+
+					DEBUG((EFI_D_VERBOSE, "Subbin Val=%d, SubBinReplace %d\n", SList->SubBinValue, SubBinReplace));
+
 					if ((SList->SubBinValue) && (!SubBinReplace))
 					{
 						SList++;
@@ -530,10 +542,14 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 					}
 				} else if (SList->SubBinVersion > 1)
 				{
+					if ((!(AsciiStrnCmp(SList->SubNode, "qcom,memlat-cpu4", sizeof(SList->SubNode)))) && DisableMemLat)
+						goto disable;
+
 					SList++;
 					continue;
 				}
 
+disable:
 				Offset = fdt_subnode_offset(fdt, ParentOffset, SList->SubNode);
 				if (Offset < 0)
 				{
