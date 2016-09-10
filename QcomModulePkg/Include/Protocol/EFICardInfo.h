@@ -40,7 +40,7 @@
 /**
   Protocol version.
 */
-#define EFI_MEM_CARD_INFO_PROTOCOL_REVISION 0x0000000000010001
+#define EFI_MEM_CARD_INFO_PROTOCOL_REVISION 0x0000000000010002
 /** @} */ /* end_addtogroup efi_cardInfo_constants */
 
 /*  Protocol GUID definition */
@@ -112,6 +112,52 @@ EFI_STATUS
    OUT MEM_CARD_INFO*   card_info
 );
 
+/* GET_BOOT_LU */
+/** @ingroup efi_cardInfo_get_boot_lu
+  @par Summary
+  Gets the BOOT LU
+
+  @param[in]   This              Pointer to the
+                                 EFI_MEM_CARDINFO_PROTOCOL
+                                 instance.
+  @param[out]  BootLU            Pointer to a variable
+                                 that indicates the BOOT LU
+								 (0 = disable BOOT LU, 1 = BOOT for A,
+								  2 = BOOT for B)
+
+  @return
+  EFI_SUCCESS           -- Function completed successfully. \n
+  EFI_INVALID_PARAMETER -- Parameter is invalid.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *GET_BOOT_LU)(
+   IN  EFI_MEM_CARDINFO_PROTOCOL *This,
+   OUT UINT32                    *BootLU
+);
+/* SET_BOOT_LU */
+/** @ingroup efi_cardInfo_set_boot_lu
+  @par Summary
+  Set the BOOT LU.
+
+  @param[in]   This              Pointer to the
+                                 EFI_MEM_CARDINFO_PROTOCOL
+                                 instance.
+  @param[in]   BootLU            Boot LU to switch to
+								 (0 = disable BOOT LU, 1 = BOOT for A,
+								  2 = BOOT for B)
+
+  @return
+  EFI_SUCCESS           -- Function completed successfully. \n
+  EFI_INVALID_PARAMETER -- Parameter is invalid.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *SET_BOOT_LU)(
+   IN  EFI_MEM_CARDINFO_PROTOCOL *This,
+   IN  UINT32                    BootLU
+);
+
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -121,12 +167,14 @@ EFI_STATUS
   Information Protocol interface.
 
   @par Parameters
-  @inputprotoparams{card_info_proto_params.tex}   
+  @inputprotoparams{card_info_proto_params.tex}
 */
-struct _EFI_MEM_CARDINFO_PROTOCOL 
+struct _EFI_MEM_CARDINFO_PROTOCOL
 {
    UINT64              Revision;
    GET_MEM_CARD_INFO   GetCardInfo;
+   GET_BOOT_LU         GetBootLU;
+   SET_BOOT_LU         SetBootLU;
 };
 
 #endif	/* __EFICARDINFO_H__ */

@@ -93,6 +93,9 @@
 #define PARTITIONED_TYPE_GPT    0x02
 
 #define ZERO	0
+#define ARRAY_SIZE(a)                  sizeof(a)/sizeof(*a)
+#define MAX_HANDLE_INFO_LIST     128
+
 /* Macro to avoid integer overflow */
 #define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : ZERO
 
@@ -118,7 +121,7 @@ typedef struct {
 } HandleInfo;
 
 /* Load image from partition to buffer */
-EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, EFI_GUID *PartitionType);
+EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR8 *Pname);
 
 EFI_STATUS ReadWriteDeviceInfo(vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz);
 /**

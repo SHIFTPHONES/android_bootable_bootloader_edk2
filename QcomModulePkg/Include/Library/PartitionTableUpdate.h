@@ -37,8 +37,7 @@
 #include <Protocol/EFIUsbDevice.h>
 #include <Protocol/EFIEraseBlock.h>
 #include <Library/DebugLib.h>
-
-#include "FastbootCmds.h"
+#include <Library/LinuxLoaderLib.h>
 
 enum ReturnVal
 {
@@ -64,6 +63,7 @@ enum ReturnVal
 #define GPT_HEADER_SIZE 92
 #define GPT_LBA 1
 #define GPT_PART_ENTRY_SIZE 128
+#define MAX_GPT_NAME_SIZE 72
 
 /* GPT Offsets */
 #define HEADER_SIZE_OFFSET        12
@@ -77,10 +77,46 @@ enum ReturnVal
 #define PENTRY_SIZE_OFFSET        84
 #define PARTITION_CRC_OFFSET      88
 #define PARTITION_ENTRY_LAST_LBA  40
+#define PARTITION_TYPE_GUID_SIZE   4
+#define UNIQUE_PARTITION_GUID_SIZE 16
 
 #define PARTITION_ENTRY_SIZE      128
+#define PART_ATT_READONLY_OFFSET   60
+/*
+The attributes like Priority, Active bit,
+Max retry count, Success bit and Unabootable bits will be
+stored in attributes filed of the each partition in partition
+table in the respective position mentioned below.
+*/
+/* Partition Attribute fields*/
+#define PART_ATT_PRIORITY_BIT      48
+#define PART_ATT_ACTIVE_BIT        50
+#define PART_ATT_MAX_RETRY_CNT_BIT 51
+#define PART_ATT_SUCCESS_BIT       54
+#define PART_ATT_UNBOOTABLE_BIT    55
 
+#define PART_ATT_PRIORITY_VAL ((UINT64)0x3 << PART_ATT_PRIORITY_BIT)
+#define PART_ATT_ACTIVE_VAL ((UINT64)0x1 << PART_ATT_ACTIVE_BIT)
+#define PART_ATT_MAX_RETRY_COUNT_VAL ((UINT64)0x7 << PART_ATT_MAX_RETRY_CNT_BIT)
+#define PART_ATT_SUCCESSFUL_VAL ((UINT64)0x1 << PART_ATT_SUCCESS_BIT)
+#define PART_ATT_UNBOOTABLE_VAL ((UINT64)0x1 << PART_ATT_UNBOOTABLE_BIT)
+#define MAX_PRIORITY 3
+#define MAX_RETRY_COUNT 7
+#define MAX_NUM_PARTITIONS 128
 #define MIN_PARTITION_ARRAY_SIZE  0x4000
+#define ATTRIBUTE_FLAG_OFFSET     48
+#define INVALID_PTN               -1
+#define GPT_HDR_AND_PTN_ENTRIES   33
+#define GUID_SIZE                 16
+#define PRIMARY_HDR_LBA           0x1
+#define BOOT_PART_SIZE            32
+
+/*Slot specific macros*/
+#define MAX_SLOT_SUFFIX_SZ      3
+#define MIN_SLOTS              1
+#define MAX_SLOTS              2
+#define MAX_LUNS               8
+#define NO_LUN                -1
 
 #define GET_LWORD_FROM_BYTE(x)    ((UINT32)*(x) | \
         ((UINT32)*(x+1) << 8) | \
@@ -115,6 +151,18 @@ enum ReturnVal
      *((x)+6) = (((y) >> 48) & 0xff);   \
      *((x)+7) = (((y) >> 56) & 0xff);
 
+struct StoragePartInfo
+{
+	HandleInfo HandleInfoList[MAX_NUM_PARTITIONS];
+	UINT32 MaxHandles;
+};
+extern struct StoragePartInfo Ptable[MAX_LUNS];
+
+VOID GetCurrentSlotSuffix(CHAR8* SlotSuffix);
+UINT32 GetMaxLuns();
+VOID GetPartitionCount(UINT32 *Val);
+VOID SetMultiSlotBootVal();
+
 struct GptHeaderData
 {
 	UINTN FirstUsableLba;
@@ -122,6 +170,12 @@ struct GptHeaderData
 	UINT32 HeaderSz;
 	UINT32 MaxPtCnt;
 	UINTN LastUsableLba;
+};
+
+struct PartitionEntry
+{
+	EFI_PARTITION_ENTRY PartEntry;
+	UINTN lun;
 };
 
 EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INTN Lun, struct StoragePartInfo *Ptable);
