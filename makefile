@@ -19,6 +19,7 @@ EDK_TOOLS := $(BUILDDIR)/BaseTools
 EDK_TOOLS_BIN := $(EDK_TOOLS)/Source/C/bin
 ABL_FV_IMG := $(BUILD_ROOT)/FV/abl.fv
 ABL_FV_ELF := $(BOOTLOADER_OUT)/../../abl.elf
+SHELL:=/bin/bash
 
 .PHONY: all cleanall
 
