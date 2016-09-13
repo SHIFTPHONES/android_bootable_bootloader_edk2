@@ -96,7 +96,7 @@ void BootStatsSetTimeStamp(BS_ENTRY BootStatId)
 
 		if (BootStatId == BS_KERNEL_LOAD_DONE)
 		{
-			BootStatImemAddress = BsImemAddress + (sizeof(UINT64) * BS_KERNEL_LOAD_TIME);
+			BootStatImemAddress = BsImemAddress + (sizeof(UINT32) * BS_KERNEL_LOAD_TIME);
 			BootStatClockCount =  READL(MpmTimerBase);
 			if (BootStatClockCount){
 				WRITEL(BootStatImemAddress, (BootStatClockCount - KernelLoadStart));
@@ -105,7 +105,7 @@ void BootStatsSetTimeStamp(BS_ENTRY BootStatId)
 		}
 		else
 		{
-			BootStatImemAddress = BsImemAddress + (sizeof(UINT64) * BootStatId);
+			BootStatImemAddress = BsImemAddress + (sizeof(UINT32) * BootStatId);
 			BootStatClockCount = READL(MpmTimerBase);
 			if(BootStatClockCount){
 				WRITEL(BootStatImemAddress, BootStatClockCount);
