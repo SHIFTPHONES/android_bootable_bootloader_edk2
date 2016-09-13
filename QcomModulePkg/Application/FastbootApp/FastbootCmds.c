@@ -932,6 +932,11 @@ STATIC VOID CmdFlash(
 		return;
 	}
 
+	if (FbDevInfo.is_unlocked == FALSE) {
+		FastbootFail("Flashing is not allowed in Lock State");
+		return;
+	}
+
 	/* Find the lun number from input string */
 	Token = AsciiStrStr(arg, ":");
 
@@ -1061,6 +1066,11 @@ STATIC VOID CmdErase(
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 
+	if (FbDevInfo.is_unlocked == FALSE) {
+		FastbootFail("Erase is not allowed in Lock State");
+		return;
+	}
+
 	/* In A/B to have backward compatibility user can still give fastboot flash boot/system/modem etc
 	 * based on current slot Suffix try to look for "partition"_a/b if not found fall back to look for
 	 * just the "partition" in case some of the partitions are no included for A/B implementation
@@ -1103,6 +1113,11 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
 	UINT32 PartitionCount =0;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+
+	if (FbDevInfo.is_unlocked == FALSE) {
+		FastbootFail("Slot Change is not allowed in Lock State\n");
+		return;
+	}
 
 	if(!MultiSlotBoot)
 	{
