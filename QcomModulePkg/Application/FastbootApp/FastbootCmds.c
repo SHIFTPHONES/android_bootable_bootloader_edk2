@@ -855,6 +855,12 @@ FastbootErasePartition(
 	if (Zeros)
 		FreePool (Zeros);
 
+	if (!(AsciiStrnCmp("userdata", PartitionName, AsciiStrLen(PartitionName)))) {
+		Status = ResetDeviceState();
+		if (Status != EFI_SUCCESS)
+			return Status;
+	}
+
 	return Status;
 }
 
@@ -1611,6 +1617,7 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 	EFI_GUID MiscPartGUID = {0x82ACC91F, 0x357C, 0x4A68, {0x9C,0x8F,0x68,0x9E,0x1B,0x1A,0x23,0xA1}};
 	char response[MAX_RSP_SIZE] = {0};
 	struct RecoveryMessage Msg;
+	EFI_STATUS Status;
 
 	if (Type == UNLOCK)
 		is_unlocked = FbDevInfo.is_unlocked;
@@ -1634,6 +1641,12 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 	}
 
 	SetDeviceUnlockValue(Type, State);
+	Status = ResetDeviceState();
+	if (Status != EFI_SUCCESS) {
+		SetDeviceUnlockValue(Type, !State);
+		FastbootFail("Fastboot: Unable to set the Value");
+		return;
+	}
 	AsciiSPrint(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data");
 	WriteToPartition(&MiscPartGUID, &Msg);
 
