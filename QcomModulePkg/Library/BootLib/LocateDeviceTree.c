@@ -329,21 +329,21 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	/* Initialize the dtb entry node*/
 	dt_entry_queue = (struct dt_entry_node *) 
 				AllocatePool(sizeof(struct dt_entry_node));
-	memset(dt_entry_queue, 0, sizeof(struct dt_entry_node));
-
 	if (!dt_entry_queue) {
 		DEBUG((EFI_D_ERROR, "Out of memory\n"));
 		return NULL;
 	}
+
+	memset(dt_entry_queue, 0, sizeof(struct dt_entry_node));
 	list_initialize(&dt_entry_queue->node);
 
 	if (!dtb_offset){
 		DEBUG((EFI_D_ERROR, "DTB offset is NULL\n"));
-		return NULL;
+		goto out;
 	}
 
 	if (((uintptr_t)kernel + (uintptr_t)dtb_offset) < (uintptr_t)kernel) {
-		return NULL;
+		goto out;
 	}
 	dtb = kernel + dtb_offset;
 	while (((uintptr_t)dtb + sizeof(struct fdt_header)) < (uintptr_t)kernel_end) {
@@ -391,16 +391,19 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	if(bestmatch_tag) {
 		Status = BaseMem(&BaseMemory);
 		if (Status != EFI_SUCCESS)
+		{
+			FreePool(dt_entry_queue);
 			ASSERT(0);
+		}
 
 		RamdiskLoadAddr = BaseMemory | PcdGet32(RamdiskLoadAddress);
 		if((RamdiskLoadAddr - (uintptr_t)tags) > RamdiskLoadAddr){
 			DEBUG((EFI_D_ERROR, "Tags address is not valid\n"));
-			return NULL;
+			goto out;
 		}
 		if((RamdiskLoadAddr - (uintptr_t)tags) < bestmatch_tag_size){
 			DEBUG((EFI_D_ERROR, "Tag size is over the limit\n"));
-			return NULL;
+			goto out;
 		}
 		CopyMem(tags, bestmatch_tag, bestmatch_tag_size);
 		/* clear out the old DTB magic so kernel doesn't find it */
@@ -415,6 +418,9 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	  board_target_id(), board_hardware_subtype(),
 	  BoardPmicTarget(0), BoardPmicTarget(1),
 	  BoardPmicTarget(2), BoardPmicTarget(3)));*/
+out:
+	if (dt_entry_queue)
+		FreePool(dt_entry_queue);
 	return NULL;
 }
 

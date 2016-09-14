@@ -940,6 +940,10 @@ STATIC VOID CmdFlash(
 		/* Copy over the partition name alone for flashing */
 		Len = Token - arg;
 		PartitionName = AllocatePool(Len+1);
+		if (PartitionName == NULL){
+			FastbootFail("Unable to allocate resources\n");
+			return;
+		}
 		AsciiStrnCpy(PartitionName, arg, Len);
 		PartitionName[Len] = '\0';
 		/* Skip past ":" to the lun number */

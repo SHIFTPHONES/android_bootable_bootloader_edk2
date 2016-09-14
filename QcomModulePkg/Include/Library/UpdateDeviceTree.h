@@ -80,7 +80,7 @@ static struct PartialGoods MsmCobaltTable[] =
 	                {"cpu@102", "device_type", 1, 0x4},
 	                {"cpu@103", "device_type", 1, 0x8},}},
 	/* If CPU4 is disabled, disable memlat_cpu4 dt property */
-	{0x1, "/soc", {{"qcom,memlat-cpu4", "status", 1, 0x1},}},
+	{0x1, "/soc", {{"qcom,memlat-cpu4", "status", 2, 0x1},}},
 	{0x2, "/soc",  {{"qcom,kgsl-3d0", "status", 1, 0x10},
 	                {"qcom,vidc", "status", 1, 0x20},
 	                {"qcom,msm-cam", "status", 2, 0x20},
