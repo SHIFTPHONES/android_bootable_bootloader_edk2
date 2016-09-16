@@ -271,26 +271,6 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 		}
 	}
 
-	Status = ReadWriteDeviceInfo(READ_CONFIG, &DevInfo, sizeof(DevInfo));
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
-		return Status;
-	}
-	if (CompareMem((VOID *)DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE))
-	{
-		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
-		DevInfo.is_unlocked = TRUE;
-		DevInfo.is_unlock_critical = TRUE;
-		DevInfo.is_charger_screen_enabled = FALSE;
-		DevInfo.verity_mode = FALSE;
-		Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
-			return Status;
-		}
-	}
 	// Check Alarm Boot
 
 	// Populate Serial number
