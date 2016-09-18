@@ -1371,7 +1371,10 @@ STATIC VOID CmdContinue(
 		FindBootableSlot(BootableSlot);
 		if(!BootableSlot[0])
 			return;
+	} else {
+		AsciiStrnCpyS(BootableSlot, MAX_GPT_NAME_SIZE, "boot", MAX_GPT_NAME_SIZE);
 	}
+
 	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, BootableSlot);
 	if (Status != EFI_SUCCESS)
 	{
