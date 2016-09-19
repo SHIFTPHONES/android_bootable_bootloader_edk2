@@ -26,7 +26,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <stdlib.h>
 #include <Uefi.h>
 #include <Library/UefiLib.h>
 #include <Uefi/UefiSpec.h>
@@ -306,7 +305,7 @@ VOID SwitchPtnSlots(CONST CHAR8 *SetActive)
 {
 	UINT32 i, j;
 	CONST CHAR8 *BootParts[] = { "rpm", "tz", "pmic", "modem", "hyp", "cmnlib", "cmnlib64", "keymaster", "devcfg", "abl", "apdp"};
-	size_t Sz = ARRAY_SIZE(BootParts);
+	UINT32 Sz = ARRAY_SIZE(BootParts);
 	struct PartitionEntry *PtnCurrent = NULL;
 	struct PartitionEntry *PtnNew = NULL;
 	CHAR8 CurSlot[BOOT_PART_SIZE];

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,51 +26,9 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef __BOARD_H__
-#define __BOARD_H__
+#ifndef __BOARDCUSTOM_H__
+#define __BOARDCUSTOM_H__
 
-#include <Uefi.h>
-#include <Library/UefiLib.h>
-#include <Library/DebugLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/MemoryAllocationLib.h>
-#include <Protocol/EFIRamPartition.h>
-#include <Protocol/EFIChipInfo.h>
-#include <Protocol/EFIPmicVersion.h>
-#include <Protocol/EFIPlatformInfo.h>
+#define PRODUCT_NAME "QC_Reference_Phone"
 
-#define HANDLE_MAX_INFO_LIST    128
-
-typedef enum
-{
-	EMMC = 0,
-	UFS  = 1,
-	UNKNOWN = 2,
-} MemCardType;
-
-struct BoardInfo {
-	EFI_PLATFORMINFO_PLATFORM_INFO_TYPE PlatformInfo;
-	UINT32 RawChipId;
-	EFIChipInfoVersionType ChipVersion;
-	EFIChipInfoFoundryIdType FoundryId;
-};
-
-EFI_STATUS BaseMem(UINTN *BaseMemory);
-
-UINT32 BoardPmicModel(UINT32 PmicDeviceIndex);
-
-UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex);
-
-EFI_STATUS BoardInit();
-
-EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len);
-UINT32 BoardPlatformRawChipId();
-EFIChipInfoVersionType BoardPlatformChipVersion();
-EFIChipInfoFoundryIdType BoardPlatformFoundryId();
-EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
-UINT32 BoardPlatformVersion();
-UINT32 BoardPlatormSubType();
-UINT32 BoardTargetId();
-VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len);
-VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len);
 #endif
