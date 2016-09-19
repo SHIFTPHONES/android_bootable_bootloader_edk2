@@ -232,7 +232,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			return Status;
 		}
 	}
-	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services ...\n\n"));
+	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n\n", GetTimerCountms()));
 
 	/*Shut down UEFI boot services*/
 	Status = ShutdownUefiBootServices ();
