@@ -140,46 +140,34 @@ error:
 
 UINT32 fdt_check_header_ext(VOID *fdt)
 {
-	uintptr_t fdt_start, fdt_end;
-	UINT64 sum;
+	UINTN fdt_start, fdt_end;
+	UINT32 sum;
 	fdt_start = fdt;
 
 	if(fdt_start + fdt_totalsize(fdt) < fdt_start)
 		return FDT_ERR_BADOFFSET;
 	fdt_end = fdt_start + fdt_totalsize(fdt);
 
-	if(CHECK_ADD64((UINT64)fdt_start , (UINT64)fdt_off_dt_struct(fdt)))
+	if (!(sum = ADD_OF(fdt_off_dt_struct(fdt), fdt_size_dt_struct(fdt)))) {
 		return FDT_ERR_BADOFFSET;
-	else
-		sum = fdt_start + fdt_off_dt_struct(fdt);
-
-	if (sum > fdt_end)
+	}
+	else {
+		if (CHECK_ADD64(fdt_start, sum))
+			return FDT_ERR_BADOFFSET;
+		else if (fdt_start + sum > fdt_end)
+			return FDT_ERR_BADOFFSET;
+	}
+	if (!(sum = ADD_OF(fdt_off_dt_strings(fdt), fdt_size_dt_strings(fdt)))) {
 		return FDT_ERR_BADOFFSET;
-
-	if(CHECK_ADD64(sum, (UINT64)fdt_size_dt_struct(fdt)))
+	}
+	else {
+		if (CHECK_ADD64(fdt_start, sum))
+			return FDT_ERR_BADOFFSET;
+		else if (fdt_start + sum > fdt_end)
+			return FDT_ERR_BADOFFSET;
+	}
+	if (fdt_start + fdt_off_mem_rsvmap(fdt) > fdt_end)
 		return FDT_ERR_BADOFFSET;
-	else
-		sum += fdt_size_dt_struct(fdt);
-
-	if (sum > fdt_end)
-		return FDT_ERR_BADOFFSET;
-
-	if(CHECK_ADD64((UINT64)fdt_start , (UINT64)fdt_off_dt_strings(fdt)))
-		return FDT_ERR_BADOFFSET;
-	else
-		sum = fdt_start + fdt_off_dt_strings(fdt);
-
-	if (sum > fdt_end)
-		return FDT_ERR_BADOFFSET;
-
-	if(CHECK_ADD64(sum, (UINT64)fdt_size_dt_strings(fdt)))
-		return FDT_ERR_BADOFFSET;
-	else
-		sum += fdt_size_dt_strings(fdt);
-
-	if (sum > fdt_end)
-		return FDT_ERR_BADOFFSET;
-
 	return 0;
 }
 
