@@ -447,7 +447,7 @@ STATIC BOOLEAN GetPartitionHasSlot(CHAR8* PartitionName, CHAR8* SlotSuffix) {
 	else {
 		/*Check for _a or _b slots, if available then copy to SlotSuffix Array*/
 		if (AsciiStrStr(PartitionName, "_a") || AsciiStrStr(PartitionName, "_b")) {
-			AsciiStrnCpy(SlotSuffix, PartitionName[strlen(PartitionName) - 2], MAX_SLOT_SUFFIX_SZ);
+			AsciiStrnCpyS(SlotSuffix, MAX_SLOT_SUFFIX_SZ, (PartitionName + (AsciiStrLen(PartitionName) - 2)), MAX_SLOT_SUFFIX_SZ);
 			HasSlot = TRUE;
 		}
 	}
