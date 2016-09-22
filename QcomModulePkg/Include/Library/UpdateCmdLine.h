@@ -56,6 +56,8 @@ enum baseband {
 	BASEBAND_32BITS = 0x7FFFFFFF
 };
 
+#define MAX_PATH_SIZE 64
+
 /*Function that returns value of boolean boot_into_ffbm
  *Becomes an if condition at update_cmdline( ) */
 BOOLEAN get_ffbm(CHAR8 *ffbm, UINT32 size);

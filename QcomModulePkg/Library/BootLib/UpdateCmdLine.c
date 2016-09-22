@@ -63,6 +63,9 @@ STATIC CHAR8 *baseband_dsda2   = " androidboot.baseband=dsda2";
 STATIC CHAR8 *baseband_sglte2  = " androidboot.baseband=sglte2";
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
+STATIC CHAR8 *MultiSlotCmdSuffix = " rootwait ro init=/init";
+STATIC CHAR8 *SkipRamFs = " skip_initramfs";
+STATIC CHAR8 *SystemPath;
 
 /* Assuming unauthorized kernel image by default */
 STATIC INT32 auth_kernel_img = 0;
@@ -200,6 +203,55 @@ VOID GetDisplayCmdline()
 	}
 }
 
+/*
+ * Returns length = 0 when there is failure.
+ */
+STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
+{
+	INTN Index;
+	UINTN Lun;
+	CHAR8 PartitionName[MAX_GPT_NAME_SIZE];
+	CHAR8 CurSlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
+	HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
+	UINT32 MaxHandles = ARRAY_SIZE(HandleInfoList);
+	MemCardType Type = UNKNOWN;
+
+	GetCurrentSlotSuffix(CurSlotSuffix);
+
+	*SysPath = AllocatePool(sizeof(char) * MAX_PATH_SIZE);
+	if (!*SysPath) {
+		DEBUG((EFI_D_ERROR, "Failed to allocated memory for System path query\n"));
+		return 0;
+	}
+
+	AsciiStrnCpyS(PartitionName, MAX_GPT_NAME_SIZE, "system", MAX_GPT_NAME_SIZE);
+	AsciiStrnCatS(PartitionName, MAX_GPT_NAME_SIZE, CurSlotSuffix, MAX_SLOT_SUFFIX_SZ);
+
+	Index = GetPartitionIndex(PartitionName);
+	if (Index == INVALID_PTN) {
+		DEBUG((EFI_D_ERROR, "System partition does not exit\n"));
+		FreePool(*SysPath);
+		return 0;
+	}
+
+	Lun = GetPartitionLunFromIndex(Index);
+	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
+	if (Type == UNKNOWN)
+		return 0;
+
+	if (Type == EMMC)
+		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", (Index + 1));
+	else
+		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/sd%c%d", LunCharMapping[Lun],
+				GetPartitionIdxInLun(PartitionName, Lun));
+
+	DEBUG((EFI_D_VERBOSE, "System Path - %a \n", *SysPath));
+
+	return AsciiStrLen(*SysPath);
+}
+
+
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
 UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
@@ -207,14 +259,17 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 	EFI_STATUS Status;
 	UINT32 cmdline_len = 0;
 	UINT32 have_cmdline = 0;
+	UINT32 SysPathLength = 0;
 	CHAR8  *cmdline_final = NULL;
 	UINT32 pause_at_bootup = 0; //this would have to come from protocol
 	BOOLEAN boot_into_ffbm = FALSE;
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot;
+	BOOLEAN InRecovery = TRUE;
 
 	CHAR8 ffbm[FFBM_MODE_BUF_SIZE];
-	if (!AsciiStrnCmp(pname, "boot", AsciiStrLen(pname)))
+	if ((!AsciiStrnCmp(pname, "boot_a", AsciiStrLen(pname)))
+		|| (!AsciiStrnCmp(pname, "boot_b", AsciiStrLen(pname))))
 	{
 		SetMem(ffbm, FFBM_MODE_BUF_SIZE, 0);
 		Status = GetFfbmCommand(ffbm, sizeof(ffbm));
@@ -222,6 +277,8 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 			DEBUG((EFI_D_ERROR, "No Ffbm cookie found, ignore\n"));
 		else if (Status == EFI_SUCCESS)
 			boot_into_ffbm = TRUE;
+
+		InRecovery = FALSE;
 	}
 
 	MEM_CARD_INFO card_info = {};
@@ -314,8 +371,19 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 			break;
 	}
 	MultiSlotBoot = PartitionHasMultiSlot("boot");
-	if(MultiSlotBoot)
+	if(MultiSlotBoot) {
 		cmdline_len += AsciiStrLen(AndroidSlotSuffix) + 2;
+
+		cmdline_len += AsciiStrLen(MultiSlotCmdSuffix);
+
+		if (!InRecovery)
+			cmdline_len += AsciiStrLen(SkipRamFs);
+
+		SysPathLength = GetSystemPath(&SystemPath);
+		if (!SysPathLength)
+			return NULL;
+		cmdline_len += SysPathLength;
+	}
 
 	GetDisplayCmdline();
 	cmdline_len += AsciiStrLen(display_cmdline);
@@ -443,6 +511,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 		STR_COPY(dst,src);
 		if (MultiSlotBoot)
 		{
+			/* Slot suffix */
 			src = AndroidSlotSuffix;
 			if (have_cmdline) --dst;
 			STR_COPY(dst,src);
@@ -450,8 +519,26 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 			GetCurrentSlotSuffix(SlotSuffix);
 			src = SlotSuffix;
 			STR_COPY(dst,src);
-		}
 
+			/* Skip Initramfs*/
+			if (!Recovery) {
+				src = SkipRamFs;
+				if (have_cmdline) --dst;
+				STR_COPY(dst, src);
+			}
+
+			/*Add Multi slot command line suffix*/
+			src = MultiSlotCmdSuffix;
+			if (have_cmdline) --dst;
+			STR_COPY(dst, src);
+
+			/* Suffix System path in command line*/
+			if (*SystemPath) {
+				src = SystemPath;
+				if (have_cmdline) --dst;
+				STR_COPY(dst, src);
+			}
+		}
 	}
 	DEBUG((EFI_D_INFO, "Cmdline: %a\n", cmdline_final));
 
