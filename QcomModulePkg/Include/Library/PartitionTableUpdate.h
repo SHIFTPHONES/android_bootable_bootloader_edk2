@@ -179,4 +179,6 @@ struct PartitionEntry
 };
 
 EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INTN Lun, struct StoragePartInfo *Ptable);
+UINT32 GetPartitionLunFromIndex(UINTN);
+INT32 GetPartitionIdxInLun(CHAR8 *Pname, UINTN Lun);
 #endif

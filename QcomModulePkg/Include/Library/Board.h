@@ -73,4 +73,5 @@ UINT32 BoardPlatormSubType();
 UINT32 BoardTargetId();
 VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len);
 VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len);
+UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles);
 #endif

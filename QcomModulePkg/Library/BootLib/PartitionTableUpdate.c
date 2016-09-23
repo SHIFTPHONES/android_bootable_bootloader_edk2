@@ -56,6 +56,11 @@ UINT32 GetMaxLuns() {
 	return MaxLuns;
 }
 
+UINT32 GetPartitionLunFromIndex(UINTN Index)
+{
+	return PtnEntries[Index].lun;
+}
+
 VOID GetPartitionCount(UINT32 *Val) {
 	*Val = PartitionCount;
 	return;
@@ -64,6 +69,23 @@ VOID GetPartitionCount(UINT32 *Val) {
 VOID SetMultiSlotBootVal() {
 	MultiSlotBoot = TRUE;
 	return;
+}
+
+INT32 GetPartitionIdxInLun(CHAR8 *Pname, UINTN Lun)
+{
+	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
+	UINTN n;
+	UINTN RelativeIndex = 0;
+
+	for (n = 0; n < PartitionCount; n++) {
+		if (Lun == PtnEntries[n].lun) {
+			UnicodeStrToAsciiStr(PtnEntries[n].PartEntry.PartitionName, PartitionNameAscii);
+			if (!AsciiStrnCmp(Pname, PartitionNameAscii, AsciiStrLen(Pname)))
+				return RelativeIndex;
+			RelativeIndex++;
+		}
+	}
+	return INVALID_PTN;
 }
 
 VOID UpdatePartitionEntries()
