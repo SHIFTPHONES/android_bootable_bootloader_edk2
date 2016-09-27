@@ -465,15 +465,16 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 			(SubBinValue & 0x1)) /* Subbin parts- CPU4*/
 			DisableMemLat = TRUE;
 
+		Status = UpdatePartialGoodsBinA(&PartialGoodType);
+
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR, "Error updating BinA partial goods.\n"));
+			return Status;
+		}
+
 		DEBUG((EFI_D_INFO, "PartialGoodType:%x, SubBin: %x, MemLat:%d\n",
 			PartialGoodType, SubBinValue, DisableMemLat));
-	}
-
-	Status = UpdatePartialGoodsBinA(&PartialGoodType);
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Error updating BinA partial goods.\n"));
-		return Status;
 	}
 
 	if (!PartialGoodType)
