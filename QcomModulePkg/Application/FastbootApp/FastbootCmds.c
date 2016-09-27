@@ -78,7 +78,6 @@
 #include "BootLinux.h"
 #include "LinuxLoaderLib.h"
 #include "BootStats.h"
-#define BOOT_IMG_LUN 0x4
 
 struct GetVarPartitionInfo part_info[] =
 {
@@ -114,7 +113,6 @@ STATIC CHAR8 SlotSuffixArray[SLOT_SUFFIX_ARRAY_SIZE] = {'\0'};
  * When PopulateMultiSlotInfo called while flashing each Lun
  */
 STATIC BOOLEAN InitialPopulate = FALSE;
-STATIC BOOLEAN FlashingPtable = FALSE;
 extern struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 
 STATIC ANDROID_FASTBOOT_STATE mState = ExpectCmdState;
@@ -385,8 +383,6 @@ void PopulateMultislotMetadata()
 
 	GetPartitionCount(&PartitionCount);
 	if (!InitialPopulate) {
-		if (FlashingPtable && (Lun!= BOOT_IMG_LUN))
-			return;
 		/*Traverse through partition entries,count matching slots with boot */
 		for (i = 0; i < PartitionCount; i++) {
 			UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
@@ -413,7 +409,7 @@ void PopulateMultislotMetadata()
 		SetMem((VOID *) BootSlotInfo, SlotCount * sizeof(struct GetVarSlotInfo), 0);
 		FastbootPublishSlotVars();
 		InitialPopulate = TRUE;
-	} else if (Lun == BOOT_IMG_LUN) {
+	} else {
 		/*While updating gpt from fastboot dont need to populate all the variables as above*/
 		for (i = 0; i < MAX_SLOTS; i++) {
 			AsciiStrnCpy(BootSlotInfo[i].SlotSuccessfulVal,"no",ATTR_RESP_SIZE);
@@ -915,6 +911,63 @@ VOID BlockIoCallback(IN EFI_EVENT Event,IN VOID *Context)
 {
 }
 
+BOOLEAN NamePropertyMatches(CHAR8* Name) {
+
+	return (BOOLEAN)(!AsciiStrnCmp(Name, "has-slot", AsciiStrLen("has-slot")) ||
+		!AsciiStrnCmp(Name, "current-slot", AsciiStrLen("current-slot")) ||
+		!AsciiStrnCmp(Name, "slot-retry-count", AsciiStrLen("slot-retry-count")) ||
+		!AsciiStrnCmp(Name, "slot-unbootable", AsciiStrLen("slot-unbootable")) ||
+		!AsciiStrnCmp(Name, "slot-successful", AsciiStrLen("slot-successful")) ||
+		!AsciiStrnCmp(Name, "slot-suffixes", AsciiStrLen("slot-suffixes")));
+}
+
+STATIC VOID ClearFastbootVarsofAB() {
+	FASTBOOT_VAR *CurrentList = NULL;
+	FASTBOOT_VAR *PrevList = NULL;
+	FASTBOOT_VAR *NextList = NULL;
+
+	if (!Varlist) {
+		DEBUG((EFI_D_VERBOSE, "Varlist is Empty\n"));
+		return;
+	}
+
+	for (CurrentList = Varlist; CurrentList != NULL; CurrentList = NextList) {
+		NextList = CurrentList->next;
+		if (!NamePropertyMatches(CurrentList->name)) {
+			PrevList = CurrentList;
+			continue;
+		}
+
+		if (!PrevList)
+			Varlist = CurrentList->next;
+		else
+			PrevList->next = CurrentList->next;
+
+		FreePool(CurrentList);
+	}
+}
+
+VOID IsBootPtnUpdated(INT32 Lun, BOOLEAN *BootPtnUpdated) {
+	EFI_STATUS Status;
+	EFI_PARTITION_ENTRY *PartEntry;
+	UINT32 j;
+
+	for (j = 0; j < Ptable[Lun].MaxHandles; j++) {
+		Status = gBS->HandleProtocol(Ptable[Lun].HandleInfoList[j].Handle, &gEfiPartitionRecordGuid, (VOID **)&PartEntry);
+
+		if (EFI_ERROR (Status)) {
+			DEBUG((EFI_D_VERBOSE, "Error getting the partition record for Lun %d and Handle: %d : %r\n", Lun, j,Status));
+			continue;
+		}
+
+		if (!StrnCmp(PartEntry->PartitionName, L"boot", StrLen(L"boot"))) {
+			DEBUG((EFI_D_VERBOSE, "Boot Partition is updated\n"));
+			*BootPtnUpdated = TRUE;
+			return;
+		}
+	}
+}
+
 /* Handle Flash Command */
 STATIC VOID CmdFlash(
 	IN CONST CHAR8 *arg,
@@ -930,11 +983,11 @@ STATIC VOID CmdFlash(
 	INTN Len = -1;
 	LunSet = FALSE;
 	EFI_EVENT gBlockIoRefreshEvt;
-	CHAR8* CurrentSlot;
+	CHAR8 NullSlot[MAX_SLOT_SUFFIX_SZ] = {'\0'};
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
-
+	BOOLEAN BootPtnUpdated = FALSE;
 
 	if (mDataBuffer == NULL)
 	{
@@ -1007,17 +1060,31 @@ STATIC VOID CmdFlash(
 			}
 			UpdatePartitionEntries();
 
-			/*Check for multislot boot support*/
-			MultiSlotBoot = PartitionHasMultiSlot("boot");
-			if(MultiSlotBoot)
-			{
-				FindPtnActiveSlot();
-				FlashingPtable = TRUE;
-				PopulateMultislotMetadata();
-				FlashingPtable = FALSE;
-				CurrentSlot = GetCurrentSlotSuffix();
-				DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
+			IsBootPtnUpdated(Lun, &BootPtnUpdated);
+			if (BootPtnUpdated) {
+				SetMultiSlotBootVal(FALSE);
+				/*Check for multislot boot support*/
+				MultiSlotBoot = PartitionHasMultiSlot("boot");
+				if (MultiSlotBoot) {
+					FindPtnActiveSlot();
+					PopulateMultislotMetadata();
+					DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
+				} else {
+					DEBUG((EFI_D_VERBOSE, "Multi Slot boot is not supported\n"));
+					if (BootSlotInfo == NULL)
+						DEBUG((EFI_D_VERBOSE, "No change in Ptable\n"));
+					else {
+						DEBUG((EFI_D_VERBOSE, "Nullifying A/B info\n"));
+						SetCurrentSlotSuffix(NullSlot);
+						ClearFastbootVarsofAB();
+						FreePool(BootSlotInfo);
+						SetMem((VOID*)SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, 0);
+						InitialPopulate = FALSE;
+					}
+				}
+				BootPtnUpdated = FALSE;
 			}
+
 			DEBUG((EFI_D_INFO, "*************** New partition Table Dump Start *******************\n"));
 			PartitionDump();
 			DEBUG((EFI_D_INFO, "*************** New partition Table Dump End   *******************\n"));

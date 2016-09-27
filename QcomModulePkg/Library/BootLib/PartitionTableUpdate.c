@@ -47,7 +47,7 @@ CHAR8* GetCurrentSlotSuffix() {
 }
 
 VOID SetCurrentSlotSuffix(CHAR8* SlotSuffix) {
-	CopyMem(ActiveSlot, SlotSuffix, sizeof(SlotSuffix));
+	CopyMem(ActiveSlot, SlotSuffix, MAX_SLOT_SUFFIX_SZ);
 	return;
 }
 
@@ -65,8 +65,8 @@ VOID GetPartitionCount(UINT32 *Val) {
 	return;
 }
 
-VOID SetMultiSlotBootVal() {
-	MultiSlotBoot = TRUE;
+VOID SetMultiSlotBootVal(BOOLEAN Val) {
+	MultiSlotBoot = Val;
 	return;
 }
 
