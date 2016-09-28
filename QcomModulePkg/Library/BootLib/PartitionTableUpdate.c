@@ -107,8 +107,10 @@ VOID UpdatePartitionEntries()
 			PartitionCount++;
 			if (EFI_ERROR(Status)) {
 				DEBUG((EFI_D_VERBOSE, "Selected Lun : %d, handle: %d does not have partition record, ignore\n", i,j));
+				PtnEntries[Index].lun = i;
 				continue;
 			}
+
 			CopyMem((&PtnEntries[Index]), PartEntry, sizeof(PartEntry[0]));
 			PtnEntries[Index].lun = i;
 		}
@@ -234,6 +236,12 @@ void UpdatePartitionAttributes()
 			PtnEntriesPtr = Ptn_Entries;
 
 			for (i = 0;i < PartitionCount;i++) {
+				/*If GUID is not present, then it is BlkIo Handle of the Lun. Skip*/
+				if (!(PtnEntries[i].PartEntry.PartitionTypeGUID.Data1)) {
+					DEBUG((EFI_D_VERBOSE, " Skipping Lun:%d, i=%d\n", Lun, i));
+					continue;
+				}
+
 				/* Partition table is populated with entries from lun 0 to max lun.
 				 * break out of the loop once we see the partition lun is > current lun */
 				if (PtnEntries[i].lun > Lun)
