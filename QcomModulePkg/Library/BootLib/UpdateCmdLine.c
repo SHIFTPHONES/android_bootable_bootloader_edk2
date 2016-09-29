@@ -42,6 +42,7 @@
 #include <Protocol/EFIPmicPon.h>
 #include <Protocol/EFIChargerEx.h>
 #include <DeviceInfo.h>
+#include <LinuxLoaderLib.h>
 
 STATIC CONST CHAR8 *bootdev_cmdline = " androidboot.bootdevice=1da4000.ufshc";
 STATIC CONST CHAR8 *usb_sn_cmdline = " androidboot.serialno=";
@@ -51,16 +52,6 @@ STATIC CONST CHAR8 *battchg_pause = " androidboot.mode=charger";
 STATIC CONST CHAR8 *auth_kernel = " androidboot.authorized_kernel=true";
 //STATIC CONST CHAR8 *secondary_gpt_enable = "gpt";
 
-STATIC CHAR8 *baseband_apq     = " androidboot.baseband=apq";
-STATIC CHAR8 *baseband_msm     = " androidboot.baseband=msm";
-STATIC CHAR8 *baseband_csfb    = " androidboot.baseband=csfb";
-STATIC CHAR8 *baseband_svlte2a = " androidboot.baseband=svlte2a";
-STATIC CHAR8 *baseband_mdm     = " androidboot.baseband=mdm";
-STATIC CHAR8 *baseband_mdm2    = " androidboot.baseband=mdm2";
-STATIC CHAR8 *baseband_sglte   = " androidboot.baseband=sglte";
-STATIC CHAR8 *baseband_dsda    = " androidboot.baseband=dsda";
-STATIC CHAR8 *baseband_dsda2   = " androidboot.baseband=dsda2";
-STATIC CHAR8 *baseband_sglte2  = " androidboot.baseband=sglte2";
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
 STATIC CHAR8 *MultiSlotCmdSuffix = " rootwait ro init=/init";
@@ -99,30 +90,6 @@ STATIC struct verified_boot_state_name vbsn[] =
 BOOLEAN target_use_signed_kernel(VOID)
 {
 	return 1;
-}
-
-/*Determine correct androidboot.baseband to use
- *Currently assumed to always be MSM*/
-STATIC UINT32 TargetBaseBand()
-{
-	UINT32 Baseband;
-	UINT32 Platform = BoardPlatformRawChipId();
-
-	switch(Platform)
-	{
-		case EFICHIPINFO_ID_MSMCOBALT:
-		case EFICHIPINFO_ID_MSMHAMSTER:
-			Baseband = BASEBAND_MSM;
-			break;
-		case EFICHIPINFO_ID_APQCOBALT:
-			Baseband = BASEBAND_APQ;
-			break;
-		default:
-			DEBUG((EFI_D_ERROR, "Unsupported platform: %u\n", Platform));
-			ASSERT(0);
-	};
-
-	return Baseband;
 }
 
 /*Determines whether to pause for batter charge,
@@ -327,6 +294,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo,
 	BOOLEAN boot_into_ffbm = FALSE;
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot;
+	CHAR8 ChipBaseBand[CHIP_BASE_BAND_LEN];
 
 	CHAR8 ffbm[FFBM_MODE_BUF_SIZE];
 	if ((!StrnCmp(pname, L"boot_a", StrLen(pname)))
@@ -390,48 +358,14 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo,
 		cmdline_len += AsciiStrLen(auth_kernel);
 	}
 
-	/* Determine correct androidboot.baseband to use */
-	switch(TargetBaseBand())
-	{
-		case BASEBAND_APQ:
-			cmdline_len += AsciiStrLen(baseband_apq);
-			break;
-
-		case BASEBAND_MSM:
-			cmdline_len += AsciiStrLen(baseband_msm);
-			break;
-
-		case BASEBAND_CSFB:
-			cmdline_len += AsciiStrLen(baseband_csfb);
-			break;
-
-		case BASEBAND_SVLTE2A:
-			cmdline_len += AsciiStrLen(baseband_svlte2a);
-			break;
-		case BASEBAND_MDM:
-			cmdline_len += AsciiStrLen(baseband_mdm);
-			break;
-		case BASEBAND_MDM2:
-			cmdline_len += AsciiStrLen(baseband_mdm2);
-			break;
-		case BASEBAND_SGLTE:
-			cmdline_len += AsciiStrLen(baseband_sglte);
-			break;
-
-		case BASEBAND_SGLTE2:
-			cmdline_len += AsciiStrLen(baseband_sglte2);
-			break;
-
-		case BASEBAND_DSDA:
-			cmdline_len += AsciiStrLen(baseband_dsda);
-			break;
-
-		case BASEBAND_DSDA2:
-			cmdline_len += AsciiStrLen(baseband_dsda2);
-			break;
-		default:
-			return NULL;
+	if (NULL == BoardPlatformChipBaseBand()) {
+		DEBUG((EFI_D_ERROR, "Invalid BaseBand String\n"));
+		return NULL;
 	}
+
+	cmdline_len += AsciiStrLen(BOOT_BASE_BAND);
+	cmdline_len += AsciiStrLen(BoardPlatformChipBaseBand());
+
 	MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	if(MultiSlotBoot) {
 		cmdline_len += AsciiStrLen(AndroidSlotSuffix) + 2;
@@ -510,70 +444,15 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo,
 			STR_COPY(dst,src);
 		}
 
-		switch(TargetBaseBand())
-		{
-			case BASEBAND_APQ:
-				src = baseband_apq;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_MSM:
-				src = baseband_msm;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_CSFB:
-				src = baseband_csfb;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_SVLTE2A:
-				src = baseband_svlte2a;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_MDM:
-				src = baseband_mdm;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_MDM2:
-				src = baseband_mdm2;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_SGLTE:
-				src = baseband_sglte;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_SGLTE2:
-				src = baseband_sglte2;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_DSDA:
-				src = baseband_dsda;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-
-			case BASEBAND_DSDA2:
-				src = baseband_dsda2;
-				if (have_cmdline) --dst;
-				STR_COPY(dst,src);
-				break;
-			default:
-				return NULL;
-		}
+		src = BOOT_BASE_BAND;
+		if (have_cmdline) --dst;
+		STR_COPY(dst,src);
+		--dst;
+		SetMem(ChipBaseBand, CHIP_BASE_BAND_LEN, 0);
+		AsciiStrnCpyS(ChipBaseBand, CHIP_BASE_BAND_LEN, BoardPlatformChipBaseBand(), CHIP_BASE_BAND_LEN-1);
+		ToLower(ChipBaseBand);
+		src = ChipBaseBand;
+		STR_COPY(dst,src);
 
 		src = display_cmdline;
 		if (have_cmdline) --dst;
