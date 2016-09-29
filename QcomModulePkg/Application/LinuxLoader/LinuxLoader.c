@@ -70,7 +70,7 @@ STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot)
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DeviceTreeSize = 0;
 	STATIC UINT32 tempImgSize = 0;
-	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	CHAR8* CurrentSlot;
 
 	ImageHdrBuffer = AllocateAlignedPages (ImageHdrSize / 4096, 4096);
 	ASSERT(ImageHdrBuffer);
@@ -182,7 +182,7 @@ STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot)
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr        : 0x%x\n", RamdiskLoadAddr));
 
 	if (MultiSlotBoot) {
-		GetCurrentSlotSuffix(CurrentSlot);
+		CurrentSlot = GetCurrentSlotSuffix();
 		MarkPtnActive(CurrentSlot);
 	}
 	// call start Linux here

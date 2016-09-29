@@ -211,13 +211,11 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 	INTN Index;
 	UINTN Lun;
 	CHAR8 PartitionName[MAX_GPT_NAME_SIZE];
-	CHAR8 CurSlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	CHAR8* CurSlotSuffix = GetCurrentSlotSuffix();
 	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 	HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
 	UINT32 MaxHandles = ARRAY_SIZE(HandleInfoList);
 	MemCardType Type = UNKNOWN;
-
-	GetCurrentSlotSuffix(CurSlotSuffix);
 
 	*SysPath = AllocatePool(sizeof(char) * MAX_PATH_SIZE);
 	if (!*SysPath) {
@@ -263,7 +261,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 	CHAR8  *cmdline_final = NULL;
 	UINT32 pause_at_bootup = 0; //this would have to come from protocol
 	BOOLEAN boot_into_ffbm = FALSE;
-	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+	CHAR8* SlotSuffix;
 	BOOLEAN MultiSlotBoot;
 	BOOLEAN InRecovery = TRUE;
 
@@ -516,7 +514,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 			if (have_cmdline) --dst;
 			STR_COPY(dst,src);
 			--dst;
-			GetCurrentSlotSuffix(SlotSuffix);
+			SlotSuffix = GetCurrentSlotSuffix();
 			src = SlotSuffix;
 			STR_COPY(dst,src);
 

@@ -42,9 +42,8 @@ STATIC CHAR8 ActiveSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC UINT32 PartitionCount;
 STATIC BOOLEAN MultiSlotBoot;
 
-VOID GetCurrentSlotSuffix(CHAR8* SlotSuffix) {
-	CopyMem(SlotSuffix, ActiveSlot, sizeof(ActiveSlot));
-	return;
+CHAR8* GetCurrentSlotSuffix() {
+	return ActiveSlot;
 }
 
 VOID SetCurrentSlotSuffix(CHAR8* SlotSuffix) {
