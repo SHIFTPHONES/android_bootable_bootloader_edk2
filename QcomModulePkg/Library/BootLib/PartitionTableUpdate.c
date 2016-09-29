@@ -633,7 +633,7 @@ TryNextSlot:
 	} else {
 		/*if retry-count > 0,decrement it, do normal boot*/
 		if((RetryCount = ((PartEntryPtr->PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >> PART_ATT_MAX_RETRY_CNT_BIT))) {
-			PartEntryPtr->PartEntry.Attributes = (PartEntryPtr->PartEntry.Attributes & ~PART_ATT_MAX_RETRY_COUNT_VAL) |(((UINT64)RetryCount-1) << PART_ATT_MAX_RETRY_CNT_BIT);
+			DEBUG((EFI_D_INFO, "Continue booting without decrementing retry count =%d\n", RetryCount));
 		} else {
 			/*else mark slot as unbootable update fields then go for next slot*/
 			PartEntryPtr->PartEntry.Attributes |= PART_ATT_UNBOOTABLE_VAL & ~PART_ATT_ACTIVE_VAL & ~PART_ATT_PRIORITY_VAL;
