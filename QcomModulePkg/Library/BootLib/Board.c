@@ -142,9 +142,13 @@ STATIC EFI_STATUS GetChipInfo(struct BoardInfo *platform_board_info)
 	Status = pChipInfoProtocol->GetFoundryId(pChipInfoProtocol, &platform_board_info->FoundryId);
 	if (EFI_ERROR(Status))
 		return Status;
+	Status = pChipInfoProtocol->GetChipIdString(pChipInfoProtocol, &platform_board_info->ChipBaseBand, EFICHIPINFO_MAX_ID_LENGTH);
+	if (EFI_ERROR(Status))
+		return Status;
 	DEBUG((EFI_D_VERBOSE, "Raw Chip Id   : 0x%x\n", platform_board_info->RawChipId));
 	DEBUG((EFI_D_VERBOSE, "Chip Version  : 0x%x\n", platform_board_info->ChipVersion));
 	DEBUG((EFI_D_VERBOSE, "Foundry Id    : 0x%x\n", platform_board_info->FoundryId));
+	DEBUG((EFI_D_VERBOSE, "Chip BaseBand    : %a\n", platform_board_info->ChipBaseBand));
 	return Status;
 }
 
@@ -418,6 +422,11 @@ EFIChipInfoVersionType BoardPlatformChipVersion()
 EFIChipInfoFoundryIdType BoardPlatformFoundryId()
 {
 	return platform_board_info.FoundryId;
+}
+
+CHAR8* BoardPlatformChipBaseBand()
+{
+	return platform_board_info.ChipBaseBand;
 }
 
 EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType()

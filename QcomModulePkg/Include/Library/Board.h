@@ -40,6 +40,7 @@
 #include <Protocol/EFIPlatformInfo.h>
 
 #define HANDLE_MAX_INFO_LIST    128
+#define CHIP_BASE_BAND_LEN 4
 
 typedef enum
 {
@@ -51,6 +52,7 @@ typedef enum
 struct BoardInfo {
 	EFI_PLATFORMINFO_PLATFORM_INFO_TYPE PlatformInfo;
 	UINT32 RawChipId;
+	CHAR8 ChipBaseBand[EFICHIPINFO_MAX_ID_LENGTH];
 	EFIChipInfoVersionType ChipVersion;
 	EFIChipInfoFoundryIdType FoundryId;
 };
@@ -65,6 +67,7 @@ EFI_STATUS BoardInit();
 
 EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len);
 UINT32 BoardPlatformRawChipId();
+CHAR8* BoardPlatformChipBaseBand();
 EFIChipInfoVersionType BoardPlatformChipVersion();
 EFIChipInfoFoundryIdType BoardPlatformFoundryId();
 EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
