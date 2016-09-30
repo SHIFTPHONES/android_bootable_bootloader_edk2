@@ -37,7 +37,7 @@
 
 STATIC BOOLEAN VerifiedBootEnbled();
 
-EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname)
+EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname, BOOLEAN Recovery)
 {
 
 	EFI_STATUS Status;
@@ -194,7 +194,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	/*Updates the command line from boot image, appends device serial no., baseband information, etc
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
-	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, DevInfo);
+	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, DevInfo, Recovery);
 
 	// appended device tree
 	void *dtb;

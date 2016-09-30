@@ -252,7 +252,7 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
+UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, BOOLEAN Recovery)
 {
 	EFI_STATUS Status;
 	UINT32 cmdline_len = 0;
@@ -263,7 +263,6 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 	BOOLEAN boot_into_ffbm = FALSE;
 	CHAR8* SlotSuffix;
 	BOOLEAN MultiSlotBoot;
-	BOOLEAN InRecovery = TRUE;
 
 	CHAR8 ffbm[FFBM_MODE_BUF_SIZE];
 	if ((!AsciiStrnCmp(pname, "boot_a", AsciiStrLen(pname)))
@@ -276,7 +275,6 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 		else if (Status == EFI_SUCCESS)
 			boot_into_ffbm = TRUE;
 
-		InRecovery = FALSE;
 	}
 
 	MEM_CARD_INFO card_info = {};
@@ -374,7 +372,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo)
 
 		cmdline_len += AsciiStrLen(MultiSlotCmdSuffix);
 
-		if (!InRecovery)
+		if (!Recovery)
 			cmdline_len += AsciiStrLen(SkipRamFs);
 
 		SysPathLength = GetSystemPath(&SystemPath);

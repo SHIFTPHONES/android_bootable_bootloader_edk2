@@ -77,7 +77,7 @@
 
 typedef VOID (*LINUX_KERNEL)(UINTN ParametersBase, UINTN Reserved0, UINTN Reserved1, UINTN Reserved2);
 
-EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname);
+EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname, BOOLEAN Recovery);
 
 EFI_STATUS LaunchApp(IN UINTN  Argc, IN CHAR8  **Argv);
 #endif
