@@ -1120,6 +1120,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	UINT32 PartitionCount =0;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+	BOOLEAN SwitchSlot = FALSE;
 
 	if (FbDevInfo.is_unlocked == FALSE) {
 		FastbootFail("Slot Change is not allowed in Lock State\n");
@@ -1140,13 +1141,16 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	Ptr = AsciiStrStr((char *)Arg, Delim);
 	if (Ptr) {
 		Ptr++;
+		if (AsciiStrCmp(GetCurrentSlotSuffix(), Ptr))
+			SwitchSlot = TRUE;
+
 		if(!AsciiStrStr(SlotSuffixArray, Ptr)) {
 			DEBUG((EFI_D_ERROR,"%s does not exist in partition table\n",SetActive));
 			FastbootFail("slot does not exist");
 			return;
 		}
 		/*Arg will be either _a or _b, so apppend it to boot*/
-		AsciiStrnCat(SetActive, Ptr, MAX_GPT_NAME_SIZE);
+		AsciiStrCatS(SetActive, MAX_GPT_NAME_SIZE, Ptr);
 	} else {
 		FastbootFail("set_active:_a or _b should be entered");
 		return;
@@ -1158,35 +1162,43 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
 		if (!AsciiStrnCmp(PartitionNameAscii, "boot", AsciiStrLen("boot")))
 		{
-			/*select the slot and increase the priority = 3,retry-count =7,slot_successful = 0 and slot_unbootable =0*/
 			if (!AsciiStrnCmp(PartitionNameAscii, SetActive, AsciiStrLen(SetActive)))
 			{
 				PartEntriesPtr = &PtnEntries[i];
-				PartEntriesPtr->PartEntry.Attributes = (PartEntriesPtr->PartEntry.Attributes | PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL) & (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
-				AsciiStrnCpy(SlotSuffix, Ptr, MAX_SLOT_SUFFIX_SZ);
+				/*
+				 * select the slot and increase the priority = 3,retry-count =7,slot_successful = 0
+				 * Mark the slot as active and slot_unbootable = 0
+				 */
+				PartEntriesPtr->PartEntry.Attributes =
+				(PartEntriesPtr->PartEntry.Attributes | PART_ATT_ACTIVE_VAL | PART_ATT_PRIORITY_VAL
+				| PART_ATT_MAX_RETRY_COUNT_VAL) & (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+
+				AsciiStrCpyS(SlotSuffix, MAX_SLOT_SUFFIX_SZ, Ptr);
 				SetCurrentSlotSuffix(SlotSuffix);
 			}
 			else
 			{
-				/*Decrement the priority of the other slots by less than active slot*/
-				PartEntriesPtr =  &PtnEntries[i];
-				if (((PtnEntries[i].PartEntry.Attributes & PART_ATT_PRIORITY_VAL) >> PART_ATT_PRIORITY_BIT) ==  MAX_PRIORITY) {
-					PtnEntries[i].PartEntry.Attributes = ((PtnEntries[i].PartEntry.Attributes & (~ PART_ATT_PRIORITY_VAL))  | (((UINT64)MAX_PRIORITY -1) << PART_ATT_PRIORITY_BIT));
-				}
+				PartEntriesPtr = &PtnEntries[i];
+				/* Reduce the priority and clear the active flag */
+				PartEntriesPtr->PartEntry.Attributes =
+				((PartEntriesPtr->PartEntry.Attributes & (~PART_ATT_PRIORITY_VAL) & ~PART_ATT_ACTIVE_VAL)
+				| (((UINT64)MAX_PRIORITY - 1) << PART_ATT_PRIORITY_BIT));
 			}
 		}
 	}
 
 	do {
 		if (!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix, Ptr, strlen(Ptr))) {
-			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal, "no", ATTR_RESP_SIZE);
-			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal, "no", ATTR_RESP_SIZE);
+			AsciiStrCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, "no");
+			AsciiStrCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, "no");
 			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal, sizeof(BootSlotInfo[j].SlotRetryCountVal), "%d", MAX_RETRY_COUNT);
 			SlotVarUpdateComplete = TRUE;
 		}
 		j++;
 	} while(!SlotVarUpdateComplete);
 
+	if (SwitchSlot)
+		SwitchPtnSlots(SlotSuffix);
 	UpdatePartitionAttributes();
 	FastbootOkay("");
 }

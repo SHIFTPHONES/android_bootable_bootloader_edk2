@@ -321,19 +321,19 @@ VOID MarkPtnActive(CHAR8 *ActiveSlot)
 
 STATIC VOID SwapPtnGuid(EFI_PARTITION_ENTRY *p1, EFI_PARTITION_ENTRY *p2)
 {
-	UINT32 Temp[PARTITION_TYPE_GUID_SIZE];
+	EFI_GUID Temp;
 
 	if (p1 == NULL || p2 == NULL)
 		return;
-	CopyMem((VOID *)&Temp, (VOID *)&p1->PartitionTypeGUID, sizeof(p1->PartitionTypeGUID));
-	CopyMem((VOID *)&p1->PartitionTypeGUID, (VOID *)&p2->PartitionTypeGUID, sizeof(p2->PartitionTypeGUID));
-	CopyMem((VOID *)&p2->PartitionTypeGUID, (VOID *)&Temp, sizeof(Temp));
+	CopyMem((VOID *)&Temp, (VOID *)&p1->PartitionTypeGUID, sizeof(EFI_GUID));
+	CopyMem((VOID *)&p1->PartitionTypeGUID, (VOID *)&p2->PartitionTypeGUID, sizeof(EFI_GUID));
+	CopyMem((VOID *)&p2->PartitionTypeGUID, (VOID *)&Temp, sizeof(EFI_GUID));
 }
 
 VOID SwitchPtnSlots(CONST CHAR8 *SetActive)
 {
 	UINT32 i, j;
-	CONST CHAR8 *BootParts[] = { "rpm", "tz", "pmic", "modem", "hyp", "cmnlib", "cmnlib64", "keymaster", "devcfg", "abl", "apdp"};
+	CONST CHAR8 *BootParts[] = { "rpm", "xbl", "tz", "pmic", "modem", "hyp", "cmnlib", "cmnlib64", "keymaster", "devcfg", "abl", "apdp"};
 	UINT32 Sz = ARRAY_SIZE(BootParts);
 	struct PartitionEntry *PtnCurrent = NULL;
 	struct PartitionEntry *PtnNew = NULL;
@@ -348,16 +348,16 @@ VOID SwitchPtnSlots(CONST CHAR8 *SetActive)
 
 	/* Create the partition name string for active and non active slots*/
 	if (!AsciiStrnCmp(SetActive, "_a", 2))
-		AsciiStrnCpy(SetInactive, "_b", MAX_SLOT_SUFFIX_SZ);
+		AsciiStrCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, "_b");
 	else
-		AsciiStrnCpy(SetInactive, "_a", MAX_SLOT_SUFFIX_SZ);
+		AsciiStrCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, "_a");
 
 	for (j = 0; j < Sz; j++) {
-		AsciiStrnCpy(CurSlot, BootParts[j], BOOT_PART_SIZE);
-		AsciiStrnCat(CurSlot, SetInactive, BOOT_PART_SIZE);
+		AsciiStrCpyS(CurSlot, BOOT_PART_SIZE, BootParts[j]);
+		AsciiStrCatS(CurSlot, BOOT_PART_SIZE, SetInactive);
 
-		AsciiStrnCpy(NewSlot, BootParts[j], BOOT_PART_SIZE);
-		AsciiStrnCat(NewSlot, SetActive, BOOT_PART_SIZE);
+		AsciiStrCpyS(NewSlot, BOOT_PART_SIZE, BootParts[j]);
+		AsciiStrCatS(NewSlot, BOOT_PART_SIZE, SetActive);
 
 		/* Find the pointer to partition table entry for active and non-active slots*/
 		for (i = 0; i < PartitionCount; i++) {
@@ -558,8 +558,8 @@ STATIC VOID MarkSlotUnbootable()
 	UINT32 i;
 	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
 	SwitchPtnSlots(CurrentSlot);
-	AsciiStrnCpy(PartName, "boot", MAX_GPT_NAME_SIZE);
-	AsciiStrnCat(PartName, CurrentSlot, MAX_GPT_NAME_SIZE);
+	AsciiStrCpyS(PartName,  MAX_GPT_NAME_SIZE, "boot");
+	AsciiStrCatS(PartName, MAX_GPT_NAME_SIZE, CurrentSlot);
 	for (i = 0; i < PartitionCount; i++) {
 		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
 		if(!AsciiStrnCmp(PartitionNameAscii, PartName, MAX_GPT_NAME_SIZE)) {
@@ -609,10 +609,11 @@ TryNextSlot:
 	 */
 	if (SlotUnbootable)
 		MarkSlotUnbootable();
-	AsciiStrnCpy(BootableSlot, "boot", MAX_GPT_NAME_SIZE);
-	AsciiStrnCat(BootableSlot, CurrentSlot, MAX_GPT_NAME_SIZE);
+	AsciiStrCpyS(BootableSlot, MAX_GPT_NAME_SIZE, "boot");
+	AsciiStrCatS(BootableSlot, MAX_GPT_NAME_SIZE, CurrentSlot);
 
 	UfsGetSetBootLun(&UfsBootLun,UfsGet);
+
 	if (UfsBootLun == 0x1 && !AsciiStrCmp(CurrentSlot, "_a"))
 		DEBUG((EFI_D_INFO,"Booting from slot (%a) , BootableSlot = %a\n",CurrentSlot, BootableSlot));
 	else if (UfsBootLun == 0x2 && !AsciiStrCmp(CurrentSlot, "_b"))
@@ -620,6 +621,7 @@ TryNextSlot:
 	else {
 		DEBUG((EFI_D_ERROR,"Boot lun: %x and Currentslot: %a do not match\n",UfsBootLun, CurrentSlot));
 		*BootableSlot = '\0';
+		return;
 	}
 	Index = GetPartitionIndex(BootableSlot);
 	if (Index == INVALID_PTN) {
