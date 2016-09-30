@@ -713,8 +713,8 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR8 *SlotSuffix)
 	INTN Index;
 	CHAR8 PartName[MAX_GPT_NAME_SIZE];
 
-	AsciiStrnCpy(PartName, "boot", MAX_GPT_NAME_SIZE);
-	AsciiStrnCat(PartName, SlotSuffix, MAX_GPT_NAME_SIZE);
+	AsciiStrCpyS(PartName, MAX_GPT_NAME_SIZE, "boot");
+	AsciiStrCatS(PartName, MAX_GPT_NAME_SIZE, SlotSuffix);
 
 	Index = GetPartitionIndex(PartName);
 	if (Index == INVALID_PTN)
@@ -731,8 +731,8 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR8 *SlotSuffix)
 	{
 		if(!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix,SlotSuffix,AsciiStrLen(SlotSuffix)))
 		{
-			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal,"no",ATTR_RESP_SIZE);
-			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal,"no",ATTR_RESP_SIZE);
+			AsciiStrCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, "no");
+			AsciiStrCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, "no");
 			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%d",MAX_RETRY_COUNT);
 		}
 	}
