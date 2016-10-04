@@ -543,3 +543,24 @@ BOOLEAN IsSecureBootEnabled()
 
 	return IsSecure;
 }
+
+EFI_STATUS
+ResetDeviceState()
+{
+	EFI_STATUS Status = EFI_INVALID_PARAMETER;
+	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
+
+	Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid, NULL, (VOID **) &VbIntf);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to locate VB protocol: %r\n", Status));
+		return Status;
+	}
+
+	Status = VbIntf->VBDeviceResetState(VbIntf);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Error Reseting device state: %r\n", Status));
+		return Status;
+	}
+
+	return Status;
+}

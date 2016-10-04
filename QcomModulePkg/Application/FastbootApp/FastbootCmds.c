@@ -858,6 +858,12 @@ FastbootErasePartition(
 	if (Zeros)
 		FreePool (Zeros);
 
+	if (!(AsciiStrnCmp("userdata", PartitionName, AsciiStrLen(PartitionName)))) {
+		Status = ResetDeviceState();
+		if (Status != EFI_SUCCESS)
+			return Status;
+	}
+
 	return Status;
 }
 
@@ -932,6 +938,11 @@ STATIC VOID CmdFlash(
 	{
 		// Doesn't look like we were sent any data
 		FastbootFail("No data to flash");
+		return;
+	}
+
+	if (FbDevInfo.is_unlocked == FALSE) {
+		FastbootFail("Flashing is not allowed in Lock State");
 		return;
 	}
 
@@ -1064,6 +1075,11 @@ STATIC VOID CmdErase(
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 
+	if (FbDevInfo.is_unlocked == FALSE) {
+		FastbootFail("Erase is not allowed in Lock State");
+		return;
+	}
+
 	/* In A/B to have backward compatibility user can still give fastboot flash boot/system/modem etc
 	 * based on current slot Suffix try to look for "partition"_a/b if not found fall back to look for
 	 * just the "partition" in case some of the partitions are no included for A/B implementation
@@ -1106,6 +1122,11 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
 	UINT32 PartitionCount =0;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+
+	if (FbDevInfo.is_unlocked == FALSE) {
+		FastbootFail("Slot Change is not allowed in Lock State\n");
+		return;
+	}
 
 	if(!MultiSlotBoot)
 	{
@@ -1617,6 +1638,7 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 	EFI_GUID MiscPartGUID = {0x82ACC91F, 0x357C, 0x4A68, {0x9C,0x8F,0x68,0x9E,0x1B,0x1A,0x23,0xA1}};
 	char response[MAX_RSP_SIZE] = {0};
 	struct RecoveryMessage Msg;
+	EFI_STATUS Status;
 
 	if (Type == UNLOCK)
 		is_unlocked = FbDevInfo.is_unlocked;
@@ -1640,6 +1662,12 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 	}
 
 	SetDeviceUnlockValue(Type, State);
+	Status = ResetDeviceState();
+	if (Status != EFI_SUCCESS) {
+		SetDeviceUnlockValue(Type, !State);
+		FastbootFail("Fastboot: Unable to set the Value");
+		return;
+	}
 	AsciiSPrint(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data");
 	WriteToPartition(&MiscPartGUID, &Msg);
 
