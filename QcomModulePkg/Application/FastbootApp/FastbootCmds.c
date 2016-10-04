@@ -1678,7 +1678,8 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 		FastbootFail("Fastboot: Unable to set the Value");
 		return;
 	}
-	AsciiSPrint(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data");
+	SetMem((VOID *)&Msg, sizeof(Msg), 0);
+	AsciiStrCpyS(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data\n--reason=MasterClearConfirm\n--locale=en_US\n");
 	WriteToPartition(&MiscPartGUID, &Msg);
 
 	FastbootOkay("");
