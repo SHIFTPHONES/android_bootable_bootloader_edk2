@@ -493,7 +493,14 @@ HandleSparseImgFlash(
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
 		return Status;
-
+	if (!BlockIo) {
+		DEBUG((EFI_D_ERROR, "BlockIo for %a is corrupted\n",PartitionName));
+		return EFI_VOLUME_CORRUPTED;
+	}
+	if (!Handle) {
+		DEBUG((EFI_D_ERROR, "EFI handle for %a is corrupted\n",PartitionName));
+		return EFI_VOLUME_CORRUPTED;
+	}
 	// Check image will fit on device
 	PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
 
@@ -768,7 +775,14 @@ HandleRawImgFlash(
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
 		return Status;
-
+	if (!BlockIo) {
+		DEBUG((EFI_D_ERROR, "BlockIo for %a is corrupted\n",PartitionName));
+		return EFI_VOLUME_CORRUPTED;
+	}
+	if (!Handle) {
+		DEBUG((EFI_D_ERROR, "EFI handle for %a is corrupted\n",PartitionName));
+		return EFI_VOLUME_CORRUPTED;
+	}
 	// Check image will fit on device
 	PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
 	if (PartitionSize < Size)
@@ -831,6 +845,14 @@ FastbootErasePartition(
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
 		return Status;
+	if (!BlockIo) {
+		DEBUG((EFI_D_ERROR, "BlockIo for %a is corrupted\n",PartitionName));
+		return EFI_VOLUME_CORRUPTED;
+	}
+	if (!Handle) {
+		DEBUG((EFI_D_ERROR, "EFI handle for %a is corrupted\n",PartitionName));
+		return EFI_VOLUME_CORRUPTED;
+	}
 
 	Zeros = AllocateZeroPool (ERASE_BUFF_SIZE);
 	if (Zeros == NULL)
@@ -1863,15 +1885,15 @@ STATIC VOID AcceptCmd(
 	)
 {
 	FASTBOOT_CMD *cmd;
-  
-	Data[Size] = '\0';
-  
-	DEBUG((EFI_D_INFO, "Handling Cmd: %a\n", Data));
 	if (!Data)
 	{
 		FastbootFail("Invalid input command");
 		return;
 	}
+	if (Size > MAX_FASTBOOT_COMMAND_SIZE)
+		Size = MAX_FASTBOOT_COMMAND_SIZE;
+	Data[Size] = '\0';
+	DEBUG((EFI_D_INFO, "Handling Cmd: %a\n", Data));
 
 	for (cmd = cmdlist; cmd; cmd = cmd->next)
 	{
@@ -1892,13 +1914,21 @@ STATIC EFI_STATUS PublishGetVarPartitionInfo(
 	UINT32 i;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	EFI_HANDLE *Handle = NULL;
-	EFI_STATUS Status;
+	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 
 	for (i = 0; i < num_parts; i++)
 	{
 		Status = PartitionGetInfo((CHAR8 *)info[i].part_name, &BlockIo, &Handle);
 		if (Status != EFI_SUCCESS)
 			return Status;
+		if (!BlockIo) {
+			DEBUG((EFI_D_ERROR, "BlockIo for %a is corrupted\n", info[i].part_name));
+			return EFI_VOLUME_CORRUPTED;
+		}
+		if (!Handle) {
+			DEBUG((EFI_D_ERROR, "EFI handle for %a is corrupted\n",info[i].part_name));
+			return EFI_VOLUME_CORRUPTED;
+		}
 
 		AsciiSPrint(info[i].size_response, MAX_RSP_SIZE, " 0x%llx", (UINT64)(BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize);
 
