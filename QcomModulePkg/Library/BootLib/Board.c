@@ -333,16 +333,10 @@ EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet)
 
 	if (IsGet == TRUE) {
 		if (CardInfo->GetBootLU (CardInfo, UfsBootlun) == EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_VERBOSE,"Get BootLun =%u\n",*UfsBootlun));
-			return Status;
-		}
+			DEBUG((EFI_D_VERBOSE, "Get BootLun =%u\n",*UfsBootlun));
 	} else {
 		if (CardInfo->SetBootLU (CardInfo, *UfsBootlun) == EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_VERBOSE,"SetBootLun =%u\n",*UfsBootlun));
-			return Status;
-		}
+			DEBUG((EFI_D_VERBOSE, "SetBootLun =%u\n",*UfsBootlun));
 	}
 	return Status;
 }

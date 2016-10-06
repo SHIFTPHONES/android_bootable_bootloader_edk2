@@ -331,7 +331,6 @@ STATIC VOID FastbootPublishSlotVars() {
 	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
 	UINT32 RetryCount = 0;
 	BOOLEAN Set = FALSE;
-	STATIC CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
 
 	GetPartitionCount(&PartitionCount);
 	/*Scan through partition entries, populate the attributes*/
@@ -359,8 +358,7 @@ STATIC VOID FastbootPublishSlotVars() {
 		}
 	}
 	FastbootPublishVar("has-slot:boot","yes");
-	GetCurrentSlotSuffix(CurrentSlot);
-	FastbootPublishVar("current-slot",CurrentSlot);
+	FastbootPublishVar("current-slot",GetCurrentSlotSuffix());
 	FastbootPublishVar("has-slot:system",PartitionHasMultiSlot("system") ? "yes" : "no");
 	FastbootPublishVar("has-slot:modem",PartitionHasMultiSlot("modem") ? "yes" : "no");
 	return;
@@ -437,11 +435,11 @@ WriteToDisk (
 STATIC BOOLEAN GetPartitionHasSlot(CHAR8* PartitionName, CHAR8* SlotSuffix) {
 	INT32 Index = INVALID_PTN;
 	BOOLEAN HasSlot = FALSE;
-	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	CHAR8* CurrentSlot;
 
 	Index = GetPartitionIndex(PartitionName);
 	if (Index == INVALID_PTN) {
-		GetCurrentSlotSuffix(CurrentSlot);
+		CurrentSlot = GetCurrentSlotSuffix();
 		AsciiStrnCpy(SlotSuffix, CurrentSlot, MAX_SLOT_SUFFIX_SZ);
 		AsciiStrnCat(PartitionName, CurrentSlot, MAX_SLOT_SUFFIX_SZ);
 		HasSlot = TRUE;
@@ -449,7 +447,7 @@ STATIC BOOLEAN GetPartitionHasSlot(CHAR8* PartitionName, CHAR8* SlotSuffix) {
 	else {
 		/*Check for _a or _b slots, if available then copy to SlotSuffix Array*/
 		if (AsciiStrStr(PartitionName, "_a") || AsciiStrStr(PartitionName, "_b")) {
-			AsciiStrnCpy(SlotSuffix, PartitionName[strlen(PartitionName) - 2], MAX_SLOT_SUFFIX_SZ);
+			AsciiStrnCpyS(SlotSuffix, MAX_SLOT_SUFFIX_SZ, (PartitionName + (AsciiStrLen(PartitionName) - 2)), MAX_SLOT_SUFFIX_SZ);
 			HasSlot = TRUE;
 		}
 	}
@@ -715,8 +713,8 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR8 *SlotSuffix)
 	INTN Index;
 	CHAR8 PartName[MAX_GPT_NAME_SIZE];
 
-	AsciiStrnCpy(PartName, "boot", MAX_GPT_NAME_SIZE);
-	AsciiStrnCat(PartName, SlotSuffix, MAX_GPT_NAME_SIZE);
+	AsciiStrCpyS(PartName, MAX_GPT_NAME_SIZE, "boot");
+	AsciiStrCatS(PartName, MAX_GPT_NAME_SIZE, SlotSuffix);
 
 	Index = GetPartitionIndex(PartName);
 	if (Index == INVALID_PTN)
@@ -733,8 +731,8 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR8 *SlotSuffix)
 	{
 		if(!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix,SlotSuffix,AsciiStrLen(SlotSuffix)))
 		{
-			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal,"no",ATTR_RESP_SIZE);
-			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal,"no",ATTR_RESP_SIZE);
+			AsciiStrCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, "no");
+			AsciiStrCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, "no");
 			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%d",MAX_RETRY_COUNT);
 		}
 	}
@@ -928,7 +926,7 @@ STATIC VOID CmdFlash(
 	INTN Len = -1;
 	LunSet = FALSE;
 	EFI_EVENT gBlockIoRefreshEvt;
-	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	CHAR8* CurrentSlot;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
@@ -1013,7 +1011,7 @@ STATIC VOID CmdFlash(
 				FlashingPtable = TRUE;
 				PopulateMultislotMetadata();
 				FlashingPtable = FALSE;
-				GetCurrentSlotSuffix(CurrentSlot);
+				CurrentSlot = GetCurrentSlotSuffix();
 				DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
 			}
 			DEBUG((EFI_D_INFO, "*************** New partition Table Dump Start *******************\n"));
@@ -1119,9 +1117,10 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
 	UINT16 j = 0;
 	BOOLEAN SlotVarUpdateComplete = FALSE;
-	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	UINT32 PartitionCount =0;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
+	BOOLEAN SwitchSlot = FALSE;
 
 	if (FbDevInfo.is_unlocked == FALSE) {
 		FastbootFail("Slot Change is not allowed in Lock State\n");
@@ -1142,13 +1141,16 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	Ptr = AsciiStrStr((char *)Arg, Delim);
 	if (Ptr) {
 		Ptr++;
+		if (AsciiStrCmp(GetCurrentSlotSuffix(), Ptr))
+			SwitchSlot = TRUE;
+
 		if(!AsciiStrStr(SlotSuffixArray, Ptr)) {
 			DEBUG((EFI_D_ERROR,"%s does not exist in partition table\n",SetActive));
 			FastbootFail("slot does not exist");
 			return;
 		}
 		/*Arg will be either _a or _b, so apppend it to boot*/
-		AsciiStrnCat(SetActive, Ptr, MAX_GPT_NAME_SIZE);
+		AsciiStrCatS(SetActive, MAX_GPT_NAME_SIZE, Ptr);
 	} else {
 		FastbootFail("set_active:_a or _b should be entered");
 		return;
@@ -1160,35 +1162,43 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
 		if (!AsciiStrnCmp(PartitionNameAscii, "boot", AsciiStrLen("boot")))
 		{
-			/*select the slot and increase the priority = 3,retry-count =7,slot_successful = 0 and slot_unbootable =0*/
 			if (!AsciiStrnCmp(PartitionNameAscii, SetActive, AsciiStrLen(SetActive)))
 			{
 				PartEntriesPtr = &PtnEntries[i];
-				PartEntriesPtr->PartEntry.Attributes = (PartEntriesPtr->PartEntry.Attributes | PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL) & (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
-				AsciiStrnCpy(CurrentSlot, Ptr, MAX_SLOT_SUFFIX_SZ);
-				SetCurrentSlotSuffix(CurrentSlot);
+				/*
+				 * select the slot and increase the priority = 3,retry-count =7,slot_successful = 0
+				 * Mark the slot as active and slot_unbootable = 0
+				 */
+				PartEntriesPtr->PartEntry.Attributes =
+				(PartEntriesPtr->PartEntry.Attributes | PART_ATT_ACTIVE_VAL | PART_ATT_PRIORITY_VAL
+				| PART_ATT_MAX_RETRY_COUNT_VAL) & (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+
+				AsciiStrCpyS(SlotSuffix, MAX_SLOT_SUFFIX_SZ, Ptr);
+				SetCurrentSlotSuffix(SlotSuffix);
 			}
 			else
 			{
-				/*Decrement the priority of the other slots by less than active slot*/
-				PartEntriesPtr =  &PtnEntries[i];
-				if (((PtnEntries[i].PartEntry.Attributes & PART_ATT_PRIORITY_VAL) >> PART_ATT_PRIORITY_BIT) ==  MAX_PRIORITY) {
-					PtnEntries[i].PartEntry.Attributes = ((PtnEntries[i].PartEntry.Attributes & (~ PART_ATT_PRIORITY_VAL))  | (((UINT64)MAX_PRIORITY -1) << PART_ATT_PRIORITY_BIT));
-				}
+				PartEntriesPtr = &PtnEntries[i];
+				/* Reduce the priority and clear the active flag */
+				PartEntriesPtr->PartEntry.Attributes =
+				((PartEntriesPtr->PartEntry.Attributes & (~PART_ATT_PRIORITY_VAL) & ~PART_ATT_ACTIVE_VAL)
+				| (((UINT64)MAX_PRIORITY - 1) << PART_ATT_PRIORITY_BIT));
 			}
 		}
 	}
 
 	do {
 		if (!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix, Ptr, strlen(Ptr))) {
-			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal, "no", ATTR_RESP_SIZE);
-			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal, "no", ATTR_RESP_SIZE);
+			AsciiStrCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, "no");
+			AsciiStrCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, "no");
 			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal, sizeof(BootSlotInfo[j].SlotRetryCountVal), "%d", MAX_RETRY_COUNT);
 			SlotVarUpdateComplete = TRUE;
 		}
 		j++;
 	} while(!SlotVarUpdateComplete);
 
+	if (SwitchSlot)
+		SwitchPtnSlots(SlotSuffix);
 	UpdatePartitionAttributes();
 	FastbootOkay("");
 }
@@ -1503,7 +1513,7 @@ STATIC VOID CmdContinue(
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, BootableSlot);
+	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, BootableSlot, FALSE);
 }
 
 STATIC VOID CmdGetVarAll()
@@ -1608,7 +1618,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
     FastbootOkay("");
     FastbootUsbDeviceStop();
-    BootLinux(data, ImageSizeActual, &FbDevInfo, "boot");
+    BootLinux(data, ImageSizeActual, &FbDevInfo, "boot", FALSE);
 }
 
 STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
@@ -1668,7 +1678,8 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 		FastbootFail("Fastboot: Unable to set the Value");
 		return;
 	}
-	AsciiSPrint(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data");
+	SetMem((VOID *)&Msg, sizeof(Msg), 0);
+	AsciiStrCpyS(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data\n--reason=MasterClearConfirm\n--locale=en_US\n");
 	WriteToPartition(&MiscPartGUID, &Msg);
 
 	FastbootOkay("");
@@ -1850,7 +1861,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 	mDataBuffer = base;
 	mNumDataBytes = size;
-	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	CHAR8* CurrentSlot;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 
 	/* Find all Software Partitions in the User Partition */
@@ -1905,7 +1916,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		 */
 		FindPtnActiveSlot();
 		PopulateMultislotMetadata();
-		GetCurrentSlotSuffix(CurrentSlot);
+		CurrentSlot = GetCurrentSlotSuffix();
 		DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
 	}
 
