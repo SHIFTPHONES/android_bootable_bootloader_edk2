@@ -48,12 +48,12 @@ DeviceInfo DevInfo;
 
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
-STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootIntoRecovery)
+STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootIntoRecovery)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	VOID* ImageBuffer = NULL;
 	UINT32 ImageSizeActual = 0;
-	CHAR8* CurrentSlot = NULL;
+	CHAR16* CurrentSlot = NULL;
 
 	Status = LoadImage(Pname, (VOID**)&ImageBuffer, &ImageSizeActual);
 	if (Status != EFI_SUCCESS) {
@@ -110,8 +110,8 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	CHAR8 Fastboot[MAX_APP_STR_LEN];
 	CHAR8 *AppList[] = {Fastboot};
 	UINTN i;
-	CHAR8 Pname[MAX_PNAME_LENGTH];
-	CHAR8 BootableSlot[MAX_GPT_NAME_SIZE];
+	CHAR16 Pname[MAX_GPT_NAME_SIZE];
+	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
 	/* MultiSlot Boot */
 	BOOLEAN MultiSlotBoot;
 
@@ -167,7 +167,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	UpdatePartitionEntries();
 	/*Check for multislot boot support*/
-	MultiSlotBoot = PartitionHasMultiSlot("boot");
+	MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	if(MultiSlotBoot) {
 		DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
 		FindPtnActiveSlot();
@@ -244,22 +244,21 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	if (Status != EFI_SUCCESS)
 		DEBUG((EFI_D_VERBOSE, "RecoveryInit failed ignore: %r\n", Status));
 
-	if (!BootIntoFastboot)
-	{
+	if (!BootIntoFastboot) {
+
 		if (MultiSlotBoot) {
-			FindBootableSlot(BootableSlot);
+			FindBootableSlot(BootableSlot, sizeof(BootableSlot));
 			if(!BootableSlot[0])
 				goto fastboot;
-			AsciiStrnCpy(Pname, BootableSlot, AsciiStrLen(BootableSlot));
-		}
-		else {
+			StrnCpyS(Pname, MAX_GPT_NAME_SIZE, BootableSlot, StrLen(BootableSlot));
+		} else {
+
 			if(BootIntoRecovery == TRUE) {
 				DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
-				AsciiStrnCpy(Pname, "recovery", MAX_PNAME_LENGTH);
-			}
-			else {
+				StrnCpyS(Pname, MAX_GPT_NAME_SIZE, L"recovery", StrLen(L"recovery"));
+			} else {
 				DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
-				AsciiStrnCpy(Pname, "boot", MAX_PNAME_LENGTH);
+				StrnCpyS(Pname, MAX_GPT_NAME_SIZE, L"boot", StrLen(L"boot"));
 			}
 		}
 
@@ -269,7 +268,6 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	}
 
 fastboot:
-
 	DEBUG((EFI_D_INFO, "Launching fastboot\n"));
 	for (i = 0 ; i < MAX_NUM_FS; i++)
 	{
