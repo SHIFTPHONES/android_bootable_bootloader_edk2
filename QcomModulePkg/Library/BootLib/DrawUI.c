@@ -272,9 +272,17 @@ EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 	EFI_HII_ROW_INFO        *RowInfoArray = NULL;
 	UINTN                   RowInfoArraySize;
 	CHAR16                  FontMessage[MAX_MSG_SIZE];
+	UINT32                  Height = GetResolutionHeight();
+	UINT32                  Width = GetResolutionWidth();
 
-	if (!GetResolutionHeight() || !GetResolutionWidth()) {
+	if (!Height || !Width) {
 		Status = EFI_OUT_OF_RESOURCES;
+		goto Exit;
+	}
+
+	if (TargetMenu->Location >= Height) {
+		DEBUG((EFI_D_ERROR, "The Y-axis of the message is larger than the Y-max of the screen\n"));
+		Status = EFI_ABORTED;
 		goto Exit;
 	}
 
@@ -320,7 +328,7 @@ EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 		goto Exit;
 	}
 
-	if (pHeight) {
+	if (pHeight && RowInfoArraySize && RowInfoArray) {
 		*pHeight = RowInfoArraySize * RowInfoArray[0].LineHeight;
 	}
 
@@ -338,17 +346,22 @@ EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 		BltBuffer->Width * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL)
 	);
 
-	Exit:
-		if (BltBuffer) {
-			FreePool(BltBuffer);
-			BltBuffer = NULL;
-		}
+Exit:
+	if (RowInfoArray) {
+		FreePool(RowInfoArray);
+		BltBuffer = NULL;
+	}
 
-		if (FontDisplayInfo) {
-			FreePool(FontDisplayInfo);
-			FontDisplayInfo = NULL;
-		}
-		return Status;
+	if (BltBuffer) {
+		FreePool(BltBuffer);
+		BltBuffer = NULL;
+	}
+
+	if (FontDisplayInfo) {
+		FreePool(FontDisplayInfo);
+		FontDisplayInfo = NULL;
+	}
+	return Status;
 }
 
 /**
