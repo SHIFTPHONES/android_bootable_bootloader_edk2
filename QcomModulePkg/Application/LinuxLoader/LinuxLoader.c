@@ -47,7 +47,7 @@ DeviceInfo DevInfo;
 
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
-STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot)
+STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootIntoRecovery)
 {
 	EFI_STATUS Status;
 	VOID* ImageBuffer;
@@ -70,7 +70,7 @@ STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot)
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DeviceTreeSize = 0;
 	STATIC UINT32 tempImgSize = 0;
-	CHAR8 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
+	CHAR8* CurrentSlot;
 
 	ImageHdrBuffer = AllocateAlignedPages (ImageHdrSize / 4096, 4096);
 	ASSERT(ImageHdrBuffer);
@@ -182,11 +182,11 @@ STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot)
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr        : 0x%x\n", RamdiskLoadAddr));
 
 	if (MultiSlotBoot) {
-		GetCurrentSlotSuffix(CurrentSlot);
+		CurrentSlot = GetCurrentSlotSuffix();
 		MarkPtnActive(CurrentSlot);
 	}
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, &DevInfo, Pname);
+	BootLinux(ImageBuffer, ImageSizeActual, &DevInfo, Pname, BootIntoRecovery);
 	// would never return here
 	return EFI_ABORTED;
 }
@@ -362,25 +362,20 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	if (!BootIntoFastboot)
 	{
 		if(BootIntoRecovery == TRUE)
-		{
 			DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
-			AsciiStrnCpy(Pname, "recovery", MAX_PNAME_LENGTH);
-		}
 		else
-		{
 			DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
-			if (MultiSlotBoot) {
-				FindBootableSlot(BootableSlot);
-				if(!BootableSlot[0])
-					goto fastboot;
-				AsciiStrnCpy(Pname, BootableSlot, AsciiStrLen(BootableSlot));
-			}
-			else {
-				AsciiStrnCpy(Pname, "boot", MAX_PNAME_LENGTH);
-			}
-		}
 
-		Status = LoadLinux(Pname, MultiSlotBoot);
+		if (MultiSlotBoot) {
+			FindBootableSlot(BootableSlot);
+			if(!BootableSlot[0])
+				goto fastboot;
+			AsciiStrnCpy(Pname, BootableSlot, AsciiStrLen(BootableSlot));
+			}
+		else
+			AsciiStrnCpy(Pname, "boot", MAX_PNAME_LENGTH);
+
+		Status = LoadLinux(Pname, MultiSlotBoot, BootIntoRecovery);
 		if (Status != EFI_SUCCESS)
 			DEBUG((EFI_D_ERROR, "Failed to boot Linux, Reverting to fastboot mode\n"));
 	}

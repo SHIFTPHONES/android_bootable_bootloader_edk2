@@ -268,7 +268,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 
 			for (i=0 ;i < num_entries; i++) {
 				if (platform_dt_absolute_match(&(dt_entry_array[i]), dtb_list)) {
-					DEBUG((EFI_D_WARN, "Device tree exact match the board: <0x%x 0x%x 0x%x 0x%x> == <0x%x 0x%x 0x%x 0x%x>\n",
+					DEBUG((EFI_D_INFO, "Device tree exact match the board: <0x%x 0x%x 0x%x 0x%x> == <0x%x 0x%x 0x%x 0x%x>\n",
 								dt_entry_array[i].platform_id,
 								dt_entry_array[i].variant_id,
 								dt_entry_array[i].soc_rev,
@@ -278,7 +278,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 								BoardPlatformChipVersion(),
 								BoardPlatformSubType()));
 				} else {
-					DEBUG((EFI_D_WARN, "Device tree's msm_id doesn't match the board: <0x%x 0x%x 0x%x 0x%x> != <0x%x 0x%x 0x%x 0x%x>\n",
+					DEBUG((EFI_D_VERBOSE, "Device tree's msm_id doesn't match the board: <0x%x 0x%x 0x%x 0x%x> != <0x%x 0x%x 0x%x 0x%x>\n",
 								dt_entry_array[i].platform_id,
 								dt_entry_array[i].variant_id,
 								dt_entry_array[i].soc_rev,

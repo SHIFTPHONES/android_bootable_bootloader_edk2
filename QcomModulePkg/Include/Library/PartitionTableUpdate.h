@@ -158,7 +158,7 @@ struct StoragePartInfo
 };
 extern struct StoragePartInfo Ptable[MAX_LUNS];
 
-VOID GetCurrentSlotSuffix(CHAR8* SlotSuffix);
+CHAR8* GetCurrentSlotSuffix();
 UINT32 GetMaxLuns();
 VOID GetPartitionCount(UINT32 *Val);
 VOID SetMultiSlotBootVal();
@@ -179,4 +179,6 @@ struct PartitionEntry
 };
 
 EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INTN Lun, struct StoragePartInfo *Ptable);
+UINT32 GetPartitionLunFromIndex(UINTN);
+INT32 GetPartitionIdxInLun(CHAR8 *Pname, UINTN Lun);
 #endif

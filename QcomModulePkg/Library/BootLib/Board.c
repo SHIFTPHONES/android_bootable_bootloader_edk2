@@ -189,7 +189,7 @@ STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *p
                                of handle structures returned.
  @retval         Device type : UNKNOWN|UFS|EMMC, default is UNKNOWN
  **/
-STATIC UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
+UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
 {
 	EFI_STATUS               Status = EFI_INVALID_PARAMETER;
 	UINT32                   Attribs = 0;
@@ -333,16 +333,10 @@ EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet)
 
 	if (IsGet == TRUE) {
 		if (CardInfo->GetBootLU (CardInfo, UfsBootlun) == EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_VERBOSE,"Get BootLun =%u\n",*UfsBootlun));
-			return Status;
-		}
+			DEBUG((EFI_D_VERBOSE, "Get BootLun =%u\n",*UfsBootlun));
 	} else {
 		if (CardInfo->SetBootLU (CardInfo, *UfsBootlun) == EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_VERBOSE,"SetBootLun =%u\n",*UfsBootlun));
-			return Status;
-		}
+			DEBUG((EFI_D_VERBOSE, "SetBootLun =%u\n",*UfsBootlun));
 	}
 	return Status;
 }

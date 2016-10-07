@@ -42,9 +42,8 @@ STATIC CHAR8 ActiveSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC UINT32 PartitionCount;
 STATIC BOOLEAN MultiSlotBoot;
 
-VOID GetCurrentSlotSuffix(CHAR8* SlotSuffix) {
-	CopyMem(SlotSuffix, ActiveSlot, sizeof(ActiveSlot));
-	return;
+CHAR8* GetCurrentSlotSuffix() {
+	return ActiveSlot;
 }
 
 VOID SetCurrentSlotSuffix(CHAR8* SlotSuffix) {
@@ -56,6 +55,11 @@ UINT32 GetMaxLuns() {
 	return MaxLuns;
 }
 
+UINT32 GetPartitionLunFromIndex(UINTN Index)
+{
+	return PtnEntries[Index].lun;
+}
+
 VOID GetPartitionCount(UINT32 *Val) {
 	*Val = PartitionCount;
 	return;
@@ -64,6 +68,23 @@ VOID GetPartitionCount(UINT32 *Val) {
 VOID SetMultiSlotBootVal() {
 	MultiSlotBoot = TRUE;
 	return;
+}
+
+INT32 GetPartitionIdxInLun(CHAR8 *Pname, UINTN Lun)
+{
+	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
+	UINTN n;
+	UINTN RelativeIndex = 0;
+
+	for (n = 0; n < PartitionCount; n++) {
+		if (Lun == PtnEntries[n].lun) {
+			UnicodeStrToAsciiStr(PtnEntries[n].PartEntry.PartitionName, PartitionNameAscii);
+			if (!AsciiStrnCmp(Pname, PartitionNameAscii, AsciiStrLen(Pname)))
+				return RelativeIndex;
+			RelativeIndex++;
+		}
+	}
+	return INVALID_PTN;
 }
 
 VOID UpdatePartitionEntries()
@@ -85,8 +106,10 @@ VOID UpdatePartitionEntries()
 			PartitionCount++;
 			if (EFI_ERROR(Status)) {
 				DEBUG((EFI_D_VERBOSE, "Selected Lun : %d, handle: %d does not have partition record, ignore\n", i,j));
+				PtnEntries[Index].lun = i;
 				continue;
 			}
+
 			CopyMem((&PtnEntries[Index]), PartEntry, sizeof(PartEntry[0]));
 			PtnEntries[Index].lun = i;
 		}
@@ -212,6 +235,12 @@ void UpdatePartitionAttributes()
 			PtnEntriesPtr = Ptn_Entries;
 
 			for (i = 0;i < PartitionCount;i++) {
+				/*If GUID is not present, then it is BlkIo Handle of the Lun. Skip*/
+				if (!(PtnEntries[i].PartEntry.PartitionTypeGUID.Data1)) {
+					DEBUG((EFI_D_VERBOSE, " Skipping Lun:%d, i=%d\n", Lun, i));
+					continue;
+				}
+
 				/* Partition table is populated with entries from lun 0 to max lun.
 				 * break out of the loop once we see the partition lun is > current lun */
 				if (PtnEntries[i].lun > Lun)
@@ -292,19 +321,19 @@ VOID MarkPtnActive(CHAR8 *ActiveSlot)
 
 STATIC VOID SwapPtnGuid(EFI_PARTITION_ENTRY *p1, EFI_PARTITION_ENTRY *p2)
 {
-	UINT32 Temp[PARTITION_TYPE_GUID_SIZE];
+	EFI_GUID Temp;
 
 	if (p1 == NULL || p2 == NULL)
 		return;
-	CopyMem((VOID *)&Temp, (VOID *)&p1->PartitionTypeGUID, sizeof(p1->PartitionTypeGUID));
-	CopyMem((VOID *)&p1->PartitionTypeGUID, (VOID *)&p2->PartitionTypeGUID, sizeof(p2->PartitionTypeGUID));
-	CopyMem((VOID *)&p2->PartitionTypeGUID, (VOID *)&Temp, sizeof(Temp));
+	CopyMem((VOID *)&Temp, (VOID *)&p1->PartitionTypeGUID, sizeof(EFI_GUID));
+	CopyMem((VOID *)&p1->PartitionTypeGUID, (VOID *)&p2->PartitionTypeGUID, sizeof(EFI_GUID));
+	CopyMem((VOID *)&p2->PartitionTypeGUID, (VOID *)&Temp, sizeof(EFI_GUID));
 }
 
 VOID SwitchPtnSlots(CONST CHAR8 *SetActive)
 {
 	UINT32 i, j;
-	CONST CHAR8 *BootParts[] = { "rpm", "tz", "pmic", "modem", "hyp", "cmnlib", "cmnlib64", "keymaster", "devcfg", "abl", "apdp"};
+	CONST CHAR8 *BootParts[] = { "rpm", "xbl", "tz", "pmic", "modem", "hyp", "cmnlib", "cmnlib64", "keymaster", "devcfg", "abl", "apdp"};
 	UINT32 Sz = ARRAY_SIZE(BootParts);
 	struct PartitionEntry *PtnCurrent = NULL;
 	struct PartitionEntry *PtnNew = NULL;
@@ -319,16 +348,16 @@ VOID SwitchPtnSlots(CONST CHAR8 *SetActive)
 
 	/* Create the partition name string for active and non active slots*/
 	if (!AsciiStrnCmp(SetActive, "_a", 2))
-		AsciiStrnCpy(SetInactive, "_b", MAX_SLOT_SUFFIX_SZ);
+		AsciiStrCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, "_b");
 	else
-		AsciiStrnCpy(SetInactive, "_a", MAX_SLOT_SUFFIX_SZ);
+		AsciiStrCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, "_a");
 
 	for (j = 0; j < Sz; j++) {
-		AsciiStrnCpy(CurSlot, BootParts[j], BOOT_PART_SIZE);
-		AsciiStrnCat(CurSlot, SetInactive, BOOT_PART_SIZE);
+		AsciiStrCpyS(CurSlot, BOOT_PART_SIZE, BootParts[j]);
+		AsciiStrCatS(CurSlot, BOOT_PART_SIZE, SetInactive);
 
-		AsciiStrnCpy(NewSlot, BootParts[j], BOOT_PART_SIZE);
-		AsciiStrnCat(NewSlot, SetActive, BOOT_PART_SIZE);
+		AsciiStrCpyS(NewSlot, BOOT_PART_SIZE, BootParts[j]);
+		AsciiStrCatS(NewSlot, BOOT_PART_SIZE, SetActive);
 
 		/* Find the pointer to partition table entry for active and non-active slots*/
 		for (i = 0; i < PartitionCount; i++) {
@@ -529,8 +558,8 @@ STATIC VOID MarkSlotUnbootable()
 	UINT32 i;
 	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
 	SwitchPtnSlots(CurrentSlot);
-	AsciiStrnCpy(PartName, "boot", MAX_GPT_NAME_SIZE);
-	AsciiStrnCat(PartName, CurrentSlot, MAX_GPT_NAME_SIZE);
+	AsciiStrCpyS(PartName,  MAX_GPT_NAME_SIZE, "boot");
+	AsciiStrCatS(PartName, MAX_GPT_NAME_SIZE, CurrentSlot);
 	for (i = 0; i < PartitionCount; i++) {
 		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
 		if(!AsciiStrnCmp(PartitionNameAscii, PartName, MAX_GPT_NAME_SIZE)) {
@@ -580,10 +609,11 @@ TryNextSlot:
 	 */
 	if (SlotUnbootable)
 		MarkSlotUnbootable();
-	AsciiStrnCpy(BootableSlot, "boot", MAX_GPT_NAME_SIZE);
-	AsciiStrnCat(BootableSlot, CurrentSlot, MAX_GPT_NAME_SIZE);
+	AsciiStrCpyS(BootableSlot, MAX_GPT_NAME_SIZE, "boot");
+	AsciiStrCatS(BootableSlot, MAX_GPT_NAME_SIZE, CurrentSlot);
 
 	UfsGetSetBootLun(&UfsBootLun,UfsGet);
+
 	if (UfsBootLun == 0x1 && !AsciiStrCmp(CurrentSlot, "_a"))
 		DEBUG((EFI_D_INFO,"Booting from slot (%a) , BootableSlot = %a\n",CurrentSlot, BootableSlot));
 	else if (UfsBootLun == 0x2 && !AsciiStrCmp(CurrentSlot, "_b"))
@@ -591,6 +621,7 @@ TryNextSlot:
 	else {
 		DEBUG((EFI_D_ERROR,"Boot lun: %x and Currentslot: %a do not match\n",UfsBootLun, CurrentSlot));
 		*BootableSlot = '\0';
+		return;
 	}
 	Index = GetPartitionIndex(BootableSlot);
 	if (Index == INVALID_PTN) {
@@ -604,7 +635,7 @@ TryNextSlot:
 	} else {
 		/*if retry-count > 0,decrement it, do normal boot*/
 		if((RetryCount = ((PartEntryPtr->PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >> PART_ATT_MAX_RETRY_CNT_BIT))) {
-			PartEntryPtr->PartEntry.Attributes = (PartEntryPtr->PartEntry.Attributes & ~PART_ATT_MAX_RETRY_COUNT_VAL) |(((UINT64)RetryCount-1) << PART_ATT_MAX_RETRY_CNT_BIT);
+			DEBUG((EFI_D_INFO, "Continue booting without decrementing retry count =%d\n", RetryCount));
 		} else {
 			/*else mark slot as unbootable update fields then go for next slot*/
 			PartEntryPtr->PartEntry.Attributes |= PART_ATT_UNBOOTABLE_VAL & ~PART_ATT_ACTIVE_VAL & ~PART_ATT_PRIORITY_VAL;
