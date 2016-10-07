@@ -55,6 +55,7 @@
 #include "UsbDescriptors.h"
 #include "FastbootCmds.h"
 #include "FastbootMain.h"
+#include "BootStats.h"
 
 #define USB_BUFF_SIZE 1024*1024*1
 
@@ -324,6 +325,7 @@ FastbootAppEntryPoint(
   EFI_STATUS                      Status     = EFI_SUCCESS;
 
   DEBUG((EFI_D_INFO, "Fastboot Build Info: %a %a\n", __DATE__, __TIME__));
+  BootStatsSetTimeStamp(BS_BL_START);
 
   /* Start the USB device enumeration */
   Status = FastbootUsbDeviceStart();

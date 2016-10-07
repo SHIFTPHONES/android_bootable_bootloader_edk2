@@ -77,6 +77,7 @@
 #include "BootImage.h"
 #include "BootLinux.h"
 #include "LinuxLoaderLib.h"
+#include "BootStats.h"
 #define BOOT_IMG_LUN 0x4
 
 struct GetVarPartitionInfo part_info[] =
@@ -1490,7 +1491,9 @@ STATIC VOID CmdContinue(
 		return;
 	}
 
+	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
 	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, BootableSlot);
+	BootStatsSetTimeStamp(BS_KERNEL_LOAD_DONE);
 	if (Status != EFI_SUCCESS)
 	{
 		FastbootFail("Failed to Load Image from Partition");
