@@ -43,7 +43,7 @@ void BootStatsSetTimeStamp(BS_ENTRY BootStatId)
 	EFI_STATUS Status;
 	UINT32 BootStatClockCount = 0;
 
-	UINT32 DataSize = sizeof(SharedImemAddress);
+	UINTN DataSize = sizeof(SharedImemAddress);
 
 	if (!SharedImemAddress) {
 		Status = gRT->GetVariable(
