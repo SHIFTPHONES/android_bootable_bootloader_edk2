@@ -114,7 +114,11 @@ GetBlkIOHandles (
 				&gEfiBlockIoProtocolGuid,
 				(VOID **) &BlkIo);
 
-		ASSERT_EFI_ERROR (Status);
+		if (Status != EFI_SUCCESS)
+		{
+			DEBUG((EFI_D_ERROR,"Unable to get Filesystem Handle %r\n", Status));
+			return Status;
+		}
 
 		/* Check if the media type criteria (for removable/not) satisfies */
 		if (BlkIo->Media->RemovableMedia)
@@ -407,7 +411,11 @@ LaunchApp (
       // Argv[1] onwards are strings that we pass directly to the EFI application
       // We don't pass Argv[0] to the EFI Application, just the args
       Status = gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&ImageInfo);
-      ASSERT_EFI_ERROR (Status);
+      if (Status != EFI_SUCCESS)
+      {
+           DEBUG((EFI_D_ERROR,"Image Handle Failed %r\n", Status));
+           return Status;
+      }
 
       if (ImageInfo == NULL)
         return EFI_NOT_FOUND;

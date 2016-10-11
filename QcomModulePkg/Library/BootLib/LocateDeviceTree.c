@@ -392,8 +392,9 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 		Status = BaseMem(&BaseMemory);
 		if (Status != EFI_SUCCESS)
 		{
+			DEBUG((EFI_D_ERROR,"Unable to find Base memory for DDR %r\n", Status));
 			FreePool(dt_entry_queue);
-			ASSERT(0);
+			goto out;
 		}
 
 		RamdiskLoadAddr = BaseMemory | PcdGet32(RamdiskLoadAddress);
