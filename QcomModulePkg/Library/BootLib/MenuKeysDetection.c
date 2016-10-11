@@ -149,7 +149,7 @@ STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, INTN Reason)
 		RebootDevice(NORMAL_MODE);
 		break;
 	case POWEROFF:
-		ShutdownUefiBootServices();
+		ShutdownDevice();
 		break;
 	case FASTBOOT:
 		RebootDevice(FASTBOOT_MODE);
