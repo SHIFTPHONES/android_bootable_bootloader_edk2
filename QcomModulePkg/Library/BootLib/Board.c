@@ -65,14 +65,10 @@ STATIC CONST CHAR8 *HWPlatformName[] = {
 	[EFI_PLATFORMINFO_TYPE_RRP]         = "RRP",
 };
 
-EFI_STATUS BaseMem(UINTN *BaseMemory)
-{
+EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartitions) {
+
 	EFI_STATUS Status = EFI_NOT_FOUND;
 	EFI_RAMPARTITION_PROTOCOL *pRamPartProtocol = NULL;
-	RamPartitionEntry *RamPartitions = NULL;
-	UINT32 NumPartitions = 0;
-	UINTN SmallestBase;
-	UINT32 i = 0;
 
 	Status = gBS->LocateProtocol(&gEfiRamPartitionProtocolGuid, NULL, (VOID**)&pRamPartProtocol);
 	if (EFI_ERROR(Status) || (&pRamPartProtocol == NULL))
@@ -80,20 +76,42 @@ EFI_STATUS BaseMem(UINTN *BaseMemory)
 		DEBUG((EFI_D_ERROR, "Locate EFI_RAMPARTITION_Protocol failed, Status =  (0x%x)\r\n", Status));
 		return EFI_NOT_FOUND;
 	}
-
-	Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, NULL, &NumPartitions);
+	Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, NULL, NumPartitions);
 	if (Status == EFI_BUFFER_TOO_SMALL)
 	{
-		RamPartitions = AllocatePool (NumPartitions * sizeof (RamPartitionEntry));
+		*RamPartitions = AllocatePool (*NumPartitions * sizeof (RamPartitionEntry));
 		if (RamPartitions == NULL)
 			return EFI_OUT_OF_RESOURCES;
 
-		Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, RamPartitions, &NumPartitions);
-		if (EFI_ERROR (Status) || (NumPartitions < 1) )
+		Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, *RamPartitions, NumPartitions);
+		if (EFI_ERROR (Status) || (*NumPartitions < 1) )
 		{
 			DEBUG((EFI_D_ERROR, "Failed to get RAM partitions"));
 			return EFI_NOT_FOUND;
 		}
+	} else {
+		DEBUG((EFI_D_ERROR, "Error Occured while populating RamPartitions\n"));
+		return EFI_PROTOCOL_ERROR;
+	}
+	return Status;
+}
+
+EFI_STATUS BaseMem(UINTN *BaseMemory)
+{
+	EFI_STATUS Status = EFI_NOT_FOUND;
+	RamPartitionEntry *RamPartitions = NULL;
+	UINT32 NumPartitions = 0;
+	UINTN SmallestBase;
+	UINT32 i = 0;
+
+	Status = GetRamPartitions(&RamPartitions, &NumPartitions);
+	if (EFI_ERROR (Status)) {
+		DEBUG((EFI_D_ERROR, "Error returned from GetRamPartitions %r\n",Status));
+		return Status;
+	}
+	if (!RamPartitions) {
+		DEBUG((EFI_D_ERROR, "RamPartitions is NULL\n"));
+		return EFI_NOT_FOUND;
 	}
 	SmallestBase = RamPartitions[0].Base;
 	for (i = 0; i < NumPartitions; i++)
@@ -103,8 +121,9 @@ EFI_STATUS BaseMem(UINTN *BaseMemory)
 	}
 	*BaseMemory = SmallestBase;
 	DEBUG((EFI_D_INFO, "Memory Base Address: 0x%x\n", *BaseMemory));
+	FreePool(RamPartitions);
 
-	return EFI_SUCCESS;
+	return Status;
 }
 
 STATIC EFI_STATUS GetChipInfo(struct BoardInfo *platform_board_info)

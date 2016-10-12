@@ -175,31 +175,18 @@ EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 {
 	EFI_STATUS Status = EFI_NOT_FOUND;
 	INTN ret = 0;
-	EFI_RAMPARTITION_PROTOCOL *pRamPartProtocol = NULL;
 	RamPartitionEntry *RamPartitions = NULL;
 	UINT32 NumPartitions = 0;
 	UINT32 i = 0;
 
-	Status = gBS->LocateProtocol(&gEfiRamPartitionProtocolGuid, NULL, (VOID**)&pRamPartProtocol);
-	if (EFI_ERROR(Status) || (&pRamPartProtocol == NULL))
-	{
-		DEBUG((EFI_D_ERROR, "Locate EFI_RAMPARTITION_Protocol failed, Status =  (0x%x)\r\n", Status));
-		return EFI_NOT_FOUND;
+	Status = GetRamPartitions(&RamPartitions, &NumPartitions);
+	if (EFI_ERROR (Status)) {
+		DEBUG((EFI_D_ERROR, "Error returned from GetRamPartitions %r\n",Status));
+		return Status;
 	}
-
-	Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, NULL, &NumPartitions);
-	if (Status == EFI_BUFFER_TOO_SMALL)
-	{
-		RamPartitions = AllocatePool (NumPartitions * sizeof (RamPartitionEntry));
-		if (RamPartitions == NULL)
-			return EFI_OUT_OF_RESOURCES;
-
-		Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, RamPartitions, &NumPartitions);
-		if (EFI_ERROR (Status) || (NumPartitions < 1) )
-		{
-			DEBUG((EFI_D_ERROR, "Failed to get RAM partitions"));
-			return EFI_NOT_FOUND;
-		}
+	if (!RamPartitions) {
+		DEBUG((EFI_D_ERROR, "RamPartitions is NULL\n"));
+		return EFI_NOT_FOUND;
 	}
 
 	DEBUG ((EFI_D_INFO, "RAM Partitions\r\n"));
@@ -212,6 +199,7 @@ EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 			DEBUG((EFI_D_ERROR, "Failed to add Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
 		}
 	}
+	FreePool(RamPartitions);
 
 	return EFI_SUCCESS;
 }
