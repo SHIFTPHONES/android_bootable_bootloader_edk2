@@ -150,6 +150,7 @@ GetBlkIOHandles (
 UINT32 GetTimerCountms (VOID);
 EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
 BOOLEAN IsSecureBootEnabled();
+EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR8 *Pname);
 #if VERIFIED_BOOT
 EFI_STATUS ResetDeviceState();
 #else

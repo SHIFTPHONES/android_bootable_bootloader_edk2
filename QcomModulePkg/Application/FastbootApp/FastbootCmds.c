@@ -1375,41 +1375,17 @@ STATIC VOID CmdReboot(
 }
 
 STATIC VOID CmdContinue(
-	IN CONST CHAR8 *arg,
-	IN VOID *data,
-	IN UINT32 sz
+	IN CONST CHAR8 *Arg,
+	IN VOID *Data,
+	IN UINT32 Size
 	)
 {
-	EFI_STATUS Status;
-	VOID* ImageBuffer;
-	VOID* ImageHdrBuffer;
-	UINT32 ImageHdrSize = BOOT_IMG_PAGE_SZ; //Boot/recovery header is 4096 bytes
-	UINT32 ImageSize;
-
-	STATIC UINT32 KernelSizeActual;
-	STATIC UINT32 DtSizeActual;
-	STATIC UINT32 RamdiskSizeActual;
-	STATIC UINT32 ImageSizeActual;
-
-	// Boot Image header information variables
-	STATIC UINT32 KernelSize;
-	STATIC VOID* KernelLoadAddr;
-	STATIC UINT32 RamdiskSize;
-	STATIC VOID* RamdiskLoadAddr;
-	STATIC VOID* DeviceTreeLoadAddr = 0;
-	STATIC UINT32 PageSize = 0;
-	STATIC UINT32 DeviceTreeSize = 0;
-	STATIC UINT32 tempImgSize = 0;
+	EFI_STATUS Status = EFI_SUCCESS;
+	VOID* ImageBuffer = NULL;
+	UINT32 ImageSizeActual = 0;
 	CHAR8 BootableSlot[MAX_GPT_NAME_SIZE];
+	CHAR8 Resp[MAX_RSP_SIZE];
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
-
-	ImageHdrBuffer = AllocatePages(ImageHdrSize / 4096);
-	if (!ImageHdrBuffer)
-	{
-		DEBUG ((EFI_D_ERROR, "Fastboot: Failed to allocate for Boot image Hdr: %r\n", Status));
-		FastbootFail("Fastboot: Failed to allocate memory for Boot image Hdr");
-		return;
-	}
 
 	if (MultiSlotBoot)
 	{
@@ -1420,107 +1396,13 @@ STATIC VOID CmdContinue(
 		AsciiStrnCpyS(BootableSlot, MAX_GPT_NAME_SIZE, "boot", MAX_GPT_NAME_SIZE);
 	}
 
-	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, BootableSlot);
+	Status = LoadImage(BootableSlot, (VOID**)&ImageBuffer, &ImageSizeActual);
 	if (Status != EFI_SUCCESS)
 	{
-		FastbootFail("Failed to Load Image Header from Partition");
+		AsciiSPrint(Resp, sizeof(Resp), "Failed to load image from partition: %r", Status);
+		FastbootFail(Resp);
 		return;
 	}
-	//Add check for boot image header and kernel page size
-	//ensure kernel command line is terminated
-	if(CompareMem((void *)((boot_img_hdr*)(ImageHdrBuffer))->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE))
-	{
-		FastbootFail("Invalid boot image header\n");
-		return;
-	}
-
-	KernelSize = ((boot_img_hdr*)(ImageHdrBuffer))->kernel_size;
-	RamdiskSize = ((boot_img_hdr*)(ImageHdrBuffer))->ramdisk_size;
-	PageSize = ((boot_img_hdr*)(ImageHdrBuffer))->page_size;
-	DeviceTreeSize = ((boot_img_hdr*)(ImageHdrBuffer))->dt_size;
-
-	if (!KernelSize || !RamdiskSize || !PageSize)
-	{
-		DEBUG((EFI_D_ERROR, "Invalid image Sizes\n"));
-		DEBUG((EFI_D_ERROR, "KernelSize: %u,  RamdiskSize=%u\nPageSize=%u, DeviceTreeSize=%u\n", KernelSize, RamdiskSize, PageSize, DeviceTreeSize));
-		return;
-	}
-
-	KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
-	if (!KernelSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Kernel Size = %u\n", KernelSize));
-		return;
-	}
-	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
-	if (!RamdiskSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Ramdisk Size = %u\n", RamdiskSize));
-		return;
-	}
-
-	DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, PageSize - 1);
-	if (DeviceTreeSize && !(DtSizeActual))
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Device Tree = %u\n", DeviceTreeSize));
-		return;
-	}
-
-	ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
-	if (!ImageSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Actual Kernel size = %u\n", KernelSizeActual));
-		return;
-	}
-
-	tempImgSize = ImageSizeActual;
-	ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
-	if (!ImageSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, RamdiskActual=%u\n",tempImgSize, RamdiskSizeActual));
-		return;
-	}
-
-	tempImgSize = ImageSizeActual;
-	ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
-	if (!ImageSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, DtSizeActual=%u\n", tempImgSize, DtSizeActual));
-		return;
-	}
-
-	tempImgSize = ImageSizeActual;
-	ImageSize = ADD_OF(ROUND_TO_PAGE(ImageSizeActual, PageSize - 1), PageSize);
-	if (!ImageSize)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSize=%u\n", tempImgSize));
-		return;
-	}
-
-	ImageBuffer = AllocatePages (ImageSize / 4096);
-	if (!ImageBuffer)
-	{
-		DEBUG((EFI_D_ERROR, "No resources available for ImageBuffer\n"));
-		return;
-	}
-
-	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
-	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, BootableSlot);
-	BootStatsSetTimeStamp(BS_KERNEL_LOAD_DONE);
-	if (Status != EFI_SUCCESS)
-	{
-		FastbootFail("Failed to Load Image from Partition");
-		return;
-	}
-
-	DEBUG((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
-	DEBUG((EFI_D_VERBOSE, "Kernel Size 1: 0x%x\n", KernelSize));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Size : 0x%x\n", DeviceTreeSize));
-	DEBUG((EFI_D_VERBOSE, "Ramdisk Size: 0x%x\n", RamdiskSize));
-	DEBUG((EFI_D_VERBOSE, "Kernel Load Address 1 : 0x%p\n", KernelLoadAddr));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Load Address : 0x%p\n", DeviceTreeLoadAddr));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Size : 0x%x\n", DeviceTreeSize));
-	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr: 0x%x\n", RamdiskLoadAddr));
 
 	/* Exit keys' detection firstly */
 	ExitMenuKeysDetection();
@@ -1605,56 +1487,47 @@ STATIC VOID CmdGetVar(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	FastbootFail("GetVar Variable Not found");
 }
 
-STATIC VOID CmdBoot(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
-    struct boot_img_hdr *hdr = (struct boot_img_hdr *) data;
-    UINT32 KernelSizeActual;
-    UINT32 DtSizeActual;
-    UINT32 RamdiskSizeActual;
-    UINT32 ImageSizeActual;
-    UINT32 SigActual = SIGACTUAL;
+	struct boot_img_hdr *hdr = (struct boot_img_hdr *) Data;
+	EFI_STATUS Status = EFI_SUCCESS;
+	UINT32 ImageSizeActual = 0;
+	UINT32 PageSize = 0;
+	UINT32 SigActual = SIGACTUAL;
+	CHAR8 Resp[MAX_RSP_SIZE];
 
-    // Boot Image header information variables
-    UINT32 KernelSize;
-    UINT32 RamdiskSize;
-    UINT32 PageSize;
-    UINT32 DeviceTreeSize;
+	if (Size < sizeof(struct boot_img_hdr))
+	{
+		FastbootFail("Invalid Boot image Header");
+		return;
+	}
 
-    if (sz < sizeof(struct boot_img_hdr))
-    {
-        FastbootFail("Invalid Boot image Header");
-        return;
-    }
-    hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
+	hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
+	Status = CheckImageHeader(Data, &ImageSizeActual, &PageSize);
+	if (Status != EFI_SUCCESS)
+	{
+		AsciiSPrint(Resp, sizeof(Resp), "Invalid Boot image Header: %r", Status);
+		FastbootFail(Resp);
+		return;
+	}
 
-    KernelSize = ((boot_img_hdr*)(data))->kernel_size;
-    RamdiskSize = ((boot_img_hdr*)(data))->ramdisk_size;
-    PageSize = ((boot_img_hdr*)(data))->page_size;
-    DeviceTreeSize = ((boot_img_hdr*)(data))->dt_size;
-    KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
-    RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
-    DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, PageSize - 1);
-    ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
-    ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
-    ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
+	if (ImageSizeActual > Size)
+	{
+		FastbootFail("BootImage is Incomplete");
+		return;
+	}
+	if ((MAX_DOWNLOAD_SIZE - (ImageSizeActual - SigActual)) < PageSize)
+	{
+		FastbootFail("BootImage: Size os greater than boot image buffer can hold");
+		return;
+	}
 
-    if (ImageSizeActual > sz)
-    {
-        FastbootFail("BootImage is Incomplete");
-        return;
-    }
-    if ((MAX_DOWNLOAD_SIZE - (ImageSizeActual - SigActual)) < PageSize)
-    {
-        FastbootFail("BootImage: Size os greater than boot image buffer can hold");
-        return;
-    }
+	/* Exit keys' detection firstly */
+	ExitMenuKeysDetection();
 
-    /* Exit keys' detection firstly */
-    ExitMenuKeysDetection();
-
-    FastbootOkay("");
-    FastbootUsbDeviceStop();
-    BootLinux(data, ImageSizeActual, &FbDevInfo, "boot", FALSE);
+	FastbootOkay("");
+	FastbootUsbDeviceStop();
+	BootLinux(Data, ImageSizeActual, &FbDevInfo, "boot", FALSE);
 }
 
 STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
