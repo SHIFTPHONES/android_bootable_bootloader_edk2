@@ -137,7 +137,10 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	// Retrive Base Memory Address from Ram Partition Table
 	Status = BaseMem(&BaseMemory);
 	if (Status != EFI_SUCCESS)
-		ASSERT(0);
+	{
+		DEBUG((EFI_D_ERROR, "Base memory not found!!! Status:%r\n", Status));
+		return Status;
+	}
 
 	// These three regions should be reserved in memory map.
 	KernelLoadAddr = (VOID *)(EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress));
@@ -149,7 +152,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		// compressed kernel
 		out_avai_len = DeviceTreeLoadAddr - KernelLoadAddr;
 
-		DEBUG((EFI_D_INFO, "decompressing kernel image start: %u ms\n", GetTimerCountms()));
+		DEBUG((EFI_D_INFO, "Decompressing kernel image start: %u ms\n", GetTimerCountms()));
 		Status = decompress(
 				(unsigned char *)(ImageBuffer + PageSize), //Read blob using BlockIo
 				KernelSize,                                 //Blob size
@@ -159,11 +162,11 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 
 		if (Status != EFI_SUCCESS)
 		{
-			DEBUG((EFI_D_ERROR, "decompressing kernel image failed!!!\n"));
-			ASSERT(0);
+			DEBUG((EFI_D_ERROR, "Decompressing kernel image failed!!! Status=%r\n", Status));
+			return Status;
 		}
 
-		DEBUG((EFI_D_INFO, "decompressing kernel image done: %u ms\n", GetTimerCountms()));
+		DEBUG((EFI_D_INFO, "Decompressing kernel image done: %u ms\n", GetTimerCountms()));
 	}
 
 	/*Finds out the location of device tree image and ramdisk image within the boot image
@@ -187,29 +190,40 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	Status = BoardInit();
 	if (Status != EFI_SUCCESS)
 	{
-		DEBUG((EFI_D_ERROR, "Error finding board information: %x\n", Status));
-		ASSERT(0);
+		DEBUG((EFI_D_ERROR, "Error finding board information: %r\n", Status));
+		return Status;
 	}
 
 	/*Updates the command line from boot image, appends device serial no., baseband information, etc
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
+
 	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, DevInfo, Recovery);
+	if (!Final_CmdLine)
+	{
+		DEBUG((EFI_D_ERROR, "Error updating cmdline. Device Error\n"));
+		return EFI_DEVICE_ERROR;
+	}
 
 	// appended device tree
 	void *dtb;
 	dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
 	if (!dtb) {
 		DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
-		ASSERT(0);
+		return EFI_NOT_FOUND;
 	}
 
-	UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , (CHAR8*)Final_CmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
+	Status = UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , (CHAR8*)Final_CmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Device Tree update failed Status:%r\n", Status));
+		return Status;
+	}
 
 	RamdiskEndAddr = BaseMemory | PcdGet32(RamdiskEndAddress);
 	if (RamdiskEndAddr - RamdiskLoadAddr < RamdiskSize){
 		DEBUG((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
-		ASSERT(0);
+		return EFI_BAD_BUFFER_SIZE;
 	}
 	CopyMem (RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
 
@@ -218,8 +232,8 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		Status = UpdatePartialGoodsNode((VOID*)DeviceTreeLoadAddr);
 		if (Status != EFI_SUCCESS)
 		{
-			DEBUG((EFI_D_ERROR, "Failed to update device tree for partial goods, Status=%x\n", Status));
-			ASSERT(0);
+			DEBUG((EFI_D_ERROR, "Failed to update device tree for partial goods, Status=%r\n", Status));
+			return Status;
 		}
 	}
 
@@ -242,7 +256,11 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	}
 
 	Status = PreparePlatformHardware ();
-	ASSERT_EFI_ERROR(Status);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR,"ERROR: Prepare Hardware Failed. Status:%r\n", Status));
+		goto Exit;
+	}
 
 	BootStatsSetTimeStamp(BS_KERNEL_ENTRY);
 	//
@@ -253,11 +271,10 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 
 	// Kernel should never exit
 	// After Life services are not provided
-	ASSERT(FALSE);
 
 Exit:
 	// Only be here if we fail to start Linux
-	ASSERT(0);
+	return EFI_NOT_STARTED;
 }
 
 STATIC BOOLEAN VerifiedBootEnbled()

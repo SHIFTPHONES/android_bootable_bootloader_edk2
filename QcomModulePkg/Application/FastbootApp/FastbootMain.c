@@ -184,7 +184,7 @@ FastbootUsbDeviceStart(VOID)
      return EFI_OUT_OF_RESOURCES;
   }
 
-  DEBUG((EFI_D_ERROR, "fastboot: processing commands\n"));
+  DEBUG((EFI_D_INFO, "Fastboot: Processing commands\n"));
 
   return Status;
 }
@@ -197,9 +197,18 @@ FastbootUsbDeviceStop( VOID )
 
   /* Free the Rx & Tx Buffers */
   Status = Fbd.UsbDeviceProtocol->FreeTransferBuffer(Fbd.gTxBuffer);
-  ASSERT(!EFI_ERROR(Status));
+  if (EFI_ERROR(Status))
+  {
+      DEBUG((EFI_D_ERROR, "Fastboot USB: Unable to free Tx Buffer\n"));
+      return Status;
+  }
   Status = Fbd.UsbDeviceProtocol->FreeTransferBuffer(Fbd.gRxBuffer);
-  ASSERT(!EFI_ERROR(Status));
+  if (EFI_ERROR(Status))
+  {
+      DEBUG((EFI_D_ERROR, "Fastboot USB: Unable to free Rx Buffer\n"));
+      return Status;
+  }
+
   return Status;
 }
 

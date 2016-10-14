@@ -297,7 +297,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, 
 	if ((DevInfo.verity_mode != 0) && (DevInfo.verity_mode != 1))
 	{
 		DEBUG((EFI_D_ERROR, "Devinfo partition possibly corrupted!!!. Please erase devinfo partition to continue booting.\n"));
-		ASSERT(0);
+		return NULL;
 	}
 	cmdline_len += AsciiStrLen(verity_mode) + AsciiStrLen(vbvm[DevInfo.verity_mode].name);
 #endif
@@ -365,6 +365,8 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, 
 		case BASEBAND_DSDA2:
 			cmdline_len += AsciiStrLen(baseband_dsda2);
 			break;
+		default:
+			return NULL;
 	}
 	MultiSlotBoot = PartitionHasMultiSlot("boot");
 	if(MultiSlotBoot) {
@@ -391,7 +393,12 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, 
 
 		CHAR8* dst;
 		dst = AllocatePool (cmdline_len + 4);
-		ASSERT(dst != NULL);
+		if (!dst)
+		{
+			DEBUG((EFI_D_ERROR, "CMDLINE: Failed to allocate destination buffer\n"));
+			return NULL;
+		}
+
 		SetMem(dst, cmdline_len + 4, 0x0);
 
 		/* Save start ptr for debug print */
@@ -500,6 +507,8 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, 
 				if (have_cmdline) --dst;
 				STR_COPY(dst,src);
 				break;
+			default:
+				return NULL;
 		}
 
 		src = display_cmdline;

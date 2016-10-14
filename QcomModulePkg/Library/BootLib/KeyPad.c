@@ -45,7 +45,12 @@ EFI_STATUS GetKeyPress(UINT32 *KeyPressed)
 			NULL,
 			EFI_OPEN_PROTOCOL_GET_PROTOCOL
 			);
-	ASSERT_EFI_ERROR (Status);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR,"Input Open protocol failed Status:%r \n", Status));
+		return Status;
+	}
+
 	SetMem(&KeyData, sizeof(KeyData), 0);
 
 	Status = InputEx->ReadKeyStrokeEx (InputEx, &KeyData);

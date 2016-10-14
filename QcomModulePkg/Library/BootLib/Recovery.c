@@ -46,7 +46,7 @@ STATIC EFI_STATUS ReadFromPartition(EFI_GUID *Ptype, VOID **Msg)
 	HandleFilter.PartitionType = Ptype;
 	HandleFilter.VolumeName = 0;
 
-	MaxHandles = sizeof(HandleInfoList)/sizeof(*HandleInfoList);
+	MaxHandles = ARRAY_SIZE(HandleInfoList);
 
 	Status = GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
 
@@ -66,7 +66,12 @@ STATIC EFI_STATUS ReadFromPartition(EFI_GUID *Ptype, VOID **Msg)
 	BlkIo = HandleInfoList[0].BlkIo;
 
 	*Msg = AllocatePool(BlkIo->Media->BlockSize);
-	ASSERT(*Msg);
+	if (!(*Msg))
+	{
+		DEBUG((EFI_D_ERROR, "Error allocating memory for reading from Partition\n"));
+		return EFI_OUT_OF_RESOURCES;
+	}
+
 	Status = BlkIo->ReadBlocks(BlkIo, BlkIo->Media->MediaId, 0, BlkIo->Media->BlockSize, *Msg);
 
 	if(Status != EFI_SUCCESS)
