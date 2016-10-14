@@ -187,6 +187,70 @@ UINT32 target_pause_for_battery_charge(VOID)
 		return 0;
 }
 
+/**
+  Check battery status
+  @param[out] BatteryPresent  The pointer to battry's presence status.
+  @param[out] ChargerPresent  The pointer to battry's charger status.
+  @param[out] BatteryVoltage  The pointer to battry's voltage.
+  @retval     EFI_SUCCESS     Check battery status successfully.
+  @retval     other           Failed to check battery status.
+**/
+STATIC EFI_STATUS TargetCheckBatteryStatus(BOOLEAN *BatteryPresent, BOOLEAN *ChargerPresent,
+	UINT32 *BatteryVoltage)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	EFI_QCOM_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
+
+	Status = gBS->LocateProtocol(&gQcomChargerExProtocolGuid, NULL, (void **) &ChgDetectProtocol);
+	if (EFI_ERROR(Status) || (NULL == ChgDetectProtocol))
+	{
+		DEBUG((EFI_D_ERROR, "Error locating charger detect protocol\n"));
+		return EFI_PROTOCOL_ERROR;
+	}
+
+	Status = ChgDetectProtocol->GetBatteryPresence(BatteryPresent);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error getting battery presence: %r\n", Status));
+		return Status;
+	}
+
+	Status = ChgDetectProtocol->GetBatteryVoltage(BatteryVoltage);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error getting battery voltage: %r\n", Status));
+		return Status;
+	}
+
+	Status = ChgDetectProtocol->GetChargerPresence(ChargerPresent);
+	if (EFI_ERROR(Status))
+	{
+		DEBUG((EFI_D_ERROR, "Error getting charger presence: %r\n", Status));
+		return Status;
+	}
+
+	return Status;
+}
+
+/**
+   Add safeguards such as refusing to flash if the battery levels is lower than the min voltage
+   or bypass if the battery is not present.
+   @param[out] BatteryVoltage  The pointer to battry's voltage.
+   @retval     BOOLEAN         The value whether the device is allowed to flash image.
+ **/
+BOOLEAN TargetBatterySocOk(UINT32  *BatteryVoltage)
+{
+	EFI_STATUS  BatteryStatus;
+	BOOLEAN BatteryPresent = FALSE;
+	BOOLEAN ChargerPresent = FALSE;
+
+	BatteryStatus = TargetCheckBatteryStatus(&BatteryPresent, &ChargerPresent, BatteryVoltage);
+	if ((BatteryStatus == EFI_SUCCESS) && (!BatteryPresent || (BatteryPresent && (BatteryVoltage > BATT_MIN_VOLT))))
+		return TRUE;
+
+	return FALSE;
+}
+
 VOID GetDisplayCmdline()
 {
 	EFI_STATUS Status;
