@@ -56,7 +56,7 @@ VOID PrintSplashMemInfo(CHAR8 *data, INTN datalen)
 
 EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 {
-	EFI_STATUS Status = 0;
+	EFI_STATUS Status;
 	CONST struct fdt_property *Prop = NULL;
 	INTN PropLen = 0;
 	INTN ret = 0;
@@ -86,7 +86,7 @@ EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 	if (ret < 0)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Could not get splash memory region node\n"));
-		return ret;
+		return EFI_NOT_FOUND;
 	}
 	offset = ret;
 	DEBUG ((EFI_D_VERBOSE, "FB mem node name: %a\n", fdt_get_name(fdt, offset, NULL)));
@@ -96,7 +96,7 @@ EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 	if (!Prop)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Could not find the splash reg property\n"));
-		return PropLen;
+		return EFI_NOT_FOUND;
 	}
 
 	/*
@@ -129,7 +129,7 @@ EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 	if (ret < 0)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Could not update splash mem info\n"));
-		return ret;
+		return EFI_NO_MAPPING;
 	}
 
 	DEBUG ((EFI_D_VERBOSE, "Splash memory region after updating:\n"));
@@ -214,8 +214,7 @@ EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 		}
 	}
 
-	//TODO: Add more sanity checks to these values
-	DEBUG ((EFI_D_WARN, "RAM Partitions\r\n"));
+	DEBUG ((EFI_D_INFO, "RAM Partitions\r\n"));
 	for (i = 0; i < NumPartitions; i++)
 	{
 		DEBUG((EFI_D_INFO, "Adding Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
@@ -231,21 +230,16 @@ EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 
 /* Supporting function of UpdateDeviceTree()
  * Function first gets the RAM partition table, then passes the pointer to AddMemMap() */
-INTN target_dev_tree_mem(VOID *fdt, UINT32 memory_node_offset)
+EFI_STATUS target_dev_tree_mem(VOID *fdt, UINT32 memory_node_offset)
 {
 	EFI_STATUS Status;
 
 	/* Get Available memory from partition table */
 	Status = AddMemMap(fdt, memory_node_offset);
 	if (EFI_ERROR(Status))
-	{
-		DEBUG ((EFI_D_ERROR, "Invalid memory configuration, check memory partition table\n"));
-		ASSERT (Status == EFI_SUCCESS);
-		CpuDeadLoop();
-		return 1; /* For KW */
-	}
+		DEBUG ((EFI_D_ERROR, "Invalid memory configuration, check memory partition table: %r\n", Status));
 
-	return 0;
+	return Status;
 }
 
 /* Supporting function of target_dev_tree_mem()
@@ -319,13 +313,14 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 {
 	INTN ret = 0;
 	UINT32 offset;
+	EFI_STATUS Status;
 
 	/* Check the device tree header */
 	ret = fdt_check_header(fdt)|| fdt_check_header_ext(fdt);
 	if (ret)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Invalid device tree header ...\n"));
-		return ret;
+		return EFI_NOT_FOUND;
 	}
 
 	/* Add padding to make space for new nodes and properties. */
@@ -333,7 +328,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	if (ret!= 0)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Failed to move/resize dtb buffer ...\n"));
-		return ret;
+		return EFI_BAD_BUFFER_SIZE;
 	}
 
 	/* Get offset of the memory node */
@@ -341,15 +336,15 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	if (ret < 0)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Could not find memory node ...\n"));
-		return ret;
+		return EFI_NOT_FOUND;
 	}
 
 	offset = ret;
-	ret = target_dev_tree_mem(fdt, offset);
-	if(ret)
+	Status= target_dev_tree_mem(fdt, offset);
+	if (Status != EFI_SUCCESS)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Cannot update memory node\n"));
-		return ret;
+		return Status;
 	}
 
 	UpdateSplashMemInfo(fdt);
@@ -359,7 +354,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	if (ret < 0)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Could not find chosen node ...\n"));
-		return ret;
+		return EFI_NOT_FOUND;
 	}
 
 	offset = ret;
@@ -369,8 +364,8 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 		ret = fdt_appendprop_string(fdt, offset, (CONST char*)"bootargs", (CONST VOID*)cmdline);
 		if (ret)
 		{
-			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [bootargs] ...\n"));
-			return ret;
+			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [bootargs] - 0x%x\n", ret));
+			return EFI_LOAD_ERROR;
 		}
 	}
 
@@ -380,16 +375,16 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-start", (UINTN) ramdisk);
 		if (ret)
 		{
-			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [linux,initrd-start] ...\n"));
-			return ret;
+			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [linux,initrd-start] - 0x%x\n", ret));
+			return EFI_NOT_FOUND;
 		}
 
 		/* Adding the initrd-end to the chosen node */
 		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-end", ((UINTN)ramdisk + ramdisk_size));
 		if (ret)
 		{
-			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [linux,initrd-end] ...\n"));
-			return ret;
+			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [linux,initrd-end] - 0x%x\n", ret));
+			return EFI_NOT_FOUND;
 		}
 	}
 	fdt_pack(fdt);

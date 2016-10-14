@@ -1296,7 +1296,7 @@ FastbootCmdsInit (VOID)
 	mDataBuffer = NULL;
   
 	/* Initialize the Fastboot Platform Protocol */
-	DEBUG((EFI_D_ERROR, "fastboot: init\n"));
+	DEBUG((EFI_D_INFO, "Fastboot: Initializing...\n"));
 	Status = FastbootInit();
 	if (EFI_ERROR (Status))
 	{
@@ -1311,8 +1311,7 @@ FastbootCmdsInit (VOID)
 		DEBUG ((EFI_D_ERROR, "Fastboot: Couldn't disable watchdog timer: %r\n", Status));
 	}
 
-  // Create event to pass to FASTBOOT_PROTOCOL.Send, signalling a
-  // fatal error
+	/* Create event to pass to FASTBOOT_PROTOCOL.Send, signalling a fatal error */
 	Status = gBS->CreateEvent (
 					EVT_NOTIFY_SIGNAL,
 					TPL_CALLBACK,
@@ -1320,14 +1319,18 @@ FastbootCmdsInit (VOID)
 					NULL,
 					&mFatalSendErrorEvent
 					);
-	ASSERT_EFI_ERROR (Status);
+	if (EFI_ERROR (Status))
+	{
+		DEBUG ((EFI_D_ERROR, "Couldn't create Fastboot protocol send event: %r\n", Status));
+		return Status;
+	}
 
 	/* Allocate buffer used to store images passed by the download command */
 	Status = GetFastbootDeviceData().UsbDeviceProtocol->AllocateTransferBuffer(MAX_BUFFER_SIZE, (VOID**) &FastBootBuffer);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Not enough memory to Allocate Fastboot Buffer"));
-		ASSERT(FALSE);
+		return Status;
 	}
 
 	FastbootCommandSetup( (void*) FastBootBuffer, MAX_BUFFER_SIZE);
@@ -1397,7 +1400,13 @@ STATIC VOID CmdContinue(
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot("boot");
 
 	ImageHdrBuffer = AllocatePages(ImageHdrSize / 4096);
-	ASSERT(ImageHdrBuffer);
+	if (!ImageHdrBuffer)
+	{
+		DEBUG ((EFI_D_ERROR, "Fastboot: Failed to allocate for Boot image Hdr: %r\n", Status));
+		FastbootFail("Fastboot: Failed to allocate memory for Boot image Hdr");
+		return;
+	}
+
 	if (MultiSlotBoot)
 	{
 		FindBootableSlot(BootableSlot);
@@ -1838,7 +1847,11 @@ STATIC EFI_STATUS ReadAllowUnlockValue(UINT32 *IsAllowUnlock)
 		return EFI_NOT_FOUND;
 
 	Buffer = AllocatePool(BlockIo->Media->BlockSize);
-	ASSERT(Buffer);
+	if (!Buffer)
+	{
+		DEBUG((EFI_D_ERROR, "Failed to allocate memory for unlock value \n"));
+		return EFI_OUT_OF_RESOURCES;
+	}
 	Status = BlockIo->ReadBlocks(BlockIo, BlockIo->Media->MediaId, 0, BlockIo->Media->BlockSize, Buffer);
 	if (Status != EFI_SUCCESS)
 		return Status;
