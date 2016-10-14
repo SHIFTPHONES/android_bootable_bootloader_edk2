@@ -250,6 +250,15 @@ GetBlkIOHandles (
 	return EFI_SUCCESS;
 }
 
+VOID ToLower(CHAR8 *Str)
+{
+	UINT32 Index;
+	for (Index = 0; Str[Index] != '\0'; Index++) {
+		if (Str[Index] >= 'A' && Str[Index] <= 'Z')
+			Str[Index] += ('a' - 'A');
+	}
+}
+
 EFI_STATUS GetPartitionSize(UINT32 *ImageSize, EFI_GUID *PartitionType)
 {
 	EFI_STATUS                   Status;

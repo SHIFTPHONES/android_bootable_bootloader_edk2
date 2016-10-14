@@ -147,6 +147,7 @@ GetBlkIOHandles (
                   IN OUT  UINT32*                  MaxBlkIopCnt
                  );
 
+VOID ToLower(CHAR8 *Str);
 UINT32 GetTimerCountms (VOID);
 EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
 BOOLEAN IsSecureBootEnabled();
