@@ -78,6 +78,7 @@ UINT32 target_pause_for_battery_charge(VOID);
 /*Determine correct androidboot.baseband to use*/
 UINT32 target_baseband(VOID);
 
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, BOOLEAN Recovery);
+UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo, BOOLEAN Recovery);
 BOOLEAN TargetBatterySocOk();
+
 #endif
