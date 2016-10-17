@@ -293,14 +293,14 @@ BuildDefaultDescriptors(
   NumCfgSS   = SSDeviceDescriptor.NumConfigurations;
 
   *Descriptors = AllocatePool(NumCfg * sizeof (struct _CfgDescTree *));
-  if (Descriptors == NULL)
+  if (*Descriptors == NULL)
   {
     DEBUG ((EFI_D_ERROR, "Error Allocating memory for HS config descriptors\n"));
     return;
   }
 
   *SSDescriptors = AllocatePool(NumCfg * sizeof (struct _SSCfgDescTree *));
-  if (SSDescriptors == NULL)
+  if (*SSDescriptors == NULL)
   {
     DEBUG ((EFI_D_ERROR, "Error Allocating memory for SS config descriptors\n"));
     return;
