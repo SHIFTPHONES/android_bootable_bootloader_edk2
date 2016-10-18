@@ -30,6 +30,8 @@
 #include <Protocol/EFICardInfo.h>
 #include <Protocol/EFIPlatformInfoTypes.h>
 #include <Library/UpdateDeviceTree.h>
+#include <Library/BootImage.h>
+
 #include <LinuxLoaderLib.h>
 
 STATIC struct BoardInfo platform_board_info;
@@ -262,6 +264,32 @@ VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len)
 		AsciiSPrint(StrDeviceType, Len, "%a", DeviceType[Type]);
 	else
 		AsciiSPrint(StrDeviceType, Len, "%a", DeviceType[UNKNOWN]);
+}
+
+/**
+ Get device page size
+ @param[out]  PageSize  : Pointer to the page size.
+ **/
+VOID GetPageSize(UINT32 *PageSize)
+{
+	EFI_BLOCK_IO_PROTOCOL *BlkIo = NULL;
+	HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
+	UINT32 MaxHandles = ARRAY_SIZE(HandleInfoList);
+	UINT32 Type;
+
+	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
+	switch (Type) {
+		case EMMC:
+			*PageSize = BOOT_IMG_EMMC_PAGE_SIZE;
+			break;
+		case UFS:
+			BlkIo = HandleInfoList[0].BlkIo;
+			*PageSize = BlkIo->Media->BlockSize;
+			break;
+		default:
+			*PageSize = BOOT_IMG_MAX_PAGE_SIZE;
+			break;
+	}
 }
 
 UINT32 BoardPmicModel(UINT32 PmicDeviceIndex)
