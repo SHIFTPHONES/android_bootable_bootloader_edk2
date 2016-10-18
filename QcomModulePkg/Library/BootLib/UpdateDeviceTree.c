@@ -505,7 +505,7 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 			SList = Table[i].SubNode;
 
 			if (SubBinSupported) {
-				if ((!(AsciiStrnCmp(Table[i].ParentNode, "/cpus", sizeof(Table[i].ParentNode)))))
+				if ((!(AsciiStrnCmp(Table[i].ParentNode, "/cpus", AsciiStrLen("/cpus")))))
 				{
 					SubBinA = TRUE;
 					SubBinB = FALSE;
@@ -568,9 +568,9 @@ retry:
 				}
 
 				/* Replace the property value based on the property value and length */
-				if (!(AsciiStrnCmp(SList->Property, "device_type", sizeof(SList->Property))))
+				if (!(AsciiStrnCmp(SList->Property, "device_type", AsciiStrLen("device_type"))))
 					PropType = DEVICE_TYPE;
-				else if (!(AsciiStrnCmp(SList->Property, "status", sizeof(SList->Property))))
+				else if (!(AsciiStrnCmp(SList->Property, "status", AsciiStrLen("status"))))
 					PropType = STATUS_TYPE;
 				else
 					{

@@ -102,7 +102,7 @@ EFI_STATUS BaseMem(UINTN *BaseMemory)
 			SmallestBase = RamPartitions[i].Base;
 	}
 	*BaseMemory = SmallestBase;
-	DEBUG((EFI_D_ERROR, "Memory Base Address: 0x%x\n", *BaseMemory));
+	DEBUG((EFI_D_INFO, "Memory Base Address: 0x%x\n", *BaseMemory));
 
 	return EFI_SUCCESS;
 }

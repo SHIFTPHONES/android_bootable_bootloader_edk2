@@ -96,12 +96,16 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 		return Status;
 	}
 
+	if (!Msg) {
+		DEBUG((EFI_D_ERROR, "Error in loading Msg from misc partition\n"));
+		return EFI_INVALID_PARAMETER;
+	}
 	// Ensure NULL termination
 	Msg->command[sizeof(Msg->command)-1] = '\0';
 	if (Msg->command[0] != 0 && Msg->command[0] != 255)
 		DEBUG((EFI_D_INFO,"Recovery command: %d %a\n", sizeof(Msg->command), Msg->command));
 
-	if (!AsciiStrnCmp(Msg->command, "boot-recovery", sizeof(Msg->command)))
+	if (!AsciiStrnCmp(Msg->command, "boot-recovery", AsciiStrLen("boot-recovery")))
 	{
 		*BootIntoRecovery = TRUE;
 		AsciiStrnCpy(Msg->command, "", sizeof(Msg->command));

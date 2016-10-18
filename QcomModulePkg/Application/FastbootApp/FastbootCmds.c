@@ -92,6 +92,10 @@ BOOLEAN         Finished = FALSE;
 CHAR8           StrSerialNum[MAX_RSP_SIZE];
 CHAR8           FullProduct[MAX_RSP_SIZE];
 CHAR8           StrVariant[MAX_RSP_SIZE];
+CHAR8           StrBatteryVoltage[MAX_RSP_SIZE];
+CHAR8           StrBatterySocOk[MAX_RSP_SIZE];
+CHAR8           ChargeScreenEnable[MAX_RSP_SIZE];
+CHAR8           OffModeCharge[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -1528,50 +1532,70 @@ STATIC VOID CmdContinue(
 	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, BootableSlot, FALSE);
 }
 
-STATIC VOID CmdGetVarAll()
+STATIC VOID UpdateGetVarVariable()
 {
-	FASTBOOT_VAR *var;
-	CHAR8 getvar_all[MAX_RSP_SIZE];
+	BOOLEAN    BatterySocOk = FALSE;
+	UINT32     BatteryVoltage = 0;
+
+	BatterySocOk = TargetBatterySocOk(&BatteryVoltage);
+	AsciiSPrint(StrBatteryVoltage, sizeof(StrBatteryVoltage), "%d", BatteryVoltage);
+	AsciiSPrint(StrBatterySocOk, sizeof(StrBatterySocOk), "%a", BatterySocOk ? "yes" : "no");
+	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", FbDevInfo.is_charger_screen_enabled);
+	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", FbDevInfo.is_charger_screen_enabled);
+}
+
+STATIC VOID WaitForTransferComplete()
+{
 	USB_DEVICE_EVENT                Msg;
 	USB_DEVICE_EVENT_DATA           Payload;
 	UINTN                           PayloadSize;
 
-	for (var = Varlist; var; var = var->next)
+	/* Wait for the transfer to complete */
+	while (1)
 	{
-		AsciiStrnCpyS(getvar_all, sizeof(getvar_all), var->name, AsciiStrLen(var->name));
-		AsciiStrCatS(getvar_all, sizeof(getvar_all), ":");
-		AsciiStrCatS(getvar_all, sizeof(getvar_all), var->value);
-		FastbootInfo(getvar_all);
-		/* Wait for the transfer to complete */
-		while (1)
+		GetFastbootDeviceData().UsbDeviceProtocol->HandleEvent(&Msg, &PayloadSize, &Payload);
+		if (UsbDeviceEventTransferNotification == Msg)
 		{
-			GetFastbootDeviceData().UsbDeviceProtocol->HandleEvent(&Msg, &PayloadSize, &Payload);
-			if (UsbDeviceEventTransferNotification == Msg)
-			{
-				if (1 == USB_INDEX_TO_EP(Payload.TransferOutcome.EndpointIndex)) {
-					if (USB_ENDPOINT_DIRECTION_IN == USB_INDEX_TO_EPDIR(Payload.TransferOutcome.EndpointIndex))
-					break;
-         		}
+			if (1 == USB_INDEX_TO_EP(Payload.TransferOutcome.EndpointIndex)) {
+				if (USB_ENDPOINT_DIRECTION_IN == USB_INDEX_TO_EPDIR(Payload.TransferOutcome.EndpointIndex))
+				break;
 			}
 		}
-		ZeroMem(getvar_all, sizeof(getvar_all));
 	}
-
-	FastbootOkay(getvar_all);
 }
 
-STATIC VOID CmdGetVar(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+STATIC VOID CmdGetVarAll()
 {
 	FASTBOOT_VAR *Var;
- 
-	if (!(AsciiStrnCmp("all", arg, AsciiStrLen(arg))))
+	CHAR8 GetVarAll[MAX_RSP_SIZE];
+
+	for (Var = Varlist; Var; Var = Var->next)
+	{
+		AsciiStrnCpyS(GetVarAll, sizeof(GetVarAll), Var->name, AsciiStrLen(Var->name));
+		AsciiStrCatS(GetVarAll, sizeof(GetVarAll), ":");
+		AsciiStrCatS(GetVarAll, sizeof(GetVarAll), Var->value);
+		FastbootInfo(GetVarAll);
+		/* Wait for the transfer to complete */
+		WaitForTransferComplete();
+		ZeroMem(GetVarAll, sizeof(GetVarAll));
+	}
+
+	FastbootOkay(GetVarAll);
+}
+
+STATIC VOID CmdGetVar(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
+{
+	FASTBOOT_VAR *Var;
+
+	UpdateGetVarVariable();
+	if (!(AsciiStrnCmp("all", Arg, AsciiStrLen(Arg))))
 	{
 		CmdGetVarAll();
 		return;
 	}
 	for (Var = Varlist; Var; Var = Var->next)
 	{
-		if (!AsciiStrCmp(Var->name, arg))
+		if (!AsciiStrCmp(Var->name, Arg))
 		{
 			FastbootOkay(Var->value);
 			return;
@@ -1718,33 +1742,64 @@ STATIC VOID CmdFlashingUnLockCritical(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 	SetDeviceUnlock(UNLOCK_CRITICAL, TRUE);
 }
 
-STATIC VOID CmdOemEnableChargerScreen(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+STATIC VOID CmdOemEnableChargerScreen(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
 	EFI_STATUS Status;
 	DEBUG((EFI_D_INFO, "Enabling Charger Screen\n"));
 
 	FbDevInfo.is_charger_screen_enabled = TRUE;
 	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
-	if (Status != EFI_SUCCESS)
+	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Error Enabling charger screen, power-off charging will not work: %r\n", Status));
-	FastbootOkay("");
+		FastbootFail("Failed to enable charger screen");
+	} else {
+		FastbootOkay("");
+	}
 }
 
-STATIC VOID CmdOemDisableChargerScreen(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+STATIC VOID CmdOemDisableChargerScreen(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
 	EFI_STATUS Status;
 	DEBUG((EFI_D_INFO, "Disabling Charger Screen\n"));
 
 	FbDevInfo.is_charger_screen_enabled = FALSE;
 	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
-	if (Status != EFI_SUCCESS)
+	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Error Disabling charger screen: %r\n", Status));
-	FastbootOkay("");
+		FastbootFail("Failed to disable charger screen");
+	} else {
+		FastbootOkay("");
+	}
 }
 
-STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
+	CHAR8 *Ptr = NULL;
+	CONST CHAR8 *Delim = " ";
+	EFI_STATUS Status;
+	CHAR8 Resp[MAX_RSP_SIZE] = "Set off mode charger: ";
+	AsciiStrCatS(Resp, sizeof(Resp), Arg);
 
+	if (Arg) {
+		Ptr = AsciiStrStr(Arg, Delim);
+		if (Ptr) {
+			Ptr++;
+			if (!AsciiStrnCmp(Ptr, "0", 1))
+				FbDevInfo.is_charger_screen_enabled = FALSE;
+			else if (!AsciiStrnCmp(Ptr, "1", 1))
+				FbDevInfo.is_charger_screen_enabled = TRUE;
+		}
+	}
+
+	/* update charger_screen_enabled value for getvar command */
+	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	if (Status != EFI_SUCCESS) {
+		AsciiStrCatS(Resp, sizeof(Resp), ": failed");
+		FastbootFail(Resp);
+	} else {
+		AsciiStrCatS(Resp, sizeof(Resp), ": done");
+		FastbootOkay(Resp);
+	}
 }
 
 STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
@@ -1771,6 +1826,35 @@ STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 		AsciiStrCatS(resp, sizeof(resp), ": done");
 		FastbootOkay(resp);
 	}
+}
+
+STATIC VOID CmdFlashingGetUnlockAbility(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+{
+	CHAR8      UnlockAbilityInfo[MAX_RSP_SIZE];
+
+	AsciiSPrint(UnlockAbilityInfo, sizeof(UnlockAbilityInfo), "get_unlock_ability: %d", IsAllowUnlock);
+	FastbootInfo(UnlockAbilityInfo);
+	WaitForTransferComplete();
+	FastbootOkay("");
+}
+
+STATIC VOID CmdOemDevinfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
+{
+	CHAR8      DeviceInfo[MAX_RSP_SIZE];
+
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Verity mode: %a", FbDevInfo.verity_mode ? "true" : "false");
+	FastbootInfo(DeviceInfo);
+	WaitForTransferComplete();
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device unlocked: %a", FbDevInfo.is_unlocked ? "true" : "false");
+	FastbootInfo(DeviceInfo);
+	WaitForTransferComplete();
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device critical unlocked: %a", FbDevInfo.is_unlock_critical ? "true" : "false");
+	FastbootInfo(DeviceInfo);
+	WaitForTransferComplete();
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Charger screen enabled: %a", FbDevInfo.is_charger_screen_enabled ? "true" : "false");
+	FastbootInfo(DeviceInfo);
+	WaitForTransferComplete();
+	FastbootOkay("");
 }
 
 STATIC VOID AcceptCmd(
@@ -1874,6 +1958,8 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	EFI_STATUS Status;
 	CHAR8      HWPlatformBuf[MAX_RSP_SIZE];
 	CHAR8      DeviceType[MAX_RSP_SIZE];
+	BOOLEAN    BatterySocOk = FALSE;
+	UINT32     BatteryVoltage = 0;
 
 	mDataBuffer = base;
 	mNumDataBytes = size;
@@ -1882,6 +1968,14 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 	/* Find all Software Partitions in the User Partition */
 	UINT32 i;
+
+	// Read Device Info
+	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&FbDevInfo, sizeof(FbDevInfo));
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		return Status;
+	}
 
 	struct FastbootCmdDesc cmd_list[] =
 	{
@@ -1897,10 +1991,14 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		{ "reboot-bootloader", CmdRebootBootloader },
 		{ "flashing unlock", CmdFlashingUnlock },
 		{ "flashing lock", CmdFlashingLock },
+		{ "flashing unlock_critical", CmdFlashingUnLockCritical },
+		{ "flashing lock_critical", CmdFlashingLockCritical },
+		{ "flashing get_unlock_ability", CmdFlashingGetUnlockAbility },
 		{ "oem enable-charger-screen", CmdOemEnableChargerScreen },
 		{ "oem disable-charger-screen", CmdOemDisableChargerScreen },
 		{ "oem off-mode-charge", CmdOemOffModeCharger },
 		{ "oem select-display-panel", CmdOemSelectDisplayPanel },
+		{ "oem device-info", CmdOemDevinfo},
 		{ "getvar:", CmdGetVar },
 		{ "download:", CmdDownload },
 #endif
@@ -1940,28 +2038,23 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	GetRootDeviceType(DeviceType, sizeof(DeviceType));
 	AsciiSPrint(StrVariant, sizeof(StrVariant), "%a %a", HWPlatformBuf, DeviceType);
 	FastbootPublishVar("variant", StrVariant);
+	FastbootPublishVar("version-bootloader", FbDevInfo.bootloader_version);
+	FastbootPublishVar("version-baseband", FbDevInfo.radio_version);
+	BatterySocOk = TargetBatterySocOk(&BatteryVoltage);
+	AsciiSPrint(StrBatteryVoltage, sizeof(StrBatteryVoltage), "%d", BatteryVoltage);
+	FastbootPublishVar("battery-voltage", StrBatteryVoltage);
+	AsciiSPrint(StrBatterySocOk, sizeof(StrBatterySocOk), "%a", BatterySocOk ? "yes" : "no");
+	FastbootPublishVar("battery-soc-ok", StrBatterySocOk);
+	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", FbDevInfo.is_charger_screen_enabled);
+	FastbootPublishVar("charger-screen-enabled", ChargeScreenEnable);
+	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", FbDevInfo.is_charger_screen_enabled);
+	FastbootPublishVar("off-mode-charge", ChargeScreenEnable);
+	FastbootPublishVar("unlocked", FbDevInfo.is_unlocked ? "yes":"no");
 
-  /* To Do: Add the following
-   * 1. charger-screen-enabled
-   * 2. off-mode-charge
-   * 3. version-bootloader
-   * 4. version-baseband
-   * 5. secure
-   * 6. battery-voltage
-   * 7. battery-soc-ok
-   */
 	/* Register handlers for the supported commands*/
 	UINT32 FastbootCmdCnt = sizeof(cmd_list)/sizeof(cmd_list[0]);
 	for (i = 1 ; i < FastbootCmdCnt; i++)
 		FastbootRegister(cmd_list[i].name, cmd_list[i].cb);
-
-	// Read Device Info
-	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&FbDevInfo, sizeof(FbDevInfo));
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
-		return Status;
-	}
 
 	// Read Allow Ulock Flag
 	Status = ReadAllowUnlockValue(&IsAllowUnlock);
