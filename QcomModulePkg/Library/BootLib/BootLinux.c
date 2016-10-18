@@ -349,12 +349,13 @@ Exit:
 /**
   Check image header
   @param[in]  ImageHdrBuffer  Supplies the address where a pointer to the image header buffer.
+  @param[in]  ImageHdrSize    Supplies the address where a pointer to the image header size.
   @param[out] ImageSizeActual The Pointer for image actual size.
   @param[out] PageSize        The Pointer for page size..
   @retval     EFI_SUCCESS     Check image header successfully.
   @retval     other           Failed to check image header.
 **/
-EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 *ImageSizeActual, UINT32 *PageSize)
+EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 KernelSizeActual = 0;
@@ -380,10 +381,15 @@ EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 *ImageSizeActual, UINT
 	*PageSize = ((boot_img_hdr*)(ImageHdrBuffer))->page_size;
 	DeviceTreeSize = ((boot_img_hdr*)(ImageHdrBuffer))->dt_size;
 
-	if (!KernelSize || !RamdiskSize || !*PageSize)
+	if (!KernelSize || !*PageSize)
 	{
 		DEBUG((EFI_D_ERROR, "Invalid image Sizes\n"));
-		DEBUG((EFI_D_ERROR, "KernelSize: %u,  RamdiskSize=%u\nPageSize=%u, DeviceTreeSize=%u\n", KernelSize, RamdiskSize, *PageSize, DeviceTreeSize));
+		DEBUG((EFI_D_ERROR, "KernelSize: %u, PageSize=%u\n", KernelSize, *PageSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	if (*PageSize != ImageHdrSize && *PageSize > BOOT_IMG_MAX_PAGE_SIZE) {
+		DEBUG((EFI_D_ERROR, "Invalid boot image pagesize.\nDevice PageSize: %u, Image PageSize: %u\n", ImageHdrSize, *PageSize));
 		return EFI_BAD_BUFFER_SIZE;
 	}
 
@@ -395,7 +401,7 @@ EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 *ImageSizeActual, UINT
 	}
 
 	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, *PageSize - 1);
-	if (!RamdiskSizeActual)
+	if (RamdiskSize && !RamdiskSizeActual)
 	{
 		DEBUG((EFI_D_ERROR, "Integer Oveflow: Ramdisk Size = %u\n", RamdiskSize));
 		return EFI_BAD_BUFFER_SIZE;
@@ -453,7 +459,7 @@ EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	VOID* ImageHdrBuffer;
-	UINT32 ImageHdrSize = BOOT_IMG_PAGE_SZ; //Boot/recovery header is 4096 bytes
+	UINT32 ImageHdrSize = 0;
 	UINT32 ImageSize = 0;
 	UINT32 PageSize = 0;
 	UINT32 tempImgSize = 0;
@@ -463,6 +469,9 @@ EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
 		return EFI_INVALID_PARAMETER;
 	else
 		*ImageBuffer = NULL;
+
+	// Setup page size information for nv storage
+	GetPageSize(&ImageHdrSize);
 
 	ImageHdrBuffer = AllocatePages(ALIGN_PAGES(ImageHdrSize, ALIGNMENT_MASK_4KB));
 	if (!ImageHdrBuffer)
@@ -479,7 +488,7 @@ EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
 
 	//Add check for boot image header and kernel page size
 	//ensure kernel command line is terminated
-	Status = CheckImageHeader(ImageHdrBuffer, ImageSizeActual, &PageSize);
+	Status = CheckImageHeader(ImageHdrBuffer, ImageHdrSize, ImageSizeActual, &PageSize);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));

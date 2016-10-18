@@ -1552,6 +1552,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	struct boot_img_hdr *hdr = (struct boot_img_hdr *) Data;
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 ImageSizeActual = 0;
+	UINT32 ImageHdrSize = 0;
 	UINT32 PageSize = 0;
 	UINT32 SigActual = SIGACTUAL;
 	CHAR8 Resp[MAX_RSP_SIZE];
@@ -1563,7 +1564,11 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	}
 
 	hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
-	Status = CheckImageHeader(Data, &ImageSizeActual, &PageSize);
+
+	// Setup page size information for nv storage
+	GetPageSize(&ImageHdrSize);
+
+	Status = CheckImageHeader(Data, ImageHdrSize, &ImageSizeActual, &PageSize);
 	if (Status != EFI_SUCCESS)
 	{
 		AsciiSPrint(Resp, sizeof(Resp), "Invalid Boot image Header: %r", Status);
