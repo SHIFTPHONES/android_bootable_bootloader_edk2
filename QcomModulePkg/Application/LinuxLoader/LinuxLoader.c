@@ -36,6 +36,7 @@
 #include <Library/MemoryAllocationLib.h>
 #include "BootStats.h"
 #include <Library/PartitionTableUpdate.h>
+#include <Library/DrawUI.h>
 
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
@@ -354,6 +355,11 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 		default:
 			break;
 	}
+
+	/* Backup the boot logo blt buffer */
+	Status = BackUpBootLogoBltBuffer();
+	if (Status != EFI_SUCCESS)
+		DEBUG((EFI_D_VERBOSE, "Backup the boot logo blt buffer failed: %r\n", Status));
 
 	Status = RecoveryInit(&BootIntoRecovery);
 	if (Status != EFI_SUCCESS)
