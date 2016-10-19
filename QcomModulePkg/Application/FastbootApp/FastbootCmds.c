@@ -1588,7 +1588,7 @@ STATIC VOID CmdGetVar(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	FASTBOOT_VAR *Var;
 
 	UpdateGetVarVariable();
-	if (!(AsciiStrnCmp("all", Arg, AsciiStrLen(Arg))))
+	if (!(AsciiStrCmp("all", Arg)))
 	{
 		CmdGetVarAll();
 		return;
