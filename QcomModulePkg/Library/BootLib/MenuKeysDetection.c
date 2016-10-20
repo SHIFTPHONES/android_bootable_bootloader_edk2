@@ -66,6 +66,12 @@ VOID ExitMenuKeysDetection()
 			CallbackKeyDetection = NULL;
 		}
 		DEBUG((EFI_D_INFO, "Exit key detection timer\n"));
+
+		/* Clear the screen */
+		gST->ConOut->ClearScreen (gST->ConOut);
+
+		/* Show boot logo */
+		RestoreBootLogoBitBuffer();
 	}
 }
 
@@ -81,9 +87,6 @@ VOID WaitForExitKeysDetection()
 	*/
 	while (CallbackKeyDetection)
 		MicroSecondDelay(10000);
-
-	/* Clear the screen */
-	gST->ConOut->ClearScreen (gST->ConOut);
 }
 
 /**
