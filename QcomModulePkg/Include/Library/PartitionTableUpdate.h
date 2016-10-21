@@ -35,7 +35,6 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Protocol/EFIUsbDevice.h>
-#include <Protocol/EFIEraseBlock.h>
 #include <Library/DebugLib.h>
 #include <Library/LinuxLoaderLib.h>
 

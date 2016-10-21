@@ -895,9 +895,6 @@ STATIC INTN WriteGpt(INTN Lun, UINT32 Sz, UINT8 *Gpt)
 	EFI_STATUS Status;
 	UINTN BackUpGptLba;
 	UINTN PartitionEntryLba;
-	EFI_ERASE_BLOCK_PROTOCOL *EraseProt = NULL;
-	UINTN TokenIndex;
-	EFI_ERASE_BLOCK_TOKEN EraseToken;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	HandleInfo BlockIoHandle[MAX_HANDLEINF_LST_SIZE];
 	UINTN MaxHandles = MAX_HANDLEINF_LST_SIZE;
@@ -947,26 +944,10 @@ STATIC INTN WriteGpt(INTN Lun, UINT32 Sz, UINT8 *Gpt)
 		return Ret;
 	}
 	/* Erase the entire card */
-	Status = gBS->HandleProtocol(BlockIoHandle[0].Handle, &gEfiEraseBlockProtocolGuid, (VOID **) &EraseProt);
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to locate Erase block protocol handle: %r\n", Status));
-		return Status;
-	}
-	Status = EraseProt->EraseBlocks(BlockIo, BlockIo->Media->MediaId, 0, &EraseToken, DeviceDensity);
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to Erase Block: %r\n", Status));
-		return Status;
-	}
-	else
-	{
-		/* handle the event */
-		if (EraseToken.Event != NULL)
-		{
-			DEBUG((EFI_D_INFO, "Waiting for the Erase even to signal the completion\n"));
-			gBS->WaitForEvent(1, &EraseToken.Event, &TokenIndex);
-		}
+	Status = ErasePartition(BlockIo, BlockIoHandle[0].Handle);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Error erasing the storage device: %r\n", Status));
+		return FAILURE;
 	}
 
 	/* write the protective MBR */

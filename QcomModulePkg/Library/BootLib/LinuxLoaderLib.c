@@ -581,3 +581,36 @@ ResetDeviceState()
 
 	return Status;
 }
+
+EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle)
+{
+	EFI_STATUS Status;
+	EFI_ERASE_BLOCK_TOKEN EraseToken;
+	EFI_ERASE_BLOCK_PROTOCOL *EraseProt = NULL;
+	UINTN PartitionSize;
+	UINTN TokenIndex;
+
+	PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+
+	Status = gBS->HandleProtocol(Handle, &gEfiEraseBlockProtocolGuid, (VOID **) &EraseProt);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to locate Erase block protocol handle: %r\n", Status));
+		return Status;
+	}
+
+	Status = EraseProt->EraseBlocks(BlockIo, BlockIo->Media->MediaId, 0, &EraseToken, PartitionSize);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to Erase Block: %r\n", Status));
+		return Status;
+	}
+	else {
+		/* handle the event */
+		if (EraseToken.Event != NULL)
+		{
+			DEBUG((EFI_D_INFO, "Waiting for the Erase even to signal the completion\n"));
+			gBS->WaitForEvent(1, &EraseToken.Event, &TokenIndex);
+		}
+	}
+
+	return EFI_SUCCESS;
+}

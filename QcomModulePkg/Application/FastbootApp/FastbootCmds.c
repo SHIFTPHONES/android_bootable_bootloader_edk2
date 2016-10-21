@@ -832,34 +832,11 @@ FastbootErasePartition(
 	if (Status != EFI_SUCCESS)
 		return Status;
 
-	Zeros = AllocateZeroPool (ERASE_BUFF_SIZE);
-	if (Zeros == NULL)
-	{
-		DEBUG ((EFI_D_ERROR, "Allocation failed \n"));
-		return EFI_OUT_OF_RESOURCES;
+	Status = ErasePartition(BlockIo, Handle);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Partition Erase failed: %r\n", Status));
+		return Status;
 	}
-
-	PartitionSize = (BlockIo->Media->LastBlock + 1);
-
-	/* Write 256 K no matter what unless its smaller.*/
-	i = 0;
-	while (PartitionSize > 0)
-	{
-		if (PartitionSize > ERASE_BUFF_BLOCKS)
-		{
-			Status = WriteToDisk(BlockIo, Handle, Zeros, ERASE_BUFF_SIZE, i); 
-			i += ERASE_BUFF_BLOCKS;
-			PartitionSize = PartitionSize - ERASE_BUFF_BLOCKS;
-		}
-		else
-		{
-			Status = WriteToDisk(BlockIo, Handle, Zeros, PartitionSize * BlockIo->Media->BlockSize, i);
-			PartitionSize = 0;
-		}
-	}
-
-	if (Zeros)
-		FreePool (Zeros);
 
 	if (!(AsciiStrnCmp("userdata", PartitionName, AsciiStrLen(PartitionName)))) {
 		Status = ResetDeviceState();

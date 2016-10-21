@@ -53,6 +53,7 @@
 #include <Protocol/FirmwareVolume2.h>
 #include <Protocol/LoadedImage.h>
 #include <Protocol/EFIVerifiedBoot.h>
+#include <Protocol/EFIEraseBlock.h>
 #include <Guid/FileSystemInfo.h>
 #include <Guid/FileInfo.h>
 #include <Guid/Gpt.h>
@@ -156,4 +157,5 @@ EFI_STATUS ResetDeviceState();
 #else
 EFI_STATUS ResetDeviceState() { return EFI_SUCCESS; }
 #endif
+EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
 #endif
