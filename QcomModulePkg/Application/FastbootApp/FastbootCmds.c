@@ -1816,7 +1816,12 @@ STATIC EFI_STATUS ReadAllowUnlockValue(UINT32 *IsAllowUnlock)
 		DEBUG((EFI_D_ERROR, "Failed to allocate memory for unlock value \n"));
 		return EFI_OUT_OF_RESOURCES;
 	}
-	Status = BlockIo->ReadBlocks(BlockIo, BlockIo->Media->MediaId, 0, BlockIo->Media->BlockSize, Buffer);
+
+	Status = BlockIo->ReadBlocks(BlockIo,
+			BlockIo->Media->MediaId,
+			BlockIo->Media->LastBlock,
+			BlockIo->Media->BlockSize,
+			Buffer);
 	if (Status != EFI_SUCCESS)
 		return Status;
 
