@@ -246,19 +246,22 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	if (!BootIntoFastboot)
 	{
-		if(BootIntoRecovery == TRUE)
-			DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
-		else
-			DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
-
 		if (MultiSlotBoot) {
 			FindBootableSlot(BootableSlot);
 			if(!BootableSlot[0])
 				goto fastboot;
 			AsciiStrnCpy(Pname, BootableSlot, AsciiStrLen(BootableSlot));
+		}
+		else {
+			if(BootIntoRecovery == TRUE) {
+				DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
+				AsciiStrnCpy(Pname, "recovery", MAX_PNAME_LENGTH);
 			}
-		else
-			AsciiStrnCpy(Pname, "boot", MAX_PNAME_LENGTH);
+			else {
+				DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
+				AsciiStrnCpy(Pname, "boot", MAX_PNAME_LENGTH);
+			}
+		}
 
 		Status = LoadLinux(Pname, MultiSlotBoot, BootIntoRecovery);
 		if (Status != EFI_SUCCESS)
