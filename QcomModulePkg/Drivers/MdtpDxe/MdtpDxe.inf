@@ -1,0 +1,54 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = MdtpDxe
+  FILE_GUID                      = C1E87B24-74EB-4C4D-972D-96CECFB50828
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = MdtpDxeInitialize
+
+[Sources.common]
+  MdtpDxe.c
+  MdtpVerify.c
+  MdtpQsee.c
+  MdtpRecoveryDialog.c
+  MdtpImageManager.c
+  MdtpPartition.c
+  MdtpCrypto.c
+  MdtpFuse.c
+  MdtpRecoveryDialogServices.c
+
+[Packages]
+  QcomModulePkg/QcomModulePkg.dec
+  ArmPkg/ArmPkg.dec
+  StdLib/StdLib.dec
+  MdePkg/MdePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  DebugLib
+
+[Guids]
+  gEfiSystemPartitionGuid
+  gEfiDipPartitionGuid
+  gEfiMdtpPartitionGuid
+
+[Protocols]
+  gQcomMdtpProtocolGuid
+  gQcomQseecomProtocolGuid
+  gEfiPartitionTypeGuid
+  gEfiBlockIoProtocolGuid
+  gEfiDiskIoProtocolGuid
+  gEfiHashProtocolGuid
+  gEfiHashAlgorithmSha256Guid
+  gEfiRngProtocolGuid
+  gEfiGraphicsOutputProtocolGuid
+  gEfiSimpleTextOutProtocolGuid
+  gEfiSimpleTextInputExProtocolGuid
+  gEfiQcomVerifiedBootProtocolGuid
+
+[Depex]
+  TRUE
+
