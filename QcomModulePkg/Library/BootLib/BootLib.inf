@@ -130,6 +130,7 @@
 	gQcomChargerExProtocolGuid
 	gEfiLimitsProtocolGuid
 	gEfiQcomVerifiedBootProtocolGuid
+	gQcomScmModeSwithProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
@@ -140,6 +141,7 @@
 	gQcomTokenSpaceGuid.RamdiskEndAddress
 	gQcomTokenSpaceGuid.EnablePartialGoods
 	gQcomTokenSpaceGuid.EnableDisplayMenu
+	gQcomTokenSpaceGuid.KernelLoadAddress32
 
 [Depex]
 	TRUE
