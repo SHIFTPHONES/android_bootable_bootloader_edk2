@@ -57,6 +57,7 @@
 #define SLOT_SUFFIX_ARRAY_SIZE 10
 #define SLOT_ATTR_SIZE 32
 #define ATTR_RESP_SIZE 4
+#define MAX_FASTBOOT_COMMAND_SIZE 64
 
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 
