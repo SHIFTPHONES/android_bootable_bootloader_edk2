@@ -50,137 +50,16 @@ DeviceInfo DevInfo;
 // on the partition type from the entry function.
 STATIC EFI_STATUS LoadLinux (CHAR8 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootIntoRecovery)
 {
-	EFI_STATUS Status;
-	VOID* ImageBuffer;
-	VOID* ImageHdrBuffer;
-	UINT32 ImageHdrSize = BOOT_IMG_PAGE_SZ; //Boot/recovery header is 4096 bytes
-	UINT32 ImageSize;
+	EFI_STATUS Status = EFI_SUCCESS;
+	VOID* ImageBuffer = NULL;
+	UINT32 ImageSizeActual = 0;
+	CHAR8* CurrentSlot = NULL;
 
-	STATIC UINT32 KernelSizeActual;
-	STATIC UINT32 DtSizeActual;
-	STATIC UINT32 RamdiskSizeActual;
-	STATIC UINT32 ImageSizeActual;
-
-	// Boot Image header information variables
-	STATIC UINT32 KernelSize;
-	STATIC VOID* KernelLoadAddr;
-	STATIC UINT32 RamdiskSize;
-	STATIC VOID* RamdiskLoadAddr;
-	STATIC UINT32 SecondSize;
-	STATIC VOID* DeviceTreeLoadAddr = 0;
-	STATIC UINT32 PageSize = 0;
-	STATIC UINT32 DeviceTreeSize = 0;
-	STATIC UINT32 tempImgSize = 0;
-	CHAR8* CurrentSlot;
-
-	ImageHdrBuffer = AllocateAlignedPages (ImageHdrSize / 4096, 4096);
-	ASSERT(ImageHdrBuffer);
-	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, Pname);
-
-	if (Status != EFI_SUCCESS)
-	{
-		return Status;
+	Status = LoadImage(Pname, (VOID**)&ImageBuffer, &ImageSizeActual);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "ERROR: Failed to load image from partition: %r\n", Status));
+		return EFI_LOAD_ERROR;
 	}
-	//Add check for boot image header and kernel page size
-	//ensure kernel command line is terminated
-	if(CompareMem((void *)((boot_img_hdr*)(ImageHdrBuffer))->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE))
-	{
-		DEBUG((EFI_D_ERROR, "Invalid boot image header\n"));
-		return EFI_NO_MEDIA;
-	}
-
-	KernelSize = ((boot_img_hdr*)(ImageHdrBuffer))->kernel_size;
-	RamdiskSize = ((boot_img_hdr*)(ImageHdrBuffer))->ramdisk_size;
-	SecondSize = ((boot_img_hdr*)(ImageHdrBuffer))->second_size;
-	PageSize = ((boot_img_hdr*)(ImageHdrBuffer))->page_size;
-	DeviceTreeSize = ((boot_img_hdr*)(ImageHdrBuffer))->dt_size;
-
-	if (!KernelSize || !RamdiskSize || !PageSize)
-	{
-		DEBUG((EFI_D_ERROR, "Invalid image Sizes\n"));
-		DEBUG((EFI_D_ERROR, "KernelSize: %u,  RamdiskSize=%u\nPageSize=%u, DeviceTreeSize=%u\n", KernelSize, RamdiskSize, PageSize, DeviceTreeSize));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-
-	KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
-	if (!KernelSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Kernel Size = %u\n", KernelSize));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
-	if (!RamdiskSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Ramdisk Size = %u\n", RamdiskSize));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, PageSize - 1);
-	if (DeviceTreeSize && !(DtSizeActual))
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Device Tree = %u\n", DeviceTreeSize));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	ImageSizeActual = ADD_OF(PageSize, KernelSizeActual);
-	if (!ImageSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: Actual Kernel size = %u\n", KernelSizeActual));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	tempImgSize = ImageSizeActual;
-	ImageSizeActual = ADD_OF(ImageSizeActual, RamdiskSizeActual);
-	if (!ImageSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, RamdiskActual=%u\n",tempImgSize, RamdiskSizeActual));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	tempImgSize = ImageSizeActual;
-	ImageSizeActual = ADD_OF(ImageSizeActual, DtSizeActual);
-	if (!ImageSizeActual)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, DtSizeActual=%u\n", tempImgSize, DtSizeActual));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	tempImgSize = ImageSizeActual;
-	ImageSize = ADD_OF(ROUND_TO_PAGE(ImageSizeActual, (PageSize - 1)), PageSize);
-	if (!ImageSize)
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSize=%u\n", tempImgSize));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	ImageBuffer = AllocateAlignedPages (ImageSize / 4096, 4096);
-	if (!ImageBuffer)
-	{
-		DEBUG((EFI_D_ERROR, "No resources available for ImageBuffer\n"));
-		return EFI_OUT_OF_RESOURCES;
-	}
-
-	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
-	Status = LoadImageFromPartition(ImageBuffer, &ImageSize, Pname);
-	BootStatsSetTimeStamp(BS_KERNEL_LOAD_DONE);
-
-	if (Status != EFI_SUCCESS)
-	{
-	    DEBUG((EFI_D_VERBOSE, "Failed Kernel Size   : 0x%x\n", ImageSize));
-		return Status;
-	}
-
-	DEBUG((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
-	DEBUG((EFI_D_VERBOSE, "Kernel Size 1            : 0x%x\n", KernelSize));
-	DEBUG((EFI_D_VERBOSE, "Kernel Size 2            : 0x%x\n", SecondSize));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
-	DEBUG((EFI_D_VERBOSE, "Ramdisk Size             : 0x%x\n", RamdiskSize));
-	DEBUG((EFI_D_VERBOSE, "Kernel Load Address 1    : 0x%p\n", KernelLoadAddr));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Load Address : 0x%p\n", DeviceTreeLoadAddr));
-	DEBUG((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
-	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Addr        : 0x%x\n", RamdiskLoadAddr));
 
 	if (MultiSlotBoot) {
 		CurrentSlot = GetCurrentSlotSuffix();

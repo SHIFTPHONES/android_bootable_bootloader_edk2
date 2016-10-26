@@ -32,11 +32,33 @@
 
 #include <Library/VerifiedBootMenu.h>
 #include <Library/DrawUI.h>
+#include <Protocol/EFIScmModeSwitch.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
+#include "BootImage.h"
+#include "UpdateDeviceTree.h"
 
 STATIC BOOLEAN VerifiedBootEnbled();
+STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
+
+STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceTreeLoadAddr) {
+	EFI_STATUS Status;
+	EFI_HLOS_BOOT_ARGS HlosBootArgs;
+
+	SetMem((VOID*)&HlosBootArgs, sizeof(HlosBootArgs), 0);
+	HlosBootArgs.el1_x2 = DeviceTreeLoadAddr;
+	/* Write 0 into el1_x4 to switch to 32bit mode */
+	HlosBootArgs.el1_x4 = 0;
+	HlosBootArgs.el1_elr = KernelLoadAddr;
+	Status = pQcomScmModeSwitchProtocol->SwitchTo32bitMode(HlosBootArgs);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "ERROR: Failed to switch to 32 bit mode.Status= %r\n",Status));
+		return Status;
+	}
+	/*Return Unsupported if the execution ever reaches here*/
+	return EFI_NOT_STARTED;
+}
 
 EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname, BOOLEAN Recovery)
 {
@@ -49,6 +71,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	STATIC UINT32 KernelSizeActual;
 	STATIC UINT32 RamdiskSizeActual;
 	STATIC UINT32 SecondSizeActual;
+	struct kernel64_hdr* Kptr = NULL;
 
 	/*Boot Image header information variables*/
 	STATIC UINT32 KernelSize;
@@ -71,6 +94,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 	device_info_vb_t DevInfo_vb;
 	STATIC CHAR8 StrPartition[MAX_PNAME_LENGTH];
+	BOOLEAN BootingWith32BitKernel = FALSE;
 
 	if (VerifiedBootEnbled())
 	{
@@ -168,6 +192,22 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		}
 
 		DEBUG((EFI_D_INFO, "Decompressing kernel image done: %u ms\n", GetTimerCountms()));
+		Kptr = KernelLoadAddr;
+	} else {
+		if (CHECK_ADD64(ImageBuffer, PageSize)) {
+			DEBUG((EFI_D_ERROR, "Integer Overflow: in Kernel header fields addition\n"));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		Kptr = ImageBuffer + PageSize;
+	}
+	if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
+		BootingWith32BitKernel = TRUE;
+		KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress32));
+		if (CHECK_ADD64((VOID*)Kptr, DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR)) {
+			DEBUG((EFI_D_ERROR, "Integer Overflow: in DTB offset addition\n"));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		CopyMem((VOID*)&DtbOffset, ((VOID*)Kptr + DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR), sizeof(DtbOffset));
 	}
 
 	/*Finds out the location of device tree image and ramdisk image within the boot image
@@ -228,6 +268,18 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	}
 	CopyMem (RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
 
+	if (BootingWith32BitKernel) {
+		if (CHECK_ADD64(KernelLoadAddr, KernelSizeActual)) {
+			DEBUG((EFI_D_ERROR, "Integer Overflow: while Kernel image copy\n"));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		if (KernelLoadAddr + KernelSizeActual > DeviceTreeLoadAddr) {
+			DEBUG((EFI_D_ERROR, "Kernel size is over the limit\n"));
+			return EFI_INVALID_PARAMETER;
+		}
+		CopyMem(KernelLoadAddr, ImageBuffer + PageSize, KernelSizeActual);
+	}
+
 	if (FixedPcdGetBool(EnablePartialGoods))
 	{
 		Status = UpdatePartialGoodsNode((VOID*)DeviceTreeLoadAddr);
@@ -247,11 +299,18 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			return Status;
 		}
 	}
-	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n\n", GetTimerCountms()));
 
 	/* Free the boot logo blt buffer before starting kernel */
 	FreeBootLogoBltBuffer();
+	if (BootingWith32BitKernel) {
+		Status = gBS->LocateProtocol(&gQcomScmModeSwithProtocolGuid, NULL, (VOID**)&pQcomScmModeSwitchProtocol);
+		if(EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR,"ERROR: Unable to Locate Protocol handle for ScmModeSwicthProtocol Status=%r\n", Status));
+			return Status;
+		}
+	}
 
+	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n", GetTimerCountms()));
 	/*Shut down UEFI boot services*/
 	Status = ShutdownUefiBootServices ();
 	if(EFI_ERROR(Status)) {
@@ -270,6 +329,11 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	//
 	// Start the Linux Kernel
 	//
+	if (BootingWith32BitKernel) {
+		Status = SwitchTo32bitModeBooting((UINT64)KernelLoadAddr, (UINT64)DeviceTreeLoadAddr);
+		return Status;
+	}
+
 	LinuxKernel = (LINUX_KERNEL)(UINTN)KernelLoadAddr;
 	LinuxKernel ((UINTN)DeviceTreeLoadAddr, 0, 0, 0);
 
@@ -279,6 +343,174 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 Exit:
 	// Only be here if we fail to start Linux
 	return EFI_NOT_STARTED;
+}
+
+/**
+  Check image header
+  @param[in]  ImageHdrBuffer  Supplies the address where a pointer to the image header buffer.
+  @param[out] ImageSizeActual The Pointer for image actual size.
+  @param[out] PageSize        The Pointer for page size..
+  @retval     EFI_SUCCESS     Check image header successfully.
+  @retval     other           Failed to check image header.
+**/
+EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 *ImageSizeActual, UINT32 *PageSize)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	UINT32 KernelSizeActual = 0;
+	UINT32 DtSizeActual = 0;
+	UINT32 RamdiskSizeActual =  0;
+
+	// Boot Image header information variables
+	UINT32 KernelSize = 0;
+	UINT32 RamdiskSize = 0;
+	UINT32 SecondSize = 0;
+	UINT32 DeviceTreeSize = 0;
+	UINT32 tempImgSize = 0;
+
+	if(CompareMem((void *)((boot_img_hdr*)(ImageHdrBuffer))->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE))
+	{
+		DEBUG((EFI_D_ERROR, "Invalid boot image header\n"));
+		return EFI_NO_MEDIA;
+	}
+
+	KernelSize = ((boot_img_hdr*)(ImageHdrBuffer))->kernel_size;
+	RamdiskSize = ((boot_img_hdr*)(ImageHdrBuffer))->ramdisk_size;
+	SecondSize = ((boot_img_hdr*)(ImageHdrBuffer))->second_size;
+	*PageSize = ((boot_img_hdr*)(ImageHdrBuffer))->page_size;
+	DeviceTreeSize = ((boot_img_hdr*)(ImageHdrBuffer))->dt_size;
+
+	if (!KernelSize || !RamdiskSize || !*PageSize)
+	{
+		DEBUG((EFI_D_ERROR, "Invalid image Sizes\n"));
+		DEBUG((EFI_D_ERROR, "KernelSize: %u,  RamdiskSize=%u\nPageSize=%u, DeviceTreeSize=%u\n", KernelSize, RamdiskSize, *PageSize, DeviceTreeSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	KernelSizeActual = ROUND_TO_PAGE(KernelSize, *PageSize - 1);
+	if (!KernelSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Kernel Size = %u\n", KernelSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, *PageSize - 1);
+	if (!RamdiskSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Ramdisk Size = %u\n", RamdiskSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	DtSizeActual = ROUND_TO_PAGE(DeviceTreeSize, *PageSize - 1);
+	if (DeviceTreeSize && !(DtSizeActual))
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Device Tree = %u\n", DeviceTreeSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	*ImageSizeActual = ADD_OF(*PageSize, KernelSizeActual);
+	if (!*ImageSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: Actual Kernel size = %u\n", KernelSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	tempImgSize = *ImageSizeActual;
+	*ImageSizeActual = ADD_OF(*ImageSizeActual, RamdiskSizeActual);
+	if (!*ImageSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, RamdiskActual=%u\n",tempImgSize, RamdiskSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	tempImgSize = *ImageSizeActual;
+	*ImageSizeActual = ADD_OF(*ImageSizeActual, DtSizeActual);
+	if (!*ImageSizeActual)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, DtSizeActual=%u\n", tempImgSize, DtSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	DEBUG((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
+	DEBUG((EFI_D_VERBOSE, "Kernel Size 1            : 0x%x\n", KernelSize));
+	DEBUG((EFI_D_VERBOSE, "Kernel Size 2            : 0x%x\n", SecondSize));
+	DEBUG((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
+	DEBUG((EFI_D_VERBOSE, "Ramdisk Size             : 0x%x\n", RamdiskSize));
+	DEBUG((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
+
+	return Status;
+}
+
+/**
+  Load image from partition
+  @param[in]  Pname           Partition name.
+  @param[out] ImageBuffer     Supplies the address where a pointer to the image buffer.
+  @param[out] ImageSizeActual The Pointer for image actual size.
+  @retval     EFI_SUCCESS     Load image from partition successfully.
+  @retval     other           Failed to Load image from partition.
+**/
+EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	VOID* ImageHdrBuffer;
+	UINT32 ImageHdrSize = BOOT_IMG_PAGE_SZ; //Boot/recovery header is 4096 bytes
+	UINT32 ImageSize = 0;
+	UINT32 PageSize = 0;
+	UINT32 tempImgSize = 0;
+
+	// Check for invalid ImageBuffer
+	if (ImageBuffer == NULL)
+		return EFI_INVALID_PARAMETER;
+	else
+		*ImageBuffer = NULL;
+
+	ImageHdrBuffer = AllocatePages(ALIGN_PAGES(ImageHdrSize, ALIGNMENT_MASK_4KB));
+	if (!ImageHdrBuffer)
+	{
+		DEBUG ((EFI_D_ERROR, "Failed to allocate for Boot image Hdr\n"));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	Status = LoadImageFromPartition(ImageHdrBuffer, &ImageHdrSize, Pname);
+	if (Status != EFI_SUCCESS)
+	{
+		return Status;
+	}
+
+	//Add check for boot image header and kernel page size
+	//ensure kernel command line is terminated
+	Status = CheckImageHeader(ImageHdrBuffer, ImageSizeActual, &PageSize);
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
+		return Status;
+	}
+
+	tempImgSize = *ImageSizeActual;
+	ImageSize = ADD_OF(ROUND_TO_PAGE(*ImageSizeActual, (PageSize - 1)), PageSize);
+	if (!ImageSize)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSize=%u\n", tempImgSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	*ImageBuffer = AllocatePages(ALIGN_PAGES(ImageSize, ALIGNMENT_MASK_4KB));
+	if (!*ImageBuffer)
+	{
+		DEBUG((EFI_D_ERROR, "No resources available for ImageBuffer\n"));
+		return EFI_OUT_OF_RESOURCES;
+	}
+
+	BootStatsSetTimeStamp(BS_KERNEL_LOAD_START);
+	Status = LoadImageFromPartition(*ImageBuffer, &ImageSize, Pname);
+	BootStatsSetTimeStamp(BS_KERNEL_LOAD_DONE);
+
+	if (Status != EFI_SUCCESS)
+	{
+		DEBUG((EFI_D_ERROR, "Failed Kernel Size   : 0x%x\n", ImageSize));
+		return Status;
+	}
+
+	return Status;
 }
 
 STATIC BOOLEAN VerifiedBootEnbled()
