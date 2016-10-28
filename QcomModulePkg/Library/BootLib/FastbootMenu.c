@@ -184,40 +184,40 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 			break;
 		case 2:
 			/* Get product name */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				"unsupported", MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				"unsupported", AsciiStrLen("unsupported"));
 			break;
 		case 3:
 			/* Get variant value */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				"unsupported", MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				"unsupported", AsciiStrLen("unsupported"));
 			break;
 		case 4:
 			/* Get bootloader version */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				DevInfo->bootloader_version, MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				DevInfo->bootloader_version, AsciiStrLen(DevInfo->bootloader_version));
 			break;
 		case 5:
 			/* Get baseband version */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				DevInfo->radio_version, MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				DevInfo->radio_version, AsciiStrLen(DevInfo->radio_version));
 			break;
 		case 6:
 			/* Get serial number */
 			ZeroMem(SerialNum, sizeof(SerialNum));
 			BoardSerialNum(SerialNum, MAX_RSP_SIZE);
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				SerialNum, MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				SerialNum, AsciiStrLen(SerialNum));
 			break;
 		case 7:
 			/* Get secure boot value */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				"unsupported", MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				"unsupported", AsciiStrLen("unsupported"));
 			break;
 		case 8:
 			/* Get device status */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				DevInfo->is_unlocked ? "unlocked":"locked", MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				DevInfo->is_unlocked ? "unlocked":"locked", DevInfo->is_unlocked ? AsciiStrLen("unlocked"):AsciiStrLen("locked"));
 			break;
 		}
 

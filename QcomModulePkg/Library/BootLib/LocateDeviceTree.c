@@ -101,7 +101,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 	if (prop && len > 0) {
 		model = (char *) AllocatePool(sizeof(char) * len);
 		ASSERT(model);
-		AsciiStrnCpy(model, prop, len);
+		AsciiStrnCpyS(model, (sizeof(CHAR8)* len), prop, len);
 	} else {
 		DEBUG ((EFI_D_ERROR, "model does not exist in device tree\n"));
 	}

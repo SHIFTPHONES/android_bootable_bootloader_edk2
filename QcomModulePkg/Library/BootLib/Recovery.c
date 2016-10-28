@@ -108,8 +108,8 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 	if (!AsciiStrnCmp(Msg->command, "boot-recovery", AsciiStrLen("boot-recovery")))
 	{
 		*BootIntoRecovery = TRUE;
-		AsciiStrnCpy(Msg->command, "", sizeof(Msg->command));
-		AsciiStrnCpy(Msg->status, "OKAY", sizeof(Msg->status));
+		AsciiStrnCpyS(Msg->command, sizeof(Msg->command), "", sizeof(""));
+		AsciiStrnCpyS(Msg->status, sizeof(Msg->status), "OKAY", AsciiStrLen("OKAY"));
 		Status = WriteToPartition(&gEfiMiscPartitionGuid, Msg);
 		if (Status != EFI_SUCCESS)
 		{
