@@ -138,7 +138,7 @@ EFI_STATUS
 FastbootCmdsUnInit( VOID );
   
 /* Called when a message/download data passed to the app */
-VOID DataReady (IN UINTN Size, IN VOID *Data);
+VOID DataReady (IN UINT64 Size, IN VOID *Data);
 
 BOOLEAN FastbootFatal();
 EFI_STATUS PartitionDump();
