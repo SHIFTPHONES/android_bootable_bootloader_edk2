@@ -86,6 +86,27 @@ struct GetVarPartitionInfo part_info[] =
 	{ "cache"   , "partition-size:", "partition-type:", "", "ext4" },
 };
 
+STATIC CONST CHAR16 *CriticalPartitions[] = {
+	L"abl",
+	L"rpm",
+	L"tz",
+	L"sdi",
+	L"xbl",
+	L"hyp",
+	L"pmic",
+	L"bootloader",
+	L"devinfo",
+	L"partition",
+	L"devcfg",
+	L"ddr",
+	L"frp",
+	L"cdt",
+	L"cmnlib",
+	L"cmnlib64",
+	L"keymaster",
+	L"mdtp"
+};
+
 STATIC FASTBOOT_VAR *Varlist;
 BOOLEAN         Finished = FALSE;
 CHAR8           StrSerialNum[MAX_RSP_SIZE];
@@ -972,6 +993,21 @@ VOID IsBootPtnUpdated(INT32 Lun, BOOLEAN *BootPtnUpdated) {
 	}
 }
 
+STATIC BOOLEAN IsCriticalPartition(CHAR16 *PartitionName)
+{
+	UINT32 i =0;
+
+	if (PartitionName == NULL)
+		return FALSE;
+
+	for (i = 0; i < ARRAY_SIZE(CriticalPartitions); i++) {
+		if (!StrnCmp(PartitionName, CriticalPartitions[i], StrLen(CriticalPartitions[i])))
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
 /* Handle Flash Command */
 STATIC VOID CmdFlash(
 	IN CONST CHAR8 *arg,
@@ -1020,6 +1056,11 @@ STATIC VOID CmdFlash(
 		}
 
 		LunSet = TRUE;
+	}
+
+	if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
+		FastbootFail("Flashing is not allowed for Critical Partitions\n");
+		return;
 	}
 
 	if (!StrnCmp(PartitionName, L"partition", StrLen(L"partition"))) {
@@ -1140,6 +1181,11 @@ STATIC VOID CmdErase(
 
 	if (FbDevInfo.is_unlocked == FALSE) {
 		FastbootFail("Erase is not allowed in Lock State");
+		return;
+	}
+
+	if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
+		FastbootFail("Erase is not allowed for Critical Partitions\n");
 		return;
 	}
 
@@ -1627,7 +1673,7 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 	if (Type == UNLOCK)
 		is_unlocked = FbDevInfo.is_unlocked;
 	else if (Type == UNLOCK_CRITICAL)
-		is_unlocked == FbDevInfo.is_unlock_critical;
+		is_unlocked = FbDevInfo.is_unlock_critical;
 	if (State == is_unlocked)
 	{
 		AsciiSPrint(response, MAX_RSP_SIZE, "\tDevice already : %a", (State ? "unlocked!" : "locked!"));
