@@ -179,8 +179,7 @@ EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
   @retval     EFI_SUCCESS       The entry point is executed successfully.
   @retval     other	       Some error occurs when executing this entry point.
  **/
-EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
-	INTN Type)
+EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Location = 0;
@@ -243,7 +242,7 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
                      [DISPLAY_MENU_RED]     ----- Red warning menu
                      [DISPLAY_MENU_LOGGING] ----- Logging warning menu
 **/
-VOID DisplayVerifiedBootMenu(INTN Type)
+VOID DisplayVerifiedBootMenu(UINT32 Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO *OptionMenuInfo;

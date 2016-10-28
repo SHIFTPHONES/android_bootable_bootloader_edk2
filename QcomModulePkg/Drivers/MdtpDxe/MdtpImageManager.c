@@ -53,7 +53,7 @@ STATIC MdtpStatus MdtpImageManagerReadMetadata(UINT64 Offset)
 	MdtpPartitionHandle     MdtpPartitionHandle;
 	UINT8                   *Buffer;
 	MdtpStatus              RetVal;
-	UINTN                   Index = 0;
+	UINT32                  Index = 0;
 	UINT32                  ParamsSize = MAX_PARAMS*sizeof(UINT32);
 	UINT32                  ImageDataSize = MAX_IMAGES*sizeof(MdtpImageData);
 

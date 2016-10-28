@@ -39,7 +39,7 @@
 STATIC struct DisplaySplashBufferInfo splashBuf;
 STATIC UINTN splashBufSize = sizeof(splashBuf);
 
-VOID PrintSplashMemInfo(CHAR8 *data, INTN datalen)
+VOID PrintSplashMemInfo(CHAR8 *data, INT32 datalen)
 {
 	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM];
 
@@ -58,10 +58,10 @@ EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 {
 	EFI_STATUS Status;
 	CONST struct fdt_property *Prop = NULL;
-	INTN PropLen = 0;
-	INTN ret = 0;
+	INT32 PropLen = 0;
+	INT32 ret = 0;
 	UINT32 offset;
-	CHAR8* tmp;
+	CHAR8* tmp = NULL;
 	UINT32 CONST SplashMemPropSize = NUM_SPLASHMEM_PROP_ELEM * sizeof(UINT32);
 
 	Status = gRT->GetVariable(
@@ -140,9 +140,9 @@ error:
 
 UINT32 fdt_check_header_ext(VOID *fdt)
 {
-	UINTN fdt_start, fdt_end;
+	UINT64 fdt_start, fdt_end;
 	UINT32 sum;
-	fdt_start = fdt;
+	fdt_start = (UINT64) fdt;
 
 	if(fdt_start + fdt_totalsize(fdt) < fdt_start)
 		return FDT_ERR_BADOFFSET;
@@ -174,7 +174,7 @@ UINT32 fdt_check_header_ext(VOID *fdt)
 EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 {
 	EFI_STATUS Status = EFI_NOT_FOUND;
-	INTN ret = 0;
+	INT32 ret = 0;
 	RamPartitionEntry *RamPartitions = NULL;
 	UINT32 NumPartitions = 0;
 	UINT32 i = 0;
@@ -220,10 +220,10 @@ EFI_STATUS target_dev_tree_mem(VOID *fdt, UINT32 memory_node_offset)
 
 /* Supporting function of target_dev_tree_mem()
  * Function to add the subsequent RAM partition info to the device tree */
-INTN dev_tree_add_mem_info(VOID *fdt, UINT32 offset, UINT32 addr, UINT32 size)
+INT32 dev_tree_add_mem_info(VOID *fdt, UINT32 offset, UINT32 addr, UINT32 size)
 {
-	STATIC INTN   mem_info_cnt = 0;
-	INTN          ret = 0;
+	STATIC INT32  mem_info_cnt = 0;
+	INT32         ret = 0;
 
 	if (!mem_info_cnt)
 	{
@@ -252,10 +252,10 @@ INTN dev_tree_add_mem_info(VOID *fdt, UINT32 offset, UINT32 addr, UINT32 size)
 	return ret;
 }
 
-INTN dev_tree_add_mem_infoV64(VOID *fdt, UINT32 offset, UINT64 addr, UINT64 size)
+INT32 dev_tree_add_mem_infoV64(VOID *fdt, UINT32 offset, UINT64 addr, UINT64 size)
 {
-	STATIC INTN mem_info_cnt = 0;
-	INTN ret = 0;
+	STATIC INT32 mem_info_cnt = 0;
+	INT32 ret = 0;
 
 	if (!mem_info_cnt)
 	{
@@ -285,9 +285,9 @@ INTN dev_tree_add_mem_infoV64(VOID *fdt, UINT32 offset, UINT64 addr, UINT64 size
 }
 
 /* Top level function that updates the device tree. */
-EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT32 ramdisk_size)
+EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT32 ramdisk_size)
 {
-	INTN ret = 0;
+	INT32 ret = 0;
 	UINT32 offset;
 	EFI_STATUS Status;
 
@@ -348,7 +348,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 	if(ramdisk_size)
 	{
 		/* Adding the initrd-start to the chosen node */
-		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-start", (UINTN) ramdisk);
+		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-start", (UINT64) ramdisk);
 		if (ret)
 		{
 			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [linux,initrd-start] - 0x%x\n", ret));
@@ -356,7 +356,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk,	UINT
 		}
 
 		/* Adding the initrd-end to the chosen node */
-		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-end", ((UINTN)ramdisk + ramdisk_size));
+		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-end", ((UINT64)ramdisk + ramdisk_size));
 		if (ret)
 		{
 			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [linux,initrd-end] - 0x%x\n", ret));
@@ -373,7 +373,7 @@ STATIC EFI_STATUS UpdatePartialGoodsBinA(UINT32 *PartialGoodType)
 	EFI_LIMITS_THROTTLE_TYPE Throttle;
 	EFI_LIMITS_PROTOCOL *Limits_Protocol;
 	UINT32 Value;
-	INTN Status;
+	EFI_STATUS Status;
 
 	Status = gBS->LocateProtocol(&gEfiLimitsProtocolGuid, NULL, (VOID **) &Limits_Protocol);
 	if (Status != EFI_SUCCESS)
@@ -397,14 +397,14 @@ STATIC EFI_STATUS UpdatePartialGoodsBinA(UINT32 *PartialGoodType)
 /* Update device tree for partial goods */
 EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 {
-	INTN i;
-	INTN ParentOffset = 0;
-	INTN SubNodeOffset = 0;
-	INTN SubNodeOffsetTemp = 0;
-	INTN Status = EFI_SUCCESS;
-	INTN Offset = 0;
-	INTN Ret = 0;
-	INTN PropLen = 0;
+	UINT32 i;
+	INT32 ParentOffset = 0;
+	INT32 SubNodeOffset = 0;
+	INT32 SubNodeOffsetTemp = 0;
+	EFI_STATUS Status = EFI_SUCCESS;
+	INT32 Offset = 0;
+	INT32 Ret = 0;
+	INT32 PropLen = 0;
 	UINT32 PartialGoodType = 0;
 	UINT32 SubBinValue = 0;
 	BOOLEAN SubBinSupported = FALSE;
@@ -417,7 +417,7 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	CONST struct fdt_property *Prop = NULL;
 	CHAR8* ReplaceStr = NULL;
 	struct PartialGoods *Table = NULL;
-	INTN TableSz = 0;
+	UINT32 TableSz = 0;
 
 	if (BoardPlatformRawChipId() == EFICHIPINFO_ID_MSMCOBALT)
 	{
@@ -460,7 +460,7 @@ EFI_STATUS UpdatePartialGoodsNode(VOID *fdt)
 	Ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt));
 	if (Ret != 0)
 	{
-		DEBUG((EFI_D_ERROR, "Error loading the DTB buffer: %x\n", Status));
+		DEBUG((EFI_D_ERROR, "Error loading the DTB buffer: %x\n", Ret));
 		return EFI_LOAD_ERROR;
 	}
 

@@ -98,12 +98,12 @@ EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartit
 	return Status;
 }
 
-EFI_STATUS BaseMem(UINTN *BaseMemory)
+EFI_STATUS BaseMem(UINT64 *BaseMemory)
 {
 	EFI_STATUS Status = EFI_NOT_FOUND;
 	RamPartitionEntry *RamPartitions = NULL;
 	UINT32 NumPartitions = 0;
-	UINTN SmallestBase;
+	UINT64 SmallestBase;
 	UINT32 i = 0;
 
 	Status = GetRamPartitions(&RamPartitions, &NumPartitions);

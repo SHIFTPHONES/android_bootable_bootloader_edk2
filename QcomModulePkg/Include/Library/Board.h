@@ -57,7 +57,7 @@ struct BoardInfo {
 	EFIChipInfoFoundryIdType FoundryId;
 };
 
-EFI_STATUS BaseMem(UINTN *BaseMemory);
+EFI_STATUS BaseMem(UINT64 *BaseMemory);
 
 UINT32 BoardPmicModel(UINT32 PmicDeviceIndex);
 

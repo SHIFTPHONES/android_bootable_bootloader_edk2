@@ -122,7 +122,7 @@ typedef struct {
 } HandleInfo;
 
 /* Load image from partition to buffer */
-EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname);
+EFI_STATUS LoadImageFromPartition(VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname);
 
 EFI_STATUS ReadWriteDeviceInfo(vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz);
 /**

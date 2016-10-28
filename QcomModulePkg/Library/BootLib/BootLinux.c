@@ -66,35 +66,34 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	EFI_STATUS Status;
 
 	LINUX_KERNEL LinuxKernel;
-	STATIC UINT32 DeviceTreeOffset;
-	STATIC UINT32 RamdiskOffset;
-	STATIC UINT32 KernelSizeActual;
-	STATIC UINT32 RamdiskSizeActual;
-	STATIC UINT32 SecondSizeActual;
+	UINT32 DeviceTreeOffset = 0;
+	UINT32 RamdiskOffset = 0;
+	UINT32 KernelSizeActual = 0;
+	UINT32 RamdiskSizeActual = 0;
+	UINT32 SecondSizeActual = 0;
 	struct kernel64_hdr* Kptr = NULL;
 
 	/*Boot Image header information variables*/
-	STATIC UINT32 KernelSize;
-	STATIC VOID* KernelLoadAddr;
-	STATIC UINT32 RamdiskSize;
-	STATIC VOID* RamdiskLoadAddr;
-	STATIC VOID* RamdiskEndAddr;
-	STATIC UINT32 SecondSize;
-	STATIC VOID* DeviceTreeLoadAddr = 0;
-	STATIC UINT32 PageSize = 0;
-	STATIC UINT32 DtbOffset = 0;
+	UINT32 KernelSize = 0;
+	UINT64 KernelLoadAddr = 0;
+	UINT32 RamdiskSize = 0;
+	UINT64 RamdiskLoadAddr = 0;
+	UINT64 RamdiskEndAddr = 0;
+	UINT32 SecondSize = 0;
+	UINT64 DeviceTreeLoadAddr = 0;
+	UINT32 PageSize = 0;
+	UINT32 DtbOffset = 0;
 	CHAR8* FinalCmdLine;
 
-	STATIC UINT32 out_len = 0;
-	STATIC UINT32 out_avai_len = 0;
-	STATIC CHAR8* CmdLine;
-	STATIC UINTN BaseMemory;
-	UINT64 Time;
+	UINT32 out_len = 0;
+	UINT64 out_avai_len = 0;
+	CHAR8* CmdLine = NULL;
+	UINT64 BaseMemory = 0;
 	boot_state_t BootState = BOOT_STATE_MAX;
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 	device_info_vb_t DevInfo_vb;
-	STATIC CHAR8 StrPartition[MAX_GPT_NAME_SIZE];
-	CHAR8 PartitionNameUnicode[MAX_GPT_NAME_SIZE];
+	CHAR8 StrPartition[MAX_GPT_NAME_SIZE] = {'\0'};
+	CHAR8 PartitionNameUnicode[MAX_GPT_NAME_SIZE] = {'\0'};
 	BOOLEAN BootingWith32BitKernel = FALSE;
 
 	if (VerifiedBootEnbled())
@@ -170,21 +169,26 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	}
 
 	// These three regions should be reserved in memory map.
-	KernelLoadAddr = (VOID *)(EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress));
-	RamdiskLoadAddr = (VOID *)(EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(RamdiskLoadAddress));
-	DeviceTreeLoadAddr = (VOID *)(EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(TagsAddress));
+	KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress));
+	RamdiskLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(RamdiskLoadAddress));
+	DeviceTreeLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(TagsAddress));
 
 	if (is_gzip_package((ImageBuffer + PageSize), KernelSize))
 	{
 		// compressed kernel
 		out_avai_len = DeviceTreeLoadAddr - KernelLoadAddr;
+		if (out_avai_len > MAX_UINT32)
+		{
+			DEBUG((EFI_D_ERROR, "Integer Oveflow: the length of decompressed data = %u\n", out_avai_len));
+			return EFI_BAD_BUFFER_SIZE;
+		}
 
 		DEBUG((EFI_D_INFO, "Decompressing kernel image start: %u ms\n", GetTimerCountms()));
 		Status = decompress(
 				(unsigned char *)(ImageBuffer + PageSize), //Read blob using BlockIo
 				KernelSize,                                 //Blob size
 				(unsigned char *)KernelLoadAddr,                             //Load address, allocated
-				out_avai_len,                               //Allocated Size
+				(UINT32)out_avai_len,                               //Allocated Size
 				&DtbOffset, &out_len);
 
 		if (Status != EFI_SUCCESS)
@@ -263,12 +267,12 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		return Status;
 	}
 
-	RamdiskEndAddr = BaseMemory | PcdGet32(RamdiskEndAddress);
+	RamdiskEndAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(RamdiskEndAddress));
 	if (RamdiskEndAddr - RamdiskLoadAddr < RamdiskSize){
 		DEBUG((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
 		return EFI_BAD_BUFFER_SIZE;
 	}
-	CopyMem (RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
+	CopyMem ((CHAR8*)RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
 
 	if (BootingWith32BitKernel) {
 		if (CHECK_ADD64(KernelLoadAddr, KernelSizeActual)) {
@@ -279,7 +283,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			DEBUG((EFI_D_ERROR, "Kernel size is over the limit\n"));
 			return EFI_INVALID_PARAMETER;
 		}
-		CopyMem(KernelLoadAddr, ImageBuffer + PageSize, KernelSizeActual);
+		CopyMem((CHAR8*)KernelLoadAddr, ImageBuffer + PageSize, KernelSizeActual);
 	}
 
 	if (FixedPcdGetBool(EnablePartialGoods))
@@ -336,8 +340,8 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		return Status;
 	}
 
-	LinuxKernel = (LINUX_KERNEL)(UINTN)KernelLoadAddr;
-	LinuxKernel ((UINTN)DeviceTreeLoadAddr, 0, 0, 0);
+	LinuxKernel = (LINUX_KERNEL)(UINT64)KernelLoadAddr;
+	LinuxKernel ((UINT64)DeviceTreeLoadAddr, 0, 0, 0);
 
 	// Kernel should never exit
 	// After Life services are not provided

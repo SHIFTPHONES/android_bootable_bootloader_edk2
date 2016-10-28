@@ -297,7 +297,7 @@ EFI_STATUS GetPartitionSize(UINT32 *ImageSize, EFI_GUID *PartitionType)
 }
 
 /* Load image from partition to buffer */
-EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname)
+EFI_STATUS LoadImageFromPartition(VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname)
 {
 	EFI_STATUS                   Status;
 	EFI_BLOCK_IO_PROTOCOL       *BlkIo;
@@ -365,7 +365,7 @@ EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR16 
 **/
 EFI_STATUS
 LaunchApp (
-  IN UINTN  Argc,
+  IN UINT32  Argc,
   IN CHAR8  **Argv
   )
 {

@@ -245,7 +245,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 							dt_entry_array[k].pmic_rev[1]= pmic_data[n].pmic_version[1];
 							dt_entry_array[k].pmic_rev[2]= pmic_data[n].pmic_version[2];
 							dt_entry_array[k].pmic_rev[3]= pmic_data[n].pmic_version[3];
-							dt_entry_array[k].offset = (UINTN)dtb;
+							dt_entry_array[k].offset = (UINT64)dtb;
 							dt_entry_array[k].size = dtb_size;
 							k++;
 						}
@@ -259,7 +259,7 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 						dt_entry_array[k].pmic_rev[1]= BoardPmicTarget(1);
 						dt_entry_array[k].pmic_rev[2]= BoardPmicTarget(2);
 						dt_entry_array[k].pmic_rev[3]= BoardPmicTarget(3);
-						dt_entry_array[k].offset = (UINTN)dtb;
+						dt_entry_array[k].offset = (UINT64)dtb;
 						dt_entry_array[k].size = dtb_size;
 						k++;
 					}
@@ -318,8 +318,8 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	uintptr_t kernel_end = (uintptr_t)kernel + kernel_size;
 	VOID *dtb = NULL;
 	VOID *bestmatch_tag = NULL;
-	uintptr_t RamdiskLoadAddr;
-	STATIC UINTN BaseMemory;
+	UINT64 RamdiskLoadAddr;
+	UINT64 BaseMemory = 0;
 	struct dt_entry *best_match_dt_entry = NULL;
 	UINT32 bestmatch_tag_size;
 	struct dt_entry_node *dt_entry_queue = NULL;
@@ -397,12 +397,12 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 			goto out;
 		}
 
-		RamdiskLoadAddr = BaseMemory | PcdGet32(RamdiskLoadAddress);
-		if((RamdiskLoadAddr - (uintptr_t)tags) > RamdiskLoadAddr){
+		RamdiskLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(RamdiskLoadAddress));
+		if((RamdiskLoadAddr - (UINT64)tags) > RamdiskLoadAddr){
 			DEBUG((EFI_D_ERROR, "Tags address is not valid\n"));
 			goto out;
 		}
-		if((RamdiskLoadAddr - (uintptr_t)tags) < bestmatch_tag_size){
+		if((RamdiskLoadAddr - (UINT64)tags) < bestmatch_tag_size){
 			DEBUG((EFI_D_ERROR, "Tag size is over the limit\n"));
 			goto out;
 		}

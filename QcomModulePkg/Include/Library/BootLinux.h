@@ -77,11 +77,11 @@
 #define MAX_PNAME_LENGTH 64
 #define ALIGNMENT_MASK_4KB 4096
 
-typedef VOID (*LINUX_KERNEL)(UINTN ParametersBase, UINTN Reserved0, UINTN Reserved1, UINTN Reserved2);
+typedef VOID (*LINUX_KERNEL)(UINT64 ParametersBase, UINT64 Reserved0, UINT64 Reserved1, UINT64 Reserved2);
 
 EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR16 *PartitionName, BOOLEAN Recovery);
 EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize);
 EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
-EFI_STATUS LaunchApp(IN UINTN  Argc, IN CHAR8  **Argv);
+EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
 BOOLEAN VerifiedBootEnbled();
 #endif

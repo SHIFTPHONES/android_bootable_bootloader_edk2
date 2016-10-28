@@ -164,20 +164,20 @@ VOID SetMultiSlotBootVal(BOOLEAN Val);
 
 struct GptHeaderData
 {
-	UINTN FirstUsableLba;
+	UINT64 FirstUsableLba;
 	UINT32 PartEntrySz;
 	UINT32 HeaderSz;
 	UINT32 MaxPtCnt;
-	UINTN LastUsableLba;
+	UINT64 LastUsableLba;
 };
 
 struct PartitionEntry
 {
 	EFI_PARTITION_ENTRY PartEntry;
-	UINTN lun;
+	UINT32 lun;
 };
 
-EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INTN Lun, struct StoragePartInfo *Ptable);
-UINT32 GetPartitionLunFromIndex(UINTN);
-INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINTN Lun);
+EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct StoragePartInfo *Ptable);
+UINT32 GetPartitionLunFromIndex(UINT32);
+INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun);
 #endif
