@@ -37,6 +37,7 @@
 #include "BootStats.h"
 #include <Library/PartitionTableUpdate.h>
 #include <Library/DrawUI.h>
+#include <Library/StackCanary.h>
 
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
@@ -116,6 +117,8 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	BOOLEAN MultiSlotBoot;
 
 	DEBUG((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
+
+	StackGuardChkSetup();
 
 	BootStatsSetTimeStamp(BS_BL_START);
 

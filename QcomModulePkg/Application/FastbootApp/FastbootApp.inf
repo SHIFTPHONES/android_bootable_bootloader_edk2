@@ -46,9 +46,6 @@
   UsbDescriptors.c
   FastbootCmds.c
 
-[BuildOptions.AARCH64]
-  GCC:*_*_*_CC_FLAGS = -O2
-
 [Packages]
   EmbeddedPkg/EmbeddedPkg.dec
   MdePkg/MdePkg.dec
