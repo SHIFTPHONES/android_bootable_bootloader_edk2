@@ -57,6 +57,7 @@
 	FastbootMenu.c
 	VerifiedBootMenu.c
 	PartitionTableUpdate.c
+	StackCanary.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
@@ -80,7 +81,6 @@
 	DebugPrintErrorLevelLib
 	FdtLib
 	TimerLib
-	BaseStackCheckLib
 	MemoryAllocationLib
 	UefiHiiServicesLib
 
@@ -131,6 +131,7 @@
 	gEfiLimitsProtocolGuid
 	gEfiQcomVerifiedBootProtocolGuid
 	gQcomScmModeSwithProtocolGuid
+	gQcomRngProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
