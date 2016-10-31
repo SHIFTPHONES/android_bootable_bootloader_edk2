@@ -33,6 +33,7 @@
 #include <Library/VerifiedBootMenu.h>
 #include <Library/DrawUI.h>
 #include <Protocol/EFIScmModeSwitch.h>
+#include <Library/PartitionTableUpdate.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
@@ -60,7 +61,7 @@ STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceT
 	return EFI_NOT_STARTED;
 }
 
-EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR8 *pname, BOOLEAN Recovery)
+EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR16 *PartitionName, BOOLEAN Recovery)
 {
 
 	EFI_STATUS Status;
@@ -93,7 +94,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	boot_state_t BootState = BOOT_STATE_MAX;
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 	device_info_vb_t DevInfo_vb;
-	STATIC CHAR8 StrPartition[MAX_PNAME_LENGTH];
+	STATIC CHAR16 StrPartition[MAX_GPT_NAME_SIZE];
 	BOOLEAN BootingWith32BitKernel = FALSE;
 
 	if (VerifiedBootEnbled())
@@ -113,8 +114,8 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			return Status;
 		}
 
-		AsciiStrnCpy(StrPartition, "/", MAX_PNAME_LENGTH);
-		AsciiStrnCat(StrPartition, pname, MAX_PNAME_LENGTH);
+		StrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, L"/", StrLen(L"/"));
+		StrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionName, StrLen(PartitionName));
 
 		Status = VbIntf->VBVerifyImage(VbIntf, StrPartition, (UINT8 *) ImageBuffer, ImageSize, &BootState);
 		if (Status != EFI_SUCCESS && BootState == BOOT_STATE_MAX)
@@ -239,7 +240,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
 
-	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, pname, DevInfo, Recovery);
+	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, PartitionName, DevInfo, Recovery);
 	if (!Final_CmdLine)
 	{
 		DEBUG((EFI_D_ERROR, "Error updating cmdline. Device Error\n"));

@@ -81,7 +81,6 @@ GetBlkIOHandles (
 	VENDOR_DEVICE_PATH                  *RootDevicePath;
 	UINT32                              BlkIoCnt = 0;
 	EFI_PARTITION_ENTRY *PartEntry;
-	CHAR8 Pname[MAX_PNAME_LENGTH];
 
 	if ((MaxBlkIopCnt == 0) || (HandleInfoPtr == 0))
 		return EFI_INVALID_PARAMETER;
@@ -227,8 +226,7 @@ GetBlkIOHandles (
 			Status = gBS->HandleProtocol(BlkIoHandles[i], &gEfiPartitionRecordGuid, (VOID **) &PartEntry);
 			if (Status != EFI_SUCCESS)
 				continue;
-			UnicodeStrToAsciiStr(PartEntry->PartitionName, Pname);
-			if (AsciiStrCmp(Pname, FilterData->PartitionLabel))
+			if (StrnCmp(PartEntry->PartitionName, FilterData->PartitionLabel, StrLen(PartEntry->PartitionName)))
 				continue;
 		}
 		/* We came here means, this handle satisfies all the conditions needed,
@@ -299,7 +297,7 @@ EFI_STATUS GetPartitionSize(UINT32 *ImageSize, EFI_GUID *PartitionType)
 }
 
 /* Load image from partition to buffer */
-EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR8 *Pname)
+EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname)
 {
 	EFI_STATUS                   Status;
 	EFI_BLOCK_IO_PROTOCOL       *BlkIo;
