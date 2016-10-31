@@ -160,7 +160,7 @@ extern struct StoragePartInfo Ptable[MAX_LUNS];
 CHAR8* GetCurrentSlotSuffix();
 UINT32 GetMaxLuns();
 VOID GetPartitionCount(UINT32 *Val);
-VOID SetMultiSlotBootVal();
+VOID SetMultiSlotBootVal(BOOLEAN Val);
 
 struct GptHeaderData
 {
