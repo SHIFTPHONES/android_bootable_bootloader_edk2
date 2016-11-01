@@ -62,7 +62,7 @@ enum ReturnVal
 #define GPT_HEADER_SIZE 92
 #define GPT_LBA 1
 #define GPT_PART_ENTRY_SIZE 128
-#define MAX_GPT_NAME_SIZE 72
+#define MAX_GPT_NAME_SIZE 36
 
 /* GPT Offsets */
 #define HEADER_SIZE_OFFSET        12
@@ -157,10 +157,10 @@ struct StoragePartInfo
 };
 extern struct StoragePartInfo Ptable[MAX_LUNS];
 
-CHAR8* GetCurrentSlotSuffix();
+CHAR16* GetCurrentSlotSuffix();
 UINT32 GetMaxLuns();
 VOID GetPartitionCount(UINT32 *Val);
-VOID SetMultiSlotBootVal();
+VOID SetMultiSlotBootVal(BOOLEAN Val);
 
 struct GptHeaderData
 {
@@ -179,5 +179,5 @@ struct PartitionEntry
 
 EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INTN Lun, struct StoragePartInfo *Ptable);
 UINT32 GetPartitionLunFromIndex(UINTN);
-INT32 GetPartitionIdxInLun(CHAR8 *Pname, UINTN Lun);
+INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINTN Lun);
 #endif

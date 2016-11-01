@@ -31,7 +31,6 @@
 #define _META_FORMAT_H_
 
 #define META_HEADER_MAGIC  0xce1ad63c
-#define MAX_GPT_NAME_SIZE  72
 
 typedef struct meta_header {
   UINT32       magic;		    /* 0xce1ad63c */

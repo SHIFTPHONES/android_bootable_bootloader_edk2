@@ -122,7 +122,7 @@ typedef struct {
 } HandleInfo;
 
 /* Load image from partition to buffer */
-EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR8 *Pname);
+EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname);
 
 EFI_STATUS ReadWriteDeviceInfo(vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz);
 /**
@@ -152,7 +152,6 @@ VOID ToLower(CHAR8 *Str);
 UINT32 GetTimerCountms (VOID);
 EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
 BOOLEAN IsSecureBootEnabled();
-EFI_STATUS LoadImageFromPartition(UINTN *ImageBuffer, UINT32 *ImageSize, CHAR8 *Pname);
 #if VERIFIED_BOOT
 EFI_STATUS ResetDeviceState();
 #else

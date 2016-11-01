@@ -274,8 +274,8 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 {
 	INTN Index;
 	UINTN Lun;
-	CHAR8 PartitionName[MAX_GPT_NAME_SIZE];
-	CHAR8* CurSlotSuffix = GetCurrentSlotSuffix();
+	CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
+	CHAR16* CurSlotSuffix = GetCurrentSlotSuffix();
 	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 	HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
 	UINT32 MaxHandles = ARRAY_SIZE(HandleInfoList);
@@ -287,8 +287,8 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 		return 0;
 	}
 
-	AsciiStrnCpyS(PartitionName, MAX_GPT_NAME_SIZE, "system", MAX_GPT_NAME_SIZE);
-	AsciiStrnCatS(PartitionName, MAX_GPT_NAME_SIZE, CurSlotSuffix, MAX_SLOT_SUFFIX_SZ);
+	StrnCpyS(PartitionName, MAX_GPT_NAME_SIZE, L"system", StrLen(L"system"));
+	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE, CurSlotSuffix, StrLen(CurSlotSuffix));
 
 	Index = GetPartitionIndex(PartitionName);
 	if (Index == INVALID_PTN) {
@@ -316,7 +316,7 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, BOOLEAN Recovery)
+UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo, BOOLEAN Recovery)
 {
 	EFI_STATUS Status;
 	UINT32 cmdline_len = 0;
@@ -325,12 +325,12 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, 
 	CHAR8  *cmdline_final = NULL;
 	UINT32 pause_at_bootup = 0; //this would have to come from protocol
 	BOOLEAN boot_into_ffbm = FALSE;
-	CHAR8* SlotSuffix;
+	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot;
 
 	CHAR8 ffbm[FFBM_MODE_BUF_SIZE];
-	if ((!AsciiStrnCmp(pname, "boot_a", AsciiStrLen(pname)))
-		|| (!AsciiStrnCmp(pname, "boot_b", AsciiStrLen(pname))))
+	if ((!StrnCmp(pname, L"boot_a", StrLen(pname)))
+		|| (!StrnCmp(pname, L"boot_b", StrLen(pname))))
 	{
 		SetMem(ffbm, FFBM_MODE_BUF_SIZE, 0);
 		Status = GetFfbmCommand(ffbm, sizeof(ffbm));
@@ -432,7 +432,7 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, 
 		default:
 			return NULL;
 	}
-	MultiSlotBoot = PartitionHasMultiSlot("boot");
+	MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	if(MultiSlotBoot) {
 		cmdline_len += AsciiStrLen(AndroidSlotSuffix) + 2;
 
@@ -585,8 +585,8 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR8 *pname, DeviceInfo *devinfo, 
 			if (have_cmdline) --dst;
 			STR_COPY(dst,src);
 			--dst;
-			SlotSuffix = GetCurrentSlotSuffix();
-			src = SlotSuffix;
+			UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), SlotSuffixAscii);
+			src = SlotSuffixAscii;
 			STR_COPY(dst,src);
 
 			/* Skip Initramfs*/
