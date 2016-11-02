@@ -36,6 +36,7 @@
 #include <Library/MenuKeysDetection.h>
 #include <Library/LinuxLoaderLib.h>
 #include <Library/Recovery.h>
+#include <Library/KeyPad.h>
 
 #include <Protocol/EFIVerifiedBoot.h>
 
@@ -367,8 +368,6 @@ STATIC BOOLEAN IsKeyPressed(UINT32 KeyType)
  **/
 VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 {
-	EFI_STATUS Status;
-	UINT32 KeyPressed;
 	UINT32 TimerDiff;
 	OPTION_MENU_INFO  *MenuInfo = Context;
 

@@ -74,14 +74,13 @@
 #define ROUND_TO_PAGE(x,y) ((ADD_OF((x),(y))) & (~(y)))
 #define ALIGN_PAGES(x,y) (((x) + (y - 1)) / (y))
 #define DECOMPRESS_SIZE_FACTOR 8
-#define MAX_PNAME_LENGTH 64
 #define ALIGNMENT_MASK_4KB 4096
 
 typedef VOID (*LINUX_KERNEL)(UINT64 ParametersBase, UINT64 Reserved0, UINT64 Reserved1, UINT64 Reserved2);
 
 EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR16 *PartitionName, BOOLEAN Recovery);
 EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize);
-EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
+EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
 BOOLEAN VerifiedBootEnbled();
 #endif

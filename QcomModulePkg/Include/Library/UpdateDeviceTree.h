@@ -39,6 +39,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/LinuxLoaderLib.h>
+#include <Library/Board.h>
 
 #define DTB_MAX_SUBNODE                128
 

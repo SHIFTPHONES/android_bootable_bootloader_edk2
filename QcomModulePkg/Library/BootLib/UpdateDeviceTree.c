@@ -31,6 +31,7 @@
  * dev_tree_add_mem_info() is called at every time when memory type matches conditions */
 
 #include <Protocol/EFIChipInfoTypes.h>
+#include <Library/UpdateDeviceTree.h>
 #include "UpdateDeviceTree.h"
 
 #define DTB_PAD_SIZE          1024
@@ -39,7 +40,7 @@
 STATIC struct DisplaySplashBufferInfo splashBuf;
 STATIC UINTN splashBufSize = sizeof(splashBuf);
 
-VOID PrintSplashMemInfo(CHAR8 *data, INT32 datalen)
+VOID PrintSplashMemInfo(CONST CHAR8 *data, INT32 datalen)
 {
 	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM];
 
@@ -115,7 +116,7 @@ EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 	PrintSplashMemInfo(Prop->data, PropLen);
 
 	/* First, update the FBAddress */
-	tmp = Prop->data + sizeof(UINT32);
+	tmp = (CHAR8 *)Prop->data + sizeof(UINT32);
 	splashBuf.uFrameAddr = cpu_to_fdt32(splashBuf.uFrameAddr);
 	memcpy(tmp, &splashBuf.uFrameAddr, sizeof(UINT32));
 

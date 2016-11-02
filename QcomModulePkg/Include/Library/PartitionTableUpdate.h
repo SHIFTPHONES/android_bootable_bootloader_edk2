@@ -180,4 +180,14 @@ struct PartitionEntry
 EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct StoragePartInfo *Ptable);
 UINT32 GetPartitionLunFromIndex(UINT32);
 INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun);
+INT32 GetPartitionIndex(CHAR16* PartitionName);
+BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname);
+EFI_STATUS EnumeratePartitions ();
+VOID UpdatePartitionEntries();
+VOID UpdatePartitionAttributes();
+VOID SetCurrentSlotSuffix(CHAR16* SlotSuffix);
+VOID FindPtnActiveSlot();
+VOID FindBootableSlot(CHAR16 *BootableSlot, UINT32 BootableSlotSizeMax);
+VOID SwitchPtnSlots(CONST CHAR16 *SetActive);
+VOID MarkPtnActive(CHAR16 *ActiveSlot);
 #endif

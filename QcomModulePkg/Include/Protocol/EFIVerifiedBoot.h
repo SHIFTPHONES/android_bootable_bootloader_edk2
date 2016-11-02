@@ -132,7 +132,7 @@ EFI_STATUS
   IN     QCOM_VERIFIEDBOOT_PROTOCOL *This,
   IN     vb_device_state_op_t       op,
   IN OUT UINT8                      *buf,
-  IN OUT UINT32                     *buf_len
+  IN OUT UINT32                     buf_len
 );
 
 /**
@@ -183,7 +183,7 @@ EFI_STATUS
 (EFIAPI *QCOM_VB_IS_DEVICE_SECURE )
 (
   IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This,
-  OUT BOOLEAN State
+  OUT BOOLEAN *State
 );
 
 /**
@@ -230,7 +230,7 @@ EFI_STATUS
   IN     UINT8                      pname[MAX_PNAME_LENGTH],
   IN     UINT8                      *img,
   IN     UINT32                     img_len,
-  OUT    boot_state_t               bootstate
+  OUT    boot_state_t               *bootstate
 );
 
 /**

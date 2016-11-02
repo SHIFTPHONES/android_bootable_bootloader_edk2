@@ -144,7 +144,7 @@ STATIC EFI_STATUS GetChipInfo(struct BoardInfo *platform_board_info)
 	Status = pChipInfoProtocol->GetFoundryId(pChipInfoProtocol, &platform_board_info->FoundryId);
 	if (EFI_ERROR(Status))
 		return Status;
-	Status = pChipInfoProtocol->GetChipIdString(pChipInfoProtocol, &platform_board_info->ChipBaseBand, EFICHIPINFO_MAX_ID_LENGTH);
+	Status = pChipInfoProtocol->GetChipIdString(pChipInfoProtocol, platform_board_info->ChipBaseBand, EFICHIPINFO_MAX_ID_LENGTH);
 	if (EFI_ERROR(Status))
 		return Status;
 	DEBUG((EFI_D_VERBOSE, "Raw Chip Id   : 0x%x\n", platform_board_info->RawChipId));
@@ -339,9 +339,7 @@ EFI_STATUS BoardInit()
 EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet)
 {
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
-	MEM_CARD_INFO CardInfoData;
 	EFI_MEM_CARDINFO_PROTOCOL *CardInfo;
-	UINT32 SerialNo;
 	HandleInfo HandleInfoList[MAX_HANDLE_INFO_LIST];
 	UINT32 Attribs = 0;
 	UINT32 MaxHandles;

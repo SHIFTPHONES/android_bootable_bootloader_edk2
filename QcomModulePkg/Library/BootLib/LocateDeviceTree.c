@@ -354,7 +354,7 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 		 * and operate on it separately */
 		CopyMem(&dtb_hdr, dtb, sizeof(struct fdt_header));
 		if (fdt_check_header((const VOID *)&dtb_hdr) != 0 ||
-				fdt_check_header_ext((const VOID *)&dtb_hdr) != 0 ||
+				fdt_check_header_ext((VOID *)&dtb_hdr) != 0 ||
 				((uintptr_t)dtb + (uintptr_t)fdt_totalsize((const VOID *)&dtb_hdr) < (uintptr_t)dtb) ||
 				((uintptr_t)dtb + (uintptr_t)fdt_totalsize((const VOID *)&dtb_hdr) > (uintptr_t)kernel_end))
 			break;

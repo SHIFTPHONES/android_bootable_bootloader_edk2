@@ -117,7 +117,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		AsciiStrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, "/", AsciiStrLen("/"));
 		AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameUnicode, AsciiStrLen(PartitionNameUnicode));
 
-		Status = VbIntf->VBVerifyImage(VbIntf, StrPartition, (UINT8 *) ImageBuffer, ImageSize, &BootState);
+		Status = VbIntf->VBVerifyImage(VbIntf, (UINT8 *)StrPartition, (UINT8 *) ImageBuffer, ImageSize, &BootState);
 		if (Status != EFI_SUCCESS && BootState == BOOT_STATE_MAX)
 		{
 			DEBUG((EFI_D_ERROR, "VBVerifyImage failed with: %r\n", Status));
@@ -198,9 +198,9 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		}
 
 		DEBUG((EFI_D_INFO, "Decompressing kernel image done: %u ms\n", GetTimerCountms()));
-		Kptr = KernelLoadAddr;
+		Kptr = (struct kernel64_hdr*)KernelLoadAddr;
 	} else {
-		if (CHECK_ADD64(ImageBuffer, PageSize)) {
+		if (CHECK_ADD64((UINT64)ImageBuffer, PageSize)) {
 			DEBUG((EFI_D_ERROR, "Integer Overflow: in Kernel header fields addition\n"));
 			return EFI_BAD_BUFFER_SIZE;
 		}
@@ -209,7 +209,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
 		BootingWith32BitKernel = TRUE;
 		KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress32));
-		if (CHECK_ADD64((VOID*)Kptr, DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR)) {
+		if (CHECK_ADD64((UINT64)Kptr, DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR)) {
 			DEBUG((EFI_D_ERROR, "Integer Overflow: in DTB offset addition\n"));
 			return EFI_BAD_BUFFER_SIZE;
 		}
@@ -460,7 +460,7 @@ EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *
   @retval     EFI_SUCCESS     Load image from partition successfully.
   @retval     other           Failed to Load image from partition.
 **/
-EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
+EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	VOID* ImageHdrBuffer;

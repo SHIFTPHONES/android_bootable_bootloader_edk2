@@ -72,9 +72,13 @@ EFIChipInfoVersionType BoardPlatformChipVersion();
 EFIChipInfoFoundryIdType BoardPlatformFoundryId();
 EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
 UINT32 BoardPlatformVersion();
-UINT32 BoardPlatormSubType();
+UINT32 BoardPlatformSubType();
 UINT32 BoardTargetId();
 VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len);
 VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len);
+EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet);
 UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles);
+UINT32 BoardPlatformRawChipId();
+EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartitions);
+VOID GetPageSize(UINT32 *PageSize);
 #endif
