@@ -37,6 +37,7 @@
 #include <Library/FastbootMenu.h>
 #include <Library/MenuKeysDetection.h>
 #include <Library/UpdateDeviceTree.h>
+#include <Library/BoardCustom.h>
 #include <Protocol/EFIVerifiedBoot.h>
 
 STATIC OPTION_MENU_INFO gMenuInfo;
@@ -145,7 +146,8 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 	UINT32  OptionItem = 0;
 	UINT32  Height = 0;
 	UINT32  i = 0;
-	CHAR8 SerialNum[MAX_RSP_SIZE];
+	CHAR8 StrTemp[MAX_RSP_SIZE] = "\0";
+	CHAR8 StrTemp1[MAX_RSP_SIZE] = "\0";
 	DeviceInfo *DevInfo = NULL;
 
 	/* Clear the screen before launch the fastboot menu */
@@ -185,12 +187,19 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 		case 2:
 			/* Get product name */
 			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
-				"unsupported", AsciiStrLen("unsupported"));
+				PRODUCT_NAME, AsciiStrLen(PRODUCT_NAME));
 			break;
 		case 3:
 			/* Get variant value */
+			BoardHwPlatformName(StrTemp, sizeof(StrTemp));
+			GetRootDeviceType(StrTemp1, sizeof(StrTemp1));
+
 			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
-				"unsupported", AsciiStrLen("unsupported"));
+				StrTemp, AsciiStrLen(StrTemp));
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				" ", AsciiStrLen(" "));
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				StrTemp1, AsciiStrLen(StrTemp1));
 			break;
 		case 4:
 			/* Get bootloader version */
@@ -204,15 +213,15 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 			break;
 		case 6:
 			/* Get serial number */
-			ZeroMem(SerialNum, sizeof(SerialNum));
-			BoardSerialNum(SerialNum, MAX_RSP_SIZE);
+			ZeroMem(StrTemp, sizeof(StrTemp));
+			BoardSerialNum(StrTemp, MAX_RSP_SIZE);
 			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
-				SerialNum, AsciiStrLen(SerialNum));
+				StrTemp, AsciiStrLen(StrTemp));
 			break;
 		case 7:
 			/* Get secure boot value */
 			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
-				"unsupported", AsciiStrLen("unsupported"));
+				IsSecureBootEnabled()? "yes":"no", IsSecureBootEnabled()? AsciiStrLen("yes"):AsciiStrLen("no"));
 			break;
 		case 8:
 			/* Get device status */
