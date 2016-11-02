@@ -29,6 +29,7 @@
 [LibraryClasses]
   UefiDriverEntryPoint
   DebugLib
+  BootLib
 
 [Guids]
   gEfiSystemPartitionGuid
@@ -38,7 +39,6 @@
 [Protocols]
   gQcomMdtpProtocolGuid
   gQcomQseecomProtocolGuid
-  gEfiPartitionTypeGuid
   gEfiBlockIoProtocolGuid
   gEfiDiskIoProtocolGuid
   gEfiHashProtocolGuid
