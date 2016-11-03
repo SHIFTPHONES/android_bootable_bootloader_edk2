@@ -41,22 +41,8 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/DeviceInfo.h>
 
+#define BOOT_BASE_BAND " androidboot.baseband="
 #define BATT_MIN_VOLT  3200
-
-enum baseband {
-	BASEBAND_MSM = 0,
-	BASEBAND_APQ = 1,
-	BASEBAND_CSFB = 2,
-	BASEBAND_SVLTE1 = 3,
-	BASEBAND_SVLTE2A = 4,
-	BASEBAND_MDM = 5,
-	BASEBAND_SGLTE = 6,
-	BASEBAND_DSDA = 7,
-	BASEBAND_DSDA2 = 8,
-	BASEBAND_SGLTE2 = 9,
-	BASEBAND_MDM2 = 10,
-	BASEBAND_32BITS = 0x7FFFFFFF
-};
 
 #define MAX_PATH_SIZE 64
 
@@ -74,9 +60,6 @@ BOOLEAN target_use_signed_kernel(VOID);
  * automated testing/reboot with usb connected.
  * uncomment if this feature is needed */
 UINT32 target_pause_for_battery_charge(VOID);
-
-/*Determine correct androidboot.baseband to use*/
-UINT32 target_baseband(VOID);
 
 UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo, BOOLEAN Recovery);
 BOOLEAN TargetBatterySocOk();

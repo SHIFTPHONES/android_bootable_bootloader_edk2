@@ -110,6 +110,7 @@ FvNameGuid         = 046fae99-cf2e-49ed-a6a8-a1488b7e80d3
 
 INF QcomModulePkg/Application/FastbootApp/FastbootApp.inf
 INF QcomModulePkg/Application/LinuxLoader/LinuxLoader.inf
+INF QcomModulePkg/Drivers/MdtpDxe/MdtpDxe.inf
 
 [FV.FVMAIN_COMPACT]
 FvAlignment        = 8

@@ -80,7 +80,7 @@
 typedef VOID (*LINUX_KERNEL)(UINTN ParametersBase, UINTN Reserved0, UINTN Reserved1, UINTN Reserved2);
 
 EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, CHAR16 *PartitionName, BOOLEAN Recovery);
-EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 *ImageSizeActual, UINT32 *PageSize);
+EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize);
 EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS LaunchApp(IN UINTN  Argc, IN CHAR8  **Argv);
 #endif

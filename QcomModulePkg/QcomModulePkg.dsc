@@ -73,6 +73,9 @@
   DebugLib|MdeModulePkg/Library/PeiDxeDebugLibReportStatusCode/PeiDxeDebugLibReportStatusCode.inf
   ReportStatusCodeLib|MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf
   DebugPrintErrorLevelLib|MdeModulePkg/Library/DxeDebugPrintErrorLevelLib/DxeDebugPrintErrorLevelLib.inf
+  UefiDriverEntryPoint|MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
+  PerformanceLib|MdeModulePkg/Library/DxePerformanceLib/DxePerformanceLib.inf
+  UefiHiiServicesLib|MdeModulePkg/Library/UefiHiiServicesLib/UefiHiiServicesLib.inf
 
 [LibraryClasses.AARCH64]
   ArmLib|ArmPkg/Library/ArmLib/AArch64/AArch64Lib.inf
@@ -80,15 +83,16 @@
 
 [LibraryClasses.common.UEFI_APPLICATION]
   ReportStatusCodeLib|IntelFrameworkModulePkg/Library/DxeReportStatusCodeLibFramework/DxeReportStatusCodeLib.inf
-  PerformanceLib|MdeModulePkg/Library/DxePerformanceLib/DxePerformanceLib.inf
   ExtractGuidedSectionLib|MdePkg/Library/DxeExtractGuidedSectionLib/DxeExtractGuidedSectionLib.inf
-  UefiHiiServicesLib|MdeModulePkg/Library/UefiHiiServicesLib/UefiHiiServicesLib.inf
 
 [BuildOptions.AARCH64]
   GCC:*_*_AARCH64_ARCHCC_FLAGS  = -w -fstack-protector-strong
   GCC:*_*_AARCH64_DLINK_FLAGS = -Ttext=0x0
   !if $(VERIFIED_BOOT)
       GCC:*_*_*_CC_FLAGS = -DVERIFIED_BOOT
+  !endif
+  !if $(USER_BUILD_VARIANT) == 0
+      GCC:*_*_*_CC_FLAGS = -DENABLE_UPDATE_PARTITIONS_CMDS -DENABLE_BOOT_CMD -DENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS
   !endif
 
 [PcdsFixedAtBuild.common]
@@ -119,5 +123,9 @@
 		<LibraryClasses>
 			FdtLib|EmbeddedPkg/Library/FdtLib/FdtLib.inf
 			ArmSmcLib|ArmPkg/Library/ArmSmcLib/ArmSmcLib.inf
+			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
+	}
+	QcomModulePkg/Drivers/MdtpDxe/MdtpDxe.inf {
+		<LibraryClasses>
 			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
 	}

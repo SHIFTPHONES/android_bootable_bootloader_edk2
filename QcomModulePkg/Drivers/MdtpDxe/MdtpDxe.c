@@ -31,6 +31,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Protocol/EFIMdtp.h>
 #include "Mdtp.h"
+#include <Library/StackCanary.h>
 
 EFI_HANDLE  mMdtpHandle = NULL;
 
@@ -100,6 +101,8 @@ EFI_STATUS MdtpDxeInitialize (
 	EFI_STATUS    Status = EFI_SUCCESS;
 
 	DEBUG((EFI_D_INFO, "MdtpDxeInitialize: Started\n"));
+
+	StackGuardChkSetup();
 
 	/* Install our protocols.  The device path protocol is required for this driver
 	 * to show up to the console. */
