@@ -1928,27 +1928,40 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	{
 		/* By Default enable list is empty */
 		{ "", NULL},
-#ifndef DISABLE_FASTBOOT_CMDS
+/*CAUTION(High): Enabling these commands will allow changing the partitions
+ *like system,userdata,cachec etc...
+ */
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 		{ "flash:", CmdFlash },
 		{ "erase:", CmdErase },
 		{ "set_active", CmdSetActive },
-		{ "boot", CmdBoot },
-		{ "continue", CmdContinue },
-		{ "reboot", CmdReboot },
-		{ "reboot-bootloader", CmdRebootBootloader },
+		{ "flashing get_unlock_ability", CmdFlashingGetUnlockAbility },
 		{ "flashing unlock", CmdFlashingUnlock },
 		{ "flashing lock", CmdFlashingLock },
+#endif
+/*
+ *CAUTION(CRITICAL): Enabling these commands will allow changes to bootimage.
+ */
+#ifdef ENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS
 		{ "flashing unlock_critical", CmdFlashingUnLockCritical },
 		{ "flashing lock_critical", CmdFlashingLockCritical },
-		{ "flashing get_unlock_ability", CmdFlashingGetUnlockAbility },
+#endif
+/*
+ *CAUTION(CRITICAL): Enabling this command will allow boot with different bootimage.
+ */
+#ifdef ENABLE_BOOT_CMD
+		{ "boot", CmdBoot },
+#endif
 		{ "oem enable-charger-screen", CmdOemEnableChargerScreen },
 		{ "oem disable-charger-screen", CmdOemDisableChargerScreen },
 		{ "oem off-mode-charge", CmdOemOffModeCharger },
 		{ "oem select-display-panel", CmdOemSelectDisplayPanel },
 		{ "oem device-info", CmdOemDevinfo},
+		{ "continue", CmdContinue },
+		{ "reboot", CmdReboot },
+		{ "reboot-bootloader", CmdRebootBootloader },
 		{ "getvar:", CmdGetVar },
 		{ "download:", CmdDownload },
-#endif
 	};
 
 	/* Register the commands only for non-user builds */ 
