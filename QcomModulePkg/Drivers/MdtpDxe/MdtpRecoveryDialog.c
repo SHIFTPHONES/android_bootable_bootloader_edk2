@@ -461,11 +461,12 @@ STATIC VOID MdtpDisplayHelpDialog()
 {
 	mdtp_isv_params_t         IsvParams;
 	MdtpStatus                RetVal;
-	CHAR8                     *Title              = " ISV information\n";
+	CHAR8                     *Title              = " ISV information";
 	CHAR8                     *DeviceId           = "   Device Identifier : ";
 	CHAR8                     *IsvName            = "   ISV name          : ";
 	CHAR8                     *IsvFriendlyName    = "   ISV description   : ";
 	CHAR8                     *NotAvailable       = "Not available";
+	UINTN                     NotAvailableLen;
 	UINTN                     Rows = 0;
 	UINTN                     Columns = 0;
 	UINTN                     FirstLineLocation;
@@ -477,9 +478,11 @@ STATIC VOID MdtpDisplayHelpDialog()
 	if (RetVal) {
 		DEBUG((EFI_D_ERROR, "MdtpDisplayHelpDialog: ERROR, can't get ISV parameters\n"));
 
-		CopyMem(IsvParams.isv_device_id.data, NotAvailable, sizeof(NotAvailable));
-		CopyMem(IsvParams.isv_name.data, NotAvailable, sizeof(NotAvailable));
-		CopyMem(IsvParams.isv_friendly_name.data, NotAvailable, sizeof(NotAvailable));
+		NotAvailableLen = AsciiStrLen(NotAvailable) + 1;
+
+		CopyMem(IsvParams.isv_device_id.data, NotAvailable, NotAvailableLen);
+		CopyMem(IsvParams.isv_name.data, NotAvailable, NotAvailableLen);
+		CopyMem(IsvParams.isv_friendly_name.data, NotAvailable, NotAvailableLen);
 	}
 
 	MdtpClearScreen();                                                              /* No point in checking the return value here */
@@ -491,16 +494,16 @@ STATIC VOID MdtpDisplayHelpDialog()
 	if ((!RetVal)) {
 		FirstLineLocation = TEXTUAL_ERROR_RELATIVE_Y_LOCATION*Rows;
 
-		MdtpPrintStringInCoordinates(Title, sizeof(Title), 0, FirstLineLocation);
+		MdtpPrintStringInCoordinates(Title, 0, FirstLineLocation);
 
-		MdtpPrintStringInCoordinates(DeviceId, sizeof(DeviceId), 0, FirstLineLocation+SPACE_BETWEEN_TEXT_LINES);
-		MdtpPrintString(IsvParams.isv_device_id.data, sizeof(IsvParams.isv_device_id.data));
+		MdtpPrintStringInCoordinates(DeviceId, 0, FirstLineLocation+SPACE_BETWEEN_TEXT_LINES);
+		MdtpPrintString(IsvParams.isv_device_id.data);
 
-		MdtpPrintStringInCoordinates(IsvName, sizeof(IsvName), 0, FirstLineLocation+SPACE_BETWEEN_TEXT_LINES*2);
-		MdtpPrintString(IsvParams.isv_name.data, sizeof(IsvParams.isv_name.data));
+		MdtpPrintStringInCoordinates(IsvName, 0, FirstLineLocation+SPACE_BETWEEN_TEXT_LINES*2);
+		MdtpPrintString(IsvParams.isv_name.data);
 
-		MdtpPrintStringInCoordinates(IsvFriendlyName, sizeof(IsvFriendlyName), 0, FirstLineLocation+SPACE_BETWEEN_TEXT_LINES*4);
-		MdtpPrintString(IsvParams.isv_friendly_name.data, sizeof(IsvParams.isv_friendly_name.data));
+		MdtpPrintStringInCoordinates(IsvFriendlyName, 0, FirstLineLocation+SPACE_BETWEEN_TEXT_LINES*3);
+		MdtpPrintString(IsvParams.isv_friendly_name.data);
 	}
 
 	MdtpDisplayPressAnyKey();
@@ -524,6 +527,9 @@ STATIC VOID MdtpDisplayInitialScreen(UINT32 PinLength, BOOLEAN DelayRequired)
 		DEBUG((EFI_D_ERROR, "MdtpDisplayInitialScreen: ERROR, failed to initialize recovery dialog\n"));
 		MdtpRecoveryDialogDisplayErrorMessage(); /* This will never return */
 	}
+
+	if (MdtpClearScreen())
+		MdtpRecoveryDialogDisplayErrorMessage(); /* This will never return */
 
 	if (MdtpDisplayErrorImage())
 		MdtpRecoveryDialogDisplayErrorMessage(); /* This will never return */
@@ -656,7 +662,7 @@ STATIC VOID MdtpGetPinInterface(char *EnteredPin, UINT32 PinLength, BOOLEAN Mast
 			}
 		}
 
-		/* Volume up pressed */
+		/* Volume down pressed */
 		else if (KeyStroke == KEY_VOLUME_DOWN) {
 			PreviousPosition = CurrentPosition;
 			CurrentPosition = (CurrentPosition+1) % (PinLength+2);
@@ -787,8 +793,8 @@ VOID MdtpRecoveryDialogDisplayTextualErrorMessage()
 	if ((!RetVal)) {
 		FirstLineLocation = ISV_PARAMS_RELATIVE_Y_LOCATION*Rows;
 
-		MdtpPrintStringInCoordinates(MainText, sizeof(MainText), 0, FirstLineLocation);                              /* No point in checking the return value here */
-		MdtpPrintStringInCoordinates(ErrorMsg, sizeof(ErrorMsg), 0, FirstLineLocation + SPACE_BETWEEN_TEXT_LINES);   /* No point in checking the return value here */
+		MdtpPrintStringInCoordinates(MainText, 0, FirstLineLocation);                              /* No point in checking the return value here */
+		MdtpPrintStringInCoordinates(ErrorMsg, 0, FirstLineLocation + SPACE_BETWEEN_TEXT_LINES);   /* No point in checking the return value here */
 	}
 
 	/* Invalid state. Nothing to be done but contacting the OEM.

@@ -324,7 +324,7 @@ MdtpStatus MdtpReadKeyStroke(MdtpKeyStroke *KeyStroke)
 
 	if (KeyData.Key.ScanCode == SCAN_UP)
 		*KeyStroke = KEY_VOLUME_UP;
-	if (KeyData.Key.ScanCode == SCAN_DOWN)
+	else if (KeyData.Key.ScanCode == SCAN_DOWN)
 		*KeyStroke = KEY_VOLUME_DOWN;
 	else
 		*KeyStroke = KEY_NONE;              /* Keys other than volume up and volume down are ignored */
@@ -338,11 +338,10 @@ MdtpStatus MdtpReadKeyStroke(MdtpKeyStroke *KeyStroke)
  * Prints a string at current cursor position.
  *
  * @param[in] String - String to print.
- * @param[in] Length - String length.
  *
  * @return - MDTP_STATUS_SUCCESS in case of success, error code otherwise.
  */
-MdtpStatus MdtpPrintString(CHAR8* String, UINTN Length)
+MdtpStatus MdtpPrintString(CHAR8* String)
 {
 	EFI_STATUS                     Status;
 	MdtpStatus                     RetVal;
@@ -367,7 +366,7 @@ MdtpStatus MdtpPrintString(CHAR8* String, UINTN Length)
 
 	AsciiStrToUnicodeStr(String, &UnicodeString);
 
-	Status = gSimpleTextOutput->OutputString(gSimpleTextOutput, String);
+	Status = gSimpleTextOutput->OutputString(gSimpleTextOutput, UnicodeString);
 	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "MdtpPrintString: ERROR, failed to write output string, Status = %r\n", Status));
 		return MDTP_STATUS_UEFI_ERROR;
@@ -382,13 +381,12 @@ MdtpStatus MdtpPrintString(CHAR8* String, UINTN Length)
  * Prints a string at (x,y) coordinates on the screen.
  *
  * @param[in] String - String to print.
- * @param[in] Length - String length.
  * @param[in] x - x coordinate of the (x,y) location.
  * @param[in] y - y coordinate of the (x,y) location.
  *
  * @return - MDTP_STATUS_SUCCESS in case of success, error code otherwise.
  */
-MdtpStatus MdtpPrintStringInCoordinates(CHAR8* String, UINTN Length, UINTN x, UINTN y)
+MdtpStatus MdtpPrintStringInCoordinates(CHAR8* String, UINTN x, UINTN y)
 {
 	EFI_STATUS                     Status;
 	MdtpStatus                     RetVal;
@@ -419,7 +417,7 @@ MdtpStatus MdtpPrintStringInCoordinates(CHAR8* String, UINTN Length, UINTN x, UI
 
 	AsciiStrToUnicodeStr(String, &UnicodeString);
 
-	Status = gSimpleTextOutput->OutputString(gSimpleTextOutput, String);
+	Status = gSimpleTextOutput->OutputString(gSimpleTextOutput, UnicodeString);
 	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "MdtpPrintString: ERROR, failed to write output string, Status = %r\n", Status));
 		return MDTP_STATUS_UEFI_ERROR;
