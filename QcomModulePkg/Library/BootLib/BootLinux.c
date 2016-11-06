@@ -94,7 +94,8 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	boot_state_t BootState = BOOT_STATE_MAX;
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 	device_info_vb_t DevInfo_vb;
-	STATIC CHAR16 StrPartition[MAX_GPT_NAME_SIZE];
+	STATIC CHAR8 StrPartition[MAX_GPT_NAME_SIZE];
+	CHAR8 PartitionNameUnicode[MAX_GPT_NAME_SIZE];
 	BOOLEAN BootingWith32BitKernel = FALSE;
 
 	if (VerifiedBootEnbled())
@@ -114,8 +115,9 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			return Status;
 		}
 
-		StrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, L"/", StrLen(L"/"));
-		StrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionName, StrLen(PartitionName));
+		UnicodeStrToAsciiStr(PartitionName, PartitionNameUnicode);
+		AsciiStrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, "/", AsciiStrLen("/"));
+		AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameUnicode, AsciiStrLen(PartitionNameUnicode));
 
 		Status = VbIntf->VBVerifyImage(VbIntf, StrPartition, (UINT8 *) ImageBuffer, ImageSize, &BootState);
 		if (Status != EFI_SUCCESS && BootState == BOOT_STATE_MAX)
