@@ -537,6 +537,10 @@ VOID FindPtnActiveSlot()
 	}
 	UpdatePartitionAttributes();
 	StrnCpyS(CurrentSlot, MAX_SLOT_SUFFIX_SZ, ActiveSlot, StrLen(ActiveSlot));
+
+	if (Unbootable)
+		SwitchPtnSlots(CurrentSlot);
+
 	return;
 }
 
