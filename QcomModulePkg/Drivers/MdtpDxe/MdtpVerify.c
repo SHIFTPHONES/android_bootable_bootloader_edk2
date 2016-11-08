@@ -39,7 +39,7 @@
 #define MDTP_CORRECT_PIN_DELAY_USEC (1*1000*1000)        /* 1 second */
 
 typedef struct {
-	mdtp_system_state_t State;
+	mdtp_system_state_t SystemState;
 	BOOLEAN Valid;
 } MdtpState;
 
@@ -289,7 +289,7 @@ STATIC VOID MdtpVerifyDisplayRecoveryDialog(BOOLEAN MasterPIN)
 			}
 
 			MdtpRecoveryDialogShutdown();
-			gMdtpState.State = MDTP_STATE_INACTIVE;
+			gMdtpState.SystemState = MDTP_STATE_INACTIVE;
 			gBS->Stall(MDTP_CORRECT_PIN_DELAY_USEC);
 
 			break;
@@ -314,28 +314,27 @@ STATIC MdtpStatus MdtpVerifyExternalPartition(MDTP_VB_EXTERNAL_PARTITION *ExtPar
 	QCOM_VERIFIEDBOOT_PROTOCOL    *VbProtocol;
 	device_info_vb_t              DevInfo;
 	boot_state_t                  BootState = BOOT_STATE_MAX;
-	MdtpStatus                    RetVal;
-
-	/* Check if image is legal (only boot and recovery are legal) and set boot mode */
-	if (AsciiStrnCmp(ExtPartition->PartitionName, "boot", MDTP_MAX_PARTITION_NAME_LEN) == 0)
-		gBootMode = MDTP_BOOT_MODE_BOOT;
-	else if (AsciiStrnCmp(ExtPartition->PartitionName, "recovery", MDTP_MAX_PARTITION_NAME_LEN) == 0)
-		gBootMode = MDTP_BOOT_MODE_RECOVERY;
-	else {
-		DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: ERROR, wrong external partition: %s\n", ExtPartition->PartitionName));
-		return MDTP_STATUS_VERIFICATION_ERROR;
-	}
+	MdtpStatus                    RetVal = MDTP_STATUS_SUCCESS;
 
 	/* If the boot state is not orange, the image was already verified
-	 * successfully in BootLinux and there no additional action required */
-	if (ExtPartition->VbEnabled && (ExtPartition->BootState == GREEN || ExtPartition->BootState == YELLOW)) {
-		DEBUG((EFI_D_INFO, "MdtpVerifyExternalPartition: image %s verified externally successfully\n", ExtPartition->PartitionName));
+	 * in BootLinux and there's no additional action required.
+	 * Based on the state that is returned from VerifiedBoot,
+	 * we determine the status for the external image verification. */
+	if (ExtPartition->VbEnabled && (ExtPartition->BootState == GREEN)) {
+		DEBUG((EFI_D_INFO, "MdtpVerifyExternalPartition: image %a verified externally successfully\n", ExtPartition->PartitionName));
 		return MDTP_STATUS_SUCCESS;
+	}
+	else if (ExtPartition->VbEnabled && (ExtPartition->BootState == YELLOW || ExtPartition->BootState == RED)) {
+		DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: image %a verified externally and failed\n", ExtPartition->PartitionName));
+		return MDTP_STATUS_VERIFICATION_ERROR;
 	}
 
 	/* If image was not verified in BootLinux, verify it ourselves using VerifiedBoot protocol */
 	if (ExtPartition->VbEnabled==FALSE || ExtPartition->BootState == ORANGE || ExtPartition->BootState == BOOT_STATE_MAX) {
 		do {
+			DEBUG((EFI_D_INFO, "MdtpVerifyExternalPartition: image %a was not verified externally, verifying internally instead\n",
+					ExtPartition->PartitionName));
+
 			/* Initialize VerifiedBoot.
 			 * If the device is in ORANGE state the image will not be verified if we invoke VerifiedBoot protocol now.
 			 * Therefore, we will force the device state to be GREEN */
@@ -364,13 +363,13 @@ STATIC MdtpStatus MdtpVerifyExternalPartition(MDTP_VB_EXTERNAL_PARTITION *ExtPar
 			}
 
 			if (BootState == RED) {
-				DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: image %s verification failed in MDTP\n", ExtPartition->PartitionName));
+				DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: image %a verification failed in MDTP\n", ExtPartition->PartitionName));
 				RetVal = MDTP_STATUS_VERIFICATION_ERROR;
 				break;
 			}
 
 			else {
-				DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: image %s verified succesfully in MDTP\n", ExtPartition->PartitionName));
+				DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: image %a verified succesfully in MDTP\n", ExtPartition->PartitionName));
 			}
 		} while (0);
 
@@ -380,9 +379,15 @@ STATIC MdtpStatus MdtpVerifyExternalPartition(MDTP_VB_EXTERNAL_PARTITION *ExtPar
 		if (EFI_ERROR(Status)) {
 			DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: ERROR, VBDeviceInit failed, couldn't restore boot state. Status = %r\n", Status));
 		}
-
-		return RetVal;
 	}
+	/* Any other option is considered an error
+	 * (we are not supposed to reach here) */
+	else {
+		DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: ERROR, unexpected state"));
+		RetVal = MDTP_STATUS_VERIFICATION_ERROR;
+	}
+
+	return RetVal;
 }
 
 /**
@@ -526,14 +531,16 @@ STATIC MdtpStatus MdtpVerifyGetState(mdtp_system_state_t *SystemState, mdtp_app_
 		return MDTP_STATUS_GENERAL_ERROR;
 	}
 
-	RetVal = MdtpQseeGetState(&SystemState, &AppState);
-	if (RetVal) {
-		DEBUG((EFI_D_ERROR, "MdtpVerifyGetState: ERROR, cannot run get_state command, %d\n", RetVal));
-		return MDTP_STATUS_GENERAL_ERROR;
-	}
+	if (gMdtpState.Valid == FALSE) {
+		RetVal = MdtpQseeGetState(&SystemState, &AppState);
+		if (RetVal) {
+			DEBUG((EFI_D_ERROR, "MdtpVerifyGetState: ERROR, cannot run get_state command, %d\n", RetVal));
+			return MDTP_STATUS_GENERAL_ERROR;
+		}
 
-	gMdtpState.State = SystemState;
-	gMdtpState.Valid = TRUE;
+		gMdtpState.SystemState = SystemState;
+		gMdtpState.Valid = TRUE;
+	}
 
 	DEBUG((EFI_D_INFO, "MdtpVerifyGetState: get state command finished successfully\n"));
 
@@ -569,6 +576,16 @@ EFI_STATUS MdtpVerifyFwlock(MDTP_VB_EXTERNAL_PARTITION *ExtPartition)
 			break;
 		}
 
+		/* Check if image is legal (only boot and recovery are legal) and set boot mode */
+		if (AsciiStrnCmp(ExtPartition->PartitionName, "/boot", MDTP_MAX_PARTITION_NAME_LEN) == 0)
+			gBootMode = MDTP_BOOT_MODE_BOOT;
+		else if (AsciiStrnCmp(ExtPartition->PartitionName, "/recovery", MDTP_MAX_PARTITION_NAME_LEN) == 0)
+			gBootMode = MDTP_BOOT_MODE_RECOVERY;
+		else {
+			DEBUG((EFI_D_ERROR, "MdtpVerifyFwlock: ERROR, wrong external partition: %s\n", ExtPartition->PartitionName));
+			break;
+		}
+
 		RetVal = MdtpImageManagerInit();
 		if (RetVal) {
 			DEBUG((EFI_D_ERROR, "MdtpVerifyFwlock: ERROR, image file could not be loaded\n"));
@@ -581,27 +598,36 @@ EFI_STATUS MdtpVerifyFwlock(MDTP_VB_EXTERNAL_PARTITION *ExtPartition)
 			break;
 		}
 
-		if (gMdtpState.Valid == FALSE) {
-			RetVal = MdtpVerifyGetState(&SystemState, &AppState);
-			if (RetVal) {
-				DEBUG((EFI_D_ERROR, "MdtpVerifyFwlock: ERROR, cannot get MDTP state, %d\n", RetVal));
-				break;
-			}
+		RetVal = MdtpVerifyGetState(&SystemState, &AppState);
+		if (RetVal) {
+			DEBUG((EFI_D_ERROR, "MdtpVerifyFwlock: ERROR, cannot get MDTP state, %d\n", RetVal));
+			break;
 		}
 
 		/* Continue with Firmware Lock verification only if enabled by eFuse */
-		if (SystemState == MDTP_STATE_INVALID) {
+		if (gMdtpState.SystemState == MDTP_STATE_INVALID) {
 			/* Display recovery UI with master PIN */
-			DEBUG((EFI_D_ERROR, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_INVALID\n"));
+			DEBUG((EFI_D_INFO, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_INVALID\n"));
 			MdtpVerifyDisplayRecoveryDialog(TRUE);
 		}
-		else if (SystemState == MDTP_STATE_ACTIVE) {
-			DEBUG((EFI_D_ERROR, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_ACTIVE\n"));
+		else if (gMdtpState.SystemState == MDTP_STATE_ACTIVE) {
+			DEBUG((EFI_D_INFO, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_ACTIVE\n"));
 			/* This function will handle firmware verification failure via UI */
 			MdtpVerifyValidateFirmware(ExtPartition);
 		}
-		else if (SystemState == MDTP_STATE_INACTIVE) {
-			DEBUG((EFI_D_ERROR, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_INACTIVE\n"));
+		else if (gMdtpState.SystemState == MDTP_STATE_TAMPERED) {
+			DEBUG((EFI_D_INFO, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_TAMPERED\n"));
+			/* This function will handle firmware verification failure via UI */
+			MdtpVerifyValidateFirmware(ExtPartition);
+		}
+		else if (gMdtpState.SystemState == MDTP_STATE_INACTIVE) {
+			DEBUG((EFI_D_INFO, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_INACTIVE\n"));
+		}
+		else if (gMdtpState.SystemState == MDTP_STATE_DISABLED) {
+			DEBUG((EFI_D_INFO, "mdtp_fwlock_verify_lock: system_state=MDTP_STATE_DISABLED\n"));
+		}
+		else {
+			DEBUG((EFI_D_ERROR, "mdtp_fwlock_verify_lock: ERROR, wrong mdtp system state: %d\n", gMdtpState.SystemState));
 		}
 
 		/* Set the bootstate in TZ, according to whether we go to RECOVERY or HLOS. */
@@ -644,47 +670,45 @@ EFI_STATUS MdtpVerifyFwlock(MDTP_VB_EXTERNAL_PARTITION *ExtPartition)
  */
 EFI_STATUS MdtpGetState(MDTP_SYSTEM_STATE *MdtpState)
 {
-  mdtp_system_state_t             SystemState;
-  mdtp_app_state_t                AppState;
-  MdtpStatus                      RetVal;
+	mdtp_system_state_t             SystemState;
+	mdtp_app_state_t                AppState;
+	MdtpStatus                      RetVal;
 
-  do {
-  	if (MdtpState == NULL) {
-  		DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, invalid parameter\n"));
-  		break;
-  	}
+	do {
+		if (MdtpState == NULL) {
+			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, invalid parameter\n"));
+			break;
+		}
 
-  	RetVal = MdtpImageManagerInit();
-  	if (RetVal) {
-  		DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, image file could not be loaded\n"));
-  		break;
-  	}
+		RetVal = MdtpImageManagerInit();
+		if (RetVal) {
+			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, image file could not be loaded\n"));
+			break;
+		}
 
-  	if (gMdtpState.Valid == FALSE) {
-  		RetVal = MdtpQseeLoadSecapp();
-  		if (RetVal) {
-  			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, cannot load MDTP secapp, %d\n", RetVal));
-  			break;
-  		}
+		RetVal = MdtpQseeLoadSecapp();
+		if (RetVal) {
+			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, cannot load MDTP secapp, %d\n", RetVal));
+			break;
+		}
 
-  		RetVal = MdtpVerifyGetState(&SystemState, &AppState);
-  		if (RetVal) {
-  			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, cannot get MDTP state, %d\n", RetVal));
-  			break;
-  		}
+		RetVal = MdtpVerifyGetState(&SystemState, &AppState);
+		if (RetVal) {
+			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, cannot get MDTP state, %d\n", RetVal));
+			break;
+		}
 
-  		RetVal = MdtpQseeUnloadSecapp();
-  		if (RetVal) {
-  			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, cannot unload app, %d\n", RetVal));
-  			/* Allow bootloader to continue in this case, as it is not a critical error. */
-  		}
-  	}
+		RetVal = MdtpQseeUnloadSecapp();
+		if (RetVal) {
+			DEBUG((EFI_D_ERROR, "MdtpGetState: ERROR, cannot unload app, %d\n", RetVal));
+			/* Allow bootloader to continue in this case, as it is not a critical error. */
+		}
 
-  	*MdtpState = SystemState;
+		*MdtpState = gMdtpState.SystemState;
 
-  	return EFI_SUCCESS;
+		return EFI_SUCCESS;
 
-  } while (0);
+	} while (0);
 
-  MdtpRecoveryDialogDisplayTextualErrorMessage(); /* This will never return */
+	MdtpRecoveryDialogDisplayTextualErrorMessage(); /* This will never return */
 }

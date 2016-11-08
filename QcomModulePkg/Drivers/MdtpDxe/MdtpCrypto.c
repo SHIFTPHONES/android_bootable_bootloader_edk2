@@ -104,7 +104,7 @@ MdtpStatus MdtpCryptoRng(UINT8 *RngValue, UINTN RngLength)
 		}
 	}
 
-	Status = gRngProtocol->GetRNG(gRngProtocol, NULL, RngValue, RngLength);
+	Status = gRngProtocol->GetRNG(gRngProtocol, NULL, RngLength, RngValue);
 	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "MdtpCryptoRng: ERROR, GetRNG failed, Status = %r\n", Status));
 		return MDTP_STATUS_CRYPTO_ERROR;

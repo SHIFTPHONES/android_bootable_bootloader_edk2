@@ -256,11 +256,10 @@ MdtpStatus MdtpReadKeyStroke(MdtpKeyStroke *KeyStroke);
  * Prints a string at current cursor position.
  *
  * @param[in] String - String to print.
- * @param[in] Length - String length.
  *
  * @return - MDTP_STATUS_SUCCESS in case of success, error code otherwise.
  */
-MdtpStatus MdtpPrintString(CHAR8* String, UINTN Length);
+MdtpStatus MdtpPrintString(CHAR8* String);
 
 /**
  * MdtpPrintStringInCoordinates
@@ -268,13 +267,12 @@ MdtpStatus MdtpPrintString(CHAR8* String, UINTN Length);
  * Prints a string at (x,y) coordinates on the screen.
  *
  * @param[in] String - String to print.
- * @param[in] Length - String length.
  * @param[in] x - x coordinate of the (x,y) location.
  * @param[in] y - y coordinate of the (x,y) location.
  *
  * @return - MDTP_STATUS_SUCCESS in case of success, error code otherwise.
  */
-MdtpStatus MdtpPrintStringInCoordinates(CHAR8* String, UINTN Length, UINTN x, UINTN y);
+MdtpStatus MdtpPrintStringInCoordinates(CHAR8* String, UINTN x, UINTN y);
 
 
 #endif /* __MDTP_INTERNAL_H__ */
