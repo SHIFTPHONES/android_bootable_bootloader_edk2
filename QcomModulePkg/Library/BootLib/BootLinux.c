@@ -68,6 +68,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	LINUX_KERNEL LinuxKernel;
 	UINT32 DeviceTreeOffset = 0;
 	UINT32 RamdiskOffset = 0;
+	UINT32 SecondOffset = 0;
 	UINT32 KernelSizeActual = 0;
 	UINT32 RamdiskSizeActual = 0;
 	UINT32 SecondSizeActual = 0;
@@ -224,8 +225,29 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	SecondSizeActual = LOCAL_ROUND_TO_PAGE (SecondSize, PageSize);
 
 	/*Offsets are the location of the images within the boot image*/
-	RamdiskOffset = PageSize + KernelSizeActual;
-	DeviceTreeOffset = PageSize + KernelSizeActual + RamdiskSizeActual + SecondSizeActual;
+	RamdiskOffset = ADD_OF(PageSize, KernelSizeActual);
+	if (!RamdiskOffset)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: PageSize=%u, KernelSizeActual=%u\n",
+			PageSize, KernelSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	SecondOffset = ADD_OF(RamdiskOffset, RamdiskSizeActual);
+	if (!SecondOffset)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: RamdiskOffset=%u, RamdiskSizeActual=%u\n",
+			RamdiskOffset, RamdiskSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	DeviceTreeOffset =  ADD_OF(SecondOffset, SecondSizeActual);
+	if (!DeviceTreeOffset)
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: SecondOffset=%u, SecondSizeActual=%u\n",
+			SecondOffset, SecondSizeActual));
+		return EFI_BAD_BUFFER_SIZE;
+	}
 
 	DEBUG((EFI_D_VERBOSE, "Kernel Size Actual: 0x%x\n", KernelSizeActual));
 	DEBUG((EFI_D_VERBOSE, "Second Size Actual: 0x%x\n", SecondSizeActual));
@@ -270,6 +292,13 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	RamdiskEndAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(RamdiskEndAddress));
 	if (RamdiskEndAddr - RamdiskLoadAddr < RamdiskSize){
 		DEBUG((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	if (CHECK_ADD64((UINT64)ImageBuffer, RamdiskOffset))
+	{
+		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImageBuffer=%u, RamdiskOffset=%u\n",
+			ImageBuffer, RamdiskOffset));
 		return EFI_BAD_BUFFER_SIZE;
 	}
 	CopyMem ((CHAR8*)RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);

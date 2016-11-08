@@ -116,11 +116,21 @@ EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 	PrintSplashMemInfo(Prop->data, PropLen);
 
 	/* First, update the FBAddress */
+	if (CHECK_ADD64((UINT64)Prop->data, sizeof(UINT32)))
+	{
+		DEBUG((EFI_D_ERROR, "ERROR: integer Oveflow while updating FBAddress"));
+		return EFI_BAD_BUFFER_SIZE;
+	}
 	tmp = (CHAR8 *)Prop->data + sizeof(UINT32);
 	splashBuf.uFrameAddr = cpu_to_fdt32(splashBuf.uFrameAddr);
 	memcpy(tmp, &splashBuf.uFrameAddr, sizeof(UINT32));
 
 	/* Next, update the FBSize */
+	if (CHECK_ADD64((UINT64)tmp, (2 * sizeof(UINT32))))
+	{
+		DEBUG((EFI_D_ERROR, "ERROR: integer Oveflow while updating FBSize"));
+		return EFI_BAD_BUFFER_SIZE;
+	}
 	tmp += (2 * sizeof(UINT32));
 	splashBuf.uFrameSize = cpu_to_fdt32(splashBuf.uFrameSize);
 	memcpy(tmp, &splashBuf.uFrameSize, sizeof(UINT32));
@@ -290,6 +300,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 {
 	INT32 ret = 0;
 	UINT32 offset;
+	UINT32 PaddSize = 0;
 	EFI_STATUS Status;
 
 	/* Check the device tree header */
@@ -301,7 +312,13 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 	}
 
 	/* Add padding to make space for new nodes and properties. */
-	ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt) + DTB_PAD_SIZE);
+	PaddSize = ADD_OF(fdt_totalsize(fdt), DTB_PAD_SIZE);
+	if (!PaddSize)
+	{
+		DEBUG((EFI_D_ERROR, "ERROR: Integer Oveflow: fdt size = %u\n", fdt_totalsize(fdt)));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+	ret = fdt_open_into(fdt, fdt, PaddSize);
 	if (ret!= 0)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Failed to move/resize dtb buffer ...\n"));
