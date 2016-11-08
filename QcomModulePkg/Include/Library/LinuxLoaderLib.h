@@ -152,10 +152,6 @@ VOID ToLower(CHAR8 *Str);
 UINT32 GetTimerCountms (VOID);
 EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
 BOOLEAN IsSecureBootEnabled();
-#if VERIFIED_BOOT
 EFI_STATUS ResetDeviceState();
-#else
-EFI_STATUS ResetDeviceState() { return EFI_SUCCESS; }
-#endif
 EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
 #endif

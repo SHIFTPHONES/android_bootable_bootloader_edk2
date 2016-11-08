@@ -565,6 +565,10 @@ ResetDeviceState()
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 
+	/* If verified boot is not enabled, return SUCCESS */
+	if (!VerifiedBootEnbled())
+		return EFI_SUCCESS;
+
 	Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid, NULL, (VOID **) &VbIntf);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Unable to locate VB protocol: %r\n", Status));
