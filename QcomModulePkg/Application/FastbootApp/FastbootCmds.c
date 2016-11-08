@@ -336,24 +336,28 @@ STATIC VOID FastbootPublishSlotVars() {
 	/*Scan through partition entries, populate the attributes*/
 	for (i = 0,j = 0;i < PartitionCount; i++) {
 		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
+
 		if(!(AsciiStrnCmp(PartitionNameAscii,"boot",AsciiStrLen("boot")))) {
 			Suffix = PartitionNameAscii + AsciiStrLen("boot");
-			AsciiStrnCpy(BootSlotInfo[j].SlotSuffix,Suffix,MAX_SLOT_SUFFIX_SZ);
 
-			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVar,"slot-successful:",SLOT_ATTR_SIZE);
+			AsciiStrnCpyS(BootSlotInfo[j].SlotSuffix, MAX_SLOT_SUFFIX_SZ, Suffix, AsciiStrLen(Suffix));
+			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVar, SLOT_ATTR_SIZE, "slot-successful:", AsciiStrLen("slot-successful:"));
 			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL;
-			AsciiStrnCpy(BootSlotInfo[j].SlotSuccessfulVal, Set ? "yes": "no", ATTR_RESP_SIZE);
-			FastbootPublishVar(AsciiStrCat(BootSlotInfo[j].SlotSuccessfulVar,Suffix),BootSlotInfo[j].SlotSuccessfulVal);
+			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, Set ? "yes": "no", Set? AsciiStrLen("yes"): AsciiStrLen("no"));
+			AsciiStrnCatS(BootSlotInfo[j].SlotSuccessfulVar, SLOT_ATTR_SIZE, Suffix, AsciiStrLen(Suffix));
+			FastbootPublishVar(BootSlotInfo[j].SlotSuccessfulVar, BootSlotInfo[j].SlotSuccessfulVal);
 
-			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVar,"slot-unbootable:",SLOT_ATTR_SIZE);
+			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVar, SLOT_ATTR_SIZE, "slot-unbootable:", AsciiStrLen("slot-unbootable:"));
 			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL;
-			AsciiStrnCpy(BootSlotInfo[j].SlotUnbootableVal,Set? "yes": "no",ATTR_RESP_SIZE);
-			FastbootPublishVar(AsciiStrCat(BootSlotInfo[j].SlotUnbootableVar,Suffix),BootSlotInfo[j].SlotUnbootableVal);
+			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, Set? "yes": "no", Set? AsciiStrLen("yes"): AsciiStrLen("no"));
+			AsciiStrnCatS(BootSlotInfo[j].SlotUnbootableVar, SLOT_ATTR_SIZE, Suffix, AsciiStrLen(Suffix));
+			FastbootPublishVar(BootSlotInfo[j].SlotUnbootableVar, BootSlotInfo[j].SlotUnbootableVal);
 
-			AsciiStrnCpy(BootSlotInfo[j].SlotRetryCountVar,"slot-retry-count:",SLOT_ATTR_SIZE);
+			AsciiStrnCpyS(BootSlotInfo[j].SlotRetryCountVar, SLOT_ATTR_SIZE, "slot-retry-count:", AsciiStrLen("slot-retry-count:"));
 			RetryCount = (PtnEntries[i].PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >> PART_ATT_MAX_RETRY_CNT_BIT;
-			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%llu",RetryCount);
-			FastbootPublishVar(AsciiStrCat(BootSlotInfo[j].SlotRetryCountVar,Suffix),BootSlotInfo[j].SlotRetryCountVal);
+			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal, ATTR_RESP_SIZE, "%llu", RetryCount);
+			AsciiStrnCatS(BootSlotInfo[j].SlotRetryCountVar, SLOT_ATTR_SIZE, Suffix, AsciiStrLen(Suffix));
+			FastbootPublishVar(BootSlotInfo[j].SlotRetryCountVar, BootSlotInfo[j].SlotRetryCountVal);
 			j++;
 		}
 	}
@@ -388,8 +392,8 @@ void PopulateMultislotMetadata()
 				SlotCount++;
 				Suffix = PartitionNameAscii + AsciiStrLen("boot");
 				if (!AsciiStrStr(SlotSuffixArray, Suffix)) {
-					AsciiStrCatS(SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, Suffix);
-					AsciiStrCatS(SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, ",");
+					AsciiStrnCatS(SlotSuffixArray, sizeof(SlotSuffixArray), Suffix, AsciiStrLen(Suffix));
+					AsciiStrnCatS(SlotSuffixArray, sizeof(SlotSuffixArray), ",", AsciiStrLen(","));
 				}
 			}
 		}
@@ -410,8 +414,8 @@ void PopulateMultislotMetadata()
 	} else {
 		/*While updating gpt from fastboot dont need to populate all the variables as above*/
 		for (i = 0; i < MAX_SLOTS; i++) {
-			AsciiStrnCpy(BootSlotInfo[i].SlotSuccessfulVal,"no",ATTR_RESP_SIZE);
-			AsciiStrnCpy(BootSlotInfo[i].SlotUnbootableVal,"no",ATTR_RESP_SIZE);
+			AsciiStrnCpyS(BootSlotInfo[i].SlotSuccessfulVal, sizeof(BootSlotInfo[i].SlotSuccessfulVal), "no", AsciiStrLen("no"));
+			AsciiStrnCpyS(BootSlotInfo[i].SlotUnbootableVal, sizeof(BootSlotInfo[i].SlotUnbootableVal), "no", AsciiStrLen("no"));
 			AsciiSPrint(BootSlotInfo[i].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%d",MAX_RETRY_COUNT);
 		}
 	}
@@ -740,8 +744,8 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 	{
 		if(!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix, SlotSuffixAscii, AsciiStrLen(SlotSuffixAscii)))
 		{
-			AsciiStrCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, "no");
-			AsciiStrCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, "no");
+			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVal, sizeof(BootSlotInfo[j].SlotSuccessfulVal), "no", AsciiStrLen("no"));
+			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVal, sizeof(BootSlotInfo[j].SlotUnbootableVal), "no", AsciiStrLen("no"));
 			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%d",MAX_RETRY_COUNT);
 		}
 	}
@@ -902,7 +906,7 @@ STATIC VOID CmdDownload(
 	}
 
 	UnicodeSPrint (OutputString, sizeof (OutputString), L"Downloading %d bytes\r\n", mNumDataBytes);
-	AsciiStrnCpy (Response + 4, NumBytesString, 8);
+	AsciiStrnCpyS(Response + 4, sizeof(Response), NumBytesString, sizeof(Response)-4);
 	CopyMem(GetFastbootDeviceData().gTxBuffer, Response, 12);
 	mState = ExpectDataState;
 	mBytesReceivedSoFar = 0;
@@ -1514,8 +1518,8 @@ STATIC VOID CmdGetVarAll()
 	for (Var = Varlist; Var; Var = Var->next)
 	{
 		AsciiStrnCpyS(GetVarAll, sizeof(GetVarAll), Var->name, AsciiStrLen(Var->name));
-		AsciiStrCatS(GetVarAll, sizeof(GetVarAll), ":");
-		AsciiStrCatS(GetVarAll, sizeof(GetVarAll), Var->value);
+		AsciiStrnCatS(GetVarAll, sizeof(GetVarAll), ":", AsciiStrLen(":"));
+		AsciiStrnCatS(GetVarAll, sizeof(GetVarAll), Var->value, AsciiStrLen(Var->value));
 		FastbootInfo(GetVarAll);
 		/* Wait for the transfer to complete */
 		WaitForTransferComplete();
@@ -1653,7 +1657,7 @@ STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
 		return;
 	}
 	SetMem((VOID *)&Msg, sizeof(Msg), 0);
-	AsciiStrCpyS(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data\n--reason=MasterClearConfirm\n--locale=en_US\n");
+	AsciiStrnCpyS(Msg.recovery, sizeof(Msg.recovery), RECOVERY_WIPE_DATA, AsciiStrLen(RECOVERY_WIPE_DATA));
 	WriteToPartition(&MiscPartGUID, &Msg);
 
 	FastbootOkay("");
@@ -1716,7 +1720,8 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	CONST CHAR8 *Delim = " ";
 	EFI_STATUS Status;
 	CHAR8 Resp[MAX_RSP_SIZE] = "Set off mode charger: ";
-	AsciiStrCatS(Resp, sizeof(Resp), Arg);
+
+	AsciiStrnCatS(Resp, sizeof(Resp), Arg, AsciiStrLen(Arg));
 
 	if (Arg) {
 		Ptr = AsciiStrStr(Arg, Delim);
@@ -1732,10 +1737,10 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	/* update charger_screen_enabled value for getvar command */
 	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
 	if (Status != EFI_SUCCESS) {
-		AsciiStrCatS(Resp, sizeof(Resp), ": failed");
+		AsciiStrnCatS(Resp, sizeof(Resp), ": failed", AsciiStrLen(": failed"));
 		FastbootFail(Resp);
 	} else {
-		AsciiStrCatS(Resp, sizeof(Resp), ": done");
+		AsciiStrnCatS(Resp, sizeof(Resp), ": done", AsciiStrLen(": done"));
 		FastbootOkay(Resp);
 	}
 }
@@ -1744,7 +1749,8 @@ STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	EFI_STATUS Status;
 	CHAR8 resp[MAX_RSP_SIZE] = "Selecting Panel: ";
-	AsciiStrCatS(resp, sizeof(resp), arg);
+
+	AsciiStrnCatS(resp, sizeof(resp), arg, AsciiStrLen(arg));
 
 	/* Update the environment variable with the selected panel */
 	Status = gRT->SetVariable(
@@ -1756,12 +1762,12 @@ STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Failed to set panel name, %r\n", Status));
-		AsciiStrCatS(resp, sizeof(resp), ": failed");
+		AsciiStrnCatS(resp, sizeof(resp), ": failed", AsciiStrLen(": failed"));
 		FastbootFail(resp);
 	}
 	else
 	{
-		AsciiStrCatS(resp, sizeof(resp), ": done");
+		AsciiStrnCatS(resp, sizeof(resp), ": done", AsciiStrLen(": done"));
 		FastbootOkay(resp);
 	}
 }
@@ -1850,11 +1856,11 @@ STATIC EFI_STATUS PublishGetVarPartitionInfo(
 
 		AsciiSPrint(info[i].size_response, MAX_RSP_SIZE, " 0x%llx", (UINT64)(BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize);
 
-		Status = AsciiStrCatS(info[i].getvar_size_str, MAX_GET_VAR_NAME_SIZE, info[i].part_name);
+		Status = AsciiStrnCatS(info[i].getvar_size_str, MAX_GET_VAR_NAME_SIZE, info[i].part_name, AsciiStrLen(info[i].part_name));
 		if (EFI_ERROR(Status))
 			DEBUG((EFI_D_ERROR, "Error Publishing the partition size info\n"));
 
-		Status = AsciiStrCatS(info[i].getvar_type_str, MAX_GET_VAR_NAME_SIZE, info[i].part_name);
+		Status = AsciiStrnCatS(info[i].getvar_type_str, MAX_GET_VAR_NAME_SIZE, info[i].part_name, AsciiStrLen(info[i].part_name));
 		if (EFI_ERROR(Status))
 			DEBUG((EFI_D_ERROR, "Error Publishing the partition type info\n"));
 

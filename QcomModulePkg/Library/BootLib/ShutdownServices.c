@@ -102,7 +102,7 @@ VOID RebootDevice(UINT8 RebootReason)
 	struct ResetDataType ResetData;
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 
-	StrCpyS(ResetData.DataBuffer, sizeof(ResetData.DataBuffer), STR_RESET_PARAM);
+	StrnCpyS(ResetData.DataBuffer, sizeof(ResetData.DataBuffer), STR_RESET_PARAM, sizeof(STR_RESET_PARAM));
 	ResetData.Bdata = RebootReason;
 	if (RebootReason == NORMAL_MODE)
 		Status = EFI_SUCCESS;

@@ -58,6 +58,7 @@
 #define SLOT_ATTR_SIZE 32
 #define ATTR_RESP_SIZE 4
 #define MAX_FASTBOOT_COMMAND_SIZE 64
+#define RECOVERY_WIPE_DATA "recovery\n--wipe_data\n--reason=MasterClearConfirm\n--locale=en_US\n"
 
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 

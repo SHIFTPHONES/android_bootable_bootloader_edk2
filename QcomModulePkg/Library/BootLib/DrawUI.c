@@ -311,14 +311,14 @@ STATIC VOID StrAlignRight(CHAR8* Msg, CHAR8* FilledChar, UINT32 ScaleFactorType)
 	if (Max_x/factor > AsciiStrLen(Msg)) {
 		diff = Max_x/factor - AsciiStrLen(Msg);
 		for (i = 0; i < diff; i++) {
-			AsciiStrnCat(StrSourceTemp, FilledChar, Max_x/factor);
+			AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, FilledChar, Max_x/factor);
 		}
-		AsciiStrnCat(StrSourceTemp, Msg, Max_x/factor);
+		AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, Msg, Max_x/factor);
 		CopyMem(Msg, StrSourceTemp, AsciiStrSize(StrSourceTemp));
 	}
 }
 
-STATIC VOID StrAlignLeft(CHAR8* Msg, CHAR8* FilledChar, UINT32 ScaleFactorType) {
+STATIC VOID StrAlignLeft(CHAR8* Msg, UINT32 MaxMsgSize, CHAR8* FilledChar, UINT32 ScaleFactorType) {
 	UINT32 i = 0;
 	UINT32 diff = 0;
 	CHAR8 StrSourceTemp[MAX_MSG_SIZE];
@@ -329,9 +329,9 @@ STATIC VOID StrAlignLeft(CHAR8* Msg, CHAR8* FilledChar, UINT32 ScaleFactorType) 
 	if (Max_x/factor > AsciiStrLen(Msg)) {
 		diff = Max_x/factor - AsciiStrLen(Msg);
 		for (i = 0; i < diff; i++) {
-			AsciiStrnCat(StrSourceTemp, FilledChar, Max_x/factor);
+			AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, FilledChar, Max_x/factor);
 		}
-		AsciiStrnCat(Msg, StrSourceTemp, Max_x/factor);
+		AsciiStrnCatS(Msg, MaxMsgSize, StrSourceTemp, Max_x/factor);
 	}
 }
 
@@ -345,14 +345,14 @@ STATIC VOID StrAlignLeft(CHAR8* Msg, CHAR8* FilledChar, UINT32 ScaleFactorType) 
 STATIC VOID ManipulateMenuMsg(MENU_MSG_INFO *TargetMenu) {
 	switch (TargetMenu->Attribute) {
 		case LINEATION:
-			StrAlignLeft(TargetMenu->Msg, "_", TargetMenu->ScaleFactorType);
+			StrAlignLeft(TargetMenu->Msg, sizeof(TargetMenu->Msg), "_", TargetMenu->ScaleFactorType);
 			break;
 		case ALIGN_RIGHT:
 			StrAlignRight(TargetMenu->Msg, " ", TargetMenu->ScaleFactorType);
 			break;
 		case ALIGN_LEFT:
 		case OPTION_ITEM:
-			StrAlignLeft(TargetMenu->Msg, " ", TargetMenu->ScaleFactorType);
+			StrAlignLeft(TargetMenu->Msg, sizeof(TargetMenu->Msg), " ", TargetMenu->ScaleFactorType);
 			break;
 	}
 }
