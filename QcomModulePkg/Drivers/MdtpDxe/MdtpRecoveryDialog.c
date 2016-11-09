@@ -28,6 +28,8 @@
 
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/BaseLib.h>
 #include "MdtpImageManager.h"
 #include "MdtpQsee.h"
 #include "MdtpInternal.h"
@@ -35,7 +37,8 @@
 
 /*----------------------------------------------------------------------------
  * Global Variables
- * -------------------------------------------------------------------------*/
+ * ---------------------------------------------------------------------------
+ */
 
 STATIC MdtpImageInfo        *gMdtpImage = NULL;
 STATIC ScreenResolution     gScreenResolution = {0, 0, FALSE};
@@ -47,7 +50,8 @@ STATIC BOOLEAN              gInitialScreenDisplayed = FALSE;
 
 /*----------------------------------------------------------------------------
  * Internal Functions
- * -------------------------------------------------------------------------*/
+ * ---------------------------------------------------------------------------
+ */
 
 /**
  * Sets screen width and height in a global variable, so they are available to all the functions
@@ -118,7 +122,7 @@ STATIC VOID MdtpConvertBmpToBlt()
 	UINT32                  Row;
 	UINT32                  Col;
 
-	SetMem(Image->ImageBlt, sizeof(Image->ImageBlt, 0));
+	SetMem(Image->ImageBlt, sizeof(Image->ImageBlt), 0);
 
 	for (Row = 0; Row<Height; Row++) {
 		for (Col = 0; Col<Width; Col++) {
@@ -578,7 +582,6 @@ STATIC VOID MdtpGetPinInterface(char *EnteredPin, UINT32 PinLength, BOOLEAN Mast
 	BOOLEAN                     DrawInitialScreen = TRUE;
 	BOOLEAN                     RedrawInitialScreen = TRUE;
 	MdtpKeyStroke               KeyStroke;
-	UINT32                      Index;
 	MdtpStatus                  RetVal;
 
 	/* Convert ascii to digits */
@@ -707,7 +710,8 @@ STATIC VOID MdtpGetPinInterface(char *EnteredPin, UINT32 PinLength, BOOLEAN Mast
 
 /*----------------------------------------------------------------------------
  * External Functions
- * -------------------------------------------------------------------------*/
+ * ---------------------------------------------------------------------------
+ */
 
 /**
  * MdtpRecoveryDialogGetPin

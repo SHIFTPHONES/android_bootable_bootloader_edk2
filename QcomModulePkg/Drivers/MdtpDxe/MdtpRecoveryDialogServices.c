@@ -28,6 +28,8 @@
 
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/BaseLib.h>
 #include <Protocol/GraphicsOutput.h>
 #include <Protocol/SimpleTextOut.h>
 #include <Protocol/SimpleTextInEx.h>
@@ -40,7 +42,8 @@
 
 /*---------------------------------------------------------
  * Global Variables
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 STATIC EFI_GRAPHICS_OUTPUT_PROTOCOL            *gGraphicsOutput = NULL;
 STATIC EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL         *gSimpleTextOutput = NULL;
@@ -48,7 +51,8 @@ STATIC EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL       *gSimpleTextInputEx = NULL;
 
 /*---------------------------------------------------------
  * External Functions
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 /**
  * MdtpGetScreenResolution
@@ -344,7 +348,6 @@ MdtpStatus MdtpReadKeyStroke(MdtpKeyStroke *KeyStroke)
 MdtpStatus MdtpPrintString(CHAR8* String)
 {
 	EFI_STATUS                     Status;
-	MdtpStatus                     RetVal;
 	CHAR16                         UnicodeString[MAX_STRING_LENGTH];
 
 	if (String == NULL) {
@@ -364,7 +367,7 @@ MdtpStatus MdtpPrintString(CHAR8* String)
 		}
 	}
 
-	AsciiStrToUnicodeStr(String, &UnicodeString);
+	AsciiStrToUnicodeStr(String, UnicodeString);
 
 	Status = gSimpleTextOutput->OutputString(gSimpleTextOutput, UnicodeString);
 	if (EFI_ERROR(Status)) {
@@ -389,7 +392,6 @@ MdtpStatus MdtpPrintString(CHAR8* String)
 MdtpStatus MdtpPrintStringInCoordinates(CHAR8* String, UINTN x, UINTN y)
 {
 	EFI_STATUS                     Status;
-	MdtpStatus                     RetVal;
 	CHAR16                         UnicodeString[MAX_STRING_LENGTH];
 
 	if (String == NULL) {
@@ -415,7 +417,7 @@ MdtpStatus MdtpPrintStringInCoordinates(CHAR8* String, UINTN x, UINTN y)
 		return MDTP_STATUS_UEFI_ERROR;
 	}
 
-	AsciiStrToUnicodeStr(String, &UnicodeString);
+	AsciiStrToUnicodeStr(String, UnicodeString);
 
 	Status = gSimpleTextOutput->OutputString(gSimpleTextOutput, UnicodeString);
 	if (EFI_ERROR(Status)) {

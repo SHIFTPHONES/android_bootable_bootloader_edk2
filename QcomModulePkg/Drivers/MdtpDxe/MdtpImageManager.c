@@ -28,19 +28,22 @@
 
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
+#include <Library/BaseMemoryLib.h>
 #include "MdtpInternal.h"
 #include "MdtpImageManager.h"
 
 /*---------------------------------------------------------
  * Global Variables
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 STATIC MdtpImage gMdtpImage;
 STATIC BOOLEAN MdtpImageManagerInitialized = FALSE;
 
 /*---------------------------------------------------------
  * Internal Functions
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 /**
  * Reads Metadata from a given offset.
@@ -103,7 +106,8 @@ STATIC VOID MdtpImageManagerSetParamValue(MdtpParameterId ParamId, UINT32 Value)
 
 /*---------------------------------------------------------
  * External Functions
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 /**
  * MdtpImageManagerGetOffset
