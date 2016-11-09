@@ -104,7 +104,6 @@ STATIC UINT8 GetRebootReason(UINT32 *ResetReason)
 EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
 {
 	EFI_STATUS Status;
-	EFI_GUID *PartitionType;
 
 	UINT32 BootReason = NORMAL_MODE;
 	UINT32 KeyPressed;

@@ -150,7 +150,7 @@ STATIC BOOLEAN LunSet;
 
 STATIC FASTBOOT_CMD *cmdlist;
 DeviceInfo FbDevInfo;
-STATIC BOOLEAN IsAllowUnlock;
+STATIC UINT32 IsAllowUnlock;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
 STATIC VOID AcceptCmd (IN UINT64 Size,IN  CHAR8 *Data);
@@ -261,11 +261,9 @@ VOID FastbootOkay(IN CONST CHAR8 *info)
 	FastbootAck("OKAY", info);
 }
 
-EFI_STATUS
-PartitionDump ()
+VOID PartitionDump ()
 {
 	EFI_STATUS Status;
-	BOOLEAN                  PartitionFound = FALSE;
 	EFI_PARTITION_ENTRY     *PartEntry;
 	UINT16                   i;
 	UINT32                   j;
@@ -863,9 +861,6 @@ FastbootErasePartition(
 	EFI_STATUS               Status;
 	EFI_BLOCK_IO_PROTOCOL   *BlockIo = NULL;
 	EFI_HANDLE              *Handle = NULL;
-	UINT64                   PartitionSize;
-	UINT64                   i;
-	UINT8                   *Zeros;
 
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
@@ -962,7 +957,7 @@ STATIC VOID ClearFastbootVarsofAB() {
 
 	for (CurrentList = Varlist; CurrentList != NULL; CurrentList = NextList) {
 		NextList = CurrentList->next;
-		if (!NamePropertyMatches(CurrentList->name)) {
+		if (!NamePropertyMatches((CHAR8*)CurrentList->name)) {
 			PrevList = CurrentList;
 			continue;
 		}
@@ -1026,7 +1021,7 @@ STATIC VOID CmdFlash(
 	CHAR16 *Token = NULL;
 	LunSet = FALSE;
 	EFI_EVENT gBlockIoRefreshEvt;
-	CHAR8 NullSlot[MAX_SLOT_SUFFIX_SZ] = {'\0'};
+	CHAR16 NullSlot[MAX_SLOT_SUFFIX_SZ] = {'\0'};
 	BOOLEAN MultiSlotBoot = FALSE;
 	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
@@ -1260,7 +1255,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		if (StrnCmp(GetCurrentSlotSuffix(), InputSlotInUnicode, StrLen(InputSlotInUnicode)))
 			SwitchSlot = TRUE;
 
-		if((InputSlot[MAX_SLOT_SUFFIX_SZ-1] != NULL) || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
+		if((InputSlot[MAX_SLOT_SUFFIX_SZ-1] != 0) || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
 			DEBUG((EFI_D_ERROR,"%a Invalid InputSlot Suffix\n",InputSlot));
 			FastbootFail("Invalid Slot Suffix");
 			return;
@@ -1804,7 +1799,7 @@ STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 			&gQcomTokenSpaceGuid,
 			EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
 			AsciiStrLen(arg),
-			arg);
+			(VOID*)arg);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Failed to set panel name, %r\n", Status));

@@ -141,7 +141,7 @@ FastbootCmdsUnInit( VOID );
 VOID DataReady (IN UINT64 Size, IN VOID *Data);
 
 BOOLEAN FastbootFatal();
-EFI_STATUS PartitionDump();
+VOID PartitionDump();
 
 VOID *FastbootDloadBuffer();
 
