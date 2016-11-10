@@ -37,6 +37,7 @@
 #include <Library/FastbootMenu.h>
 #include <Library/MenuKeysDetection.h>
 #include <Library/UpdateDeviceTree.h>
+#include <Library/BoardCustom.h>
 #include <Protocol/EFIVerifiedBoot.h>
 
 STATIC OPTION_MENU_INFO gMenuInfo;
@@ -145,7 +146,8 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 	UINT32  OptionItem = 0;
 	UINT32  Height = 0;
 	UINT32  i = 0;
-	CHAR8 SerialNum[MAX_RSP_SIZE];
+	CHAR8 StrTemp[MAX_RSP_SIZE] = "\0";
+	CHAR8 StrTemp1[MAX_RSP_SIZE] = "\0";
 	DeviceInfo *DevInfo = NULL;
 
 	/* Clear the screen before launch the fastboot menu */
@@ -184,40 +186,47 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 			break;
 		case 2:
 			/* Get product name */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				"unsupported", MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				PRODUCT_NAME, AsciiStrLen(PRODUCT_NAME));
 			break;
 		case 3:
 			/* Get variant value */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				"unsupported", MAX_RSP_SIZE);
+			BoardHwPlatformName(StrTemp, sizeof(StrTemp));
+			GetRootDeviceType(StrTemp1, sizeof(StrTemp1));
+
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				StrTemp, AsciiStrLen(StrTemp));
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				" ", AsciiStrLen(" "));
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				StrTemp1, AsciiStrLen(StrTemp1));
 			break;
 		case 4:
 			/* Get bootloader version */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				DevInfo->bootloader_version, MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				DevInfo->bootloader_version, AsciiStrLen(DevInfo->bootloader_version));
 			break;
 		case 5:
 			/* Get baseband version */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				DevInfo->radio_version, MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				DevInfo->radio_version, AsciiStrLen(DevInfo->radio_version));
 			break;
 		case 6:
 			/* Get serial number */
-			ZeroMem(SerialNum, sizeof(SerialNum));
-			BoardSerialNum(SerialNum, MAX_RSP_SIZE);
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				SerialNum, MAX_RSP_SIZE);
+			ZeroMem(StrTemp, sizeof(StrTemp));
+			BoardSerialNum(StrTemp, MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				StrTemp, AsciiStrLen(StrTemp));
 			break;
 		case 7:
 			/* Get secure boot value */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				"unsupported", MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				IsSecureBootEnabled()? "yes":"no", IsSecureBootEnabled()? AsciiStrLen("yes"):AsciiStrLen("no"));
 			break;
 		case 8:
 			/* Get device status */
-			AsciiStrnCat(mFastbootCommonMsgInfo[i].Msg,
-				DevInfo->is_unlocked ? "unlocked":"locked", MAX_RSP_SIZE);
+			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
+				DevInfo->is_unlocked ? "unlocked":"locked", DevInfo->is_unlocked ? AsciiStrLen("unlocked"):AsciiStrLen("locked"));
 			break;
 		}
 

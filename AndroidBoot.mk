@@ -1,21 +1,11 @@
-#Android makefile to build lk bootloader as a part of Android Build
+#Android makefile to build bootloader as a part of Android Build
 
 CLANG_BIN := $(ANDROID_BUILD_TOP)/$(LLVM_PREBUILTS_PATH)/
 
-ifeq ($(BOOTLOADER_PLATFORM),)
-	BOOTLOADER_PLATFORM := $(TARGET_BOARD_PLATFORM)
-endif
-
 ifeq ($(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SUPPORTS_VERITY),true)
 	VERIFIED_BOOT := VERIFIED_BOOT=1
-	SIGNED_KERNEL := SIGNED_KERNEL=1
 else
 	VERIFIED_BOOT := VERIFIED_BOOT=0
-	SIGNED_KERNEL := SIGNED_KERNEL=0
-endif
-
-ifneq ($(TARGET_BUILD_VARIANT),user)
-	DEVICE_STATUS := DEFAULT_UNLOCK=true
 endif
 
 ifeq ($(TARGET_BUILD_VARIANT),user)
@@ -37,7 +27,7 @@ $(ABL_OUT):
 
 # Top level target
 $(TARGET_ABL): abl_clean | $(ABL_OUT) $(INSTALLED_KEYSTOREIMAGE_TARGET)
-	$(MAKE) -C bootable/bootloader/edk2 BOOTLOADER_OUT=../../../$(ABL_OUT) all $(SIGNED_KERNEL) $(VERIFIED_BOOT) $(DEVICE_STATUS) $(USER_BUILD_VARIANT) CLANG_BIN=$(CLANG_BIN)
+	$(MAKE) -C bootable/bootloader/edk2 BOOTLOADER_OUT=../../../$(ABL_OUT) all $(VERIFIED_BOOT) $(USER_BUILD_VARIANT) CLANG_BIN=$(CLANG_BIN)
 
 .PHONY: abl
 
