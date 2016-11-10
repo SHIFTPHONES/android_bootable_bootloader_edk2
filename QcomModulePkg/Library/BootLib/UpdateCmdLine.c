@@ -44,7 +44,7 @@
 #include <DeviceInfo.h>
 #include <LinuxLoaderLib.h>
 
-STATIC CONST CHAR8 *BootDeviceCmdLine = " androidboot.bootdevice=1da4000.ufshc";
+STATIC CONST CHAR8 *BootDeviceCmdLine = " androidboot.bootdevice=";
 STATIC CONST CHAR8 *UsbSerialCmdLine = " androidboot.serialno=";
 STATIC CONST CHAR8 *AndroidBootMode = " androidboot.mode=";
 STATIC CONST CHAR8 *LogLevel         = " quite";
@@ -296,6 +296,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot;
 	CHAR8 ChipBaseBand[CHIP_BASE_BAND_LEN];
+	CHAR8 *BootDevBuf = NULL;
 	UINT32 BatteryStatus;
 	CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
 	CHAR8 Ffbm[FFBM_MODE_BUF_SIZE];
@@ -329,6 +330,21 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	}
 
 	CmdLineLen += AsciiStrLen(BootDeviceCmdLine);
+
+	BootDevBuf = AllocatePool(sizeof(CHAR8) * BOOT_DEV_MAX_LEN);
+	if (BootDevBuf == NULL) {
+		DEBUG((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
+		return EFI_OUT_OF_RESOURCES;
+	}
+
+	Status = GetBootDevice(BootDevBuf, BOOT_DEV_MAX_LEN);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Failed to get Boot Device: %r\n", Status));
+		FreePool(BootDevBuf);
+		return Status;
+	}
+
+	CmdLineLen += AsciiStrLen(BootDevBuf);
 
 	CmdLineLen += AsciiStrLen(UsbSerialCmdLine);
 	CmdLineLen += AsciiStrLen(StrSerialNum);
@@ -402,6 +418,12 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		if (HaveCmdLine) --Dst;
 		HaveCmdLine = 1;
 		STR_COPY(Dst,Src);
+
+		Src = BootDevBuf;
+		if (HaveCmdLine) --Dst;
+		HaveCmdLine = 1;
+		STR_COPY(Dst,Src);
+		FreePool(BootDevBuf);
 
 		Src = UsbSerialCmdLine;
 		if (HaveCmdLine) --Dst;
