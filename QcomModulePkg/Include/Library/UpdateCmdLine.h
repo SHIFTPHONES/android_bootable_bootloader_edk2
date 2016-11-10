@@ -45,23 +45,9 @@
 #define BATT_MIN_VOLT  3200
 
 #define MAX_PATH_SIZE 64
+#define SERIAL_NUM_SIZE 64
 
-/*Function that returns value of boolean boot_into_ffbm
- *Becomes an if condition at update_cmdline( ) */
-BOOLEAN get_ffbm(CHAR8 *ffbm, UINT32 size);
-
-/*Function that returns whether the boot is emmc boot*/
-INT32 target_is_emmc_boot(VOID);
-
-/*Function that returns whether the kernel is signed*/
-BOOLEAN target_use_signed_kernel(VOID);
-
-/* This function will always return 0 to facilitate
- * automated testing/reboot with usb connected.
- * uncomment if this feature is needed */
-UINT32 target_pause_for_battery_charge(VOID);
-
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo, BOOLEAN Recovery);
+EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine, CHAR16 *PartitionName, DeviceInfo *DeviceInfo, BOOLEAN Recovery, CHAR8 **FinalCmdLine);
 BOOLEAN TargetBatterySocOk();
 
 #endif

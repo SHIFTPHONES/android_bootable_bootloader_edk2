@@ -40,7 +40,6 @@
 #include "BootImage.h"
 #include "UpdateDeviceTree.h"
 
-STATIC BOOLEAN VerifiedBootEnbled();
 STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
 
 STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceTreeLoadAddr) {
@@ -84,11 +83,11 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	STATIC VOID* DeviceTreeLoadAddr = 0;
 	STATIC UINT32 PageSize = 0;
 	STATIC UINT32 DtbOffset = 0;
-	UINT8* Final_CmdLine;
+	CHAR8* FinalCmdLine;
 
 	STATIC UINT32 out_len = 0;
 	STATIC UINT32 out_avai_len = 0;
-	STATIC UINT32* CmdLine;
+	STATIC CHAR8* CmdLine;
 	STATIC UINTN BaseMemory;
 	UINT64 Time;
 	boot_state_t BootState = BOOT_STATE_MAX;
@@ -158,7 +157,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	RamdiskSize = ((boot_img_hdr*)(ImageBuffer))->ramdisk_size;
 	SecondSize = ((boot_img_hdr*)(ImageBuffer))->second_size;
 	PageSize = ((boot_img_hdr*)(ImageBuffer))->page_size;
-	CmdLine = (UINT32*)&(((boot_img_hdr*)(ImageBuffer))->cmdline[0]);
+	CmdLine = (CHAR8*)&(((boot_img_hdr*)(ImageBuffer))->cmdline[0]);
 	KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
 	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
 
@@ -242,11 +241,11 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
 
-	Final_CmdLine = update_cmdline ((CHAR8*)CmdLine, PartitionName, DevInfo, Recovery);
-	if (!Final_CmdLine)
+	Status = UpdateCmdLine(CmdLine, PartitionName, DevInfo, Recovery, &FinalCmdLine);
+	if (EFI_ERROR(Status))
 	{
-		DEBUG((EFI_D_ERROR, "Error updating cmdline. Device Error\n"));
-		return EFI_DEVICE_ERROR;
+		DEBUG((EFI_D_ERROR, "Error updating cmdline. Device Error %r\n", Status));
+		return Status;
 	}
 
 	// appended device tree
@@ -257,7 +256,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		return EFI_NOT_FOUND;
 	}
 
-	Status = UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , (CHAR8*)Final_CmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
+	Status = UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , FinalCmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Device Tree update failed Status:%r\n", Status));
@@ -525,7 +524,7 @@ EFI_STATUS LoadImage (CHAR8 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
 	return Status;
 }
 
-STATIC BOOLEAN VerifiedBootEnbled()
+BOOLEAN VerifiedBootEnbled()
 {
 #ifdef VERIFIED_BOOT
 	return TRUE;

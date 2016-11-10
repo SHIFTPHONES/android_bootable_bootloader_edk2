@@ -44,13 +44,12 @@
 #include <DeviceInfo.h>
 #include <LinuxLoaderLib.h>
 
-STATIC CONST CHAR8 *bootdev_cmdline = " androidboot.bootdevice=1da4000.ufshc";
-STATIC CONST CHAR8 *usb_sn_cmdline = " androidboot.serialno=";
-STATIC CONST CHAR8 *androidboot_mode = " androidboot.mode=";
-STATIC CONST CHAR8 *loglevel         = " quite";
-STATIC CONST CHAR8 *battchg_pause = " androidboot.mode=charger";
-STATIC CONST CHAR8 *auth_kernel = " androidboot.authorized_kernel=true";
-//STATIC CONST CHAR8 *secondary_gpt_enable = "gpt";
+STATIC CONST CHAR8 *BootDeviceCmdLine = " androidboot.bootdevice=1da4000.ufshc";
+STATIC CONST CHAR8 *UsbSerialCmdLine = " androidboot.serialno=";
+STATIC CONST CHAR8 *AndroidBootMode = " androidboot.mode=";
+STATIC CONST CHAR8 *LogLevel         = " quite";
+STATIC CONST CHAR8 *BatteryChgPause = " androidboot.mode=charger";
+STATIC CONST CHAR8 *AuthorizedKernel = " androidboot.authorized_kernel=true";
 
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
@@ -59,99 +58,99 @@ STATIC CHAR8 *SkipRamFs = " skip_initramfs";
 STATIC CHAR8 *SystemPath;
 
 /* Assuming unauthorized kernel image by default */
-STATIC INT32 auth_kernel_img = 0;
+STATIC UINT32 AuthorizeKernelImage = 0;
 
 /* Display command line related structures */
 #define MAX_DISPLAY_CMD_LINE 256
-CHAR8 display_cmdline[MAX_DISPLAY_CMD_LINE];
-UINTN display_cmdline_len = sizeof(display_cmdline);
+CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
+UINT32 DisplayCmdLineLen = sizeof(DisplayCmdLine);
 
 #if VERIFIED_BOOT
-DeviceInfo DevInfo;
-STATIC CONST CHAR8 *verity_mode = " androidboot.veritymode=";
+STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
 STATIC CONST CHAR8 *verified_state = " androidboot.verifiedbootstate=";
 STATIC struct verified_boot_verity_mode vbvm[] =
 {
 	{FALSE, "logging"},
 	{TRUE, "enforcing"},
 };
-
-STATIC struct verified_boot_state_name vbsn[] =
-{
-	{GREEN, "green"},
-	{ORANGE, "orange"},
-	{YELLOW, "yellow"},
-	{RED, "red"},
-};
+#else
+STATIC CONST CHAR8 *VerityMode;
+STATIC CONST CHAR8 *verified_state;
+STATIC struct verified_boot_verity_mode vbvm[];
 #endif
 
 /*Function that returns whether the kernel is signed
  *Currently assumed to be signed*/
-BOOLEAN target_use_signed_kernel(VOID)
+STATIC BOOLEAN TargetUseSignedKernel(VOID)
 {
-	return 1;
+	return TRUE;
 }
 
-/*Determines whether to pause for batter charge,
- *Serves only performance purposes, defaults to return zero*/
-UINT32 target_pause_for_battery_charge(VOID)
+STATIC EFI_STATUS TargetPauseForBatteryCharge(UINT32 *BatteryStatus)
 {
 	EFI_STATUS Status;
-	EFI_PM_PON_REASON_TYPE pon_reason;
+	EFI_PM_PON_REASON_TYPE PONReason;
 	EFI_QCOM_PMIC_PON_PROTOCOL *PmicPonProtocol;
 	EFI_QCOM_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
-	BOOLEAN chgpresent;
+	BOOLEAN ChgPresent;
 	BOOLEAN WarmRtStatus;
 	BOOLEAN IsColdBoot;
 
+	/* Determines whether to pause for batter charge,
+	 * Serves only performance purposes, defaults to return zero*/
+	*BatteryStatus = 0;
+
 	Status = gBS->LocateProtocol(&gQcomPmicPonProtocolGuid, NULL,
 			(VOID **) &PmicPonProtocol);
-	if (EFI_ERROR(Status))
-	{
+	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Error locating pmic pon protocol: %r\n", Status));
 		return Status;
 	}
 
 	/* Passing 0 for PMIC device Index since the protocol infers internally */
-	Status = PmicPonProtocol->GetPonReason(0, &pon_reason);
-	if (EFI_ERROR(Status))
-	{
+	Status = PmicPonProtocol->GetPonReason(0, &PONReason);
+	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Error getting pon reason: %r\n", Status));
 		return Status;
 	}
+
 	Status = PmicPonProtocol->WarmResetStatus(0, &WarmRtStatus);
-	if (EFI_ERROR(Status))
-	{
+	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Error getting warm reset status: %r\n", Status));
 		return Status;
 	}
+
 	IsColdBoot = !WarmRtStatus;
 	Status = gBS->LocateProtocol(&gQcomChargerExProtocolGuid, NULL, (void **) &ChgDetectProtocol);
-	if (EFI_ERROR(Status))
-	{
+	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Error locating charger detect protocol: %r\n", Status));
 		return Status;
 	}
-	Status = ChgDetectProtocol->GetChargerPresence(&chgpresent);
-	if (EFI_ERROR(Status))
-	{
+
+	Status = ChgDetectProtocol->GetChargerPresence(&ChgPresent);
+	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Error getting charger info: %r\n", Status));
 		return Status;
 	}
-	DEBUG((EFI_D_INFO, " pon_reason is %d cold_boot:%d charger path: %d\n",
-		pon_reason, IsColdBoot, chgpresent));
+
+	DEBUG((EFI_D_INFO, " PON Reason is %d cold_boot:%d charger path: %d\n",
+		PONReason, IsColdBoot, ChgPresent));
 	/* In case of fastboot reboot,adb reboot or if we see the power key
 	 * pressed we do not want go into charger mode.
 	 * fastboot/adb reboot is warm boot with PON hard reset bit set.
 	 */
 	if (IsColdBoot &&
-			(!(pon_reason.HARD_RESET) &&
-			(!(pon_reason.KPDPWR)) &&
-			(pon_reason.PON1) &&
-			(chgpresent)))
-		return 1;
-	else
-		return 0;
+		(!(PONReason.HARD_RESET) &&
+		(!(PONReason.KPDPWR)) &&
+		(PONReason.PON1) &&
+		(ChgPresent)))
+	{
+		*BatteryStatus = 1;
+	} else {
+		*BatteryStatus = 0;
+	}
+
+	return Status;
 }
 
 /**
@@ -169,29 +168,26 @@ STATIC EFI_STATUS TargetCheckBatteryStatus(BOOLEAN *BatteryPresent, BOOLEAN *Cha
 	EFI_QCOM_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
 
 	Status = gBS->LocateProtocol(&gQcomChargerExProtocolGuid, NULL, (void **) &ChgDetectProtocol);
-	if (EFI_ERROR(Status) || (NULL == ChgDetectProtocol))
-	{
+	if (EFI_ERROR(Status) || (NULL == ChgDetectProtocol)) {
 		DEBUG((EFI_D_ERROR, "Error locating charger detect protocol\n"));
 		return EFI_PROTOCOL_ERROR;
 	}
 
 	Status = ChgDetectProtocol->GetBatteryPresence(BatteryPresent);
-	if (EFI_ERROR(Status))
-	{
-		DEBUG((EFI_D_ERROR, "Error getting battery presence: %r\n", Status));
+	if (EFI_ERROR(Status)) {
+		/* Not critical. Hence, loglevel priority is low*/
+		DEBUG((EFI_D_VERBOSE, "Error getting battery presence: %r\n", Status));
 		return Status;
 	}
 
 	Status = ChgDetectProtocol->GetBatteryVoltage(BatteryVoltage);
-	if (EFI_ERROR(Status))
-	{
+	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Error getting battery voltage: %r\n", Status));
 		return Status;
 	}
 
 	Status = ChgDetectProtocol->GetChargerPresence(ChargerPresent);
-	if (EFI_ERROR(Status))
-	{
+	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Error getting charger presence: %r\n", Status));
 		return Status;
 	}
@@ -212,8 +208,11 @@ BOOLEAN TargetBatterySocOk(UINT32  *BatteryVoltage)
 	BOOLEAN ChargerPresent = FALSE;
 
 	BatteryStatus = TargetCheckBatteryStatus(&BatteryPresent, &ChargerPresent, BatteryVoltage);
-	if ((BatteryStatus == EFI_SUCCESS) && (!BatteryPresent || (BatteryPresent && (BatteryVoltage > BATT_MIN_VOLT))))
+	if ((BatteryStatus == EFI_SUCCESS) &&
+		(!BatteryPresent || (BatteryPresent && (BatteryVoltage > BATT_MIN_VOLT))))
+	{
 		return TRUE;
+	}
 
 	return FALSE;
 }
@@ -226,10 +225,9 @@ VOID GetDisplayCmdline()
 			L"DisplayPanelConfiguration",
 			&gQcomTokenSpaceGuid,
 			NULL,
-			&display_cmdline_len,
-			display_cmdline);
-	if (Status != EFI_SUCCESS)
-	{
+			&DisplayCmdLineLen,
+			DisplayCmdLine);
+	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
 	}
 }
@@ -239,8 +237,8 @@ VOID GetDisplayCmdline()
  */
 STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 {
-	INTN Index;
-	UINTN Lun;
+	INT32 Index;
+	UINT32 Lun;
 	CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
 	CHAR16* CurSlotSuffix = GetCurrentSlotSuffix();
 	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
@@ -283,79 +281,74 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
-UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo, BOOLEAN Recovery)
+EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
+				CHAR16 *PartitionName,
+				DeviceInfo *DeviceInfo,
+				BOOLEAN Recovery,
+				CHAR8 **FinalCmdLine)
 {
 	EFI_STATUS Status;
-	UINT32 cmdline_len = 0;
-	UINT32 have_cmdline = 0;
+	UINT32 CmdLineLen = 0;
+	UINT32 HaveCmdLine = 0;
 	UINT32 SysPathLength = 0;
-	CHAR8  *cmdline_final = NULL;
-	UINT32 pause_at_bootup = 0; //this would have to come from protocol
-	BOOLEAN boot_into_ffbm = FALSE;
+	UINT32 PauseAtBootUp = 0;
+	BOOLEAN BootIntoFFBM = FALSE;
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot;
 	CHAR8 ChipBaseBand[CHIP_BASE_BAND_LEN];
+	UINT32 BatteryStatus;
+	CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
+	CHAR8 Ffbm[FFBM_MODE_BUF_SIZE];
 
-	CHAR8 ffbm[FFBM_MODE_BUF_SIZE];
-	if ((!StrnCmp(pname, L"boot_a", StrLen(pname)))
-		|| (!StrnCmp(pname, L"boot_b", StrLen(pname))))
+	if ((!StrnCmp(PartitionName, L"boot_a", StrLen(PartitionName)))
+		|| (!StrnCmp(PartitionName, L"boot_b", StrLen(PartitionName))))
 	{
-		SetMem(ffbm, FFBM_MODE_BUF_SIZE, 0);
-		Status = GetFfbmCommand(ffbm, sizeof(ffbm));
+		SetMem(Ffbm, FFBM_MODE_BUF_SIZE, 0);
+		Status = GetFfbmCommand(Ffbm, sizeof(Ffbm));
 		if (Status == EFI_NOT_FOUND)
 			DEBUG((EFI_D_ERROR, "No Ffbm cookie found, ignore\n"));
 		else if (Status == EFI_SUCCESS)
-			boot_into_ffbm = TRUE;
-
+			BootIntoFFBM = TRUE;
 	}
 
-	MEM_CARD_INFO card_info = {};
-	EFI_MEM_CARDINFO_PROTOCOL *pCardInfoProtocol=NULL;
-	CHAR8 StrSerialNum[64];
 
 	Status = BoardSerialNum(StrSerialNum, sizeof(StrSerialNum));
-	if (Status != EFI_SUCCESS)
-	{
+	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Error Finding board serial num: %x\n", Status));
 		return Status;
 	}
 
-	if (cmdline && cmdline[0])
-	{
-		cmdline_len = AsciiStrLen(cmdline);
-		have_cmdline = 1;
+	if (CmdLine && CmdLine[0]) {
+		CmdLineLen = AsciiStrLen(CmdLine);
+		HaveCmdLine= 1;
 	}
-#if VERIFIED_BOOT
-	if ((DevInfo.verity_mode != 0) && (DevInfo.verity_mode != 1))
-	{
-		DEBUG((EFI_D_ERROR, "Devinfo partition possibly corrupted!!!. Please erase devinfo partition to continue booting.\n"));
-		return NULL;
+
+	if (VerifiedBootEnbled()) {
+		CmdLineLen += AsciiStrLen(VerityMode);
+		CmdLineLen += AsciiStrLen(vbvm[DeviceInfo->verity_mode].name);
 	}
-	cmdline_len += AsciiStrLen(verity_mode) + AsciiStrLen(vbvm[DevInfo.verity_mode].name);
-#endif
 
-	cmdline_len += AsciiStrLen(bootdev_cmdline);
+	CmdLineLen += AsciiStrLen(BootDeviceCmdLine);
 
-	cmdline_len += AsciiStrLen(usb_sn_cmdline);
-	cmdline_len += AsciiStrLen(StrSerialNum);
+	CmdLineLen += AsciiStrLen(UsbSerialCmdLine);
+	CmdLineLen += AsciiStrLen(StrSerialNum);
 
-	if (boot_into_ffbm)
-	{
-		cmdline_len += AsciiStrLen(androidboot_mode);
-		cmdline_len += AsciiStrLen(ffbm);
+	/* Ignore the EFI_STATUS return value as the default Battery Status = 0 and is not fatal */
+	TargetPauseForBatteryCharge(&BatteryStatus);
+
+	if (BootIntoFFBM) {
+		CmdLineLen += AsciiStrLen(AndroidBootMode);
+		CmdLineLen += AsciiStrLen(Ffbm);
 		/* reduce kernel console messages to speed-up boot */
-		cmdline_len += AsciiStrLen(loglevel);
-	}
-	else if (target_pause_for_battery_charge() && devinfo->is_charger_screen_enabled)
-	{
+		CmdLineLen += AsciiStrLen(LogLevel);
+	} else if (BatteryStatus && DeviceInfo->is_charger_screen_enabled) {
 		DEBUG((EFI_D_INFO, "Device will boot into off mode charging mode\n"));
-		pause_at_bootup = 1;
-		cmdline_len += AsciiStrLen(battchg_pause);
+		PauseAtBootUp = 1;
+		CmdLineLen += AsciiStrLen(BatteryChgPause);
 	}
 
-	if(target_use_signed_kernel() && auth_kernel_img)
-	{
-		cmdline_len += AsciiStrLen(auth_kernel);
+	if(TargetUseSignedKernel() && AuthorizeKernelImage) {
+		CmdLineLen += AsciiStrLen(AuthorizedKernel);
 	}
 
 	if (NULL == BoardPlatformChipBaseBand()) {
@@ -363,132 +356,134 @@ UINT8 *update_cmdline(CONST CHAR8 * cmdline, CHAR16 *pname, DeviceInfo *devinfo,
 		return NULL;
 	}
 
-	cmdline_len += AsciiStrLen(BOOT_BASE_BAND);
-	cmdline_len += AsciiStrLen(BoardPlatformChipBaseBand());
+	CmdLineLen += AsciiStrLen(BOOT_BASE_BAND);
+	CmdLineLen += AsciiStrLen(BoardPlatformChipBaseBand());
 
 	MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	if(MultiSlotBoot) {
-		cmdline_len += AsciiStrLen(AndroidSlotSuffix) + 2;
+		CmdLineLen += AsciiStrLen(AndroidSlotSuffix) + 2;
 
-		cmdline_len += AsciiStrLen(MultiSlotCmdSuffix);
+		CmdLineLen += AsciiStrLen(MultiSlotCmdSuffix);
 
 		if (!Recovery)
-			cmdline_len += AsciiStrLen(SkipRamFs);
+			CmdLineLen += AsciiStrLen(SkipRamFs);
 
 		SysPathLength = GetSystemPath(&SystemPath);
 		if (!SysPathLength)
-			return NULL;
-		cmdline_len += SysPathLength;
+			return EFI_NOT_FOUND;
+		CmdLineLen += SysPathLength;
 	}
 
 	GetDisplayCmdline();
-	cmdline_len += AsciiStrLen(display_cmdline);
+	CmdLineLen += AsciiStrLen(DisplayCmdLine);
 
-#define STR_COPY(dst,src)  {while (*src){*dst = *src; ++src; ++dst; } *dst = 0; ++dst;}
-	if (cmdline_len > 0)
-	{
-		CONST CHAR8 *src;
+#define STR_COPY(Dst,Src)  {while (*Src){*Dst = *Src; ++Src; ++Dst; } *Dst = 0; ++Dst;}
+	if (CmdLineLen > 0) {
+		CONST CHAR8 *Src;
+		CHAR8* Dst;
 
-		CHAR8* dst;
-		dst = AllocatePool (cmdline_len + 4);
-		if (!dst)
-		{
+		Dst = AllocatePool (CmdLineLen + 4);
+		if (!Dst) {
 			DEBUG((EFI_D_ERROR, "CMDLINE: Failed to allocate destination buffer\n"));
-			return NULL;
+			return EFI_OUT_OF_RESOURCES;
 		}
 
-		SetMem(dst, cmdline_len + 4, 0x0);
+		SetMem(Dst, CmdLineLen + 4, 0x0);
 
 		/* Save start ptr for debug print */
-		cmdline_final = dst;
-		if (have_cmdline)
-		{
-			src = cmdline;
-			STR_COPY(dst,src);
+		*FinalCmdLine = Dst;
+
+		if (HaveCmdLine) {
+			Src = CmdLine;
+			STR_COPY(Dst,Src);
 		}
 
-		src = bootdev_cmdline;
-		if (have_cmdline) --dst;
-		have_cmdline = 1;
-		STR_COPY(dst,src);
+		Src = BootDeviceCmdLine;
+		if (HaveCmdLine) --Dst;
+		HaveCmdLine = 1;
+		STR_COPY(Dst,Src);
 
-		src = usb_sn_cmdline;
-		if (have_cmdline) --dst;
-		have_cmdline = 1;
-		STR_COPY(dst,src);
-		if (have_cmdline) --dst;
-		have_cmdline = 1;
-		src = StrSerialNum;
-		STR_COPY(dst,src);
+		Src = UsbSerialCmdLine;
+		if (HaveCmdLine) --Dst;
+		HaveCmdLine = 1;
+		STR_COPY(Dst,Src);
+		if (HaveCmdLine) --Dst;
+		HaveCmdLine = 1;
+		Src = StrSerialNum;
+		STR_COPY(Dst,Src);
 
-		if (boot_into_ffbm) {
-			src = androidboot_mode;
-			if (have_cmdline) --dst;
-			STR_COPY(dst,src);
-			src = ffbm;
-			if (have_cmdline) --dst;
-			STR_COPY(dst,src);
-			src = loglevel;
-			if (have_cmdline) --dst;
-			STR_COPY(dst,src);
-		} else if (pause_at_bootup) {
-			src = battchg_pause;
-			if (have_cmdline) --dst;
-			STR_COPY(dst,src);
+		if (BootIntoFFBM) {
+			Src = AndroidBootMode;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
+
+			Src = Ffbm;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
+
+			Src = LogLevel;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
+		} else if (PauseAtBootUp) {
+			Src = BatteryChgPause;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
 		}
 
-		if(target_use_signed_kernel() && auth_kernel_img)
-		{
-			src = auth_kernel;
-			if (have_cmdline) --dst;
-			STR_COPY(dst,src);
+		if(TargetUseSignedKernel() && AuthorizeKernelImage) {
+			Src = AuthorizedKernel;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
 		}
 
-		src = BOOT_BASE_BAND;
-		if (have_cmdline) --dst;
-		STR_COPY(dst,src);
-		--dst;
+		Src = BOOT_BASE_BAND;
+		if (HaveCmdLine) --Dst;
+		STR_COPY(Dst,Src);
+		--Dst;
+
 		SetMem(ChipBaseBand, CHIP_BASE_BAND_LEN, 0);
 		AsciiStrnCpyS(ChipBaseBand, CHIP_BASE_BAND_LEN, BoardPlatformChipBaseBand(), CHIP_BASE_BAND_LEN-1);
 		ToLower(ChipBaseBand);
-		src = ChipBaseBand;
-		STR_COPY(dst,src);
+		Src = ChipBaseBand;
+		STR_COPY(Dst,Src);
 
-		src = display_cmdline;
-		if (have_cmdline) --dst;
-		STR_COPY(dst,src);
-		if (MultiSlotBoot)
-		{
+		Src = DisplayCmdLine;
+		if (HaveCmdLine) --Dst;
+		STR_COPY(Dst,Src);
+
+		if (MultiSlotBoot) {
 			/* Slot suffix */
-			src = AndroidSlotSuffix;
-			if (have_cmdline) --dst;
-			STR_COPY(dst,src);
-			--dst;
+			Src = AndroidSlotSuffix;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
+			--Dst;
+
 			UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), SlotSuffixAscii);
-			src = SlotSuffixAscii;
-			STR_COPY(dst,src);
+			Src = SlotSuffixAscii;
+			STR_COPY(Dst,Src);
 
 			/* Skip Initramfs*/
 			if (!Recovery) {
-				src = SkipRamFs;
-				if (have_cmdline) --dst;
-				STR_COPY(dst, src);
+				Src = SkipRamFs;
+				if (HaveCmdLine) --Dst;
+				STR_COPY(Dst, Src);
 			}
 
 			/*Add Multi slot command line suffix*/
-			src = MultiSlotCmdSuffix;
-			if (have_cmdline) --dst;
-			STR_COPY(dst, src);
+			Src = MultiSlotCmdSuffix;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst, Src);
 
 			/* Suffix System path in command line*/
 			if (*SystemPath) {
-				src = SystemPath;
-				if (have_cmdline) --dst;
-				STR_COPY(dst, src);
+				Src = SystemPath;
+				if (HaveCmdLine) --Dst;
+				STR_COPY(Dst, Src);
 			}
 		}
 	}
-	DEBUG((EFI_D_INFO, "Cmdline: %a\n", cmdline_final));
 
-	return (UINT8 *)cmdline_final;
+	DEBUG((EFI_D_INFO, "Cmdline: %a\n", *FinalCmdLine));
+
+	return EFI_SUCCESS;
 }
