@@ -100,6 +100,8 @@
 /* Macro to avoid integer overflow */
 #define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : ZERO
 
+#define BOOT_DEV_MAX_LEN 32
+
 /* Any data specific to additional attributes can be added here. */
 typedef struct {
 	EFI_GUID      *RootDeviceType;  /* GUID Selecting the root device type */
@@ -154,4 +156,5 @@ EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
 BOOLEAN IsSecureBootEnabled();
 EFI_STATUS ResetDeviceState();
 EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
+EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len);
 #endif
