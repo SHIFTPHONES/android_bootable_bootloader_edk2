@@ -43,6 +43,8 @@ STATIC CHAR16 ActiveSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC UINT32 PartitionCount;
 STATIC BOOLEAN MultiSlotBoot;
 
+STATIC struct BootPartsLinkedList *HeadNode;
+
 CHAR16* GetCurrentSlotSuffix() {
 	return ActiveSlot;
 }
@@ -323,21 +325,46 @@ STATIC VOID SwapPtnGuid(EFI_PARTITION_ENTRY *p1, EFI_PARTITION_ENTRY *p2)
 	CopyMem((VOID *)&p2->PartitionTypeGUID, (VOID *)&Temp, sizeof(EFI_GUID));
 }
 
+STATIC EFI_STATUS GetMultiSlotPartsList() {
+	UINT32 i = 0;
+	UINT32 j = 0;
+	UINT32 Len = 0;
+	CHAR16 *SearchString = NULL;
+	struct BootPartsLinkedList *TempNode = NULL;
+
+	for (i = 0; i < PartitionCount; i++) {
+		SearchString = PtnEntries[i].PartEntry.PartitionName;
+		if (!SearchString[0])
+			continue;
+
+		for (j = i+1; j < PartitionCount; j++) {
+			if (!PtnEntries[j].PartEntry.PartitionName[0])
+				continue;
+			Len = StrLen(SearchString);
+
+			/*Need to compare till "boot_"a hence skip last Char from StrLen value*/
+			if (!StrnCmp(PtnEntries[j].PartEntry.PartitionName, SearchString, Len-1) &&
+				(StrStr(SearchString, L"_a") || (StrStr(SearchString, L"_b")))) {
+				TempNode = AllocatePool(sizeof(struct BootPartsLinkedList));
+				if (TempNode) {
+					/*Skip _a/_b from partition name*/
+					StrnCpyS(TempNode->PartName, sizeof(TempNode->PartName), SearchString, Len-2);
+					TempNode->Next = HeadNode;
+					HeadNode = TempNode;
+				} else {
+					DEBUG ((EFI_D_ERROR, "Unable to Allocate Memory for MultiSlot Partition list\n"));
+					return EFI_OUT_OF_RESOURCES;
+				}
+				break;
+			}
+		}
+	}
+	return EFI_SUCCESS;
+}
+
 VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 {
-	UINT32 i, j;
-	CONST CHAR16 *BootParts[] = { L"rpm",
-					L"tz",
-					L"pmic",
-					L"modem",
-					L"hyp",
-					L"cmnlib",
-					L"cmnlib64",
-					L"keymaster",
-					L"devcfg",
-					L"abl",
-					L"apdp"};
-	UINT32 Sz = ARRAY_SIZE(BootParts);
+	UINT32 i;
 	struct PartitionEntry *PtnCurrent = NULL;
 	struct PartitionEntry *PtnNew = NULL;
 	CHAR16 CurSlot[BOOT_PART_SIZE];
@@ -346,6 +373,8 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	UINT32 UfsBootLun = 0;
 	BOOLEAN UfsGet = TRUE;
 	BOOLEAN UfsSet = FALSE;
+	struct BootPartsLinkedList *TempNode = NULL;
+	EFI_STATUS Status;
 
 	/* Create the partition name string for active and non active slots*/
 	if (!StrnCmp(SetActive, L"_a", StrLen(L"_a")))
@@ -353,11 +382,19 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	else
 		StrnCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, L"_a", StrLen(L"_a"));
 
-	for (j = 0; j < Sz; j++) {
-		StrnCpyS(CurSlot, StrLen(BootParts[j]) + 1,  BootParts[j], StrLen(BootParts[j]));
+	if (!HeadNode) {
+		Status = GetMultiSlotPartsList();
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_INFO, "Unable to get GetMultiSlotPartsList\n"));
+			return;
+		}
+	}
+
+	for (TempNode = HeadNode; TempNode; TempNode = TempNode->Next) {
+		StrnCpyS(CurSlot, StrLen(TempNode->PartName) + 1,  TempNode->PartName, StrLen(TempNode->PartName));
 		StrnCatS(CurSlot, BOOT_PART_SIZE - 1, SetInactive, StrLen(SetInactive));
 
-		StrnCpyS(NewSlot, StrLen(BootParts[j]) + 1, BootParts[j], StrLen(BootParts[j]));
+		StrnCpyS(NewSlot, StrLen(TempNode->PartName) + 1, TempNode->PartName, StrLen(TempNode->PartName));
 		StrnCatS(NewSlot, BOOT_PART_SIZE - 1, SetActive, StrLen(SetActive));
 
 		/* Find the pointer to partition table entry for active and non-active slots*/
