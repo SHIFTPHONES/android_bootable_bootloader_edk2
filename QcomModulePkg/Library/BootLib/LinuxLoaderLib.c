@@ -622,6 +622,7 @@ EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len)
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINTN BootDevAddr;
 	UINTN DataSize = sizeof(BootDevAddr);
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 	Status = gRT->GetVariable(
 			L"BootDeviceBaseAddr",
@@ -635,7 +636,18 @@ EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len)
 		DEBUG((EFI_D_ERROR, "Failed to get Boot Device Base address, %r\n", Status));
 		return Status;
 	}
-	AsciiSPrint(BootDevBuf, Len, "%x.ufshc", BootDevAddr);
+
+	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+
+	if (!AsciiStrCmp(BootDeviceType, "UFS")) {
+		AsciiSPrint(BootDevBuf, Len, "%x.ufshc", BootDevAddr);
+	} else if (!AsciiStrCmp(BootDeviceType, "EMMC")) {
+		AsciiSPrint(BootDevBuf, Len, "%x.sdhci", BootDevAddr);
+	} else {
+		DEBUG((EFI_D_ERROR, "Unknown Boot Device type detected \n"));
+		return EFI_NOT_FOUND;
+	}
+
 	ToLower(BootDevBuf);
 
 	return Status;

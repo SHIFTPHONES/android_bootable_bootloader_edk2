@@ -101,6 +101,7 @@
 #define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : ZERO
 
 #define BOOT_DEV_MAX_LEN 32
+#define BOOT_DEV_NAME_SIZE_MAX 10
 
 /* Any data specific to additional attributes can be added here. */
 typedef struct {
