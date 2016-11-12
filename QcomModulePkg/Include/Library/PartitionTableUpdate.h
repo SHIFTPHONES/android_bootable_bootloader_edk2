@@ -164,20 +164,30 @@ VOID SetMultiSlotBootVal(BOOLEAN Val);
 
 struct GptHeaderData
 {
-	UINTN FirstUsableLba;
+	UINT64 FirstUsableLba;
 	UINT32 PartEntrySz;
 	UINT32 HeaderSz;
 	UINT32 MaxPtCnt;
-	UINTN LastUsableLba;
+	UINT64 LastUsableLba;
 };
 
 struct PartitionEntry
 {
 	EFI_PARTITION_ENTRY PartEntry;
-	UINTN lun;
+	UINT32 lun;
 };
 
-EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INTN Lun, struct StoragePartInfo *Ptable);
-UINT32 GetPartitionLunFromIndex(UINTN);
-INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINTN Lun);
+EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct StoragePartInfo *Ptable);
+UINT32 GetPartitionLunFromIndex(UINT32);
+INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun);
+INT32 GetPartitionIndex(CHAR16* PartitionName);
+BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname);
+EFI_STATUS EnumeratePartitions ();
+VOID UpdatePartitionEntries();
+VOID UpdatePartitionAttributes();
+VOID SetCurrentSlotSuffix(CHAR16* SlotSuffix);
+VOID FindPtnActiveSlot();
+VOID FindBootableSlot(CHAR16 *BootableSlot, UINT32 BootableSlotSizeMax);
+VOID SwitchPtnSlots(CONST CHAR16 *SetActive);
+VOID MarkPtnActive(CHAR16 *ActiveSlot);
 #endif

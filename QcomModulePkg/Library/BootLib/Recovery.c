@@ -89,7 +89,7 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 	EFI_STATUS Status;
 	struct RecoveryMessage *Msg = NULL;
 
-	Status = ReadFromPartition(&gEfiMiscPartitionGuid, &Msg);
+	Status = ReadFromPartition(&gEfiMiscPartitionGuid, (VOID**)&Msg);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error Reading from misc partition: %r\n", Status));
@@ -129,7 +129,7 @@ EFI_STATUS GetFfbmCommand(CHAR8 *FfbmString, UINT32 Sz)
 	CHAR8 *FfbmData = NULL;
 	EFI_STATUS Status;
 
-	Status = ReadFromPartition(&gEfiMiscPartitionGuid, &FfbmData);
+	Status = ReadFromPartition(&gEfiMiscPartitionGuid, (VOID**)&FfbmData);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error Reading FFBM info from misc: %r\n", Status));

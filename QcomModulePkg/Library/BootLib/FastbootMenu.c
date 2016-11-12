@@ -110,7 +110,7 @@ EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation)
 	Location += Height;
 
 	mFastbootOptionTitle[OptionItem].Location = Location;
-	Status = DrawMenu(mFastbootOptionTitle[OptionItem].Msg, &Height);
+	Status = DrawMenu(&mFastbootOptionTitle[OptionItem], &Height);
 	if (Status != EFI_SUCCESS)
 		goto Exit;
 	Location += Height;

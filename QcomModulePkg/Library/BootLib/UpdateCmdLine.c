@@ -67,7 +67,6 @@ UINT32 DisplayCmdLineLen = sizeof(DisplayCmdLine);
 
 #if VERIFIED_BOOT
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
-STATIC CONST CHAR8 *verified_state = " androidboot.verifiedbootstate=";
 STATIC struct verified_boot_verity_mode vbvm[] =
 {
 	{FALSE, "logging"},
@@ -209,7 +208,7 @@ BOOLEAN TargetBatterySocOk(UINT32  *BatteryVoltage)
 
 	BatteryStatus = TargetCheckBatteryStatus(&BatteryPresent, &ChargerPresent, BatteryVoltage);
 	if ((BatteryStatus == EFI_SUCCESS) &&
-		(!BatteryPresent || (BatteryPresent && (BatteryVoltage > BATT_MIN_VOLT))))
+		(!BatteryPresent || (BatteryPresent && (*BatteryVoltage > BATT_MIN_VOLT))))
 	{
 		return TRUE;
 	}
@@ -225,7 +224,7 @@ VOID GetDisplayCmdline()
 			L"DisplayPanelConfiguration",
 			&gQcomTokenSpaceGuid,
 			NULL,
-			&DisplayCmdLineLen,
+			(UINTN*)&DisplayCmdLineLen,
 			DisplayCmdLine);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
@@ -312,7 +311,6 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			BootIntoFFBM = TRUE;
 	}
 
-
 	Status = BoardSerialNum(StrSerialNum, sizeof(StrSerialNum));
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Error Finding board serial num: %x\n", Status));
@@ -369,7 +367,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 
 	if (NULL == BoardPlatformChipBaseBand()) {
 		DEBUG((EFI_D_ERROR, "Invalid BaseBand String\n"));
-		return NULL;
+		return EFI_NOT_FOUND;
 	}
 
 	CmdLineLen += AsciiStrLen(BOOT_BASE_BAND);

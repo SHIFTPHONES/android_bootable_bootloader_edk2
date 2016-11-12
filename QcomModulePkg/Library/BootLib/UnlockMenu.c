@@ -82,7 +82,7 @@ STATIC MENU_MSG_INFO mUnlockMenuMsgInfo[] = {
   @retval     EFI_SUCCESS       The entry point is executed successfully.
   @retval     other	        Some error occurs when executing this entry point.
  **/
-STATIC EFI_STATUS UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type)
+STATIC EFI_STATUS UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Location = 0;
@@ -128,7 +128,7 @@ STATIC EFI_STATUS UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Ty
                      [UNLOCK]: The normal unlock menu
                      [UNLOCK_CRITICAL]: The ctitical unlock menu
 **/
-VOID DisplayUnlockMenu(INTN Type)
+VOID DisplayUnlockMenu(UINT32 Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO *OptionMenuInfo;

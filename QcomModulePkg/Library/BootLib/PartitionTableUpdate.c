@@ -31,6 +31,7 @@
 #include <Uefi/UefiSpec.h>
 #include "PartitionTableUpdate.h"
 #include <Library/LinuxLoaderLib.h>
+#include <Library/Board.h>
 
 STATIC BOOLEAN FlashingGpt;
 STATIC BOOLEAN ParseSecondaryGpt;
@@ -55,7 +56,7 @@ UINT32 GetMaxLuns() {
 	return MaxLuns;
 }
 
-UINT32 GetPartitionLunFromIndex(UINTN Index)
+UINT32 GetPartitionLunFromIndex(UINT32 Index)
 {
 	return PtnEntries[Index].lun;
 }
@@ -70,10 +71,10 @@ VOID SetMultiSlotBootVal(BOOLEAN Val) {
 	return;
 }
 
-INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINTN Lun)
+INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun)
 {
-	UINTN n;
-	UINTN RelativeIndex = 0;
+	UINT32 n;
+	UINT32 RelativeIndex = 0;
 
 	for (n = 0; n < PartitionCount; n++) {
 		if (Lun == PtnEntries[n].lun) {
@@ -92,7 +93,6 @@ VOID UpdatePartitionEntries()
 	UINT32 Index = 0;
 	EFI_STATUS Status;
 	EFI_PARTITION_ENTRY *PartEntry;
-	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
 
 	PartitionCount = 0;
 	/*Nullify the PtnEntries array before using it*/
@@ -126,7 +126,7 @@ INT32 GetPartitionIndex(CHAR16 *Pname)
 	return INVALID_PTN;
 }
 
-STATIC EFI_STATUS GetStorageHandle(INTN Lun, HandleInfo *BlockIoHandle, UINTN *MaxHandles)
+STATIC EFI_STATUS GetStorageHandle(INT32 Lun, HandleInfo *BlockIoHandle, UINT32 *MaxHandles)
 {
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	UINT32 Attribs = 0;
@@ -166,7 +166,7 @@ STATIC EFI_STATUS GetStorageHandle(INTN Lun, HandleInfo *BlockIoHandle, UINTN *M
 	return Status;
 }
 
-void UpdatePartitionAttributes()
+VOID UpdatePartitionAttributes()
 {
 	UINT32 BlkSz;
 	UINT8 *GptHdr = NULL;
@@ -184,10 +184,10 @@ void UpdatePartitionAttributes()
 	UINT64 DeviceDensity;
 	UINT64 CardSizeSec;
 	EFI_STATUS Status;
-	INTN Lun;
+	INT32 Lun;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo=NULL;
 	HandleInfo BlockIoHandle[MAX_HANDLEINF_LST_SIZE];
-	UINTN MaxHandles = MAX_HANDLEINF_LST_SIZE;
+	UINT32 MaxHandles = MAX_HANDLEINF_LST_SIZE;
 
 	for( Lun = 0; Lun < MaxLuns; Lun++) {
 
@@ -222,11 +222,11 @@ void UpdatePartitionAttributes()
 			}
 			if(Iter == 0x1) {
 				/* This is the back up GPT */
-				Ptn_Entries = (CHAR8 *)GptHdr;
+				Ptn_Entries = GptHdr;
 				GptHdr = GptHdr + ((GPT_HDR_AND_PTN_ENTRIES - 1) * BlkSz);
 			} else
 				/* otherwise we are at the primary gpt */
-				Ptn_Entries = (CHAR8 *)GptHdr + BlkSz;
+				Ptn_Entries = GptHdr + BlkSz;
 
 			PtnEntriesPtr = Ptn_Entries;
 
@@ -342,7 +342,6 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	UINT32 UfsBootLun = 0;
 	BOOLEAN UfsGet = TRUE;
 	BOOLEAN UfsSet = FALSE;
-	EFI_STATUS Status;
 
 	/* Create the partition name string for active and non active slots*/
 	if (!StrnCmp(SetActive, L"_a", StrLen(L"_a")))
@@ -456,7 +455,6 @@ EnumeratePartitions ()
 BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname)
 {
 	UINT32 i;
-	UINT32 j;
 	UINT32 SlotCount = 0;
 	UINT32 Len = StrLen(Pname);
 
@@ -582,8 +580,6 @@ VOID FindBootableSlot(CHAR16 *BootableSlot, UINT32 BootableSlotSizeMax)
 	UINT32 RetryCount = 0;
 	INT32 Index;
 	UINT32 SlotUnbootable = 0;
-	UINT32 i;
-	UINT32 BootLun = 0;
 	struct PartitionEntry *PartEntryPtr;
 	UINT32 UfsBootLun = 0;
 	BOOLEAN UfsGet = TRUE;
@@ -626,7 +622,7 @@ TryNextSlot:
 		} else {
 			/*else mark slot as unbootable update fields then go for next slot*/
 			PartEntryPtr->PartEntry.Attributes |= PART_ATT_UNBOOTABLE_VAL & ~PART_ATT_ACTIVE_VAL & ~PART_ATT_PRIORITY_VAL;
-			StrnCpyS(BootableSlot, BootableSlotSizeMax, "", StrLen(""));
+			StrnCpyS(BootableSlot, BootableSlotSizeMax, L"", StrLen(L""));
 			SlotUnbootable++;
 			goto TryNextSlot;
 		}
@@ -634,7 +630,7 @@ TryNextSlot:
 	UpdatePartitionAttributes();
 }
 
-STATIC INTN PartitionVerifyMbrSignature(UINT32 Sz, UINT8 *Gpt)
+STATIC UINT32 PartitionVerifyMbrSignature(UINT32 Sz, UINT8 *Gpt)
 {
 	if ((MBR_SIGNATURE + 1) > Sz)
 	{
@@ -652,7 +648,7 @@ STATIC INTN PartitionVerifyMbrSignature(UINT32 Sz, UINT8 *Gpt)
 	return SUCCESS;
 }
 
-STATIC INTN MbrGetPartitionType(UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
+STATIC UINT32 MbrGetPartitionType(UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
 {
 	UINT32 PtypeOffset = MBR_PARTITION_RECORD + OS_TYPE;
 
@@ -667,9 +663,9 @@ STATIC INTN MbrGetPartitionType(UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
 	return SUCCESS;
 }
 
-STATIC INTN PartitionGetType(UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
+STATIC UINT32 PartitionGetType(UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
 {
-	INTN Ret;
+	UINT32 Ret;
 
 	Ret = PartitionVerifyMbrSignature(Sz, Gpt);
 	if (!Ret)
@@ -694,7 +690,7 @@ STATIC INTN PartitionGetType(UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
 	return Ret;
 }
 
-STATIC INTN ParseGptHeader(struct GptHeaderData *GptHeader, UINT8 *GptBuffer, UINTN DeviceDensity, UINT32 BlkSz)
+STATIC UINT32 ParseGptHeader(struct GptHeaderData *GptHeader, UINT8 *GptBuffer, UINT64 DeviceDensity, UINT32 BlkSz)
 {
 	UINT32 CrcOrig;
 	UINT32 CrcVal;
@@ -789,13 +785,13 @@ STATIC INTN ParseGptHeader(struct GptHeaderData *GptHeader, UINT8 *GptBuffer, UI
 	return SUCCESS;
 }
 
-STATIC INTN PatchGpt (
-			UINT8 *Gpt, UINTN DeviceDensity, UINT32 PartEntryArrSz,
+STATIC UINT32 PatchGpt (
+			UINT8 *Gpt, UINT64 DeviceDensity, UINT32 PartEntryArrSz,
 			struct GptHeaderData *GptHeader, UINT32 BlkSz)
 {
 	UINT8 *PrimaryGptHeader;
 	UINT8 *SecondaryGptHeader;
-	UINTN NumSectors;
+	UINT64 NumSectors;
 	UINT32 Offset;
 	UINT32 TotalPart = 0;
 	UINT32 LastPartOffset;
@@ -866,16 +862,14 @@ STATIC INTN PatchGpt (
 	return SUCCESS;
 }
 
-STATIC INTN WriteGpt(INTN Lun, UINT32 Sz, UINT8 *Gpt)
+STATIC UINT32 WriteGpt(INT32 Lun, UINT32 Sz, UINT8 *Gpt)
 {
-	INTN Ret = 1;
+	UINT32 Ret = 1;
 	struct GptHeaderData GptHeader;
-	UINTN BackupHeaderLba;
-	UINT32 MaxPtCnt = 0;
 	UINT8 *PartEntryArrSt;
 	UINT32 Offset;
 	UINT32 PartEntryArrSz;
-	UINTN DeviceDensity;
+	UINT64 DeviceDensity;
 	UINT32 BlkSz;
 	UINT8 *PrimaryGptHdr = NULL;
 	UINT8 *SecondaryGptHdr = NULL;
@@ -884,7 +878,7 @@ STATIC INTN WriteGpt(INTN Lun, UINT32 Sz, UINT8 *Gpt)
 	UINTN PartitionEntryLba;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	HandleInfo BlockIoHandle[MAX_HANDLEINF_LST_SIZE];
-	UINTN MaxHandles = MAX_HANDLEINF_LST_SIZE;
+	UINT32 MaxHandles = MAX_HANDLEINF_LST_SIZE;
 
 	Ret = GetStorageHandle(Lun, BlockIoHandle, &MaxHandles);
 	if (Ret || (MaxHandles != 1))
@@ -988,11 +982,11 @@ STATIC INTN WriteGpt(INTN Lun, UINT32 Sz, UINT8 *Gpt)
 	return SUCCESS;
 }
 
-EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INTN Lun, struct StoragePartInfo *Ptable)
+EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct StoragePartInfo *Ptable)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Ptype;
-	INTN Ret;
+	UINT32 Ret;
 
 	/* Check if the partition type is GPT */
 	Ret = PartitionGetType(Sz, GptImage, &Ptype);

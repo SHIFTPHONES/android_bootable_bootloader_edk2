@@ -36,6 +36,7 @@
 #include <Library/MenuKeysDetection.h>
 #include <Library/LinuxLoaderLib.h>
 #include <Library/Recovery.h>
+#include <Library/KeyPad.h>
 
 #include <Protocol/EFIVerifiedBoot.h>
 
@@ -96,7 +97,7 @@ VOID WaitForExitKeysDetection()
                      [DISPLAY_MENU_UNLOCK_CRITICAL]: The ctitical unlock menu type
   @param[in] Status  The value of the unlock.
  **/
-STATIC VOID SetDeviceUnlockValue(INTN Type, BOOLEAN Status)
+STATIC VOID SetDeviceUnlockValue(UINT32 Type, BOOLEAN Status)
 {
 	EFI_STATUS Result;
 	DeviceInfo *DevInfo = NULL;
@@ -136,7 +137,7 @@ STATIC VOID SetDeviceUnlockValue(INTN Type, BOOLEAN Status)
 		}
 };
 
-STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, INTN Reason)
+STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, UINT32 Reason)
 {
 	CHAR8 FfbmPageBuffer[FFBM_MODE_BUF_SIZE];
 
@@ -347,7 +348,7 @@ STATIC BOOLEAN CheckKeyStatus(UINT32 KeyType)
 
 STATIC BOOLEAN IsKeyPressed(UINT32 KeyType)
 {
-	UINTN count = 0;
+	UINT32 count = 0;
 
 	if (CheckKeyStatus(KeyType)) {
 		/*if key is pressed, wait for 1s to see if it is released*/
@@ -367,8 +368,6 @@ STATIC BOOLEAN IsKeyPressed(UINT32 KeyType)
  **/
 VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 {
-	EFI_STATUS Status;
-	UINT32 KeyPressed;
 	UINT32 TimerDiff;
 	OPTION_MENU_INFO  *MenuInfo = Context;
 

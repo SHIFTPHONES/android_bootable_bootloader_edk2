@@ -28,12 +28,15 @@
 
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/BaseLib.h>
 #include <Protocol/EFIQseecom.h>
 #include "MdtpQsee.h"
 
 /*---------------------------------------------------------
  * Global Variables
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 STATIC QCOM_QSEECOM_PROTOCOL    *gQseecomProtocol = NULL;
 STATIC UINT32                   gMdtpQseeSecappHandle = 0;
@@ -41,7 +44,8 @@ STATIC BOOLEAN                  gMdtpQseeSecappLoaded = FALSE;
 
 /*---------------------------------------------------------
  * External Functions
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 /**
  * MdtpQseeLoadSecapp

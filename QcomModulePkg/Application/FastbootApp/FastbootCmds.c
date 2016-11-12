@@ -150,10 +150,10 @@ STATIC BOOLEAN LunSet;
 
 STATIC FASTBOOT_CMD *cmdlist;
 DeviceInfo FbDevInfo;
-STATIC BOOLEAN IsAllowUnlock;
+STATIC UINT32 IsAllowUnlock;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
-STATIC VOID AcceptCmd (IN  UINTN Size,IN  CHAR8 *Data);
+STATIC VOID AcceptCmd (IN UINT64 Size,IN  CHAR8 *Data);
 
 /* Enumerate the partitions during init */
 STATIC
@@ -261,11 +261,9 @@ VOID FastbootOkay(IN CONST CHAR8 *info)
 	FastbootAck("OKAY", info);
 }
 
-EFI_STATUS
-PartitionDump ()
+VOID PartitionDump ()
 {
 	EFI_STATUS Status;
-	BOOLEAN                  PartitionFound = FALSE;
 	EFI_PARTITION_ENTRY     *PartEntry;
 	UINT16                   i;
 	UINT32                   j;
@@ -484,7 +482,7 @@ HandleSparseImgFlash(
 	IN CHAR16  *PartitionName,
 	IN UINT32 PartitionMaxSize,
 	IN VOID   *Image,
-	IN UINTN   sz
+	IN UINT64 sz
 	)
 {
 	UINT32 chunk;
@@ -742,7 +740,7 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 {
 	struct PartitionEntry *Ptn_Entries_Ptr = NULL;
 	UINT32 j;
-	INTN Index;
+	INT32 Index;
 	CHAR16 PartName[MAX_GPT_NAME_SIZE];
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	UnicodeStrToAsciiStr(SlotSuffix, SlotSuffixAscii);
@@ -783,7 +781,7 @@ HandleRawImgFlash(
 {
 	EFI_STATUS               Status;
 	EFI_BLOCK_IO_PROTOCOL   *BlockIo = NULL;
-	UINTN                    PartitionSize;
+	UINT64                   PartitionSize;
 	EFI_HANDLE *Handle = NULL;
 	CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
@@ -863,9 +861,6 @@ FastbootErasePartition(
 	EFI_STATUS               Status;
 	EFI_BLOCK_IO_PROTOCOL   *BlockIo = NULL;
 	EFI_HANDLE              *Handle = NULL;
-	UINT64                   PartitionSize;
-	UINT64                   i;
-	UINT8                   *Zeros;
 
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
@@ -962,7 +957,7 @@ STATIC VOID ClearFastbootVarsofAB() {
 
 	for (CurrentList = Varlist; CurrentList != NULL; CurrentList = NextList) {
 		NextList = CurrentList->next;
-		if (!NamePropertyMatches(CurrentList->name)) {
+		if (!NamePropertyMatches((CHAR8*)CurrentList->name)) {
 			PrevList = CurrentList;
 			continue;
 		}
@@ -1026,7 +1021,7 @@ STATIC VOID CmdFlash(
 	CHAR16 *Token = NULL;
 	LunSet = FALSE;
 	EFI_EVENT gBlockIoRefreshEvt;
-	CHAR8 NullSlot[MAX_SLOT_SUFFIX_SZ] = {'\0'};
+	CHAR16 NullSlot[MAX_SLOT_SUFFIX_SZ] = {'\0'};
 	BOOLEAN MultiSlotBoot = FALSE;
 	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
@@ -1260,7 +1255,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		if (StrnCmp(GetCurrentSlotSuffix(), InputSlotInUnicode, StrLen(InputSlotInUnicode)))
 			SwitchSlot = TRUE;
 
-		if((InputSlot[MAX_SLOT_SUFFIX_SZ-1] != NULL) || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
+		if((InputSlot[MAX_SLOT_SUFFIX_SZ-1] != 0) || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
 			DEBUG((EFI_D_ERROR,"%a Invalid InputSlot Suffix\n",InputSlot));
 			FastbootFail("Invalid Slot Suffix");
 			return;
@@ -1319,14 +1314,14 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	FastbootOkay("");
 }
 
-STATIC VOID AcceptData (IN  UINTN  Size, IN  VOID  *Data)
+STATIC VOID AcceptData (IN UINT64 Size, IN  VOID  *Data)
 {
-	UINT32 RemainingBytes = mNumDataBytes - mBytesReceivedSoFar;
+	UINT64 RemainingBytes = mNumDataBytes - mBytesReceivedSoFar;
 
 	/* Protocol doesn't say anything about sending extra data so just ignore it.*/
 	if (Size > RemainingBytes)
 	{
-	Size = RemainingBytes;
+		Size = RemainingBytes;
 	}
 
 	mBytesReceivedSoFar += Size;
@@ -1351,7 +1346,7 @@ STATIC VOID AcceptData (IN  UINTN  Size, IN  VOID  *Data)
 /* Called based on the event received from USB device protocol:
  */
 VOID DataReady(
-	IN UINTN    Size,
+	IN UINT64   Size,
 	IN VOID    *Data
 	)
 {
@@ -1656,7 +1651,7 @@ STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
 }
 
-STATIC VOID SetDeviceUnlockValue(INTN Type, BOOLEAN Status)
+STATIC VOID SetDeviceUnlockValue(UINT32 Type, BOOLEAN Status)
 {
 	if (Type == UNLOCK)
 		FbDevInfo.is_unlocked = Status;
@@ -1666,7 +1661,7 @@ STATIC VOID SetDeviceUnlockValue(INTN Type, BOOLEAN Status)
 	ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
 }
 
-STATIC VOID SetDeviceUnlock(INTN Type, BOOLEAN State)
+STATIC VOID SetDeviceUnlock(UINT32 Type, BOOLEAN State)
 {
 	BOOLEAN is_unlocked = FALSE;
 	EFI_GUID MiscPartGUID = {0x82ACC91F, 0x357C, 0x4A68, {0x9C,0x8F,0x68,0x9E,0x1B,0x1A,0x23,0xA1}};
@@ -1804,7 +1799,7 @@ STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 			&gQcomTokenSpaceGuid,
 			EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
 			AsciiStrLen(arg),
-			arg);
+			(VOID*)arg);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Failed to set panel name, %r\n", Status));
@@ -1848,7 +1843,7 @@ STATIC VOID CmdOemDevinfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 }
 
 STATIC VOID AcceptCmd(
-	IN UINTN  Size,
+	IN  UINT64 Size,
 	IN  CHAR8 *Data
 	)
 {
@@ -1867,7 +1862,7 @@ STATIC VOID AcceptCmd(
 	{
 		if (AsciiStrnCmp(Data, cmd->prefix, cmd->prefix_len))
 			continue;
-		cmd->handle((CONST CHAR8*) Data + cmd->prefix_len, (VOID *) mDataBuffer, mBytesReceivedSoFar);
+		cmd->handle((CONST CHAR8*) Data + cmd->prefix_len, (VOID *) mDataBuffer, (UINT32)mBytesReceivedSoFar);
 			return;
 	}
 	DEBUG((EFI_D_ERROR, "\nFastboot Send Fail\n"));

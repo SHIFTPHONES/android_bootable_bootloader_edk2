@@ -31,6 +31,7 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
+#include <Library/PartitionTableUpdate.h>
 
 EFI_STATUS GetKeyPress(UINT32 *KeyPressed)
 {
