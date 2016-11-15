@@ -86,6 +86,7 @@ struct GetVarPartitionInfo part_info[] =
 	{ "cache"   , "partition-size:", "partition-type:", "", "ext4" },
 };
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC CONST CHAR16 *CriticalPartitions[] = {
 	L"abl",
 	L"rpm",
@@ -106,6 +107,7 @@ STATIC CONST CHAR16 *CriticalPartitions[] = {
 	L"keymaster",
 	L"mdtp"
 };
+#endif
 
 STATIC FASTBOOT_VAR *Varlist;
 BOOLEAN         Finished = FALSE;
@@ -852,6 +854,7 @@ HandleMetaImgFlash(
 	return Status;
 }
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 /* Erase partition */
 STATIC EFI_STATUS
 FastbootErasePartition(
@@ -888,6 +891,7 @@ FastbootErasePartition(
 
 	return Status;
 }
+#endif
 
 /* Handle Download Command */
 STATIC VOID CmdDownload(
@@ -935,6 +939,7 @@ VOID BlockIoCallback(IN EFI_EVENT Event,IN VOID *Context)
 {
 }
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 BOOLEAN NamePropertyMatches(CHAR8* Name) {
 
 	return (BOOLEAN)(!AsciiStrnCmp(Name, "has-slot", AsciiStrLen("has-slot")) ||
@@ -1313,6 +1318,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	UpdatePartitionAttributes();
 	FastbootOkay("");
 }
+#endif
 
 STATIC VOID AcceptData (IN UINT64 Size, IN  VOID  *Data)
 {
@@ -1592,6 +1598,7 @@ STATIC VOID CmdGetVar(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	FastbootFail("GetVar Variable Not found");
 }
 
+#ifdef ENABLE_BOOT_CMD
 STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
 	struct boot_img_hdr *hdr = (struct boot_img_hdr *) Data;
@@ -1639,6 +1646,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	FastbootUsbDeviceStop();
 	BootLinux(Data, ImageSizeActual, &FbDevInfo, L"boot", FALSE);
 }
+#endif
 
 STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
@@ -1651,6 +1659,7 @@ STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
 }
 
+#if (defined(ENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS) || defined(ENABLE_UPDATE_PARTITIONS_CMDS))
 STATIC VOID SetDeviceUnlockValue(UINT32 Type, BOOLEAN Status)
 {
 	if (Type == UNLOCK)
@@ -1704,7 +1713,9 @@ STATIC VOID SetDeviceUnlock(UINT32 Type, BOOLEAN State)
 	FastbootOkay("");
 	RebootDevice(RECOVERY_MODE);
 }
+#endif
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC VOID CmdFlashingUnlock(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	SetDeviceUnlock(UNLOCK, TRUE);
@@ -1714,7 +1725,9 @@ STATIC VOID CmdFlashingLock(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	SetDeviceUnlock(UNLOCK, FALSE);
 }
+#endif
 
+#ifdef ENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS
 STATIC VOID CmdFlashingLockCritical(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	SetDeviceUnlock(UNLOCK_CRITICAL, FALSE);
@@ -1724,6 +1737,7 @@ STATIC VOID CmdFlashingUnLockCritical(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	SetDeviceUnlock(UNLOCK_CRITICAL, TRUE);
 }
+#endif
 
 STATIC VOID CmdOemEnableChargerScreen(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
@@ -1813,6 +1827,7 @@ STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 	}
 }
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC VOID CmdFlashingGetUnlockAbility(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	CHAR8      UnlockAbilityInfo[MAX_RSP_SIZE];
@@ -1822,6 +1837,7 @@ STATIC VOID CmdFlashingGetUnlockAbility(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 	WaitForTransferComplete();
 	FastbootOkay("");
 }
+#endif
 
 STATIC VOID CmdOemDevinfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
