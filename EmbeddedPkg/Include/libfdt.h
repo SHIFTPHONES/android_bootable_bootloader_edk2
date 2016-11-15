@@ -1409,6 +1409,8 @@ static inline int fdt_appendprop_cell(void *fdt, int nodeoffset,
  *	-FDT_ERR_BADLAYOUT,
  *	-FDT_ERR_TRUNCATED, standard meanings
  */
+int fdt_appendprop_str(void *fdt, int nodeoffset, const char *name,
+		       const void *val, int len);
 #define fdt_appendprop_string(fdt, nodeoffset, name, str) \
 	fdt_appendprop_str((fdt), (nodeoffset), (name), (str), strlen(str)+1)
 

@@ -29,12 +29,15 @@
 #include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/BaseMemoryLib.h>
 #include "Mdtp.h"
 #include "MdtpInternal.h"
+#include "MdtpImageManager.h"
 
 /*-------------------------------------------------------------------------
  * Definitions
-/*-------------------------------------------------------------------------*/
+ *-------------------------------------------------------------------------
+ */
 
 #define MDTP_CORRECT_PIN_DELAY_USEC (1*1000*1000)        /* 1 second */
 
@@ -45,14 +48,16 @@ typedef struct {
 
 /*----------------------------------------------------------------------------
  * Global Variables
- * -------------------------------------------------------------------------*/
+ * -------------------------------------------------------------------------
+ */
 
 STATIC MdtpBootMode gBootMode = MDTP_BOOT_MODE_MAX;
 STATIC MdtpState    gMdtpState = {MDTP_STATE_DISABLED, FALSE};
 
 /*-------------------------------------------------------------------------
  *Internal Functions
-/*-------------------------------------------------------------------------*/
+ *-------------------------------------------------------------------------
+ */
 
 /**
  * Validates a hash calculated on entire given partition
@@ -85,7 +90,7 @@ STATIC MdtpStatus MdtpVerifyPartitionSingleHash(CHAR8 *Name, UINT64 Size, DIP_ha
 		return MDTP_STATUS_PARTITION_ERROR;
 	}
 
-	RetVal = MdtpPartitionRead(&PartitionHandle, Buffer, Size, MDTP_PARTITION_START);
+	RetVal = MdtpPartitionRead(&PartitionHandle, (UINT8*)Buffer, Size, MDTP_PARTITION_START);
 	if (RetVal) {
 		DEBUG((EFI_D_ERROR, "MdtpVerifyPartitionSingleHash: ERROR, failed to read from partition: %s\n", Name));
 		gBS->FreePool(Buffer);
@@ -98,7 +103,7 @@ STATIC MdtpStatus MdtpVerifyPartitionSingleHash(CHAR8 *Name, UINT64 Size, DIP_ha
 		DEBUG((EFI_D_INFO, "MdtpVerifyPartitionSingleHash: first byte removed\n"));
 	}
 
-	RetVal = MdtpCryptoHash(Buffer, Size, &Digest);
+	RetVal = MdtpCryptoHash((UINT8*)Buffer, Size, &Digest);
 	if (RetVal) {
 		DEBUG((EFI_D_ERROR, "MdtpVerifyPartitionSingleHash: ERROR, failed to calculate hash\n"));
 		gBS->FreePool(Buffer);
@@ -183,7 +188,7 @@ STATIC MdtpStatus MdtpVerifyPartitionBlockHash(char *Name, UINT64 Size, UINT32 V
 			BytesToRead = MDTP_FWLOCK_BLOCK_SIZE;
 		}
 
-		RetVal = MdtpPartitionRead(&PartitionHandle, Buffer, BytesToRead, (MDTP_FWLOCK_BLOCK_SIZE * BlockNum));
+		RetVal = MdtpPartitionRead(&PartitionHandle, (UINT8*)Buffer, BytesToRead, (MDTP_FWLOCK_BLOCK_SIZE * BlockNum));
 		if (RetVal) {
 			DEBUG((EFI_D_ERROR, "MdtpVerifyPartitionBlockHash: ERROR, failed to read from partition: %s\n", Name));
 			gBS->FreePool(Buffer);
@@ -191,7 +196,7 @@ STATIC MdtpStatus MdtpVerifyPartitionBlockHash(char *Name, UINT64 Size, UINT32 V
 		}
 
 		/* calculating the hash value using crypto protocols */
-		RetVal = MdtpCryptoHash(Buffer, BytesToRead, &Digest);
+		RetVal = MdtpCryptoHash((UINT8*)Buffer, BytesToRead, &Digest);
 		if (RetVal) {
 			DEBUG((EFI_D_ERROR, "MdtpVerifyPartitionBlockHash: ERROR, failed to calculate hash\n"));
 			gBS->FreePool(Buffer);
@@ -354,7 +359,7 @@ STATIC MdtpStatus MdtpVerifyExternalPartition(MDTP_VB_EXTERNAL_PARTITION *ExtPar
 			}
 
 			/* Verify the image using VerifiedBoot protocol */
-			Status = VbProtocol->VBVerifyImage(VbProtocol, ExtPartition->PartitionName,
+			Status = VbProtocol->VBVerifyImage(VbProtocol, (UINT8*)ExtPartition->PartitionName,
 					(UINT8*)ExtPartition->ImageBuffer, ExtPartition->ImageSize, &BootState);
 			if (EFI_ERROR(Status) || BootState == BOOT_STATE_MAX) {
 				DEBUG((EFI_D_ERROR, "MdtpVerifyExternalPartition: VBVerifyImage failed, Status = %r\n", Status));
@@ -532,13 +537,13 @@ STATIC MdtpStatus MdtpVerifyGetState(mdtp_system_state_t *SystemState, mdtp_app_
 	}
 
 	if (gMdtpState.Valid == FALSE) {
-		RetVal = MdtpQseeGetState(&SystemState, &AppState);
+		RetVal = MdtpQseeGetState(SystemState, AppState);
 		if (RetVal) {
 			DEBUG((EFI_D_ERROR, "MdtpVerifyGetState: ERROR, cannot run get_state command, %d\n", RetVal));
 			return MDTP_STATUS_GENERAL_ERROR;
 		}
 
-		gMdtpState.SystemState = SystemState;
+		gMdtpState.SystemState = *SystemState;
 		gMdtpState.Valid = TRUE;
 	}
 
@@ -549,7 +554,8 @@ STATIC MdtpStatus MdtpVerifyGetState(mdtp_system_state_t *SystemState, mdtp_app_
 
 /*-------------------------------------------------------------------------
  * External Functions
-/*-------------------------------------------------------------------------*/
+ *-------------------------------------------------------------------------
+ */
 
 /**
  * MdtpVerifyFwlock
@@ -657,6 +663,7 @@ EFI_STATUS MdtpVerifyFwlock(MDTP_VB_EXTERNAL_PARTITION *ExtPartition)
 	} while (0);
 
 	MdtpRecoveryDialogDisplayErrorMessage(); /* This will never return */
+	return EFI_DEVICE_ERROR;
 }
 
 /**
@@ -711,4 +718,5 @@ EFI_STATUS MdtpGetState(MDTP_SYSTEM_STATE *MdtpState)
 	} while (0);
 
 	MdtpRecoveryDialogDisplayTextualErrorMessage(); /* This will never return */
+	return EFI_DEVICE_ERROR;
 }

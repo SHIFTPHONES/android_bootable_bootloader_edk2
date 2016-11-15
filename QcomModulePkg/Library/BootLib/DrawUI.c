@@ -236,7 +236,7 @@ STATIC UINT32 GetMaxFontCount()
 	UINT32 max_count = 0;
 	EFI_IMAGE_OUTPUT *Blt = NULL;
 
-	Status = gHiiFont->GetGlyph(gHiiFont, "a", NULL, &Blt, NULL);
+	Status = gHiiFont->GetGlyph(gHiiFont, 'a', NULL, &Blt, NULL);
 	if (!EFI_ERROR (Status) && (Status != EFI_WARN_UNKNOWN_GLYPH)) {
 		if (Blt)
 			FontBaseWidth = Blt->Width;

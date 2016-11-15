@@ -67,7 +67,7 @@ STATIC WARNING_COMMON_MSG_INFO mCommonMsgInfo[] = {
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"g.co/ABH\n\n"},
 			COMMON_FACTOR, BGR_YELLOW, BGR_BLACK, COMMON, 0, NOACTION},
-		{{""},COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 	[DISPLAY_MENU_ORANGE] = {
@@ -77,7 +77,7 @@ STATIC WARNING_COMMON_MSG_INFO mCommonMsgInfo[] = {
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"g.co/ABH\n\n"},
 			COMMON_FACTOR, BGR_ORANGE, BGR_BLACK, COMMON, 0, NOACTION},
-		{NULL},
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 	[DISPLAY_MENU_RED] = {
@@ -86,7 +86,7 @@ STATIC WARNING_COMMON_MSG_INFO mCommonMsgInfo[] = {
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"g.co/ABH\n\n"},
 			COMMON_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
-		{NULL},
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 	[DISPLAY_MENU_LOGGING] = {
@@ -96,7 +96,7 @@ STATIC WARNING_COMMON_MSG_INFO mCommonMsgInfo[] = {
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"g.co/ABH\n\n"},
 			COMMON_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
-		{NULL},
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 };
@@ -179,13 +179,11 @@ EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
   @retval     EFI_SUCCESS       The entry point is executed successfully.
   @retval     other	       Some error occurs when executing this entry point.
  **/
-EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
-	INTN Type)
+EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Location = 0;
 	UINT32 Height = 0;
-	UINT32 URLFgColor = 0;
 	UINT32 i = 0;
 
 	/* Clear the screen before launch the verified boot menu */
@@ -243,7 +241,7 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo,
                      [DISPLAY_MENU_RED]     ----- Red warning menu
                      [DISPLAY_MENU_LOGGING] ----- Logging warning menu
 **/
-VOID DisplayVerifiedBootMenu(INTN Type)
+VOID DisplayVerifiedBootMenu(UINT32 Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO *OptionMenuInfo;

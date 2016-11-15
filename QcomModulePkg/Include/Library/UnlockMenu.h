@@ -30,5 +30,5 @@
 #ifndef _UNLOCKMENU_H_
 #define _UNLOCKMENU_H_
 
-VOID DisplayUnlockMenu(INTN Type);
+VOID DisplayUnlockMenu(UINT32 Type);
 #endif

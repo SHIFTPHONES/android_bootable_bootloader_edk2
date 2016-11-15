@@ -28,13 +28,16 @@
 
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/BaseLib.h>
 #include "MdtpInternal.h"
 
 #define MDTP_MAX_PARTITIONS       (3)
 
 /*---------------------------------------------------------
  * External Functions
- *-------------------------------------------------------*/
+ *---------------------------------------------------------
+ */
 
 /**
  * MdtpPartitionGetHandle

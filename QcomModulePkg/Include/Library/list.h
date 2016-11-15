@@ -25,12 +25,10 @@
 
 #include "LocateDeviceTree.h"
 
-typedef UINTN addr_t;
-
 #define offsetof(type, member)  __builtin_offsetof (type, member)
 
 #define containerof(ptr, type, member) \
-	((type *)((addr_t)(ptr) - offsetof(type, member)))
+	((type *)((CHAR8*)(ptr) - offsetof(type, member)))
 
 struct list_node {
 	struct list_node *prev;

@@ -104,13 +104,12 @@ STATIC UINT8 GetRebootReason(UINT32 *ResetReason)
 EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
 {
 	EFI_STATUS Status;
-	EFI_GUID *PartitionType;
 
 	UINT32 BootReason = NORMAL_MODE;
 	UINT32 KeyPressed;
 	CHAR8 Fastboot[MAX_APP_STR_LEN];
 	CHAR8 *AppList[] = {Fastboot};
-	UINTN i;
+	UINT32 i;
 	CHAR16 Pname[MAX_GPT_NAME_SIZE];
 	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
 	/* MultiSlot Boot */

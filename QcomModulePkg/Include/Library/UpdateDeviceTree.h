@@ -39,6 +39,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/LinuxLoaderLib.h>
+#include <Library/Board.h>
 
 #define DTB_MAX_SUBNODE                128
 
@@ -112,9 +113,9 @@ struct DisplaySplashBufferInfo {
 	UINT32 uFrameSize;
 };
 
-INTN dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
+INT32 dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
 
-INTN dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
+INT32 dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
 
 EFI_STATUS UpdateDeviceTree(VOID* fdt, CONST CHAR8* cmdline, VOID* ramdisk,	UINT32 ramdisk_size);
 EFI_STATUS UpdatePartialGoodsNode(VOID *fdt);

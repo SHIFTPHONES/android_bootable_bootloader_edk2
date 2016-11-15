@@ -77,7 +77,7 @@ struct dt_entry
 	UINT32 board_hw_subtype;
 	UINT32 soc_rev;
 	UINT32 pmic_rev[4];
-	UINTN offset;
+	UINT64 offset;
 	UINT32 size;
 };
 
