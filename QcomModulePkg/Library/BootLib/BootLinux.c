@@ -422,8 +422,17 @@ EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *
 		return EFI_BAD_BUFFER_SIZE;
 	}
 
-	if (*PageSize != ImageHdrSize && *PageSize > BOOT_IMG_MAX_PAGE_SIZE) {
-		DEBUG((EFI_D_ERROR, "Invalid boot image pagesize.\nDevice PageSize: %u, Image PageSize: %u\n", ImageHdrSize, *PageSize));
+	if (*PageSize != ImageHdrSize) {
+		DEBUG((EFI_D_ERROR, "Invalid image pagesize. Device PageSize:%u, Image PageSize:%u\n",
+					ImageHdrSize,
+					*PageSize));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	if (*PageSize > BOOT_IMG_MAX_PAGE_SIZE) {
+		DEBUG((EFI_D_ERROR, "Invalid image pagesize, MAX: %u. PageSize: %u\n",
+					BOOT_IMG_MAX_PAGE_SIZE,
+					*PageSize));
 		return EFI_BAD_BUFFER_SIZE;
 	}
 
