@@ -74,8 +74,7 @@ STATIC struct verified_boot_verity_mode vbvm[] =
 };
 #else
 STATIC CONST CHAR8 *VerityMode;
-STATIC CONST CHAR8 *verified_state;
-STATIC struct verified_boot_verity_mode vbvm[];
+STATIC struct verified_boot_verity_mode vbvm[] = {};
 #endif
 
 /*Function that returns whether the kernel is signed
