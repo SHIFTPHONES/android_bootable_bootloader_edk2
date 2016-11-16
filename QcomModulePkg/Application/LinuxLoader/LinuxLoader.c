@@ -38,6 +38,7 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/DrawUI.h>
 #include <Library/StackCanary.h>
+#include <FastbootLib/FastbootMain.h>
 
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
@@ -135,9 +136,6 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	UINT32 BootReason = NORMAL_MODE;
 	UINT32 KeyPressed;
-	CHAR8 Fastboot[MAX_APP_STR_LEN];
-	CHAR8 *AppList[] = {Fastboot};
-	UINT32 i;
 	CHAR16 Pname[MAX_GPT_NAME_SIZE];
 	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
 	/* MultiSlot Boot */
@@ -302,13 +300,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 fastboot:
 	DEBUG((EFI_D_INFO, "Launching fastboot\n"));
-	for (i = 0 ; i < MAX_NUM_FS; i++)
-	{
-		SetMem(Fastboot, MAX_APP_STR_LEN, 0);
-		AsciiSPrint(Fastboot, MAX_APP_STR_LEN, "fs%d:Fastboot", i);
-		Status = LaunchApp(1, AppList);
-	}
-
+	Status = FastbootInitialize();
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Failed to Launch Fastboot App: %d\n", Status));

@@ -157,22 +157,6 @@ STATIC UINT32 IsAllowUnlock;
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
 STATIC VOID AcceptCmd (IN UINT64 Size,IN  CHAR8 *Data);
 
-/* Enumerate the partitions during init */
-STATIC
-EFI_STATUS
-FastbootInit()
-{ 
-	EFI_STATUS Status;
-
-	Status = EnumeratePartitions();
-	if(EFI_ERROR(Status)) {
-		DEBUG((EFI_D_ERROR, "Error enumerating the partitions : %r\n",Status));
-		return Status;
-	}
-	UpdatePartitionEntries();
-	return Status;
-}
-
 /* Clean up memory for the getvar variables during exit */
 EFI_STATUS
 FastbootUnInit()
@@ -1446,14 +1430,7 @@ FastbootCmdsInit (VOID)
 
 	mDataBuffer = NULL;
   
-	/* Initialize the Fastboot Platform Protocol */
 	DEBUG((EFI_D_INFO, "Fastboot: Initializing...\n"));
-	Status = FastbootInit();
-	if (EFI_ERROR (Status))
-	{
-		DEBUG ((EFI_D_ERROR, "Fastboot: Couldn't initialise Fastboot Protocol: %r\n", Status));
-		return Status;
-	}
 
 	/* Disable watchdog */
 	Status = gBS->SetWatchdogTimer (0, 0x10000, 0, NULL);

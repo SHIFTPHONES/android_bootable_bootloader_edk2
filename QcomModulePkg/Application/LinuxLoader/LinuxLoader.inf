@@ -53,6 +53,7 @@
 	BootLib
 	StackCanary
 	EfiFileLib
+	FastbootLib
 
 [Guids]
 	gEfiFileInfoGuid
