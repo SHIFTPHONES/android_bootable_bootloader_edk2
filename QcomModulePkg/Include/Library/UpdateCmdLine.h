@@ -47,7 +47,11 @@
 #define MAX_PATH_SIZE 64
 #define SERIAL_NUM_SIZE 64
 
-EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine, CHAR16 *PartitionName, DeviceInfo *DeviceInfo, BOOLEAN Recovery, CHAR8 **FinalCmdLine);
+EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
+			 CHAR8 *FfbmStr,
+			 DeviceInfo *DeviceInfo,
+			 BOOLEAN Recovery,
+			 CHAR8 **FinalCmdLine);
 BOOLEAN TargetBatterySocOk();
 
 #endif
