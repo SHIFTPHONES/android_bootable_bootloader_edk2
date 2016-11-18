@@ -489,10 +489,10 @@ STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_e
 			(cur_dt_hw_subtype == BoardPlatformSubType()) &&
 			(cur_dt_entry->soc_rev <= BoardPlatformChipVersion()) &&
 			((cur_dt_entry->variant_id & 0x00ffff00) <= (BoardTargetId() & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[0] & 0x00ffff00) <= (BoardPmicTarget(0) & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[1] & 0x00ffff00) <= (BoardPmicTarget(1) & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[2] & 0x00ffff00) <= (BoardPmicTarget(2) & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[3] & 0x00ffff00) <= (BoardPmicTarget(3) & 0x00ffff00))) {
+			(cur_dt_entry->pmic_rev[0] <= BoardPmicTarget(0)) &&
+			(cur_dt_entry->pmic_rev[1] <= BoardPmicTarget(1)) &&
+			(cur_dt_entry->pmic_rev[2] <= BoardPmicTarget(2)) &&
+			(cur_dt_entry->pmic_rev[3] <= BoardPmicTarget(3))) {
 
 		dt_node_tmp = dt_entry_list_init();
 		CopyMem((VOID *)dt_node_tmp->dt_entry_m,(VOID *)cur_dt_entry, sizeof(struct dt_entry));
@@ -642,20 +642,20 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 				board_info = BoardTargetId() & 0x00ffff00;
 				break;
 			case DTB_PMIC0:
-				current_info =((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00);
-				board_info = BoardPmicTarget(0) & 0x00ffff00;
+				current_info =dt_node_tmp1->dt_entry_m->pmic_rev[0];
+				board_info = BoardPmicTarget(0);
 				break;
 			case DTB_PMIC1:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[1]) & 0x00ffff00);
-				board_info = BoardPmicTarget(1) & 0x00ffff00;
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[1];
+				board_info = BoardPmicTarget(1);
 				break;
 			case DTB_PMIC2:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[2]) & 0x00ffff00);
-				board_info = BoardPmicTarget(2) & 0x00ffff00;
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[2];
+				board_info = BoardPmicTarget(2);
 				break;
 			case DTB_PMIC3:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[3]) & 0x00ffff00);
-				board_info = BoardPmicTarget(3) & 0x00ffff00;
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[3];
+				board_info = BoardPmicTarget(3);
 				break;
 			default:
 				DEBUG((EFI_D_ERROR, "ERROR: Unsupported version (%d) in dt node check \n",
@@ -697,16 +697,16 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 				current_info = ((dt_node_tmp1->dt_entry_m->variant_id) & 0x00ffff00);
 				break;
 			case DTB_PMIC0:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[0];
 				break;
 			case DTB_PMIC1:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[1]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[1];
 				break;
 			case DTB_PMIC2:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[2]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[2];
 				break;
 			case DTB_PMIC3:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[3]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[3];
 				break;
 			default:
 				DEBUG((EFI_D_ERROR, "ERROR: Unsupported version (%d) in dt node check \n",
