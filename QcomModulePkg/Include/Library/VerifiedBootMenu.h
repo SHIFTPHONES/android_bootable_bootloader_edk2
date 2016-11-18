@@ -38,8 +38,12 @@ EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo);
 EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type);
 #else
 STATIC inline VOID DisplayVerifiedBootMenu(UINT32 type) {}
-STATIC inline EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo) {}
-STATIC inline EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type) {}
+STATIC inline EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo) {
+	return EFI_NOT_FOUND;
+}
+STATIC inline EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type) {
+	return EFI_NOT_FOUND;
+}
 #endif
 
 #endif

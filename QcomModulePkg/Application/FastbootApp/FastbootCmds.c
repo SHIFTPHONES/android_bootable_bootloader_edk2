@@ -497,7 +497,7 @@ HandleSparseImgFlash(
 	UINT64 PartitionSize = 0;
 	UINT32 i;
 	UINT64 ImageEnd = (UINT64) Image + sz;
-	UINT32 Status;
+	EFI_STATUS Status;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	EFI_HANDLE *Handle = NULL;
 	CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -657,6 +657,7 @@ HandleSparseImgFlash(
 			if (ImageEnd < (UINT64)Image + sizeof(UINT32))
 			{
 				FastbootFail("Buffer overread occured due to invalid sparse header");
+				FreePool(fill_buf);
 				return EFI_INVALID_PARAMETER;
 			}
 
@@ -671,6 +672,7 @@ HandleSparseImgFlash(
 				if ((UINT64)total_blocks * (UINT64)sparse_header->blk_sz + sparse_header->blk_sz > PartitionSize)
 				{
 					FastbootFail("Chunk data size for fill type exceeds partition size");
+					FreePool(fill_buf);
 					return EFI_VOLUME_FULL;
 				}
 
@@ -679,6 +681,7 @@ HandleSparseImgFlash(
 				{
 					FastbootFail("Flash write failure for FILL Chunk");
 					FreePool(fill_buf);
+					return Status;
 				}
 
 				total_blocks++;
@@ -730,12 +733,14 @@ HandleSparseImgFlash(
     }
   }
 
-	DEBUG((EFI_D_ERROR, "Wrote %d blocks, expected to write %d blocks\n", total_blocks, sparse_header->total_blks));
+	DEBUG((EFI_D_INFO, "Wrote %d blocks, expected to write %d blocks\n", total_blocks, sparse_header->total_blks));
 
-	if (total_blocks != sparse_header->total_blks)
+	if (total_blocks != sparse_header->total_blks) {
 		FastbootFail("Sparse Image Write Failure");
+		Status = EFI_VOLUME_CORRUPTED;
+	}
 
-	return EFI_SUCCESS;
+	return Status;
 }
 
 STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
