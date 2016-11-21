@@ -496,13 +496,20 @@ HandleSparseImgFlash(
 	UINT32 total_blocks = 0;
 	UINT64 PartitionSize = 0;
 	UINT32 i;
-	UINT64 ImageEnd = (UINT64) Image + sz;
+	UINT64 ImageEnd;
 	EFI_STATUS Status;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	EFI_HANDLE *Handle = NULL;
 	CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	BOOLEAN HasSlot = FALSE;
+
+	if (CHECK_ADD64((UINT64)Image, sz)) {
+		DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and sz\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	ImageEnd = (UINT64) Image + sz;
 
 	/* For multislot boot the partition may not support a/b slots.
 	 * Look for default partition, if it does not exist then try for a/b
@@ -874,11 +881,11 @@ FastbootErasePartition(
 	if (Status != EFI_SUCCESS)
 		return Status;
 	if (!BlockIo) {
-		DEBUG((EFI_D_ERROR, "BlockIo for %a is corrupted\n",PartitionName));
+		DEBUG((EFI_D_ERROR, "BlockIo for %s is corrupted\n", PartitionName));
 		return EFI_VOLUME_CORRUPTED;
 	}
 	if (!Handle) {
-		DEBUG((EFI_D_ERROR, "EFI handle for %a is corrupted\n",PartitionName));
+		DEBUG((EFI_D_ERROR, "EFI handle for %s is corrupted\n", PartitionName));
 		return EFI_VOLUME_CORRUPTED;
 	}
 
@@ -1803,19 +1810,25 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	EFI_STATUS Status;
 	CHAR8 Resp[MAX_RSP_SIZE] = "Set off mode charger: ";
 
-	AsciiStrnCatS(Resp, sizeof(Resp), Arg, AsciiStrLen(Arg));
-
 	if (Arg) {
 		Ptr = AsciiStrStr(Arg, Delim);
 		if (Ptr) {
 			Ptr++;
-			if (!AsciiStrnCmp(Ptr, "0", 1))
+			if (!AsciiStrCmp(Ptr, "0"))
 				FbDevInfo.is_charger_screen_enabled = FALSE;
-			else if (!AsciiStrnCmp(Ptr, "1", 1))
+			else if (!AsciiStrCmp(Ptr, "1"))
 				FbDevInfo.is_charger_screen_enabled = TRUE;
+			else {
+				FastbootFail("Invalid input entered");
+				return;
+			}
+		} else {
+			FastbootFail("Enter fastboot oem off-mode-charge 0/1");
+			return;
 		}
 	}
 
+	AsciiStrnCatS(Resp, sizeof(Resp), Arg, AsciiStrLen(Arg));
 	/* update charger_screen_enabled value for getvar command */
 	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
 	if (Status != EFI_SUCCESS) {

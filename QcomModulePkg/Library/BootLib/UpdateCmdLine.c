@@ -246,9 +246,7 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 	CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
 	CHAR16* CurSlotSuffix = GetCurrentSlotSuffix();
 	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
-	HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
-	UINT32 MaxHandles = ARRAY_SIZE(HandleInfoList);
-	MemCardType Type = UNKNOWN;
+	CHAR8 RootDevStr[BOOT_DEV_NAME_SIZE_MAX];
 
 	*SysPath = AllocatePool(sizeof(char) * MAX_PATH_SIZE);
 	if (!*SysPath) {
@@ -267,11 +265,13 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 	}
 
 	Lun = GetPartitionLunFromIndex(Index);
-	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
-	if (Type == UNKNOWN)
+	GetRootDeviceType(RootDevStr, BOOT_DEV_NAME_SIZE_MAX);
+	if (!AsciiStrCmp("Unknown", RootDevStr)) {
+		FreePool(*SysPath);
 		return 0;
+	}
 
-	if (Type == EMMC)
+	if (!AsciiStrCmp("EMMC", RootDevStr))
 		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", (Index + 1));
 	else
 		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/sd%c%d", LunCharMapping[Lun],

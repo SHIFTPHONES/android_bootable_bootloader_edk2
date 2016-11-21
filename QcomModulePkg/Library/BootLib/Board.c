@@ -42,31 +42,6 @@ STATIC CONST CHAR8 *DeviceType[] = {
 	[UNKNOWN]     = "Unknown",
 };
 
-STATIC CONST CHAR8 *HWPlatformName[] = {
-	[EFI_PLATFORMINFO_TYPE_UNKNOWN]     = "Unknown",
-	[EFI_PLATFORMINFO_TYPE_CDP]         = "CDP",
-	[EFI_PLATFORMINFO_TYPE_FFA]         = "FFA",
-	[EFI_PLATFORMINFO_TYPE_FLUID]       = "Fluid",
-	[EFI_PLATFORMINFO_TYPE_OEM]         = "OEM",
-	[EFI_PLATFORMINFO_TYPE_QT]          = "OT",
-	[EFI_PLATFORMINFO_TYPE_MTP]         = "MTP",
-	[EFI_PLATFORMINFO_TYPE_LIQUID]      = "LIQUID",
-	[EFI_PLATFORMINFO_TYPE_DRAGONBOARD] = "DRAGONBOARD",
-	[EFI_PLATFORMINFO_TYPE_QRD]         = "QRD",
-	[EFI_PLATFORMINFO_TYPE_EVB]         = "EVB",
-	[EFI_PLATFORMINFO_TYPE_RUMI]        = "RUMI",
-	[EFI_PLATFORMINFO_TYPE_VIRTIO]      = "VIRTIO",
-	[EFI_PLATFORMINFO_TYPE_GOBI]        = "GOBI",
-	[EFI_PLATFORMINFO_TYPE_BTS]         = "BTS",
-	[EFI_PLATFORMINFO_TYPE_XPM]         = "XPM",
-	[EFI_PLATFORMINFO_TYPE_RCM]         = "RCM",
-	[EFI_PLATFORMINFO_TYPE_STP]         = "STP",
-	[EFI_PLATFORMINFO_TYPE_SBC]         = "SBC",
-	[EFI_PLATFORMINFO_TYPE_ADP]         = "ADP",
-	[EFI_PLATFORMINFO_TYPE_SDP]         = "SDP",
-	[EFI_PLATFORMINFO_TYPE_RRP]         = "RRP",
-};
-
 EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartitions) {
 
 	EFI_STATUS Status = EFI_NOT_FOUND;
@@ -385,28 +360,16 @@ EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet)
 	UINT32 Attribs = 0;
 	UINT32 MaxHandles;
 	PartiSelectFilter HandleFilter;
-	MemCardType Type = EMMC;
 
 	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
-
 	MaxHandles = ARRAY_SIZE(HandleInfoList);
 	HandleFilter.PartitionType = 0;
 	HandleFilter.VolumeName = 0;
-	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
+	HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
 
 	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
-	if (EFI_ERROR (Status) || MaxHandles == 0)
-	{
-		MaxHandles = ARRAY_SIZE(HandleInfoList);
-		HandleFilter.PartitionType = 0;
-		HandleFilter.VolumeName = 0;
-		HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
-
-		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
-		if (EFI_ERROR (Status))
-			return EFI_NOT_FOUND;
-		Type = UFS;
-	}
+	if (EFI_ERROR (Status))
+		return EFI_NOT_FOUND;
 
 	Status = gBS->HandleProtocol(HandleInfoList[0].Handle, &gEfiMemCardInfoProtocolGuid, (VOID**)&CardInfo);
 
@@ -526,31 +489,24 @@ UINT32 BoardTargetId()
 VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len)
 {
 	EFI_STATUS Status;
-	UINT32     HWId;
+	EFI_CHIPINFO_PROTOCOL *pChipInfoProtocol;
+	UINT32 ChipIdValidLen = 4;
 
 	if (StrHwPlatform == NULL) {
 		DEBUG((EFI_D_ERROR, "Error: HW Platform string is NULL\n"));
 		return;
 	}
 
-	/* Populate board data */
-	Status = BoardInit();
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error: Board Initialization failed: %x\n", Status));
-		ASSERT(0);
-	}
-
-	HWId = BoardPlatformType();
-
-	if (HWId > (ARRAY_SIZE(HWPlatformName) - 1)) {
-		DEBUG((EFI_D_ERROR, "Error: Hw Platform Id (0x%x) not found!!\n", HWId));
+	Status = gBS->LocateProtocol (&gEfiChipInfoProtocolGuid, NULL,(VOID **) &pChipInfoProtocol);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Locate Protocol failed for gEfiChipInfoProtocolGuid\n"));
 		return;
 	}
 
-	if (Len < (AsciiStrLen(HWPlatformName[HWId]) + 1)) {
-		DEBUG((EFI_D_ERROR, "Error: Hw Platform String length (%d) is too small\n\n", Len));
+	Status = pChipInfoProtocol->GetChipIdString(pChipInfoProtocol, StrHwPlatform, EFICHIPINFO_MAX_ID_LENGTH);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Failed to Get the ChipIdString\n"));
 		return;
 	}
-
-	AsciiSPrint(StrHwPlatform, Len, "%a", HWPlatformName[HWId]);
+	StrHwPlatform[ChipIdValidLen-1] = '\0';
 }
