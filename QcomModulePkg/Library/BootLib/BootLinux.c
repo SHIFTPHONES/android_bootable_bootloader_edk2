@@ -96,6 +96,16 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	CHAR8 StrPartition[MAX_GPT_NAME_SIZE] = {'\0'};
 	CHAR8 PartitionNameUnicode[MAX_GPT_NAME_SIZE] = {'\0'};
 	BOOLEAN BootingWith32BitKernel = FALSE;
+	CHAR8 FfbmStr[FFBM_MODE_BUF_SIZE] = {'\0'};
+
+	if (!StrnCmp(PartitionName, L"boot", StrLen(L"boot")))
+	{
+		Status = GetFfbmCommand(FfbmStr, FFBM_MODE_BUF_SIZE);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_INFO, "No Ffbm cookie found, ignore: %r\n", Status));
+			FfbmStr[0] = '\0';
+		}
+	}
 
 	if (VerifiedBootEnbled())
 	{
@@ -138,8 +148,10 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 				MicroSecondDelay(5000000);
 				break;
 			case ORANGE:
-				DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
-				MicroSecondDelay(5000000);
+				if (FfbmStr[0] == '\0') {
+					DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
+					MicroSecondDelay(5000000);
+				}
 				break;
 			default:
 				break;
@@ -267,7 +279,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
 
-	Status = UpdateCmdLine(CmdLine, PartitionName, DevInfo, Recovery, &FinalCmdLine);
+	Status = UpdateCmdLine(CmdLine, FfbmStr, DevInfo, Recovery, &FinalCmdLine);
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Error updating cmdline. Device Error %r\n", Status));

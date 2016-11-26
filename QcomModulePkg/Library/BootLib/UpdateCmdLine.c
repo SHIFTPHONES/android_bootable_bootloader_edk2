@@ -280,7 +280,7 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
 EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
-				CHAR16 *PartitionName,
+				CHAR8 *FfbmStr,
 				DeviceInfo *DeviceInfo,
 				BOOLEAN Recovery,
 				CHAR8 **FinalCmdLine)
@@ -290,25 +290,12 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	UINT32 HaveCmdLine = 0;
 	UINT32 SysPathLength = 0;
 	UINT32 PauseAtBootUp = 0;
-	BOOLEAN BootIntoFFBM = FALSE;
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot;
 	CHAR8 ChipBaseBand[CHIP_BASE_BAND_LEN];
 	CHAR8 *BootDevBuf = NULL;
 	UINT32 BatteryStatus;
 	CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
-	CHAR8 Ffbm[FFBM_MODE_BUF_SIZE];
-
-	if ((!StrnCmp(PartitionName, L"boot_a", StrLen(PartitionName)))
-		|| (!StrnCmp(PartitionName, L"boot_b", StrLen(PartitionName))))
-	{
-		SetMem(Ffbm, FFBM_MODE_BUF_SIZE, 0);
-		Status = GetFfbmCommand(Ffbm, sizeof(Ffbm));
-		if (Status == EFI_NOT_FOUND)
-			DEBUG((EFI_D_ERROR, "No Ffbm cookie found, ignore\n"));
-		else if (Status == EFI_SUCCESS)
-			BootIntoFFBM = TRUE;
-	}
 
 	Status = BoardSerialNum(StrSerialNum, sizeof(StrSerialNum));
 	if (Status != EFI_SUCCESS) {
@@ -349,9 +336,9 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	/* Ignore the EFI_STATUS return value as the default Battery Status = 0 and is not fatal */
 	TargetPauseForBatteryCharge(&BatteryStatus);
 
-	if (BootIntoFFBM) {
+	if (FfbmStr && FfbmStr[0] != '\0') {
 		CmdLineLen += AsciiStrLen(AndroidBootMode);
-		CmdLineLen += AsciiStrLen(Ffbm);
+		CmdLineLen += AsciiStrLen(FfbmStr);
 		/* reduce kernel console messages to speed-up boot */
 		CmdLineLen += AsciiStrLen(LogLevel);
 	} else if (BatteryStatus && DeviceInfo->is_charger_screen_enabled) {
@@ -431,12 +418,12 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		Src = StrSerialNum;
 		STR_COPY(Dst,Src);
 
-		if (BootIntoFFBM) {
+		if (FfbmStr && FfbmStr[0] != '\0') {
 			Src = AndroidBootMode;
 			if (HaveCmdLine) --Dst;
 			STR_COPY(Dst,Src);
 
-			Src = Ffbm;
+			Src = FfbmStr;
 			if (HaveCmdLine) --Dst;
 			STR_COPY(Dst,Src);
 
