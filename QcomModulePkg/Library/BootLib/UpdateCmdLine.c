@@ -50,6 +50,7 @@ STATIC CONST CHAR8 *AndroidBootMode = " androidboot.mode=";
 STATIC CONST CHAR8 *LogLevel         = " quite";
 STATIC CONST CHAR8 *BatteryChgPause = " androidboot.mode=charger";
 STATIC CONST CHAR8 *AuthorizedKernel = " androidboot.authorized_kernel=true";
+STATIC CONST CHAR8 *MdtpActiveFlag = " mdtp";
 
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
@@ -296,6 +297,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	CHAR8 *BootDevBuf = NULL;
 	UINT32 BatteryStatus;
 	CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
+	BOOLEAN MdtpActive = FALSE;
 
 	Status = BoardSerialNum(StrSerialNum, sizeof(StrSerialNum));
 	if (Status != EFI_SUCCESS) {
@@ -306,6 +308,15 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	if (CmdLine && CmdLine[0]) {
 		CmdLineLen = AsciiStrLen(CmdLine);
 		HaveCmdLine= 1;
+	}
+
+	if (FixedPcdGetBool(EnableMdtpSupport)) {
+		Status = IsMdtpActive(&MdtpActive);
+
+		if (EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR, "Failed to get activation state for MDTP, Status=%r. Considering MDTP as active\n", Status));
+			MdtpActive = TRUE;
+		}
 	}
 
 	if (VerifiedBootEnbled()) {
@@ -358,6 +369,9 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 
 	CmdLineLen += AsciiStrLen(BOOT_BASE_BAND);
 	CmdLineLen += AsciiStrLen(BoardPlatformChipBaseBand());
+
+	if (MdtpActive)
+		CmdLineLen += AsciiStrLen(MdtpActiveFlag);
 
 	MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	if(MultiSlotBoot) {
@@ -456,6 +470,12 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		Src = DisplayCmdLine;
 		if (HaveCmdLine) --Dst;
 		STR_COPY(Dst,Src);
+
+		if (MdtpActive) {
+			Src = MdtpActiveFlag;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
+		}
 
 		if (MultiSlotBoot) {
 			/* Slot suffix */

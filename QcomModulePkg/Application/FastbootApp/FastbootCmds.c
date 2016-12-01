@@ -1613,6 +1613,21 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	UINT32 PageSize = 0;
 	UINT32 SigActual = SIGACTUAL;
 	CHAR8 Resp[MAX_RSP_SIZE];
+	BOOLEAN MdtpActive = FALSE;
+
+	if (FixedPcdGetBool(EnableMdtpSupport)) {
+		Status = IsMdtpActive(&MdtpActive);
+
+		if (EFI_ERROR(Status)) {
+			FastbootFail("Failed to get MDTP activation state, blocking fastboot boot");
+			return;
+		}
+
+		if (MdtpActive == TRUE) {
+			FastbootFail("Fastboot boot command is not available while MDTP is active");
+			return;
+		}
+	}
 
 	if (Size < sizeof(struct boot_img_hdr))
 	{

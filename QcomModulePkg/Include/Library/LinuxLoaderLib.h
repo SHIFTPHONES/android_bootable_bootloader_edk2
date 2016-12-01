@@ -54,6 +54,7 @@
 #include <Protocol/LoadedImage.h>
 #include <Protocol/EFIVerifiedBoot.h>
 #include <Protocol/EFIEraseBlock.h>
+#include <Protocol/EFIMdtp.h>
 #include <Guid/FileSystemInfo.h>
 #include <Guid/FileInfo.h>
 #include <Guid/Gpt.h>
@@ -157,4 +158,10 @@ BOOLEAN IsSecureBootEnabled();
 EFI_STATUS ResetDeviceState();
 EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
 EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len);
+
+/* Returns whether MDTP is active or not,
+ * or whether it should be considered active for
+ * bootloader flows. */
+EFI_STATUS IsMdtpActive(BOOLEAN *IsActive);
+
 #endif

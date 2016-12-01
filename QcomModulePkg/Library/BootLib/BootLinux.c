@@ -34,6 +34,7 @@
 #include <Library/DrawUI.h>
 #include <Protocol/EFIScmModeSwitch.h>
 #include <Library/PartitionTableUpdate.h>
+#include <Protocol/EFIMdtp.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
@@ -94,8 +95,10 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 	device_info_vb_t DevInfo_vb;
 	CHAR8 StrPartition[MAX_GPT_NAME_SIZE] = {'\0'};
-	CHAR8 PartitionNameUnicode[MAX_GPT_NAME_SIZE] = {'\0'};
+	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE] = {'\0'};
 	BOOLEAN BootingWith32BitKernel = FALSE;
+	QCOM_MDTP_PROTOCOL *MdtpProtocol;
+	MDTP_VB_EXTERNAL_PARTITION ExternalPartition;
 	CHAR8 FfbmStr[FFBM_MODE_BUF_SIZE] = {'\0'};
 
 	if (!StrnCmp(PartitionName, L"boot", StrLen(L"boot")))
@@ -124,9 +127,9 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			return Status;
 		}
 
-		UnicodeStrToAsciiStr(PartitionName, PartitionNameUnicode);
+		UnicodeStrToAsciiStr(PartitionName, PartitionNameAscii);
 		AsciiStrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, "/", AsciiStrLen("/"));
-		AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameUnicode, AsciiStrLen(PartitionNameUnicode));
+		AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameAscii, AsciiStrLen(PartitionNameAscii));
 
 		Status = VbIntf->VBVerifyImage(VbIntf, (UINT8 *)StrPartition, (UINT8 *) ImageBuffer, ImageSize, &BootState);
 		if (Status != EFI_SUCCESS && BootState == BOOT_STATE_MAX)
@@ -345,6 +348,38 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 			DEBUG((EFI_D_INFO, "Error sending milestone call to TZ\n"));
 			return Status;
 		}
+	}
+
+	if (FixedPcdGetBool(EnableMdtpSupport)) {
+		Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid,
+			NULL,
+			(VOID**)&MdtpProtocol);
+		if (EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
+			goto Exit;
+		}
+
+		/* Set external partition values, to determine whether MDTP can use VerifiedBoot result.
+		 * In any case, we will provide parameters that would allow MDTP to call VerifiedBoot
+		 * protocol by itself, if necessary */
+		ExternalPartition.VbEnabled = VerifiedBootEnbled();
+		AsciiStrnCpyS(ExternalPartition.PartitionName, MAX_PARTITION_NAME_LEN, StrPartition, AsciiStrLen(StrPartition));
+		ExternalPartition.ImageBuffer = ImageBuffer;
+		ExternalPartition.ImageSize = ImageSize;
+		ExternalPartition.BootState = BootState;
+		ExternalPartition.DevInfo = DevInfo_vb;
+
+		Status = MdtpProtocol->MdtpVerify(MdtpProtocol, &ExternalPartition);
+
+		if (EFI_ERROR(Status)) {
+			/* MdtpVerify should always handle errors internally, so when returned back to the caller,
+			 * the return value is expected to be success only.
+			 * Therfore, we don't expect any error status here. */
+			DEBUG((EFI_D_ERROR, "MDTP verification failed, Status=%r\n", Status));
+			goto Exit;
+		}
+
+		DEBUG((EFI_D_VERBOSE, "MDTP verified successfully\n"));
 	}
 
 	/* Free the boot logo blt buffer before starting kernel */

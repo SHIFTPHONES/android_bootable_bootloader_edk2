@@ -82,3 +82,6 @@
   gEfiUfsLU7Guid
   gEfiBootImgPartitionGuid
   gEfiRecoveryImgPartitionGuid
+
+[FixedPcd]
+  gQcomTokenSpaceGuid.EnableMdtpSupport
