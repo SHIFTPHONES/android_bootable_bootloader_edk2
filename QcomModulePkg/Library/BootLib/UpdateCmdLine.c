@@ -64,7 +64,7 @@ STATIC UINT32 AuthorizeKernelImage = 0;
 /* Display command line related structures */
 #define MAX_DISPLAY_CMD_LINE 256
 CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
-UINT32 DisplayCmdLineLen = sizeof(DisplayCmdLine);
+UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
 
 #if VERIFIED_BOOT
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
@@ -224,7 +224,7 @@ VOID GetDisplayCmdline()
 			L"DisplayPanelConfiguration",
 			&gQcomTokenSpaceGuid,
 			NULL,
-			(UINTN*)&DisplayCmdLineLen,
+			&DisplayCmdLineLen,
 			DisplayCmdLine);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
