@@ -22,6 +22,7 @@
 #include <Library/SerialPortLib.h>
 #include <Library/BdsLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/LinuxLoaderLib.h>
 #include <Guid/ArmMpCoreInfo.h>
 #include <Guid/GlobalVariable.h>
 #include <Guid/FileInfo.h>
@@ -102,7 +103,7 @@ VOID RebootDevice(UINT8 RebootReason)
 	struct ResetDataType ResetData;
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 
-	StrnCpyS(ResetData.DataBuffer, sizeof(ResetData.DataBuffer), STR_RESET_PARAM, sizeof(STR_RESET_PARAM));
+	StrnCpyS(ResetData.DataBuffer, ARRAY_SIZE(ResetData.DataBuffer), STR_RESET_PARAM, ARRAY_SIZE(STR_RESET_PARAM) -1);
 	ResetData.Bdata = RebootReason;
 	if (RebootReason == NORMAL_MODE)
 		Status = EFI_SUCCESS;

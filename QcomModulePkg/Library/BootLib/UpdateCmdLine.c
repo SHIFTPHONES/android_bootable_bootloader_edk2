@@ -251,11 +251,11 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 		return 0;
 	}
 
-	StrnCpyS(PartitionName, MAX_GPT_NAME_SIZE, L"system", StrLen(L"system"));
-	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE, CurSlotSuffix, StrLen(CurSlotSuffix));
+	StrnCpyS(PartitionName, StrLen(L"system") + 1, L"system", StrLen(L"system"));
+	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE - 1, CurSlotSuffix, StrLen(CurSlotSuffix));
 
 	Index = GetPartitionIndex(PartitionName);
-	if (Index == INVALID_PTN) {
+	if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
 		DEBUG((EFI_D_ERROR, "System partition does not exit\n"));
 		FreePool(*SysPath);
 		return 0;

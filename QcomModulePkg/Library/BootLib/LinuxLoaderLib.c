@@ -639,9 +639,9 @@ EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len)
 
 	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
 
-	if (!AsciiStrCmp(BootDeviceType, "UFS")) {
+	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
 		AsciiSPrint(BootDevBuf, Len, "%x.ufshc", BootDevAddr);
-	} else if (!AsciiStrCmp(BootDeviceType, "EMMC")) {
+	} else if (!AsciiStrnCmp(BootDeviceType, "EMMC", AsciiStrLen("EMMC"))) {
 		AsciiSPrint(BootDevBuf, Len, "%x.sdhci", BootDevAddr);
 	} else {
 		DEBUG((EFI_D_ERROR, "Unknown Boot Device type detected \n"));

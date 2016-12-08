@@ -42,7 +42,7 @@ STATIC UINTN splashBufSize = sizeof(splashBuf);
 
 VOID PrintSplashMemInfo(CONST CHAR8 *data, INT32 datalen)
 {
-	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM];
+	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM] = {0};
 
 	for (i = 0; (i < NUM_SPLASHMEM_PROP_ELEM) && datalen; i++) {
 		memcpy(&val[i], data, sizeof(UINT32));
