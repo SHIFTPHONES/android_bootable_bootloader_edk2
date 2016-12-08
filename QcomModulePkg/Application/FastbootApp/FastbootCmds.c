@@ -752,8 +752,8 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	UnicodeStrToAsciiStr(SlotSuffix, SlotSuffixAscii);
 
-	StrnCpyS(PartName, MAX_GPT_NAME_SIZE, L"boot", StrLen(L"boot"));
-	StrnCatS(PartName, MAX_GPT_NAME_SIZE, SlotSuffix, StrLen(SlotSuffix));
+	StrnCpyS(PartName, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
+	StrnCatS(PartName, MAX_GPT_NAME_SIZE - 1, SlotSuffix, StrLen(SlotSuffix));
 
 	Index = GetPartitionIndex(PartName);
 	if (Index == INVALID_PTN)
@@ -1271,7 +1271,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 			return;
 		}
 		/*Arg will be either _a or _b, so apppend it to boot*/
-		StrnCatS(SetActive, MAX_GPT_NAME_SIZE, InputSlotInUnicode, StrLen(InputSlotInUnicode));
+		StrnCatS(SetActive, MAX_GPT_NAME_SIZE - 1, InputSlotInUnicode, StrLen(InputSlotInUnicode));
 	} else {
 		FastbootFail("set_active _a or _b should be entered");
 		return;
@@ -1506,11 +1506,11 @@ STATIC VOID CmdContinue(
 
 	if (MultiSlotBoot)
 	{
-		FindBootableSlot(BootableSlot, sizeof(BootableSlot));
+		FindBootableSlot(BootableSlot, ARRAY_SIZE(BootableSlot) - 1);
 		if(!BootableSlot[0])
 			return;
 	} else
-		StrnCpyS(BootableSlot, MAX_GPT_NAME_SIZE, L"boot", StrLen(L"boot"));
+		StrnCpyS(BootableSlot, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
 
 	Status = LoadImage(BootableSlot, (VOID**)&ImageBuffer, &ImageSizeActual);
 	if (Status != EFI_SUCCESS)
