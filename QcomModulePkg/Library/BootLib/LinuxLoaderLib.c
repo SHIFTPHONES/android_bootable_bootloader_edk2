@@ -622,6 +622,7 @@ EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len)
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINTN BootDevAddr;
 	UINTN DataSize = sizeof(BootDevAddr);
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 	Status = gRT->GetVariable(
 			L"BootDeviceBaseAddr",
@@ -635,8 +636,48 @@ EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len)
 		DEBUG((EFI_D_ERROR, "Failed to get Boot Device Base address, %r\n", Status));
 		return Status;
 	}
-	AsciiSPrint(BootDevBuf, Len, "%x.ufshc", BootDevAddr);
+
+	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+
+	if (!AsciiStrCmp(BootDeviceType, "UFS")) {
+		AsciiSPrint(BootDevBuf, Len, "%x.ufshc", BootDevAddr);
+	} else if (!AsciiStrCmp(BootDeviceType, "EMMC")) {
+		AsciiSPrint(BootDevBuf, Len, "%x.sdhci", BootDevAddr);
+	} else {
+		DEBUG((EFI_D_ERROR, "Unknown Boot Device type detected \n"));
+		return EFI_NOT_FOUND;
+	}
+
 	ToLower(BootDevBuf);
+
+	return Status;
+}
+
+/* Returns whether MDTP is active or not,
+ * or whether it should be considered active for
+ * bootloader flows. */
+EFI_STATUS IsMdtpActive(BOOLEAN *MdtpActive)
+{
+	EFI_STATUS            Status = EFI_SUCCESS;
+	QCOM_MDTP_PROTOCOL    *MdtpProtocol = NULL;
+	MDTP_SYSTEM_STATE     MdtpState = MDTP_STATE_ACTIVE;
+
+	*MdtpActive = TRUE;
+
+	Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid, NULL, (VOID**)&MdtpProtocol);
+
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
+		return Status;
+	}
+
+	Status = MdtpProtocol->MdtpGetState(MdtpProtocol, &MdtpState);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Failed to get mdtp state, Status=%r\n", Status));
+		return Status;
+	}
+
+	*MdtpActive = ((MdtpState != MDTP_STATE_DISABLED) && (MdtpState != MDTP_STATE_INACTIVE));
 
 	return Status;
 }

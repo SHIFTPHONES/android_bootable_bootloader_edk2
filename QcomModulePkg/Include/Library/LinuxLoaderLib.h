@@ -54,6 +54,7 @@
 #include <Protocol/LoadedImage.h>
 #include <Protocol/EFIVerifiedBoot.h>
 #include <Protocol/EFIEraseBlock.h>
+#include <Protocol/EFIMdtp.h>
 #include <Guid/FileSystemInfo.h>
 #include <Guid/FileInfo.h>
 #include <Guid/Gpt.h>
@@ -101,6 +102,7 @@
 #define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : ZERO
 
 #define BOOT_DEV_MAX_LEN 32
+#define BOOT_DEV_NAME_SIZE_MAX 10
 
 /* Any data specific to additional attributes can be added here. */
 typedef struct {
@@ -157,4 +159,10 @@ BOOLEAN IsSecureBootEnabled();
 EFI_STATUS ResetDeviceState();
 EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
 EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len);
+
+/* Returns whether MDTP is active or not,
+ * or whether it should be considered active for
+ * bootloader flows. */
+EFI_STATUS IsMdtpActive(BOOLEAN *IsActive);
+
 #endif
