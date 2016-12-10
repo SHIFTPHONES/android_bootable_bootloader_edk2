@@ -349,14 +349,34 @@ STATIC BOOLEAN CheckKeyStatus(UINT32 KeyType)
 STATIC BOOLEAN IsKeyPressed(UINT32 KeyType)
 {
 	UINT32 count = 0;
+	EFI_STATUS Status = EFI_SUCCESS;
+	BOOLEAN Result = FALSE;
+	BOOLEAN IsCanceledTimer = FALSE;
 
 	if (CheckKeyStatus(KeyType)) {
 		/*if key is pressed, wait for 1s to see if it is released*/
-		while(count++ < 10 && CheckKeyStatus(KeyType))
+		while(count++ < 10 && CheckKeyStatus(KeyType)) {
+			/* Stop timer if the key is be holding */
+			if (!IsCanceledTimer) {
+				Status = gBS->SetTimer(CallbackKeyDetection, TimerCancel, 0);
+				if (Status == EFI_SUCCESS)
+					IsCanceledTimer = TRUE;
+			}
+
 			MicroSecondDelay(100000);
-		return TRUE;
+		}
+
+		Result = TRUE;
 	}
-	return FALSE;
+
+	if (IsCanceledTimer) {
+		Status = gBS->SetTimer(CallbackKeyDetection, TimerPeriodic, 500000);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "ERROR: Failed to set keys detection Timer: %r\n", Status));
+			ExitMenuKeysDetection();
+		}
+	}
+	return Result;
 }
 
 /**
