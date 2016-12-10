@@ -132,6 +132,7 @@
 	gEfiQcomVerifiedBootProtocolGuid
 	gQcomScmModeSwithProtocolGuid
 	gQcomRngProtocolGuid
+	gQcomMdtpProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
@@ -143,6 +144,7 @@
 	gQcomTokenSpaceGuid.EnablePartialGoods
 	gQcomTokenSpaceGuid.EnableDisplayMenu
 	gQcomTokenSpaceGuid.KernelLoadAddress32
+	gQcomTokenSpaceGuid.EnableMdtpSupport
 
 [Depex]
 	TRUE
