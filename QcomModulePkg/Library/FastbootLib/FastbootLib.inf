@@ -28,12 +28,12 @@
 #*/
 
 [Defines]
-  INF_VERSION                    = 0x00010005
-  BASE_NAME                      = Fastboot
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = FastbootLib
   FILE_GUID                      = 9588502a-5370-11e3-8631-d7c5951364c8
-  MODULE_TYPE                    = UEFI_APPLICATION
+  MODULE_TYPE                    = BASE
   VERSION_STRING                 = 1.0
-  ENTRY_POINT                    = FastbootAppEntryPoint
+  LIBRARY_CLASS                  = FastbootLib
 
 #
 # The following information is for reference only and not required by the build tools.
@@ -83,6 +83,7 @@
   gEfiUfsLU7Guid
   gEfiBootImgPartitionGuid
   gEfiRecoveryImgPartitionGuid
+  gQcomTokenSpaceGuid
 
 [FixedPcd]
   gQcomTokenSpaceGuid.EnableMdtpSupport
