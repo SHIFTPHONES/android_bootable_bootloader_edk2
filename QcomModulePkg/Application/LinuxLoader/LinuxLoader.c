@@ -38,6 +38,7 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/DrawUI.h>
 #include <Library/StackCanary.h>
+#include <Library/DeviceInfo.h>
 #include <FastbootLib/FastbootMain.h>
 
 #define MAX_APP_STR_LEN      64
@@ -46,7 +47,6 @@
 STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
-DeviceInfo DevInfo;
 
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
@@ -68,7 +68,7 @@ STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootI
 		MarkPtnActive(CurrentSlot);
 	}
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, &DevInfo, Pname, BootIntoRecovery);
+	BootLinux(ImageBuffer, ImageSizeActual, Pname, BootIntoRecovery);
 	// would never return here
 	return EFI_ABORTED;
 }
@@ -148,35 +148,11 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	BootStatsSetTimeStamp(BS_BL_START);
 
 	// Initialize verified boot & Read Device Info
-	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	Status = DeviceInfoInit();
 	if (Status != EFI_SUCCESS)
 	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		DEBUG((EFI_D_ERROR, "Initialize the device info failed: %r\n", Status));
 		return Status;
-	}
-
-	if (CompareMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE))
-	{
-		DEBUG((EFI_D_ERROR, "Device Magic does not match\n"));
-		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
-		if (IsSecureBootEnabled())
-		{
-			DevInfo.is_unlocked = FALSE;
-			DevInfo.is_unlock_critical = FALSE;
-		}
-		else
-		{
-			DevInfo.is_unlocked = TRUE;
-			DevInfo.is_unlock_critical = TRUE;
-		}
-		DevInfo.is_charger_screen_enabled = FALSE;
-		DevInfo.verity_mode = TRUE;
-		Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
-			return Status;
-		}
 	}
 
 	Status = EnumeratePartitions();
@@ -230,14 +206,10 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			BootReasonAlarm = TRUE;
 			break;
 		case DM_VERITY_ENFORCING:
-			DevInfo.verity_mode = 1;
 			// write to device info
-			Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
+			Status = EnableEnforcingMode(TRUE);
 			if (Status != EFI_SUCCESS)
-			{
-				DEBUG((EFI_D_ERROR, "VBRwDeviceState Returned error: %r\n", Status));
 				return Status;
-			}
 			break;
 		case DM_VERITY_LOGGING:
 			/* Disable MDTP if it's Enabled through Local Deactivation */
@@ -246,14 +218,11 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 				DEBUG((EFI_D_ERROR, "MdtpDisable Returned error: %r\n", Status));
 				return Status;
 			}
-			DevInfo.verity_mode = 0;
 			// write to device info
-			Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
+			Status = EnableEnforcingMode(FALSE);
 			if (Status != EFI_SUCCESS)
-			{
-				DEBUG((EFI_D_ERROR, "VBRwDeviceState Returned error: %r\n", Status));
 				return Status;
-			}
+
 			break;
 		case DM_VERITY_KEYSCLEAR:
 			Status = ResetDeviceState();

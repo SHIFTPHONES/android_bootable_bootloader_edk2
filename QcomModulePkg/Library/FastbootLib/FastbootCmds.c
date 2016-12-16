@@ -59,6 +59,7 @@
 #include <Library/MenuKeysDetection.h>
 #include <Library/PartitionTableUpdate.h>
 #include <Library/BoardCustom.h>
+#include <Library/DeviceInfo.h>
 
 #include <Protocol/BlockIo.h>
 
@@ -151,7 +152,6 @@ STATIC INT32 Lun = NO_LUN;
 STATIC BOOLEAN LunSet;
 
 STATIC FASTBOOT_CMD *cmdlist;
-DeviceInfo FbDevInfo;
 STATIC UINT32 IsAllowUnlock;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
@@ -1054,12 +1054,12 @@ STATIC VOID CmdFlash(
 	AsciiStrToUnicodeStr(arg, PartitionName);
 
 	if (TargetBuildVariantUser()) {
-		if (FbDevInfo.is_unlocked == FALSE) {
+		if (!IsUnlocked()) {
 			FastbootFail("Flashing is not allowed in Lock State");
 			return;
 		}
 
-		if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
+		if (!IsUnlockCritical() && IsCriticalPartition(PartitionName)) {
 			FastbootFail("Flashing is not allowed for Critical Partitions\n");
 			return;
 		}
@@ -1199,12 +1199,12 @@ STATIC VOID CmdErase(
 	AsciiStrToUnicodeStr(arg, PartitionName);
 
 	if (TargetBuildVariantUser()) {
-		if (FbDevInfo.is_unlocked == FALSE) {
+		if (!IsUnlocked()) {
 			FastbootFail("Erase is not allowed in Lock State");
 			return;
 		}
 
-		if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
+		if (!IsUnlockCritical() && IsCriticalPartition(PartitionName)) {
 			FastbootFail("Erase is not allowed for Critical Partitions\n");
 			return;
 		}
@@ -1254,7 +1254,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	BOOLEAN SwitchSlot = FALSE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 
-	if (FbDevInfo.is_unlocked == FALSE) {
+	if (!IsUnlocked()) {
 		FastbootFail("Slot Change is not allowed in Lock State\n");
 		return;
 	}
@@ -1534,7 +1534,7 @@ STATIC VOID CmdContinue(
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, BootableSlot, FALSE);
+	BootLinux(ImageBuffer, ImageSizeActual, BootableSlot, FALSE);
 }
 
 STATIC VOID UpdateGetVarVariable()
@@ -1545,8 +1545,8 @@ STATIC VOID UpdateGetVarVariable()
 	BatterySocOk = TargetBatterySocOk(&BatteryVoltage);
 	AsciiSPrint(StrBatteryVoltage, sizeof(StrBatteryVoltage), "%d", BatteryVoltage);
 	AsciiSPrint(StrBatterySocOk, sizeof(StrBatterySocOk), "%a", BatterySocOk ? "yes" : "no");
-	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", FbDevInfo.is_charger_screen_enabled);
-	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", FbDevInfo.is_charger_screen_enabled);
+	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", IsChargingScreenEnable());
+	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", IsChargingScreenEnable());
 }
 
 STATIC VOID WaitForTransferComplete()
@@ -1671,7 +1671,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 
 	FastbootOkay("");
 	FastbootUsbDeviceStop();
-	BootLinux(Data, ImageSizeActual, &FbDevInfo, L"boot", FALSE);
+	BootLinux(Data, ImageSizeActual, L"boot", FALSE);
 }
 #endif
 
@@ -1687,28 +1687,16 @@ STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 }
 
 #if (defined(ENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS) || defined(ENABLE_UPDATE_PARTITIONS_CMDS))
-STATIC VOID SetDeviceUnlockValue(UINT32 Type, BOOLEAN Status)
-{
-	if (Type == UNLOCK)
-		FbDevInfo.is_unlocked = Status;
-	else if (Type == UNLOCK_CRITICAL)
-		FbDevInfo.is_unlock_critical = Status;
-
-	ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
-}
-
 STATIC VOID SetDeviceUnlock(UINT32 Type, BOOLEAN State)
 {
 	BOOLEAN is_unlocked = FALSE;
-	EFI_GUID MiscPartGUID = {0x82ACC91F, 0x357C, 0x4A68, {0x9C,0x8F,0x68,0x9E,0x1B,0x1A,0x23,0xA1}};
 	char response[MAX_RSP_SIZE] = {0};
-	struct RecoveryMessage Msg;
 	EFI_STATUS Status;
 
 	if (Type == UNLOCK)
-		is_unlocked = FbDevInfo.is_unlocked;
+		is_unlocked = IsUnlocked();
 	else if (Type == UNLOCK_CRITICAL)
-		is_unlocked = FbDevInfo.is_unlock_critical;
+		is_unlocked = IsUnlockCritical();
 	if (State == is_unlocked)
 	{
 		AsciiSPrint(response, MAX_RSP_SIZE, "\tDevice already : %a", (State ? "unlocked!" : "locked!"));
@@ -1726,16 +1714,12 @@ STATIC VOID SetDeviceUnlock(UINT32 Type, BOOLEAN State)
 		}
 	}
 
-	SetDeviceUnlockValue(Type, State);
-	Status = ResetDeviceState();
+	Status = SetDeviceUnlockValue(Type, State);
 	if (Status != EFI_SUCCESS) {
-		SetDeviceUnlockValue(Type, !State);
-		FastbootFail("Fastboot: Unable to set the Value");
+		AsciiSPrint(response, MAX_RSP_SIZE, "\tSet device %a failed: %r", (State ? "unlocked!" : "locked!"), Status);
+		FastbootFail(response);
 		return;
 	}
-	SetMem((VOID *)&Msg, sizeof(Msg), 0);
-	AsciiStrnCpyS(Msg.recovery, sizeof(Msg.recovery), RECOVERY_WIPE_DATA, AsciiStrLen(RECOVERY_WIPE_DATA));
-	WriteToPartition(&MiscPartGUID, &Msg);
 
 	FastbootOkay("");
 	RebootDevice(RECOVERY_MODE);
@@ -1771,10 +1755,8 @@ STATIC VOID CmdOemEnableChargerScreen(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	EFI_STATUS Status;
 	DEBUG((EFI_D_INFO, "Enabling Charger Screen\n"));
 
-	FbDevInfo.is_charger_screen_enabled = TRUE;
-	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	Status = EnableChargingScreen(TRUE);
 	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error Enabling charger screen, power-off charging will not work: %r\n", Status));
 		FastbootFail("Failed to enable charger screen");
 	} else {
 		FastbootOkay("");
@@ -1786,10 +1768,8 @@ STATIC VOID CmdOemDisableChargerScreen(CONST CHAR8 *Arg, VOID *Data, UINT32 Size
 	EFI_STATUS Status;
 	DEBUG((EFI_D_INFO, "Disabling Charger Screen\n"));
 
-	FbDevInfo.is_charger_screen_enabled = FALSE;
-	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	Status = EnableChargingScreen(FALSE);
 	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error Disabling charger screen: %r\n", Status));
 		FastbootFail("Failed to disable charger screen");
 	} else {
 		FastbootOkay("");
@@ -1801,6 +1781,7 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	CHAR8 *Ptr = NULL;
 	CONST CHAR8 *Delim = " ";
 	EFI_STATUS Status;
+	BOOLEAN IsEnable = FALSE;
 	CHAR8 Resp[MAX_RSP_SIZE] = "Set off mode charger: ";
 
 	if (Arg) {
@@ -1808,9 +1789,9 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		if (Ptr) {
 			Ptr++;
 			if (!AsciiStrCmp(Ptr, "0"))
-				FbDevInfo.is_charger_screen_enabled = FALSE;
+				IsEnable = FALSE;
 			else if (!AsciiStrCmp(Ptr, "1"))
-				FbDevInfo.is_charger_screen_enabled = TRUE;
+				IsEnable = TRUE;
 			else {
 				FastbootFail("Invalid input entered");
 				return;
@@ -1823,7 +1804,7 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 
 	AsciiStrnCatS(Resp, sizeof(Resp), Arg, AsciiStrLen(Arg));
 	/* update charger_screen_enabled value for getvar command */
-	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	Status = EnableChargingScreen(IsEnable);
 	if (Status != EFI_SUCCESS) {
 		AsciiStrnCatS(Resp, sizeof(Resp), ": failed", AsciiStrLen(": failed"));
 		FastbootFail(Resp);
@@ -1876,16 +1857,16 @@ STATIC VOID CmdOemDevinfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	CHAR8      DeviceInfo[MAX_RSP_SIZE];
 
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Verity mode: %a", FbDevInfo.verity_mode ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Verity mode: %a", IsEnforcing() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device unlocked: %a", FbDevInfo.is_unlocked ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device unlocked: %a", IsUnlocked() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device critical unlocked: %a", FbDevInfo.is_unlock_critical ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device critical unlocked: %a", IsUnlockCritical() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Charger screen enabled: %a", FbDevInfo.is_charger_screen_enabled ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Charger screen enabled: %a", IsChargingScreenEnable() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
 	FastbootOkay("");
@@ -2013,8 +1994,9 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	)
 {
 	EFI_STATUS Status;
-	CHAR8      HWPlatformBuf[MAX_RSP_SIZE];
-	CHAR8      DeviceType[MAX_RSP_SIZE];
+	CHAR8      HWPlatformBuf[MAX_RSP_SIZE] = "\0";
+	CHAR8      DeviceType[MAX_RSP_SIZE] = "\0";
+	CHAR8      VersionTemp[MAX_VERSION_LEN] = "\0";
 	BOOLEAN    BatterySocOk = FALSE;
 	UINT32     BatteryVoltage = 0;
 
@@ -2024,14 +2006,6 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 	/* Find all Software Partitions in the User Partition */
 	UINT32 i;
-
-	// Read Device Info
-	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&FbDevInfo, sizeof(FbDevInfo));
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
-		return Status;
-	}
 
 	struct FastbootCmdDesc cmd_list[] =
 	{
@@ -2106,18 +2080,21 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	GetRootDeviceType(DeviceType, sizeof(DeviceType));
 	AsciiSPrint(StrVariant, sizeof(StrVariant), "%a %a", HWPlatformBuf, DeviceType);
 	FastbootPublishVar("variant", StrVariant);
-	FastbootPublishVar("version-bootloader", FbDevInfo.bootloader_version);
-	FastbootPublishVar("version-baseband", FbDevInfo.radio_version);
+	GetBootloaderVersion(VersionTemp, sizeof(VersionTemp));
+	FastbootPublishVar("version-bootloader", VersionTemp);
+	ZeroMem(VersionTemp, sizeof(VersionTemp));
+	GetRadioVersion(VersionTemp, sizeof(VersionTemp));
+	FastbootPublishVar("version-baseband", VersionTemp);
 	BatterySocOk = TargetBatterySocOk(&BatteryVoltage);
 	AsciiSPrint(StrBatteryVoltage, sizeof(StrBatteryVoltage), "%d", BatteryVoltage);
 	FastbootPublishVar("battery-voltage", StrBatteryVoltage);
 	AsciiSPrint(StrBatterySocOk, sizeof(StrBatterySocOk), "%a", BatterySocOk ? "yes" : "no");
 	FastbootPublishVar("battery-soc-ok", StrBatterySocOk);
-	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", FbDevInfo.is_charger_screen_enabled);
+	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", IsChargingScreenEnable());
 	FastbootPublishVar("charger-screen-enabled", ChargeScreenEnable);
-	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", FbDevInfo.is_charger_screen_enabled);
+	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", IsChargingScreenEnable());
 	FastbootPublishVar("off-mode-charge", ChargeScreenEnable);
-	FastbootPublishVar("unlocked", FbDevInfo.is_unlocked ? "yes":"no");
+	FastbootPublishVar("unlocked", IsUnlocked() ? "yes":"no");
 
 	/* Register handlers for the supported commands*/
 	UINT32 FastbootCmdCnt = sizeof(cmd_list)/sizeof(cmd_list[0]);
