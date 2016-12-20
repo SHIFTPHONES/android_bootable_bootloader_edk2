@@ -612,3 +612,16 @@ BOOLEAN VerifiedBootEnbled()
 #endif
 	return FALSE;
 }
+
+/* Return Build variant */
+#ifdef USER_BUILD_VARIANT
+BOOLEAN TargetBuildVariantUser()
+{
+	return TRUE;
+}
+#else
+BOOLEAN TargetBuildVariantUser()
+{
+	return FALSE;
+}
+#endif

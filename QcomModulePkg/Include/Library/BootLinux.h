@@ -83,4 +83,5 @@ EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *
 EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
 BOOLEAN VerifiedBootEnbled();
+BOOLEAN TargetBuildVariantUser();
 #endif
