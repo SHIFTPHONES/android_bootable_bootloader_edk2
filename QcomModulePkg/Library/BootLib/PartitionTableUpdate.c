@@ -48,7 +48,11 @@ CHAR16* GetCurrentSlotSuffix() {
 }
 
 VOID SetCurrentSlotSuffix(CHAR16* SlotSuffix) {
-	StrnCpyS(ActiveSlot, MAX_SLOT_SUFFIX_SZ, SlotSuffix, StrLen(SlotSuffix));
+	if (MAX_SLOT_SUFFIX_SZ > StrLen(SlotSuffix))
+		StrnCpyS(ActiveSlot, StrLen(SlotSuffix) + 1, SlotSuffix, StrLen(SlotSuffix));
+	else
+		DEBUG((EFI_D_ERROR, "ERROR: the buffer is too small\n"));
+
 	return;
 }
 
@@ -350,11 +354,11 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 		StrnCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, L"_a", StrLen(L"_a"));
 
 	for (j = 0; j < Sz; j++) {
-		StrnCpyS(CurSlot, BOOT_PART_SIZE,  BootParts[j], StrLen(BootParts[j]));
-		StrnCatS(CurSlot, BOOT_PART_SIZE, SetInactive, StrLen(SetInactive));
+		StrnCpyS(CurSlot, StrLen(BootParts[j]) + 1,  BootParts[j], StrLen(BootParts[j]));
+		StrnCatS(CurSlot, BOOT_PART_SIZE - 1, SetInactive, StrLen(SetInactive));
 
-		StrnCpyS(NewSlot, BOOT_PART_SIZE, BootParts[j], StrLen(BootParts[j]));
-		StrnCatS(NewSlot, BOOT_PART_SIZE, SetActive, StrLen(SetActive));
+		StrnCpyS(NewSlot, StrLen(BootParts[j]) + 1, BootParts[j], StrLen(BootParts[j]));
+		StrnCatS(NewSlot, BOOT_PART_SIZE - 1, SetActive, StrLen(SetActive));
 
 		/* Find the pointer to partition table entry for active and non-active slots*/
 		for (i = 0; i < PartitionCount; i++) {
@@ -519,7 +523,7 @@ VOID FindPtnActiveSlot()
 	 * fastboot set_active, so default to slot 'a'
 	 */
 	if (!Unbootable && !ActiveSlot[0] && !HighPriority) {
-		StrnCpyS(ActiveSlot, MAX_SLOT_SUFFIX_SZ, DefaultActive, StrLen(DefaultActive));
+		StrnCpyS(ActiveSlot, StrLen(DefaultActive) + 1, DefaultActive, StrLen(DefaultActive));
 		for (i = 0; i < PartitionCount; i++) {
 			if (!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, L"boot_a", StrLen(L"boot_a")))) {
 				PtnEntries[i].PartEntry.Attributes |=
@@ -534,7 +538,7 @@ VOID FindPtnActiveSlot()
 		ASSERT(0);
 	}
 	UpdatePartitionAttributes();
-	StrnCpyS(CurrentSlot, MAX_SLOT_SUFFIX_SZ, ActiveSlot, StrLen(ActiveSlot));
+	StrnCpyS(CurrentSlot, StrLen(ActiveSlot) + 1, ActiveSlot, StrLen(ActiveSlot));
 
 	if (Unbootable)
 		SwitchPtnSlots(CurrentSlot);
@@ -551,8 +555,8 @@ STATIC VOID MarkSlotUnbootable()
 	CHAR16 PartName[MAX_GPT_NAME_SIZE];
 	UINT32 i;
 	SwitchPtnSlots(CurrentSlot);
-	StrnCpyS(PartName, MAX_GPT_NAME_SIZE, L"boot",StrLen(L"boot"));
-	StrnCatS(PartName, MAX_GPT_NAME_SIZE, CurrentSlot, StrLen(CurrentSlot));
+	StrnCpyS(PartName, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
+	StrnCatS(PartName, MAX_GPT_NAME_SIZE - 1, CurrentSlot, StrLen(CurrentSlot));
 	for (i = 0; i < PartitionCount; i++) {
 		if(!StrnCmp(PtnEntries[i].PartEntry.PartitionName, PartName, StrLen(PartName))) {
 			/*select the slot and increase the priority = 7,retry-count =7,slot_successful = 0 and slot_unbootable =0*/
