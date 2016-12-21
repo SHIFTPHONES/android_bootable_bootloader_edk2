@@ -1043,12 +1043,20 @@ STATIC VOID CmdFlash(
 		FastbootFail("No data to flash");
 		return;
 	}
-
-	if (FbDevInfo.is_unlocked == FALSE) {
-		FastbootFail("Flashing is not allowed in Lock State");
-		return;
-	}
 	AsciiStrToUnicodeStr(arg, PartitionName);
+
+	if (TargetBuildVariantUser()) {
+		if (FbDevInfo.is_unlocked == FALSE) {
+			FastbootFail("Flashing is not allowed in Lock State");
+			return;
+		}
+
+		if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
+			FastbootFail("Flashing is not allowed for Critical Partitions\n");
+			return;
+		}
+	}
+
 	/* Find the lun number from input string */
 	Token = StrStr(PartitionName, L":");
 
@@ -1065,11 +1073,6 @@ STATIC VOID CmdFlash(
 		}
 
 		LunSet = TRUE;
-	}
-
-	if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
-		FastbootFail("Flashing is not allowed for Critical Partitions\n");
-		return;
 	}
 
 	if (!StrnCmp(PartitionName, L"partition", StrLen(L"partition"))) {
@@ -1188,14 +1191,16 @@ STATIC VOID CmdErase(
 	CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
 	AsciiStrToUnicodeStr(arg, PartitionName);
 
-	if (FbDevInfo.is_unlocked == FALSE) {
-		FastbootFail("Erase is not allowed in Lock State");
-		return;
-	}
+	if (TargetBuildVariantUser()) {
+		if (FbDevInfo.is_unlocked == FALSE) {
+			FastbootFail("Erase is not allowed in Lock State");
+			return;
+		}
 
-	if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
-		FastbootFail("Erase is not allowed for Critical Partitions\n");
-		return;
+		if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
+			FastbootFail("Erase is not allowed for Critical Partitions\n");
+			return;
+		}
 	}
 
 	/* In A/B to have backward compatibility user can still give fastboot flash boot/system/modem etc
