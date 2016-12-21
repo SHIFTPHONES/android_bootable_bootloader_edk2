@@ -59,11 +59,11 @@ MdtpStatus MdtpPartitionGetHandle(CHAR8 *PartitionName, MdtpPartitionHandle *Par
 	UINTN                 Index;
 	UINTN                 PartitionIndex;
 
-	if (AsciiStrnCmp(PartitionName, "system", MDTP_MAX_PARTITION_NAME_LEN) == 0)
+	if (AsciiStrnCmp(PartitionName, "system", AsciiStrLen("system")) == 0)
 		PartitionGuid = gEfiSystemPartitionGuid;
-	else if (AsciiStrnCmp(PartitionName, "dip", MDTP_MAX_PARTITION_NAME_LEN) == 0)
+	else if (AsciiStrnCmp(PartitionName, "dip", AsciiStrLen("dip")) == 0)
 		PartitionGuid = gEfiDipPartitionGuid;
-	else if (AsciiStrnCmp(PartitionName, "mdtp", MDTP_MAX_PARTITION_NAME_LEN) == 0)
+	else if (AsciiStrnCmp(PartitionName, "mdtp", AsciiStrLen("mdtp")) == 0)
 		PartitionGuid = gEfiMdtpPartitionGuid;
 	else {
 		DEBUG((EFI_D_ERROR, "MdtpPartitionGetHandle: ERROR, unsupported Mdtp partition\n"));
