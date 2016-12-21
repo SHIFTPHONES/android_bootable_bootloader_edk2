@@ -1366,8 +1366,10 @@ VOID DataReady(
 		AcceptCmd (Size, (CHAR8 *) Data);
 	else if (mState == ExpectDataState)
 		AcceptData (Size, Data);
-	else
-		ASSERT (FALSE);
+	else {
+		DEBUG((EFI_D_ERROR, "DataReady Unknown status received\r\n"));
+		return;
+	}
 }
 
 STATIC VOID FatalErrorNotify(
