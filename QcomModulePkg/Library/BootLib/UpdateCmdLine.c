@@ -64,7 +64,7 @@ STATIC UINT32 AuthorizeKernelImage = 0;
 /* Display command line related structures */
 #define MAX_DISPLAY_CMD_LINE 256
 CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
-UINT32 DisplayCmdLineLen = sizeof(DisplayCmdLine);
+UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
 
 #if VERIFIED_BOOT
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
@@ -224,7 +224,7 @@ VOID GetDisplayCmdline()
 			L"DisplayPanelConfiguration",
 			&gQcomTokenSpaceGuid,
 			NULL,
-			(UINTN*)&DisplayCmdLineLen,
+			&DisplayCmdLineLen,
 			DisplayCmdLine);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
@@ -251,11 +251,11 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 		return 0;
 	}
 
-	StrnCpyS(PartitionName, MAX_GPT_NAME_SIZE, L"system", StrLen(L"system"));
-	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE, CurSlotSuffix, StrLen(CurSlotSuffix));
+	StrnCpyS(PartitionName, StrLen(L"system") + 1, L"system", StrLen(L"system"));
+	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE - 1, CurSlotSuffix, StrLen(CurSlotSuffix));
 
 	Index = GetPartitionIndex(PartitionName);
-	if (Index == INVALID_PTN) {
+	if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
 		DEBUG((EFI_D_ERROR, "System partition does not exit\n"));
 		FreePool(*SysPath);
 		return 0;

@@ -82,7 +82,7 @@ EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartit
 	if (Status == EFI_BUFFER_TOO_SMALL)
 	{
 		*RamPartitions = AllocatePool (*NumPartitions * sizeof (RamPartitionEntry));
-		if (RamPartitions == NULL)
+		if (*RamPartitions == NULL)
 			return EFI_OUT_OF_RESOURCES;
 
 		Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, *RamPartitions, NumPartitions);
@@ -185,10 +185,31 @@ endtest:
 	return eResult;
 }
 
-STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *pmic_info)
+STATIC EFI_STATUS GetPmicInfoExt(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_EXT_TYPE *pmic_info_ext)
 {
 	EFI_STATUS Status;
 	EFI_QCOM_PMIC_VERSION_PROTOCOL *pPmicVersionProtocol;
+
+	Status = gBS->LocateProtocol (&gQcomPmicVersionProtocolGuid, NULL,
+			(VOID **) &pPmicVersionProtocol);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Error locating pmic protocol: %r\n", Status));
+		return Status;
+	}
+
+	Status = pPmicVersionProtocol->GetPmicInfoExt(PmicDeviceIndex, pmic_info_ext);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Error getting pmic info ext: %r\n", Status));
+		return Status;
+	}
+	return Status;
+}
+
+STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *pmic_info, UINT64 *Revision)
+{
+	EFI_STATUS Status;
+	EFI_QCOM_PMIC_VERSION_PROTOCOL *pPmicVersionProtocol;
+
 	Status = gBS->LocateProtocol (&gQcomPmicVersionProtocolGuid, NULL,
 			(VOID **) &pPmicVersionProtocol);
 	if (EFI_ERROR(Status))
@@ -196,6 +217,9 @@ STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *p
 		DEBUG((EFI_D_ERROR, "Error locating pmic protocol: %r\n", Status));
 		return Status;
 	}
+
+	*Revision = pPmicVersionProtocol->Revision;
+
 	Status = pPmicVersionProtocol->GetPmicInfo(PmicDeviceIndex, pmic_info);
 	if (EFI_ERROR(Status))
 	{
@@ -296,7 +320,9 @@ UINT32 BoardPmicModel(UINT32 PmicDeviceIndex)
 {
 	EFI_STATUS Status;
 	EFI_PM_DEVICE_INFO_TYPE pmic_info;
-	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info);
+	UINT64 Revision;
+
+	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info, &Revision);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error getting pmic model info: %r\n", Status));
@@ -310,15 +336,30 @@ UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex)
 {
 	UINT32 target;
 	EFI_STATUS Status;
-
+	UINT64 Revision;
 	EFI_PM_DEVICE_INFO_TYPE pmic_info;
-	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info);
+	EFI_PM_DEVICE_INFO_EXT_TYPE pmic_info_ext;
+
+	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info, &Revision);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error finding board pmic info: %r\n", Status));
 		ASSERT(0);
 	}
-	target = (pmic_info.PmicAllLayerRevision << 16) | pmic_info.PmicModel;
+
+	if (Revision >= PMIC_VERSION_REVISION) {
+		Status = GetPmicInfoExt(PmicDeviceIndex, &pmic_info_ext);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Error finding board pmic info: %r\n", Status));
+			return 0;
+		}
+
+		target = (pmic_info_ext.PmicVariantRevision << 24 ) | (pmic_info_ext.PmicAllLayerRevision << 16) |
+				(pmic_info_ext.PmicMetalRevision << 8) | pmic_info_ext.PmicModel;
+	} else {
+		target = (pmic_info.PmicAllLayerRevision << 16) | (pmic_info.PmicMetalRevision << 8) | pmic_info.PmicModel;
+	}
+
 	DEBUG((EFI_D_VERBOSE, "PMIC Target 0x%x: 0x%x\n", PmicDeviceIndex, target));
 	return target;
 }

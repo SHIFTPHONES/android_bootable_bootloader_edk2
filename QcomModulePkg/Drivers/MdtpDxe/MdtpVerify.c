@@ -98,7 +98,7 @@ STATIC MdtpStatus MdtpVerifyPartitionSingleHash(CHAR8 *Name, UINT64 Size, DIP_ha
 	}
 
 	/* calculating the hash value using crypto protocols */
-	if (AsciiStrnCmp(Name, "mdtp", MDTP_MAX_PARTITION_NAME_LEN) == 0) {
+	if (AsciiStrnCmp(Name, "mdtp", AsciiStrLen("mdtp")) == 0) {
 		Buffer[0] = 0;		/* Remove first byte */
 		DEBUG((EFI_D_INFO, "MdtpVerifyPartitionSingleHash: first byte removed\n"));
 	}
@@ -432,7 +432,7 @@ STATIC MdtpStatus MdtpVerifyAllPartitions(DIP_partitions_t *DipPartitions,
 					DipPartitions->partitions[Index].hash_table,
 					DipPartitions->partitions[Index].force_verify_block) != 0);
 
-			if ((VerifyTempResult) && ((AsciiStrnCmp(DipPartitions->partitions[Index].name, "mdtp", MDTP_MAX_PARTITION_NAME_LEN)) == 0)) {
+			if ((VerifyTempResult) && ((AsciiStrnCmp(DipPartitions->partitions[Index].name, "mdtp", AsciiStrLen("mdtp"))) == 0)) {
 				*MdtpImageError = TRUE;
 			}
 
@@ -583,9 +583,9 @@ EFI_STATUS MdtpVerifyFwlock(MDTP_VB_EXTERNAL_PARTITION *ExtPartition)
 		}
 
 		/* Check if image is legal (only boot and recovery are legal) and set boot mode */
-		if (AsciiStrnCmp(ExtPartition->PartitionName, "/boot", MDTP_MAX_PARTITION_NAME_LEN) == 0)
+		if (AsciiStrnCmp(ExtPartition->PartitionName, "/boot", AsciiStrLen("/boot")) == 0)
 			gBootMode = MDTP_BOOT_MODE_BOOT;
-		else if (AsciiStrnCmp(ExtPartition->PartitionName, "/recovery", MDTP_MAX_PARTITION_NAME_LEN) == 0)
+		else if (AsciiStrnCmp(ExtPartition->PartitionName, "/recovery", AsciiStrLen("/recovery")) == 0)
 			gBootMode = MDTP_BOOT_MODE_RECOVERY;
 		else {
 			DEBUG((EFI_D_ERROR, "MdtpVerifyFwlock: ERROR, wrong external partition: %s\n", ExtPartition->PartitionName));

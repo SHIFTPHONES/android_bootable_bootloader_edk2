@@ -84,7 +84,7 @@ void BootStatsSetTimeStamp(BS_ENTRY BootStatId)
 		if (BootStatId >= BS_MAX)
 		{
 			DEBUG((EFI_D_ERROR, "Bad BootStat id: %u, Max: %u\n", BootStatId, BS_MAX));
-			ASSERT(FALSE);
+			return;
 		}
 
 		if (BootStatId == BS_KERNEL_LOAD_START)

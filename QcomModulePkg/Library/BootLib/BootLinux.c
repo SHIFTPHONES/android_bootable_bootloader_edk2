@@ -469,17 +469,9 @@ EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *
 		return EFI_BAD_BUFFER_SIZE;
 	}
 
-	if (*PageSize != ImageHdrSize) {
-		DEBUG((EFI_D_ERROR, "Invalid image pagesize. Device PageSize:%u, Image PageSize:%u\n",
-					ImageHdrSize,
-					*PageSize));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	if (*PageSize > BOOT_IMG_MAX_PAGE_SIZE) {
-		DEBUG((EFI_D_ERROR, "Invalid image pagesize, MAX: %u. PageSize: %u\n",
-					BOOT_IMG_MAX_PAGE_SIZE,
-					*PageSize));
+	if ((*PageSize != ImageHdrSize) && (*PageSize > BOOT_IMG_MAX_PAGE_SIZE)) {
+		DEBUG((EFI_D_ERROR, "Invalid image pagesize\n"));
+		DEBUG((EFI_D_ERROR, "MAX: %u. PageSize: %u and ImageHdrSize: %u\n", BOOT_IMG_MAX_PAGE_SIZE, *PageSize, ImageHdrSize));
 		return EFI_BAD_BUFFER_SIZE;
 	}
 
@@ -620,3 +612,16 @@ BOOLEAN VerifiedBootEnbled()
 #endif
 	return FALSE;
 }
+
+/* Return Build variant */
+#ifdef USER_BUILD_VARIANT
+BOOLEAN TargetBuildVariantUser()
+{
+	return TRUE;
+}
+#else
+BOOLEAN TargetBuildVariantUser()
+{
+	return FALSE;
+}
+#endif

@@ -86,13 +86,15 @@
   ExtractGuidedSectionLib|MdePkg/Library/DxeExtractGuidedSectionLib/DxeExtractGuidedSectionLib.inf
 
 [BuildOptions.AARCH64]
-  GCC:*_*_AARCH64_ARCHCC_FLAGS  = -Wno-shift-negative-value -fstack-protector-strong
+  GCC:*_*_AARCH64_ARCHCC_FLAGS  = -Wno-shift-negative-value -fstack-protector-strong -Wno-varargs
   GCC:*_*_AARCH64_DLINK_FLAGS = -Ttext=0x0
   !if $(VERIFIED_BOOT)
       GCC:*_*_*_CC_FLAGS = -DVERIFIED_BOOT
   !endif
   !if $(USER_BUILD_VARIANT) == 0
       GCC:*_*_*_CC_FLAGS = -DENABLE_UPDATE_PARTITIONS_CMDS -DENABLE_BOOT_CMD -DENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS
+  !else
+      GCC:*_*_*_CC_FLAGS = -DUSER_BUILD_VARIANT
   !endif
 
 [PcdsFixedAtBuild.common]

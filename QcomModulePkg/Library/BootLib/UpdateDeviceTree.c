@@ -33,6 +33,7 @@
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Library/UpdateDeviceTree.h>
 #include "UpdateDeviceTree.h"
+#include <Protocol/EFIRng.h>
 
 #define DTB_PAD_SIZE          1024
 #define NUM_SPLASHMEM_PROP_ELEM   4
@@ -42,7 +43,7 @@ STATIC UINTN splashBufSize = sizeof(splashBuf);
 
 VOID PrintSplashMemInfo(CONST CHAR8 *data, INT32 datalen)
 {
-	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM];
+	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM] = {0};
 
 	for (i = 0; (i < NUM_SPLASHMEM_PROP_ELEM) && datalen; i++) {
 		memcpy(&val[i], data, sizeof(UINT32));
@@ -54,6 +55,36 @@ VOID PrintSplashMemInfo(CONST CHAR8 *data, INT32 datalen)
 	DEBUG ((EFI_D_VERBOSE, "reg = <0x%08x 0x%08x 0x%08x 0x%08x>\n",
 		val[0], val[1], val[2], val[3]));
 }
+
+STATIC EFI_STATUS GetKaslrSeed(UINT64 *KaslrSeed)
+{
+	EFI_QCOM_RNG_PROTOCOL *RngIf;
+	EFI_STATUS Status;
+	EFI_GUID AlgoId;
+	UINTN AlgoIdSize = sizeof(EFI_GUID);
+
+	Status = gBS->LocateProtocol(&gQcomRngProtocolGuid, NULL, (VOID **) &RngIf);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_VERBOSE, "Error locating PRNG protocol. Fail to generate Kaslr seed:%r\n", Status));
+		return Status;
+	}
+
+	Status = RngIf->GetInfo(RngIf, &AlgoIdSize, &AlgoId);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_VERBOSE, "Error GetInfo for PRNG failed. Fail to generate Kaslr seed:%r\n", Status));
+		return Status;
+	}
+
+	Status = RngIf->GetRNG(RngIf, &AlgoId, sizeof(UINTN), (UINT8 *)KaslrSeed);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_VERBOSE, "Error getting PRNG random number. Fail to generate Kaslr seed:%r\n", Status));
+		*KaslrSeed = 0;
+		return Status;
+	}
+
+	return Status;
+}
+
 
 EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 {
@@ -301,6 +332,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 	INT32 ret = 0;
 	UINT32 offset;
 	UINT32 PaddSize = 0;
+	UINT64 KaslrSeed = 0;
 	EFI_STATUS Status;
 
 	/* Check the device tree header */
@@ -361,6 +393,20 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [bootargs] - 0x%x\n", ret));
 			return EFI_LOAD_ERROR;
 		}
+	}
+
+	Status = GetKaslrSeed(&KaslrSeed);
+	if(Status == EFI_SUCCESS) {
+		/* Adding Kaslr Seed to the chosen node */
+		ret = fdt_appendprop_u64(fdt, offset, (CONST char*)"kaslr-seed", (UINT64)KaslrSeed);
+		if (ret) {
+			DEBUG ((EFI_D_INFO, "ERROR: Cannot update chosen node [kaslr-seed] - 0x%x\n", ret));
+		}
+		else {
+			DEBUG ((EFI_D_INFO, "kaslr-Seed is added to chosen node\n"));
+		}
+	} else {
+		DEBUG ((EFI_D_INFO, "ERROR: Cannot generate Kaslr Seed - %r\n", Status));
 	}
 
 	if(ramdisk_size)
