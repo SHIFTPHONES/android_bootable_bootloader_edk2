@@ -66,17 +66,22 @@ STATIC UINT32 AuthorizeKernelImage = 0;
 CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
 UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
 
-#if VERIFIED_BOOT
+boot_state_t BootState = BOOT_STATE_MAX;
+QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf = NULL;
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
-STATIC struct verified_boot_verity_mode vbvm[] =
+STATIC CONST CHAR8 *VerifiedState = " androidboot.verifiedbootstate=";
+STATIC struct verified_boot_verity_mode VbVm[] =
 {
 	{FALSE, "logging"},
 	{TRUE, "enforcing"},
 };
-#else
-STATIC CONST CHAR8 *VerityMode;
-STATIC struct verified_boot_verity_mode vbvm[] = {};
-#endif
+STATIC struct verified_boot_state_name VbSn[] =
+{
+	{GREEN, "green"},
+	{ORANGE, "orange"},
+	{YELLOW, "yellow"},
+	{RED, "red"},
+};
 
 /*Function that returns whether the kernel is signed
  *Currently assumed to be signed*/
@@ -320,8 +325,29 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	}
 
 	if (VerifiedBootEnbled()) {
+		if (DeviceInfo == NULL) {
+			DEBUG((EFI_D_ERROR, "DeviceInfo is NULL\n"));
+			return EFI_INVALID_PARAMETER;
+		}
+
 		CmdLineLen += AsciiStrLen(VerityMode);
-		CmdLineLen += AsciiStrLen(vbvm[DeviceInfo->verity_mode].name);
+		CmdLineLen += AsciiStrLen(VbVm[DeviceInfo->verity_mode].name);
+		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid,
+				     NULL, (VOID **) &VbIntf);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Unable to locate VerifiedBoot Protocol to update cmdline\n"));
+			return Status;
+		}
+
+		if (VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+			Status = VbIntf->VBGetBootState(VbIntf, &BootState);
+			if (Status != EFI_SUCCESS) {
+				DEBUG((EFI_D_ERROR, "Failed to read boot state to update cmdline\n"));
+				return Status;
+			}
+			CmdLineLen += AsciiStrLen(VerifiedState) +
+				AsciiStrLen(VbSn[BootState].name);
+		}
 	}
 
 	CmdLineLen += AsciiStrLen(BootDeviceCmdLine);
@@ -411,6 +437,24 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			Src = CmdLine;
 			STR_COPY(Dst,Src);
 		}
+
+		if (VerifiedBootEnbled()) {
+			Src = VerityMode;
+			--Dst;
+			STR_COPY(Dst,Src);
+			--Dst;
+			Src = VbVm[DeviceInfo->verity_mode].name;
+			STR_COPY(Dst,Src);
+			if (VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+				Src = VerifiedState;
+				--Dst;
+				STR_COPY(Dst,Src);
+				--Dst;
+				Src = VbSn[BootState].name;
+				STR_COPY(Dst,Src);
+			}
+		}
+
 
 		Src = BootDeviceCmdLine;
 		if (HaveCmdLine) --Dst;

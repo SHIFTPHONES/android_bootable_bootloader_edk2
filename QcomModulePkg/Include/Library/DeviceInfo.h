@@ -30,6 +30,7 @@
 #ifndef _DEVINFO_H_
 #define _DEVINFO_H_
 
+#include <Protocol/EFIVerifiedBoot.h>
 #define DEVICE_MAGIC "ANDROID-BOOT!"
 #define DEVICE_MAGIC_SIZE 13
 #define MAX_VERSION_LEN  64
@@ -58,7 +59,7 @@ struct verified_boot_verity_mode
 
 struct verified_boot_state_name
 {
-	UINT32 boot_state;
+	boot_state_t boot_state;
 	CHAR8 *name;
 };
 
