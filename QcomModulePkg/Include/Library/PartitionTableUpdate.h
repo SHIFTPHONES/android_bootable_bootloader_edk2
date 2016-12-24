@@ -177,6 +177,11 @@ struct PartitionEntry
 	UINT32 lun;
 };
 
+struct BootPartsLinkedList {
+	CHAR16 PartName[BOOT_PART_SIZE];
+	struct BootPartsLinkedList *Next;
+};
+
 EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct StoragePartInfo *Ptable);
 UINT32 GetPartitionLunFromIndex(UINT32);
 INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun);
