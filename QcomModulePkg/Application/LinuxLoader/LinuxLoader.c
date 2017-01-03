@@ -153,13 +153,6 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 		}
 	}
 
-	// Check Alarm Boot
-
-	// Populate Serial number
-
-	// Check force reset (then do normal boot)
-
-	// Check for keys
 	Status = EnumeratePartitions();
 
 	if (EFI_ERROR (Status)) {
@@ -231,7 +224,11 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			}
 			break;
 		case DM_VERITY_KEYSCLEAR:
-			// send delete keys to TZ
+			Status = ResetDeviceState();
+			if (Status != EFI_SUCCESS) {
+				DEBUG((EFI_D_ERROR, "VB Reset Device State error: %r\n", Status));
+				return Status;
+			}
 			break;
 		default:
 			break;
