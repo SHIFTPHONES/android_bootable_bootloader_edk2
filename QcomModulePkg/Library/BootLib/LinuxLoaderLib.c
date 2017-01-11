@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -226,7 +226,8 @@ GetBlkIOHandles (
 			Status = gBS->HandleProtocol(BlkIoHandles[i], &gEfiPartitionRecordGuid, (VOID **) &PartEntry);
 			if (Status != EFI_SUCCESS)
 				continue;
-			if (StrnCmp(PartEntry->PartitionName, FilterData->PartitionLabel, StrLen(PartEntry->PartitionName)))
+			if (StrnCmp(PartEntry->PartitionName, FilterData->PartitionLabel,
+				MAX(StrLen(PartEntry->PartitionName), StrLen(FilterData->PartitionLabel))))
 				continue;
 		}
 		/* We came here means, this handle satisfies all the conditions needed,
