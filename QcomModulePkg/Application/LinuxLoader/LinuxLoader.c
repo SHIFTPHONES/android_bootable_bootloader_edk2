@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -70,6 +70,34 @@ STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootI
 	BootLinux(ImageBuffer, ImageSizeActual, &DevInfo, Pname, BootIntoRecovery);
 	// would never return here
 	return EFI_ABORTED;
+}
+
+// This function is used to Deactivate MDTP by entering recovery UI
+
+STATIC EFI_STATUS MdtpDisable(VOID)
+{
+    BOOLEAN MdtpActive = FALSE;
+    EFI_STATUS Status = EFI_SUCCESS;
+    QCOM_MDTP_PROTOCOL *MdtpProtocol;
+
+    if (FixedPcdGetBool(EnableMdtpSupport)) {
+        Status = IsMdtpActive(&MdtpActive);
+
+        if (EFI_ERROR(Status))
+	    return Status;
+
+	if(MdtpActive) {
+	    Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid, NULL, (VOID**)&MdtpProtocol);
+	    if (EFI_ERROR(Status)) {
+	        DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
+		return Status;
+	    }
+	    /* Perform Local Deactivation of MDTP */
+	    Status = MdtpProtocol->MdtpDeactivate(MdtpProtocol, FALSE);
+	}
+    }
+
+    return Status;
 }
 
 STATIC UINT8 GetRebootReason(UINT32 *ResetReason)
@@ -214,6 +242,12 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			}
 			break;
 		case DM_VERITY_LOGGING:
+			/* Disable MDTP if it's Enabled through Local Deactivation */
+			Status = MdtpDisable();
+			if(EFI_ERROR(Status) && Status != EFI_NOT_FOUND) {
+				DEBUG((EFI_D_ERROR, "MdtpDisable Returned error: %r\n", Status));
+				return Status;
+			}
 			DevInfo.verity_mode = 0;
 			// write to device info
 			Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));

@@ -663,7 +663,8 @@ EFI_STATUS IsMdtpActive(BOOLEAN *MdtpActive)
 	QCOM_MDTP_PROTOCOL    *MdtpProtocol = NULL;
 	MDTP_SYSTEM_STATE     MdtpState = MDTP_STATE_ACTIVE;
 
-	*MdtpActive = TRUE;
+	// Default value of MdtpActive is set to False
+	*MdtpActive = FALSE;
 
 	Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid, NULL, (VOID**)&MdtpProtocol);
 

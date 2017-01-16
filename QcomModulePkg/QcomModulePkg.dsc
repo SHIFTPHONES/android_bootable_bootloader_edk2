@@ -127,7 +127,3 @@
 			ArmSmcLib|ArmPkg/Library/ArmSmcLib/ArmSmcLib.inf
 			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
 	}
-	QcomModulePkg/Drivers/MdtpDxe/MdtpDxe.inf {
-		<LibraryClasses>
-			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
-	}
