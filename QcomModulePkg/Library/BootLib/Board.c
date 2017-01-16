@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -428,12 +428,13 @@ EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 				return Status;
 			}
 			AsciiSPrint(StrSerialNum, Len, "%x", SerialNo);
-			/* adb is case sensitive, convert the serial number to lower case
-			 * to maintain uniformity across the system. */
-			ToLower(StrSerialNum);
+		} else {
+			 AsciiSPrint(StrSerialNum, Len, "%x", *(UINT32 *)CardInfoData.product_serial_num);
 		}
-		else
-			 AsciiSPrint(StrSerialNum, Len, "%x", CardInfoData.product_serial_num);
+
+		/* adb is case sensitive, convert the serial number to lower case
+		 * to maintain uniformity across the system. */
+		ToLower(StrSerialNum);
 	}
 	return Status;
 }
