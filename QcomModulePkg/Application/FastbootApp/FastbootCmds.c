@@ -363,13 +363,13 @@ STATIC VOID FastbootPublishSlotVars() {
 
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuffix, MAX_SLOT_SUFFIX_SZ, Suffix, AsciiStrLen(Suffix));
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVar, SLOT_ATTR_SIZE, "slot-successful:", AsciiStrLen("slot-successful:"));
-			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL;
+			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL ? TRUE : FALSE;
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, Set ? "yes": "no", Set? AsciiStrLen("yes"): AsciiStrLen("no"));
 			AsciiStrnCatS(BootSlotInfo[j].SlotSuccessfulVar, SLOT_ATTR_SIZE, Suffix, AsciiStrLen(Suffix));
 			FastbootPublishVar(BootSlotInfo[j].SlotSuccessfulVar, BootSlotInfo[j].SlotSuccessfulVal);
 
 			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVar, SLOT_ATTR_SIZE, "slot-unbootable:", AsciiStrLen("slot-unbootable:"));
-			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL;
+			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL ? TRUE : FALSE;
 			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, Set? "yes": "no", Set? AsciiStrLen("yes"): AsciiStrLen("no"));
 			AsciiStrnCatS(BootSlotInfo[j].SlotUnbootableVar, SLOT_ATTR_SIZE, Suffix, AsciiStrLen(Suffix));
 			FastbootPublishVar(BootSlotInfo[j].SlotUnbootableVar, BootSlotInfo[j].SlotUnbootableVal);
