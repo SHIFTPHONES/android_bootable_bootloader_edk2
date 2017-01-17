@@ -971,7 +971,9 @@ BOOLEAN NamePropertyMatches(CHAR8* Name) {
 		!AsciiStrnCmp(Name, "slot-retry-count", AsciiStrLen("slot-retry-count")) ||
 		!AsciiStrnCmp(Name, "slot-unbootable", AsciiStrLen("slot-unbootable")) ||
 		!AsciiStrnCmp(Name, "slot-successful", AsciiStrLen("slot-successful")) ||
-		!AsciiStrnCmp(Name, "slot-suffixes", AsciiStrLen("slot-suffixes")));
+		!AsciiStrnCmp(Name, "slot-suffixes", AsciiStrLen("slot-suffixes")) ||
+		!AsciiStrnCmp(Name, "partition-type:system", AsciiStrLen("partition-type:system")) ||
+		!AsciiStrnCmp(Name, "partition-size:system", AsciiStrLen("partition-size:system")));
 }
 
 STATIC VOID ClearFastbootVarsofAB() {
@@ -1129,7 +1131,6 @@ STATIC VOID CmdFlash(
 
 			IsBootPtnUpdated(Lun, &BootPtnUpdated);
 			if (BootPtnUpdated) {
-				SetMultiSlotBootVal(FALSE);
 				/*Check for multislot boot support*/
 				MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 				if (MultiSlotBoot) {
@@ -1947,10 +1948,18 @@ STATIC EFI_STATUS PublishGetVarPartitionInfo(
 	EFI_HANDLE *Handle = NULL;
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	CHAR16 PartitionNameUniCode[MAX_GPT_NAME_SIZE];
+	CHAR16* CurrentSlot;
+	CHAR8 CurrSlotAscii[MAX_SLOT_SUFFIX_SZ];
 
 	for (i = 0; i < num_parts; i++)
 	{
 		AsciiStrToUnicodeStr(info[i].part_name, PartitionNameUniCode);
+		if (PartitionHasMultiSlot(PartitionNameUniCode)) {
+			CurrentSlot = GetCurrentSlotSuffix();
+			StrnCatS(PartitionNameUniCode, MAX_GPT_NAME_SIZE, CurrentSlot, StrLen(CurrentSlot));
+			UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), CurrSlotAscii);
+			AsciiStrnCatS((CHAR8 *)info[i].part_name, MAX_GET_VAR_NAME_SIZE, CurrSlotAscii, MAX_SLOT_SUFFIX_SZ);
+		}
 		Status = PartitionGetInfo(PartitionNameUniCode, &BlockIo, &Handle);
 		if (Status != EFI_SUCCESS)
 			return Status;
@@ -2098,9 +2107,6 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	FastbootPublishVar("product", FullProduct);
 	FastbootPublishVar("serial", StrSerialNum);
 	FastbootPublishVar("secure", IsSecureBootEnabled()? "yes":"no");
-	Status = PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
-	if (Status != EFI_SUCCESS)
-		DEBUG((EFI_D_ERROR, "Partition Table info is not populated\n"));
 	if (MultiSlotBoot)
 	{
 		/*Find ActiveSlot, bydefault _a will be the active slot
@@ -2113,6 +2119,9 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
 	}
 
+	Status = PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
+	if (Status != EFI_SUCCESS)
+		DEBUG((EFI_D_ERROR, "Partition Table info is not populated\n"));
 	BoardHwPlatformName(HWPlatformBuf, sizeof(HWPlatformBuf));
 	GetRootDeviceType(DeviceType, sizeof(DeviceType));
 	AsciiSPrint(StrVariant, sizeof(StrVariant), "%a %a", HWPlatformBuf, DeviceType);
