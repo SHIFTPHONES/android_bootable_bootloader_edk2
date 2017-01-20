@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,7 +41,6 @@ STATIC UINT32 MaxLuns;
 STATIC CHAR16 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC CHAR16 ActiveSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC UINT32 PartitionCount;
-STATIC BOOLEAN MultiSlotBoot;
 
 STATIC struct BootPartsLinkedList *HeadNode;
 
@@ -69,11 +68,6 @@ UINT32 GetPartitionLunFromIndex(UINT32 Index)
 
 VOID GetPartitionCount(UINT32 *Val) {
 	*Val = PartitionCount;
-	return;
-}
-
-VOID SetMultiSlotBootVal(BOOLEAN Val) {
-	MultiSlotBoot = Val;
 	return;
 }
 
@@ -499,25 +493,17 @@ BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname)
 	UINT32 SlotCount = 0;
 	UINT32 Len = StrLen(Pname);
 
-	/*If MultiSlot is set just return the value avoid for loop everytime*/
-	if (MultiSlotBoot)
-		return MultiSlotBoot;
-
 	for (i = 0; i < PartitionCount; i++) {
 		if(!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, Pname, Len))) {
 			if (PtnEntries[i].PartEntry.PartitionName[Len] == L'_' &&
 					(PtnEntries[i].PartEntry.PartitionName[Len+1] == L'a' ||
 					 PtnEntries[i].PartEntry.PartitionName[Len+1] == L'b'))
-				SlotCount++;
+				if (++SlotCount > MIN_SLOTS) {
+					return TRUE;
+				}
 		}
 	}
-
-	if (SlotCount > MIN_SLOTS)
-		MultiSlotBoot = TRUE;
-	else
-		MultiSlotBoot = FALSE;
-
-	return MultiSlotBoot;
+	return FALSE;
 }
 
 VOID FindPtnActiveSlot()
