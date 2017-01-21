@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -97,6 +97,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 	CHAR8 StrPartition[MAX_GPT_NAME_SIZE] = {'\0'};
 	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE] = {'\0'};
 	BOOLEAN BootingWith32BitKernel = FALSE;
+	BOOLEAN MdtpActive = FALSE;
 	QCOM_MDTP_PROTOCOL *MdtpProtocol;
 	MDTP_VB_EXTERNAL_PARTITION ExternalPartition;
 	CHAR8 FfbmStr[FFBM_MODE_BUF_SIZE] = {'\0'};
@@ -107,6 +108,29 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		if (Status != EFI_SUCCESS) {
 			DEBUG((EFI_D_INFO, "No Ffbm cookie found, ignore: %r\n", Status));
 			FfbmStr[0] = '\0';
+		}
+	}
+
+	/* Find if MDTP is enabled and Active */
+        if (FixedPcdGetBool(EnableMdtpSupport)) {
+		Status = IsMdtpActive(&MdtpActive);
+		if (EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR, "Failed to get activation state for MDTP, Status=%r. Considering MDTP as active and continuing \n", Status));
+			if (Status != EFI_NOT_FOUND)
+				MdtpActive = TRUE;
+		}
+        }
+
+	if(MdtpActive) {
+		/* If MDTP is Active and Dm-Verity Mode is not Enforcing, Block */
+		if(!DevInfo->verity_mode) {
+			DEBUG((EFI_D_ERROR, "ERROR: MDTP is active and verity mode is not enforcing \n"));
+			goto Exit;
+		}
+		/* If MDTP is Active and Device is in unlocked State, Block */
+		if(DevInfo->is_unlocked) {
+			DEBUG((EFI_D_ERROR,"ERROR: MDTP is active and DEVICE is unlocked \n"));
+			goto Exit;
 		}
 	}
 
@@ -135,6 +159,16 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		if (Status != EFI_SUCCESS && BootState == BOOT_STATE_MAX)
 		{
 			DEBUG((EFI_D_ERROR, "VBVerifyImage failed with: %r\n", Status));
+			// if MDTP is active Display Recovery UI
+			if(MdtpActive) {
+	                    Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid, NULL, (VOID**)&MdtpProtocol);
+	                    if (EFI_ERROR(Status)) {
+	                        DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
+				return Status;
+	                    }
+	                    /* Perform Local Deactivation of MDTP */
+	                    Status = MdtpProtocol->MdtpDeactivate(MdtpProtocol, FALSE);
+			}
 			return Status;
 		}
 
@@ -354,32 +388,27 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, DeviceInfo *DevInfo, 
 		Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid,
 			NULL,
 			(VOID**)&MdtpProtocol);
-		if (EFI_ERROR(Status)) {
+
+		if(Status != EFI_NOT_FOUND) {
+			if (EFI_ERROR(Status)) {
+				DEBUG((EFI_D_ERROR, "Failed in locating MDTP protocol, Status=%r\n", Status));
+				goto Exit;
+			}
+
+			AsciiStrnCpyS(ExternalPartition.PartitionName, MAX_PARTITION_NAME_LEN, StrPartition, AsciiStrLen(StrPartition));
+			Status = MdtpProtocol->MdtpBootState(MdtpProtocol, &ExternalPartition);
+
+			if (EFI_ERROR(Status)) {
+				/* MdtpVerify should always handle errors internally, so when returned back to the caller,
+				 * the return value is expected to be success only.
+				 * Therfore, we don't expect any error status here. */
+				DEBUG((EFI_D_ERROR, "MDTP verification failed, Status=%r\n", Status));
+				goto Exit;
+			}
+		}
+
+		else
 			DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
-			goto Exit;
-		}
-
-		/* Set external partition values, to determine whether MDTP can use VerifiedBoot result.
-		 * In any case, we will provide parameters that would allow MDTP to call VerifiedBoot
-		 * protocol by itself, if necessary */
-		ExternalPartition.VbEnabled = VerifiedBootEnbled();
-		AsciiStrnCpyS(ExternalPartition.PartitionName, MAX_PARTITION_NAME_LEN, StrPartition, AsciiStrLen(StrPartition));
-		ExternalPartition.ImageBuffer = ImageBuffer;
-		ExternalPartition.ImageSize = ImageSize;
-		ExternalPartition.BootState = BootState;
-		ExternalPartition.DevInfo = DevInfo_vb;
-
-		Status = MdtpProtocol->MdtpVerify(MdtpProtocol, &ExternalPartition);
-
-		if (EFI_ERROR(Status)) {
-			/* MdtpVerify should always handle errors internally, so when returned back to the caller,
-			 * the return value is expected to be success only.
-			 * Therfore, we don't expect any error status here. */
-			DEBUG((EFI_D_ERROR, "MDTP verification failed, Status=%r\n", Status));
-			goto Exit;
-		}
-
-		DEBUG((EFI_D_VERBOSE, "MDTP verified successfully\n"));
 	}
 
 	/* Free the boot logo blt buffer before starting kernel */

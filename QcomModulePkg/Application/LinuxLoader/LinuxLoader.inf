@@ -101,6 +101,7 @@
 	gQcomRngProtocolGuid
 
 [FixedPcd]
+        gQcomTokenSpaceGuid.EnableMdtpSupport
 
 [Depex]
 	TRUE
