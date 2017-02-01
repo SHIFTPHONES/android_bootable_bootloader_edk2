@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+# * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
 # *
 # * Redistribution and use in source and binary forms, with or without
 # * modification, are permitted provided that the following conditions are
@@ -120,10 +120,12 @@
 	QcomModulePkg/Application/FastbootApp/FastbootApp.inf {
 		<LibraryClasses>
 			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
+			StackCanary|QcomModulePkg/Library/StackCanary/StackCanary.inf
 	}
 	QcomModulePkg/Application/LinuxLoader/LinuxLoader.inf {
 		<LibraryClasses>
 			FdtLib|EmbeddedPkg/Library/FdtLib/FdtLib.inf
 			ArmSmcLib|ArmPkg/Library/ArmSmcLib/ArmSmcLib.inf
 			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
+			StackCanary|QcomModulePkg/Library/StackCanary/StackCanary.inf
 	}
