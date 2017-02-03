@@ -63,6 +63,7 @@
 	PartitionTableUpdate.c
 	DeviceInfo.c
 	Rtic.c
+	PartialGoods.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec

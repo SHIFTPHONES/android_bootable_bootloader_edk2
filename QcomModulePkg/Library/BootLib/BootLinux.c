@@ -38,6 +38,7 @@
 #include <Protocol/EFIMdtp.h>
 #include <libufdt_sysdeps.h>
 #include <Library/ShutdownServices.h>
+#include <Library/PartialGoods.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
@@ -385,6 +386,14 @@ EFI_STATUS BootLinux (BootInfo *Info)
 			return EFI_INVALID_PARAMETER;
 		}
 		gBS->CopyMem((CHAR8*)KernelLoadAddr, ImageBuffer + PageSize, KernelSizeActual);
+	}
+
+	if (FixedPcdGetBool(EnablePartialGoods)) {
+		Status = UpdatePartialGoodsNode((VOID*)DeviceTreeLoadAddr);
+		if (Status != EFI_SUCCESS){
+			DEBUG((EFI_D_ERROR, "Failed to update device tree for partial goods, Status=%r\n", Status));
+			return Status;
+		}
 	}
 
 	UnicodeStrToAsciiStr(PartitionName, PartitionNameAscii);
