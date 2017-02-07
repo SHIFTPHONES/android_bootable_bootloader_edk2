@@ -57,6 +57,7 @@
 	FastbootMenu.c
 	VerifiedBootMenu.c
 	PartitionTableUpdate.c
+	DeviceInfo.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec

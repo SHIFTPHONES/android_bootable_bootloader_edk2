@@ -117,15 +117,11 @@
 ################################################################################
 [Components.common]
 
-	QcomModulePkg/Application/FastbootApp/FastbootApp.inf {
-		<LibraryClasses>
-			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
-			StackCanary|QcomModulePkg/Library/StackCanary/StackCanary.inf
-	}
 	QcomModulePkg/Application/LinuxLoader/LinuxLoader.inf {
 		<LibraryClasses>
 			FdtLib|EmbeddedPkg/Library/FdtLib/FdtLib.inf
 			ArmSmcLib|ArmPkg/Library/ArmSmcLib/ArmSmcLib.inf
 			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
 			StackCanary|QcomModulePkg/Library/StackCanary/StackCanary.inf
+			FastbootLib|QcomModulePkg/Library/FastbootLib/FastbootLib.inf
 	}
