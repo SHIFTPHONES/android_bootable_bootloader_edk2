@@ -62,7 +62,8 @@ STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceT
 	return EFI_NOT_STARTED;
 }
 
-EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName, BOOLEAN Recovery)
+EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName,
+	BOOLEAN Recovery, BOOLEAN AlarmBoot)
 {
 
 	EFI_STATUS Status;
@@ -317,7 +318,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
 
-	Status = UpdateCmdLine(CmdLine, FfbmStr, Recovery, &FinalCmdLine);
+	Status = UpdateCmdLine(CmdLine, FfbmStr, Recovery, AlarmBoot, &FinalCmdLine);
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Error updating cmdline. Device Error %r\n", Status));

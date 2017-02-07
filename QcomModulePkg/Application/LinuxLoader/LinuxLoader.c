@@ -50,7 +50,8 @@ STATIC BOOLEAN BootIntoRecovery = FALSE;
 
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
-STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootIntoRecovery)
+STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot,
+	BOOLEAN BootIntoRecovery, BOOLEAN BootReasonAlarm)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	VOID* ImageBuffer = NULL;
@@ -68,7 +69,7 @@ STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootI
 		MarkPtnActive(CurrentSlot);
 	}
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, Pname, BootIntoRecovery);
+	BootLinux(ImageBuffer, ImageSizeActual, Pname, BootIntoRecovery, BootReasonAlarm);
 	// would never return here
 	return EFI_ABORTED;
 }
@@ -262,7 +263,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			}
 		}
 
-		Status = LoadLinux(Pname, MultiSlotBoot, BootIntoRecovery);
+		Status = LoadLinux(Pname, MultiSlotBoot, BootIntoRecovery, BootReasonAlarm);
 		if (Status != EFI_SUCCESS)
 			DEBUG((EFI_D_ERROR, "Failed to boot Linux, Reverting to fastboot mode\n"));
 	}
