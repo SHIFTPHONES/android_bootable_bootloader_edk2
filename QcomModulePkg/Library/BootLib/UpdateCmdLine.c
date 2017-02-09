@@ -51,6 +51,7 @@ STATIC CONST CHAR8 *LogLevel         = " quite";
 STATIC CONST CHAR8 *BatteryChgPause = " androidboot.mode=charger";
 STATIC CONST CHAR8 *AuthorizedKernel = " androidboot.authorized_kernel=true";
 STATIC CONST CHAR8 *MdtpActiveFlag = " mdtp";
+STATIC CONST CHAR8 *AlarmBootCmdLine = " androidboot.alarmboot=true";
 
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
@@ -147,7 +148,7 @@ STATIC EFI_STATUS TargetPauseForBatteryCharge(UINT32 *BatteryStatus)
 	if (IsColdBoot &&
 		(!(PONReason.HARD_RESET) &&
 		(!(PONReason.KPDPWR)) &&
-		(PONReason.PON1) &&
+		(PONReason.PON1 || PONReason.USB_CHG) &&
 		(ChgPresent)))
 	{
 		*BatteryStatus = 1;
@@ -289,6 +290,7 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 				CHAR8 *FfbmStr,
 				BOOLEAN Recovery,
+				BOOLEAN AlarmBoot,
 				CHAR8 **FinalCmdLine)
 {
 	EFI_STATUS Status;
@@ -378,6 +380,8 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		DEBUG((EFI_D_INFO, "Device will boot into off mode charging mode\n"));
 		PauseAtBootUp = 1;
 		CmdLineLen += AsciiStrLen(BatteryChgPause);
+	} else if (AlarmBoot) {
+		CmdLineLen += AsciiStrLen(AlarmBootCmdLine);
 	}
 
 	if(TargetUseSignedKernel() && AuthorizeKernelImage) {
@@ -489,6 +493,10 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		} else if (PauseAtBootUp) {
 			Src = BatteryChgPause;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
+		} else if (AlarmBoot) {
+			Src = AlarmBootCmdLine;
 			if (HaveCmdLine) --Dst;
 			STR_COPY(Dst,Src);
 		}
