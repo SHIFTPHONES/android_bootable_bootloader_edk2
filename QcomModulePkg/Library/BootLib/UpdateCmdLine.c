@@ -148,7 +148,7 @@ STATIC EFI_STATUS TargetPauseForBatteryCharge(UINT32 *BatteryStatus)
 	if (IsColdBoot &&
 		(!(PONReason.HARD_RESET) &&
 		(!(PONReason.KPDPWR)) &&
-		(PONReason.PON1) &&
+		(PONReason.PON1 || PONReason.USB_CHG) &&
 		(ChgPresent)))
 	{
 		*BatteryStatus = 1;
