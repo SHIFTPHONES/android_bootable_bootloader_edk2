@@ -910,7 +910,10 @@ HandleMetaImgFlash(
 				(void *) Image + img_header_entry[i].start_offset, img_header_entry[i].size);
 	}
 
-	/* ToDo: Add Bootloader version support */
+	Status = UpdateDevInfo(PartitionName, meta_header->img_version);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to Update DevInfo\n"));
+	}
 	return Status;
 }
 
@@ -2091,7 +2094,6 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	EFI_STATUS Status;
 	CHAR8      HWPlatformBuf[MAX_RSP_SIZE] = "\0";
 	CHAR8      DeviceType[MAX_RSP_SIZE] = "\0";
-	CHAR8      VersionTemp[MAX_VERSION_LEN] = "\0";
 	BOOLEAN    BatterySocOk = FALSE;
 	UINT32     BatteryVoltage = 0;
 
@@ -2101,6 +2103,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 	/* Find all Software Partitions in the User Partition */
 	UINT32 i;
+	DeviceInfo *DevInfoPtr = NULL;
 
 	struct FastbootCmdDesc cmd_list[] =
 	{
@@ -2175,11 +2178,9 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	GetRootDeviceType(DeviceType, sizeof(DeviceType));
 	AsciiSPrint(StrVariant, sizeof(StrVariant), "%a %a", HWPlatformBuf, DeviceType);
 	FastbootPublishVar("variant", StrVariant);
-	GetBootloaderVersion(VersionTemp, sizeof(VersionTemp));
-	FastbootPublishVar("version-bootloader", VersionTemp);
-	ZeroMem(VersionTemp, sizeof(VersionTemp));
-	GetRadioVersion(VersionTemp, sizeof(VersionTemp));
-	FastbootPublishVar("version-baseband", VersionTemp);
+	GetDevInfo(&DevInfoPtr);
+	FastbootPublishVar("version-bootloader", DevInfoPtr->bootloader_version);
+	FastbootPublishVar("version-baseband", DevInfoPtr->radio_version);
 	BatterySocOk = TargetBatterySocOk(&BatteryVoltage);
 	AsciiSPrint(StrBatteryVoltage, sizeof(StrBatteryVoltage), "%d", BatteryVoltage);
 	FastbootPublishVar("battery-voltage", StrBatteryVoltage);

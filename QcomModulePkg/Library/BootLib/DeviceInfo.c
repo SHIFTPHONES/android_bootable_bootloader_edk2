@@ -31,6 +31,7 @@
 #include <Library/Recovery.h>
 #include <Library/StackCanary.h>
 #include <FastbootLib/FastbootCmds.h>
+#include <Library/BoardCustom.h>
 
 DeviceInfo DevInfo;
 STATIC BOOLEAN FirstReadDevInfo = TRUE;
@@ -55,6 +56,10 @@ BOOLEAN IsChargingScreenEnable()
 	return DevInfo.is_charger_screen_enabled;
 }
 
+VOID GetDevInfo (DeviceInfo **DevInfoPtr)
+{
+	*DevInfoPtr = &DevInfo;
+}
 VOID GetBootloaderVersion(CHAR8* BootloaderVersion, UINT32 Len)
 {
 	AsciiSPrint(BootloaderVersion, Len, "%a", DevInfo.bootloader_version);
@@ -166,6 +171,27 @@ EFI_STATUS SetDeviceUnlockValue(UINT32 Type, BOOLEAN State)
 	AsciiStrnCpyS(Msg.recovery, sizeof(Msg.recovery), RECOVERY_WIPE_DATA, AsciiStrLen(RECOVERY_WIPE_DATA));
 	WriteToPartition(&gEfiMiscPartitionGuid, &Msg);
 
+	return Status;
+}
+
+EFI_STATUS UpdateDevInfo(CHAR16 *Pname, CHAR8 *ImgVersion)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (!StrCmp((const CHAR16*)Pname, L"bootloader")) {
+		AsciiStrnCpyS(DevInfo.bootloader_version, MAX_VERSION_LEN, PRODUCT_NAME, AsciiStrLen(PRODUCT_NAME));
+		AsciiStrnCatS(DevInfo.bootloader_version, MAX_VERSION_LEN, "-", AsciiStrLen("-"));
+		AsciiStrnCatS(DevInfo.bootloader_version, MAX_VERSION_LEN, ImgVersion, AsciiStrLen(ImgVersion));
+	} else {
+		AsciiStrnCpyS(DevInfo.radio_version, MAX_VERSION_LEN, PRODUCT_NAME, AsciiStrLen(PRODUCT_NAME));
+		AsciiStrnCatS(DevInfo.radio_version, MAX_VERSION_LEN, "-", AsciiStrLen("-"));
+		AsciiStrnCatS(DevInfo.radio_version, MAX_VERSION_LEN, ImgVersion, AsciiStrLen(ImgVersion));
+	}
+
+	Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
+	}
 	return Status;
 }
 
