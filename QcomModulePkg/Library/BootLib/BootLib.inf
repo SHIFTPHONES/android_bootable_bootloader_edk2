@@ -58,6 +58,7 @@
 	VerifiedBootMenu.c
 	PartitionTableUpdate.c
 	DeviceInfo.c
+	VerifiedBoot.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
