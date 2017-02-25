@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -41,7 +41,9 @@
 /** @ingroup
   Protocol version.
 */
-#define QCOM_QSEECOM_PROTOCOL_REVISION 0x0000000000010001
+
+#define QCOM_QSEECOM_PROTOCOL_REVISION 0x0000000000010002
+
 #define MAX_APP_NAME_LEN 32
 /*  Protocol GUID definition */
 /** @ingroup efi_qseecom_protocol */
@@ -143,6 +145,27 @@ EFI_STATUS
   IN OUT UINT8                   *rsp_buf,
   IN     UINT32                  rbuf_len
 );
+
+/**
+* Start a Secure App by Guid
+*
+* @param char* app_name
+*   Guid of the Secure App to be started
+*
+* @return int
+*   Success:	handle to be used for all calls to
+*   			Secure app. Always greater than zero.
+*   Failure:	Error code (negative only).
+*/
+typedef
+EFI_STATUS
+(EFIAPI *QCOM_QSEECOM_START_APP_BYGUID )
+(
+  IN     QCOM_QSEECOM_PROTOCOL      *This,
+  IN     EFI_GUID                  * EfiGuid,
+  OUT    UINT32                   *handleId
+);
+
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -158,6 +181,7 @@ struct _QCOM_QSEECOM_PROTOCOL {
   QCOM_QSEECOM_START_APP             QseecomStartApp;
   QCOM_QSEECOM_SHUTDOWN_APP          QseecomShutdownApp;
   QCOM_QSEECOM_SEND_CMD_APP          QseecomSendCmd;
+  QCOM_QSEECOM_START_APP_BYGUID      QseecomStartAppByGuid;
 };
 
 #endif /* __EFIQSEECOM_H__ */
