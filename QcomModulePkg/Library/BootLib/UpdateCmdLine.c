@@ -558,16 +558,18 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst, Src);
 		}
 
-		if (VerifiedBootEnbled() && !AsciiStrStr(CmdLine, "root=")) {
-			/* Suffix System path in command line*/
-			if (*SystemPath) {
-				Src = DmVerityCmd;
-				if (HaveCmdLine) --Dst;
-				STR_COPY(Dst, Src);
+		if (HaveCmdLine) {
+			if (VerifiedBootEnbled() && !AsciiStrStr(CmdLine, "root=")) {
+				/* Suffix System path in command line*/
+				if (*SystemPath) {
+					Src = DmVerityCmd;
+					--Dst;
+					STR_COPY(Dst, Src);
 
-				Src = SystemPath;
-				if (HaveCmdLine) --Dst;
-				STR_COPY(Dst, Src);
+					Src = SystemPath;
+					--Dst;
+					STR_COPY(Dst, Src);
+				}
 			}
 		}
 	}
