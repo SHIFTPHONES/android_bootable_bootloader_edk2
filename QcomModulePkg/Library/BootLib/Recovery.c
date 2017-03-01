@@ -136,7 +136,7 @@ EFI_STATUS GetFfbmCommand(CHAR8 *FfbmString, UINT32 Sz)
 		return Status;
 	}
 
-	FfbmData[Sz] = '\0';
+	FfbmData[Sz - 1] = '\0';
 	if (!AsciiStrnCmp(FfbmData, FfbmCmd, AsciiStrLen(FfbmCmd)))
 		AsciiStrnCpy(FfbmString, FfbmData, Sz);
 	else
