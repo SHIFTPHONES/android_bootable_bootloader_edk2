@@ -201,10 +201,16 @@ VOID UpdatePartitionAttributes()
 			DEBUG((EFI_D_ERROR, "Unsupported  boot device type\n"));
 			return;
 		}
-		if (Status || (MaxHandles != 1)) {
-			DEBUG((EFI_D_ERROR, "Failed to get the BlockIo for the device %r\n",Status));
+
+		if (Status == EFI_SUCCESS || (MaxHandles != 1)) {
+			DEBUG((EFI_D_VERBOSE, "Failed to get the BlockIo for device. MaxHandle:%d, %r\n",
+						MaxHandles, Status));
+			continue;
+		} else {
+			DEBUG((EFI_D_ERROR, "Failed to get BlkIo for device. MaxHandles:%d - %r\n", Status));
 			return;
 		}
+
 		BlockIo = BlockIoHandle[0].BlkIo;
 		DeviceDensity = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
 		BlkSz = BlockIo->Media->BlockSize;
