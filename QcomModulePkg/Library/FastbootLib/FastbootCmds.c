@@ -1355,7 +1355,7 @@ STATIC VOID AcceptData (IN UINT64 Size, IN  VOID  *Data)
 	if (mBytesReceivedSoFar == mNumDataBytes)
 	{
 		/* Download Finished */
-		DEBUG((EFI_D_INFO, "Download Finised\n"));
+		DEBUG((EFI_D_INFO, "Download Finished\n"));
 		FastbootOkay("");
 		mState = ExpectCmdState;
 	}
