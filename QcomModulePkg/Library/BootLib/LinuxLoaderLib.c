@@ -610,7 +610,7 @@ EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle)
 		/* handle the event */
 		if (EraseToken.Event != NULL)
 		{
-			DEBUG((EFI_D_INFO, "Waiting for the Erase even to signal the completion\n"));
+			DEBUG((EFI_D_INFO, "Waiting for the erase event to signal the completion\n"));
 			gBS->WaitForEvent(1, &EraseToken.Event, &TokenIndex);
 		}
 	}
