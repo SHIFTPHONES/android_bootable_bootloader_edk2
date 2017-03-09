@@ -197,6 +197,9 @@ VOID UpdatePartitionAttributes()
 			Status = GetStorageHandle(NO_LUN, BlockIoHandle, &MaxHandles);
 		} else if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
 			Status = GetStorageHandle(Lun, BlockIoHandle, &MaxHandles);
+		} else {
+			DEBUG((EFI_D_ERROR, "Unsupported  boot device type\n"));
+			return;
 		}
 		if (Status || (MaxHandles != 1)) {
 			DEBUG((EFI_D_ERROR, "Failed to get the BlockIo for the device %r\n",Status));
