@@ -57,7 +57,6 @@ STATIC CONST CHAR8 *AlarmBootCmdLine = " androidboot.alarmboot=true";
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
 STATIC CHAR8 *MultiSlotCmdSuffix = " rootwait ro init=/init";
 STATIC CHAR8 *SkipRamFs = " skip_initramfs";
-STATIC CHAR8 *DmVerityCmd = " root=/dev/dm-0 dm=\"system none ro,0 1 android-verity";
 STATIC CHAR8 *SystemPath;
 
 /* Assuming unauthorized kernel image by default */
@@ -274,12 +273,11 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 		return 0;
 	}
 
-	if (!AsciiStrCmp("EMMC", RootDevStr)) {
-		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " /dev/mmcblk0p%d\"", Index);
-	} else {
-		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " /dev/sd%c%d\"", LunCharMapping[Lun],
+	if (!AsciiStrCmp("EMMC", RootDevStr))
+		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", Index);
+	else
+		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/sd%c%d", LunCharMapping[Lun],
 				GetPartitionIdxInLun(PartitionName, Lun));
-	}
 
 	DEBUG((EFI_D_VERBOSE, "System Path - %a \n", *SysPath));
 
@@ -409,10 +407,6 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 
 		if (!Recovery)
 			CmdLineLen += AsciiStrLen(SkipRamFs);
-	}
-
-	if (VerifiedBootEnbled()) {
-		CmdLineLen += AsciiStrLen(DmVerityCmd);
 
 		SysPathLength = GetSystemPath(&SystemPath);
 		if (!SysPathLength)
@@ -534,7 +528,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		}
 
-		if (MultiSlotBoot) {
+		if (MultiSlotBoot && !AsciiStrStr(CmdLine, "root=")) {
 			/* Slot suffix */
 			Src = AndroidSlotSuffix;
 			if (HaveCmdLine) --Dst;
@@ -556,21 +550,10 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			Src = MultiSlotCmdSuffix;
 			if (HaveCmdLine) --Dst;
 			STR_COPY(Dst, Src);
-		}
 
-		if (HaveCmdLine) {
-			if (VerifiedBootEnbled() && !AsciiStrStr(CmdLine, "root=")) {
-				/* Suffix System path in command line*/
-				if (*SystemPath) {
-					Src = DmVerityCmd;
-					--Dst;
-					STR_COPY(Dst, Src);
-
-					Src = SystemPath;
-					--Dst;
-					STR_COPY(Dst, Src);
-				}
-			}
+			Src = SystemPath;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst, Src);
 		}
 	}
 
