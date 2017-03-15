@@ -41,6 +41,7 @@
 
 #define HANDLE_MAX_INFO_LIST    128
 #define CHIP_BASE_BAND_LEN 4
+#define BIT(x)        (1UL << x)
 
 typedef enum
 {

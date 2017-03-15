@@ -55,6 +55,29 @@
 #define DTB_OFFSET                 0X2C
 
 #define DTB_PAD_SIZE               1024
+#define DTBO_TABLE_MAGIC           0xD7B7AB1E
+#define DTBO_CUSTOM_MAX            4
+#define PLATFORM_FOUNDRY_SHIFT    16
+
+typedef enum {
+	FOUNDRYID_MATCH = BIT(0),
+	PMIC_MATCH = BIT(1),
+	VERSION_MATCH = BIT(2),
+	SUBTYPE_MATCH = BIT(3),
+	VARIANT_MATCH = BIT(4),
+	SOC_MATCH = BIT(5),
+}DTMATCH_PARAMS;
+
+#define TOTAL_MATCH_BITS 6
+#define ALL_BITS_SET  ((1 << TOTAL_MATCH_BITS) - 1)
+
+typedef enum {
+	PMIC_IDX0,
+	PMIC_IDX1,
+	PMIC_IDX2,
+	PMIC_IDX3,
+	MAX_PMIC_IDX,
+}PMIC_INDEXES;
 
 /*
  * For DTB V1: The DTB entries would be of the format
@@ -160,8 +183,30 @@ typedef struct dt_entry_node {
 	struct dt_entry * dt_entry_m;
 }dt_node;
 
+struct DtboTableHdr {
+	UINT32 Magic;           //DTB TABLE MAGIC
+	UINT32 TotalSize;       //includes DtTableHdr + all DtTableEntry and all dtb/dtbo
+	UINT32 HeaderSize;      //sizeof(DtTableHdr)
+	UINT32 DtEntrySize;     //sizeof(DtTableEntry)
+	UINT32 DtEntryCount;    //number of DtTableEntry
+	UINT32 DtEntryOffset;   //offset to the first DtTableEntry
+	UINT32 PageSize;        //flash pagesize we assume
+	UINT32 Reserved[1];     //must zeros
+};
+
+struct DtboTableEntry {
+	UINT32 DtSize;
+	UINT32 DtOffset;     //offset from head of DtTableHdr
+	UINT32 Id;           //optional, must zero if unused
+	UINT32 Rev;          //optional, must zero if unused
+	UINT32 Custom[DTBO_CUSTOM_MAX];    //optional, must zero if unused
+};
 
 VOID *DeviceTreeAppended(void *kernel, UINT32 kernel_size, UINT32 dtb_offset, void *tags);
+VOID *GetSocDtb(void *kernel, UINT32 kernel_size, UINT32 dtb_offset, void *tags);
+BOOLEAN GetDtboNeeded();
+VOID* GetBoardDtb();
+VOID PopulateBoardParams();
 
 int DeviceTreeValidate (UINT8* DeviceTreeBuff, UINT32 PageSize, UINT32* DeviceTreeSize);
 

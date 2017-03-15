@@ -1351,3 +1351,18 @@ out:
 	}
 	return Status;
 }
+
+/*Function to provide Dtbo Present info
+ *return: TRUE or FALSE.
+ */
+BOOLEAN PartitionHasDtbo()
+{
+	UINT32 i;
+
+	for (i = 0; i < PartitionCount; i++) {
+		if (!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, L"dtbo", StrLen(L"dtbo")))) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}

@@ -193,6 +193,7 @@ UINT32 GetPartitionLunFromIndex(UINT32);
 INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun);
 INT32 GetPartitionIndex(CHAR16* PartitionName);
 BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname);
+BOOLEAN PartitionHasDtbo();
 EFI_STATUS EnumeratePartitions ();
 VOID UpdatePartitionEntries();
 VOID UpdatePartitionAttributes();
