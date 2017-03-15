@@ -33,6 +33,9 @@
 ################################################################################
 [Includes.common]
   Include                        # Root include for the package
+  Library/LibUfdt
+  Library/LibUfdt/include
+  Library/LibUfdt/sysdeps/include
 
 [LibraryClasses.common]
   EfiFileLib|Include/Library/EfiFileLib.h

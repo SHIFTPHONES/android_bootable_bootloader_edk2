@@ -4,6 +4,10 @@
 
 #include "libufdt_sysdeps.h"
 #include "ufdt_types.h"
+#include <libfdt_env.h>
+
+#define false 0
+#define true 1
 
 /*
  * BEGIN of ufdt_node_dict methods

@@ -1,6 +1,7 @@
 #ifndef LIBDTOVERLAY_SYSDEPS_H
 #define LIBDTOVERLAY_SYSDEPS_H
 
+#ifdef INCLUDE_PLATFORM_HDRS
 /* Change these includes to match your platform to bring in the
  * equivalent types available in a normal C runtime. At least things
  * like uint8_t, uint64_t, and bool (with |false|, |true| keywords)
@@ -10,6 +11,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#else
+#include <libfdt_env.h>
+#endif
 
 #ifdef DTO_ENABLE_DEBUG
 /* Print functions, used for diagnostics.
