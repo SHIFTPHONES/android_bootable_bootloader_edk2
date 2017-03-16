@@ -202,13 +202,14 @@ VOID UpdatePartitionAttributes()
 			return;
 		}
 
-		if (Status == EFI_SUCCESS || (MaxHandles != 1)) {
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Failed to get BlkIo for device. MaxHandles:%d - %r\n", Status));
+			return;
+		}
+		if (MaxHandles != 1) {
 			DEBUG((EFI_D_VERBOSE, "Failed to get the BlockIo for device. MaxHandle:%d, %r\n",
 						MaxHandles, Status));
 			continue;
-		} else {
-			DEBUG((EFI_D_ERROR, "Failed to get BlkIo for device. MaxHandles:%d - %r\n", Status));
-			return;
 		}
 
 		BlockIo = BlockIoHandle[0].BlkIo;
