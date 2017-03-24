@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -226,7 +226,8 @@ GetBlkIOHandles (
 			Status = gBS->HandleProtocol(BlkIoHandles[i], &gEfiPartitionRecordGuid, (VOID **) &PartEntry);
 			if (Status != EFI_SUCCESS)
 				continue;
-			if (StrnCmp(PartEntry->PartitionName, FilterData->PartitionLabel, StrLen(PartEntry->PartitionName)))
+			if (StrnCmp(PartEntry->PartitionName, FilterData->PartitionLabel,
+				MAX(StrLen(PartEntry->PartitionName), StrLen(FilterData->PartitionLabel))))
 				continue;
 		}
 		/* We came here means, this handle satisfies all the conditions needed,
@@ -639,9 +640,9 @@ EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len)
 
 	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
 
-	if (!AsciiStrCmp(BootDeviceType, "UFS")) {
+	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
 		AsciiSPrint(BootDevBuf, Len, "%x.ufshc", BootDevAddr);
-	} else if (!AsciiStrCmp(BootDeviceType, "EMMC")) {
+	} else if (!AsciiStrnCmp(BootDeviceType, "EMMC", AsciiStrLen("EMMC"))) {
 		AsciiSPrint(BootDevBuf, Len, "%x.sdhci", BootDevAddr);
 	} else {
 		DEBUG((EFI_D_ERROR, "Unknown Boot Device type detected \n"));
@@ -662,7 +663,8 @@ EFI_STATUS IsMdtpActive(BOOLEAN *MdtpActive)
 	QCOM_MDTP_PROTOCOL    *MdtpProtocol = NULL;
 	MDTP_SYSTEM_STATE     MdtpState = MDTP_STATE_ACTIVE;
 
-	*MdtpActive = TRUE;
+	// Default value of MdtpActive is set to False
+	*MdtpActive = FALSE;
 
 	Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid, NULL, (VOID**)&MdtpProtocol);
 

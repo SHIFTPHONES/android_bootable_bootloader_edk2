@@ -1,5 +1,5 @@
 /*
- * * Copyright (c) 2011,2014-2015, The Linux Foundation. All rights reserved.
+ * * Copyright (c) 2011,2014-2015,2017 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,6 +30,7 @@
 #ifndef _DEVINFO_H_
 #define _DEVINFO_H_
 
+#include <Protocol/EFIVerifiedBoot.h>
 #define DEVICE_MAGIC "ANDROID-BOOT!"
 #define DEVICE_MAGIC_SIZE 13
 #define MAX_VERSION_LEN  64
@@ -58,8 +59,18 @@ struct verified_boot_verity_mode
 
 struct verified_boot_state_name
 {
-	UINT32 boot_state;
+	boot_state_t boot_state;
 	CHAR8 *name;
 };
 
+BOOLEAN IsUnlocked();
+BOOLEAN IsUnlockCritical();
+BOOLEAN IsEnforcing();
+BOOLEAN IsChargingScreenEnable();
+VOID GetBootloaderVersion(CHAR8* BootloaderVersion, UINT32 Len);
+VOID GetRadioVersion(CHAR8* RadioVersion, UINT32 Len);
+EFI_STATUS EnableChargingScreen(BOOLEAN IsEnabled);
+EFI_STATUS EnableEnforcingMode(BOOLEAN IsEnabled);
+EFI_STATUS SetDeviceUnlockValue(UINT32 Type, BOOLEAN State);
+EFI_STATUS DeviceInfoInit();
 #endif

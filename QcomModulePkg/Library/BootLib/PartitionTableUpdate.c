@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,14 +41,19 @@ STATIC UINT32 MaxLuns;
 STATIC CHAR16 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC CHAR16 ActiveSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC UINT32 PartitionCount;
-STATIC BOOLEAN MultiSlotBoot;
+
+STATIC struct BootPartsLinkedList *HeadNode;
 
 CHAR16* GetCurrentSlotSuffix() {
 	return ActiveSlot;
 }
 
 VOID SetCurrentSlotSuffix(CHAR16* SlotSuffix) {
-	StrnCpyS(ActiveSlot, MAX_SLOT_SUFFIX_SZ, SlotSuffix, StrLen(SlotSuffix));
+	if (MAX_SLOT_SUFFIX_SZ > StrLen(SlotSuffix))
+		StrnCpyS(ActiveSlot, StrLen(SlotSuffix) + 1, SlotSuffix, StrLen(SlotSuffix));
+	else
+		DEBUG((EFI_D_ERROR, "ERROR: the buffer is too small\n"));
+
 	return;
 }
 
@@ -63,11 +68,6 @@ UINT32 GetPartitionLunFromIndex(UINT32 Index)
 
 VOID GetPartitionCount(UINT32 *Val) {
 	*Val = PartitionCount;
-	return;
-}
-
-VOID SetMultiSlotBootVal(BOOLEAN Val) {
-	MultiSlotBoot = Val;
 	return;
 }
 
@@ -188,14 +188,30 @@ VOID UpdatePartitionAttributes()
 	EFI_BLOCK_IO_PROTOCOL *BlockIo=NULL;
 	HandleInfo BlockIoHandle[MAX_HANDLEINF_LST_SIZE];
 	UINT32 MaxHandles = MAX_HANDLEINF_LST_SIZE;
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
+	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
 	for( Lun = 0; Lun < MaxLuns; Lun++) {
 
-		Status = GetStorageHandle(Lun, BlockIoHandle, &MaxHandles);
-		if (Status || (MaxHandles != 1)) {
-			DEBUG((EFI_D_ERROR, "Failed to get the BlockIo for the device %r\n",Status));
+		if (!AsciiStrnCmp(BootDeviceType, "EMMC", AsciiStrLen("EMMC"))) {
+			Status = GetStorageHandle(NO_LUN, BlockIoHandle, &MaxHandles);
+		} else if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
+			Status = GetStorageHandle(Lun, BlockIoHandle, &MaxHandles);
+		} else {
+			DEBUG((EFI_D_ERROR, "Unsupported  boot device type\n"));
 			return;
 		}
+
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Failed to get BlkIo for device. MaxHandles:%d - %r\n", Status));
+			return;
+		}
+		if (MaxHandles != 1) {
+			DEBUG((EFI_D_VERBOSE, "Failed to get the BlockIo for device. MaxHandle:%d, %r\n",
+						MaxHandles, Status));
+			continue;
+		}
+
 		BlockIo = BlockIoHandle[0].BlkIo;
 		DeviceDensity = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
 		BlkSz = BlockIo->Media->BlockSize;
@@ -237,14 +253,15 @@ VOID UpdatePartitionAttributes()
 					continue;
 				}
 
-				/* Partition table is populated with entries from lun 0 to max lun.
-				 * break out of the loop once we see the partition lun is > current lun */
-				if (PtnEntries[i].lun > Lun)
-					break;
-				/* Find the entry where the partition table for 'lun' starts and then update the attributes */
-				if (PtnEntries[i].lun != Lun)
-					continue;
-
+				if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
+					/* Partition table is populated with entries from lun 0 to max lun.
+					 * break out of the loop once we see the partition lun is > current lun */
+					if (PtnEntries[i].lun > Lun)
+						break;
+					/* Find the entry where the partition table for 'lun' starts and then update the attributes */
+					if (PtnEntries[i].lun != Lun)
+						continue;
+				}
 				/* Update the partition attributes  and partiton GUID values */
 				PUT_LONG_LONG(&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET], PtnEntries[i].PartEntry.Attributes);
 				CopyMem((VOID *)PtnEntriesPtr, (VOID *)&PtnEntries[i].PartEntry.PartitionTypeGUID, GUID_SIZE);
@@ -319,21 +336,46 @@ STATIC VOID SwapPtnGuid(EFI_PARTITION_ENTRY *p1, EFI_PARTITION_ENTRY *p2)
 	CopyMem((VOID *)&p2->PartitionTypeGUID, (VOID *)&Temp, sizeof(EFI_GUID));
 }
 
+STATIC EFI_STATUS GetMultiSlotPartsList() {
+	UINT32 i = 0;
+	UINT32 j = 0;
+	UINT32 Len = 0;
+	CHAR16 *SearchString = NULL;
+	struct BootPartsLinkedList *TempNode = NULL;
+
+	for (i = 0; i < PartitionCount; i++) {
+		SearchString = PtnEntries[i].PartEntry.PartitionName;
+		if (!SearchString[0])
+			continue;
+
+		for (j = i+1; j < PartitionCount; j++) {
+			if (!PtnEntries[j].PartEntry.PartitionName[0])
+				continue;
+			Len = StrLen(SearchString);
+
+			/*Need to compare till "boot_"a hence skip last Char from StrLen value*/
+			if (!StrnCmp(PtnEntries[j].PartEntry.PartitionName, SearchString, Len-1) &&
+				(StrStr(SearchString, L"_a") || (StrStr(SearchString, L"_b")))) {
+				TempNode = AllocatePool(sizeof(struct BootPartsLinkedList));
+				if (TempNode) {
+					/*Skip _a/_b from partition name*/
+					StrnCpyS(TempNode->PartName, sizeof(TempNode->PartName), SearchString, Len-2);
+					TempNode->Next = HeadNode;
+					HeadNode = TempNode;
+				} else {
+					DEBUG ((EFI_D_ERROR, "Unable to Allocate Memory for MultiSlot Partition list\n"));
+					return EFI_OUT_OF_RESOURCES;
+				}
+				break;
+			}
+		}
+	}
+	return EFI_SUCCESS;
+}
+
 VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 {
-	UINT32 i, j;
-	CONST CHAR16 *BootParts[] = { L"rpm",
-					L"tz",
-					L"pmic",
-					L"modem",
-					L"hyp",
-					L"cmnlib",
-					L"cmnlib64",
-					L"keymaster",
-					L"devcfg",
-					L"abl",
-					L"apdp"};
-	UINT32 Sz = ARRAY_SIZE(BootParts);
+	UINT32 i;
 	struct PartitionEntry *PtnCurrent = NULL;
 	struct PartitionEntry *PtnNew = NULL;
 	CHAR16 CurSlot[BOOT_PART_SIZE];
@@ -342,6 +384,9 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	UINT32 UfsBootLun = 0;
 	BOOLEAN UfsGet = TRUE;
 	BOOLEAN UfsSet = FALSE;
+	struct BootPartsLinkedList *TempNode = NULL;
+	EFI_STATUS Status;
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 	/* Create the partition name string for active and non active slots*/
 	if (!StrnCmp(SetActive, L"_a", StrLen(L"_a")))
@@ -349,12 +394,20 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	else
 		StrnCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, L"_a", StrLen(L"_a"));
 
-	for (j = 0; j < Sz; j++) {
-		StrnCpyS(CurSlot, BOOT_PART_SIZE,  BootParts[j], StrLen(BootParts[j]));
-		StrnCatS(CurSlot, BOOT_PART_SIZE, SetInactive, StrLen(SetInactive));
+	if (!HeadNode) {
+		Status = GetMultiSlotPartsList();
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_INFO, "Unable to get GetMultiSlotPartsList\n"));
+			return;
+		}
+	}
 
-		StrnCpyS(NewSlot, BOOT_PART_SIZE, BootParts[j], StrLen(BootParts[j]));
-		StrnCatS(NewSlot, BOOT_PART_SIZE, SetActive, StrLen(SetActive));
+	for (TempNode = HeadNode; TempNode; TempNode = TempNode->Next) {
+		StrnCpyS(CurSlot, StrLen(TempNode->PartName) + 1,  TempNode->PartName, StrLen(TempNode->PartName));
+		StrnCatS(CurSlot, BOOT_PART_SIZE - 1, SetInactive, StrLen(SetInactive));
+
+		StrnCpyS(NewSlot, StrLen(TempNode->PartName) + 1, TempNode->PartName, StrLen(TempNode->PartName));
+		StrnCatS(NewSlot, BOOT_PART_SIZE - 1, SetActive, StrLen(SetActive));
 
 		/* Find the pointer to partition table entry for active and non-active slots*/
 		for (i = 0; i < PartitionCount; i++) {
@@ -370,17 +423,21 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 		SetMem(NewSlot, BOOT_PART_SIZE, 0);
 		PtnCurrent = PtnNew = NULL;
 	}
-	UfsGetSetBootLun(&UfsBootLun, UfsGet);
-	// Special case for XBL is to change the bootlun instead of swapping the guid
-	if (UfsBootLun == 0x1 && !StrnCmp(SetActive, L"_b", StrLen(L"_b"))) {
-		DEBUG((EFI_D_INFO, "Switching the boot lun from 1 to 2\n"));
-		UfsBootLun = 0x2;
+
+	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
+		UfsGetSetBootLun(&UfsBootLun, UfsGet);
+		// Special case for XBL is to change the bootlun instead of swapping the guid
+		if (UfsBootLun == 0x1 && !StrnCmp(SetActive, L"_b", StrLen(L"_b"))) {
+			DEBUG((EFI_D_INFO, "Switching the boot lun from 1 to 2\n"));
+			UfsBootLun = 0x2;
+		}
+		else if (UfsBootLun == 0x2 && !StrnCmp(SetActive, L"_a", StrLen(L"_a"))) {
+			DEBUG((EFI_D_INFO, "Switching the boot lun from 2 to 1\n"));
+			UfsBootLun = 0x1;
+		}
+		UfsGetSetBootLun(&UfsBootLun, UfsSet);
 	}
-	else if (UfsBootLun == 0x2 && !StrnCmp(SetActive, L"_a", StrLen(L"_a"))) {
-		DEBUG((EFI_D_INFO, "Switching the boot lun from 2 to 1\n"));
-		UfsBootLun = 0x1;
-	}
-	UfsGetSetBootLun(&UfsBootLun, UfsSet);
 }
 
 EFI_STATUS
@@ -458,25 +515,17 @@ BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname)
 	UINT32 SlotCount = 0;
 	UINT32 Len = StrLen(Pname);
 
-	/*If MultiSlot is set just return the value avoid for loop everytime*/
-	if (MultiSlotBoot)
-		return MultiSlotBoot;
-
 	for (i = 0; i < PartitionCount; i++) {
 		if(!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, Pname, Len))) {
 			if (PtnEntries[i].PartEntry.PartitionName[Len] == L'_' &&
 					(PtnEntries[i].PartEntry.PartitionName[Len+1] == L'a' ||
 					 PtnEntries[i].PartEntry.PartitionName[Len+1] == L'b'))
-				SlotCount++;
+				if (++SlotCount > MIN_SLOTS) {
+					return TRUE;
+				}
 		}
 	}
-
-	if (SlotCount > MIN_SLOTS)
-		MultiSlotBoot = TRUE;
-	else
-		MultiSlotBoot = FALSE;
-
-	return MultiSlotBoot;
+	return FALSE;
 }
 
 VOID FindPtnActiveSlot()
@@ -519,7 +568,7 @@ VOID FindPtnActiveSlot()
 	 * fastboot set_active, so default to slot 'a'
 	 */
 	if (!Unbootable && !ActiveSlot[0] && !HighPriority) {
-		StrnCpyS(ActiveSlot, MAX_SLOT_SUFFIX_SZ, DefaultActive, StrLen(DefaultActive));
+		StrnCpyS(ActiveSlot, StrLen(DefaultActive) + 1, DefaultActive, StrLen(DefaultActive));
 		for (i = 0; i < PartitionCount; i++) {
 			if (!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, L"boot_a", StrLen(L"boot_a")))) {
 				PtnEntries[i].PartEntry.Attributes |=
@@ -534,7 +583,7 @@ VOID FindPtnActiveSlot()
 		ASSERT(0);
 	}
 	UpdatePartitionAttributes();
-	StrnCpyS(CurrentSlot, MAX_SLOT_SUFFIX_SZ, ActiveSlot, StrLen(ActiveSlot));
+	StrnCpyS(CurrentSlot, StrLen(ActiveSlot) + 1, ActiveSlot, StrLen(ActiveSlot));
 
 	if (Unbootable)
 		SwitchPtnSlots(CurrentSlot);
@@ -551,8 +600,8 @@ STATIC VOID MarkSlotUnbootable()
 	CHAR16 PartName[MAX_GPT_NAME_SIZE];
 	UINT32 i;
 	SwitchPtnSlots(CurrentSlot);
-	StrnCpyS(PartName, MAX_GPT_NAME_SIZE, L"boot",StrLen(L"boot"));
-	StrnCatS(PartName, MAX_GPT_NAME_SIZE, CurrentSlot, StrLen(CurrentSlot));
+	StrnCpyS(PartName, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
+	StrnCatS(PartName, MAX_GPT_NAME_SIZE - 1, CurrentSlot, StrLen(CurrentSlot));
 	for (i = 0; i < PartitionCount; i++) {
 		if(!StrnCmp(PtnEntries[i].PartEntry.PartitionName, PartName, StrLen(PartName))) {
 			/*select the slot and increase the priority = 7,retry-count =7,slot_successful = 0 and slot_unbootable =0*/
@@ -587,6 +636,7 @@ VOID FindBootableSlot(CHAR16 *BootableSlot, UINT32 BootableSlotSizeMax)
 	struct PartitionEntry *PartEntryPtr;
 	UINT32 UfsBootLun = 0;
 	BOOLEAN UfsGet = TRUE;
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 TryNextSlot:
 	FindPtnActiveSlot();
@@ -600,14 +650,22 @@ TryNextSlot:
 	StrnCpyS(BootableSlot, BootableSlotSizeMax, L"boot", StrLen(L"boot"));
 	StrnCatS(BootableSlot, BootableSlotSizeMax, CurrentSlot, StrLen(CurrentSlot));
 
-	UfsGetSetBootLun(&UfsBootLun,UfsGet);
-	if (UfsBootLun == 0x1 && !StrCmp(CurrentSlot, L"_a"))
+	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
+		UfsGetSetBootLun(&UfsBootLun,UfsGet);
+		if (UfsBootLun == 0x1 && !StrCmp(CurrentSlot, L"_a"))
+			DEBUG((EFI_D_INFO,"Booting from slot (%s) , BootableSlot = %s\n", CurrentSlot, BootableSlot));
+		else if (UfsBootLun == 0x2 && !StrCmp(CurrentSlot, L"_b"))
+			DEBUG((EFI_D_INFO,"Booting from slot (%s) , BootableSlot = %s\n", CurrentSlot, BootableSlot));
+		else {
+			DEBUG((EFI_D_ERROR,"Boot lun: %x and Currentslot: %s do not match\n", UfsBootLun, CurrentSlot));
+			*BootableSlot = '\0';
+			return;
+		}
+	} else if (!AsciiStrnCmp(BootDeviceType, "EMMC", AsciiStrLen("EMMC"))) {
 		DEBUG((EFI_D_INFO,"Booting from slot (%s) , BootableSlot = %s\n", CurrentSlot, BootableSlot));
-	else if (UfsBootLun == 0x2 && !StrCmp(CurrentSlot, L"_b"))
-		DEBUG((EFI_D_INFO,"Booting from slot (%s) , BootableSlot = %s\n", CurrentSlot, BootableSlot));
-	else {
-		DEBUG((EFI_D_ERROR,"Boot lun: %x and Currentslot: %s do not match\n", UfsBootLun, CurrentSlot));
-		*BootableSlot = '\0';
+	} else {
+		DEBUG((EFI_D_ERROR,"Unsupported Device Type\n"));
 		return;
 	}
 	Index = GetPartitionIndex(BootableSlot);
@@ -622,7 +680,7 @@ TryNextSlot:
 	} else {
 		/*if retry-count > 0,decrement it, do normal boot*/
 		if((RetryCount = ((PartEntryPtr->PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >> PART_ATT_MAX_RETRY_CNT_BIT))) {
-			DEBUG((EFI_D_INFO, "Continue booting without decrementing retry count =%d\n", RetryCount));
+			PartEntryPtr->PartEntry.Attributes = (PartEntryPtr->PartEntry.Attributes & ~PART_ATT_MAX_RETRY_COUNT_VAL) |(((UINT64)RetryCount-1) << PART_ATT_MAX_RETRY_CNT_BIT);
 		} else {
 			/*else mark slot as unbootable update fields then go for next slot*/
 			PartEntryPtr->PartEntry.Attributes |= PART_ATT_UNBOOTABLE_VAL & ~PART_ATT_ACTIVE_VAL & ~PART_ATT_PRIORITY_VAL;

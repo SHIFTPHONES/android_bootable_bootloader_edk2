@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -37,6 +37,7 @@
 #include <Library/LinuxLoaderLib.h>
 #include <Library/Recovery.h>
 #include <Library/KeyPad.h>
+#include <Library/DeviceInfo.h>
 
 #include <Protocol/EFIVerifiedBoot.h>
 
@@ -90,53 +91,6 @@ VOID WaitForExitKeysDetection()
 		MicroSecondDelay(10000);
 }
 
-/**
-  Set device unlock value
-  @param[in] Type    The type of the unlock.
-                     [DISPLAY_MENU_UNLOCK]: The normal unlock menu type
-                     [DISPLAY_MENU_UNLOCK_CRITICAL]: The ctitical unlock menu type
-  @param[in] Status  The value of the unlock.
- **/
-STATIC VOID SetDeviceUnlockValue(UINT32 Type, BOOLEAN Status)
-{
-	EFI_STATUS Result;
-	DeviceInfo *DevInfo = NULL;
-	struct RecoveryMessage Msg;
-
-	/* Read Device Info */
-	DevInfo = AllocateZeroPool(sizeof(DeviceInfo));
-	if (DevInfo == NULL) {
-		DEBUG((EFI_D_ERROR, "Failed to allocate zero pool for device info.\n"));
-		goto Exit;
-	}
-
-	Result = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)DevInfo, sizeof(DeviceInfo));
-	if (Result != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Result));
-		goto Exit;
-	}
-
-	if (Type == DISPLAY_MENU_UNLOCK)
-		DevInfo->is_unlocked = Status;
-	else if (Type == DISPLAY_MENU_UNLOCK_CRITICAL)
-		DevInfo->is_unlock_critical = Status;
-	else
-		return;
-
-	ReadWriteDeviceInfo(WRITE_CONFIG, DevInfo, sizeof(DeviceInfo));
-
-	/* Wipe data */
-	AsciiSPrint(Msg.recovery, sizeof(Msg.recovery), "recovery\n--wipe_data");
-	WriteToPartition(&gEfiMiscPartitionGuid, &Msg);
-
-	Exit:
-		if (DevInfo) {
-			FreePool(DevInfo);
-			DevInfo = NULL;
-		}
-};
-
 STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, UINT32 Reason)
 {
 	CHAR8 FfbmPageBuffer[FFBM_MODE_BUF_SIZE];
@@ -146,7 +100,15 @@ STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, UINT32 Reason)
 
 	switch (Reason) {
 	case RECOVER:
-		SetDeviceUnlockValue(MsgInfo->Info.MenuType, TRUE);
+		switch (MsgInfo->Info.MenuType) {
+			case DISPLAY_MENU_UNLOCK:
+				SetDeviceUnlockValue(UNLOCK, TRUE);
+				break;
+			case DISPLAY_MENU_UNLOCK_CRITICAL:
+				SetDeviceUnlockValue(UNLOCK_CRITICAL, TRUE);
+				break;
+		}
+
 		RebootDevice(RECOVERY_MODE);
 		break;
 	case RESTART:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -148,25 +148,11 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 	UINT32  i = 0;
 	CHAR8 StrTemp[MAX_RSP_SIZE] = "\0";
 	CHAR8 StrTemp1[MAX_RSP_SIZE] = "\0";
-	DeviceInfo *DevInfo = NULL;
+	CHAR8 VersionTemp[MAX_VERSION_LEN] = "\0";
 
 	/* Clear the screen before launch the fastboot menu */
 	gST->ConOut->ClearScreen (gST->ConOut);
 	ZeroMem(&OptionMenuInfo->Info, sizeof(MENU_OPTION_ITEM_INFO));
-
-	/* Read Device Info */
-	DevInfo = AllocateZeroPool(sizeof(DeviceInfo));
-	if (DevInfo == NULL) {
-		DEBUG((EFI_D_ERROR, "Failed to allocate zero pool for device info.\n"));
-		return EFI_OUT_OF_RESOURCES;
-	}
-
-	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)DevInfo, sizeof(DeviceInfo));
-	if (Status != EFI_SUCCESS)
-	{
-		/* Show empty value on the screen instead of device info */
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
-	}
 
 	/* Update fastboot option title */
 	OptionMenuInfo->Info.MsgInfo = mFastbootOptionTitle;
@@ -176,7 +162,7 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 	OptionItem = OptionMenuInfo->Info.OptionItems[OptionMenuInfo->Info.OptionIndex];
 	Status = UpdateFastbootOptionItem(OptionItem, &Location);
 	if (Status != EFI_SUCCESS)
-		goto Exit;
+		return Status;
 
 	/* Update fastboot common message */
 	for (i = 0; i < ARRAY_SIZE(mFastbootCommonMsgInfo); i++) {
@@ -203,13 +189,16 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 			break;
 		case 4:
 			/* Get bootloader version */
+			GetBootloaderVersion(VersionTemp, sizeof(VersionTemp));
 			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
-				DevInfo->bootloader_version, AsciiStrLen(DevInfo->bootloader_version));
+				VersionTemp, AsciiStrLen(VersionTemp));
 			break;
 		case 5:
 			/* Get baseband version */
+			ZeroMem(VersionTemp, sizeof(VersionTemp));
+			GetRadioVersion(VersionTemp, sizeof(VersionTemp));
 			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
-				DevInfo->radio_version, AsciiStrLen(DevInfo->radio_version));
+				VersionTemp, AsciiStrLen(VersionTemp));
 			break;
 		case 6:
 			/* Get serial number */
@@ -226,25 +215,19 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 		case 8:
 			/* Get device status */
 			AsciiStrnCatS(mFastbootCommonMsgInfo[i].Msg, sizeof(mFastbootCommonMsgInfo[i].Msg),
-				DevInfo->is_unlocked ? "unlocked":"locked", DevInfo->is_unlocked ? AsciiStrLen("unlocked"):AsciiStrLen("locked"));
+				IsUnlocked() ? "unlocked":"locked", IsUnlocked() ? AsciiStrLen("unlocked"):AsciiStrLen("locked"));
 			break;
 		}
 
 		mFastbootCommonMsgInfo[i].Location = Location;
 		Status = DrawMenu(&mFastbootCommonMsgInfo[i], &Height);
 		if (Status != EFI_SUCCESS)
-			goto Exit;
+			return Status;
 		Location += Height;
 	}
 
 	OptionMenuInfo->Info.MenuType = DISPLAY_MENU_FASTBOOT;
 	OptionMenuInfo->Info.OptionNum = ARRAY_SIZE(mFastbootOptionTitle);
-
-	Exit:
-	if (DevInfo) {
-		FreePool(DevInfo);
-		DevInfo = NULL;
-	}
 
 	return Status;
 }

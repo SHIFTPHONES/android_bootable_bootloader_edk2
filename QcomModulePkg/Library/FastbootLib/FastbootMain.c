@@ -12,7 +12,7 @@
 
 **/
 
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -324,13 +324,8 @@ EFI_STATUS HandleUsbEvents()
   return Status;
 }
 
-/* Entry point for Fastboot App */
-EFI_STATUS
-EFIAPI
-FastbootAppEntryPoint(
-  IN EFI_HANDLE        ImageHandle,
-  IN EFI_SYSTEM_TABLE  *SystemTable
- )
+/* Initialize and start fastboot */
+EFI_STATUS FastbootInitialize()
 {
   EFI_STATUS                      Status     = EFI_SUCCESS;
 

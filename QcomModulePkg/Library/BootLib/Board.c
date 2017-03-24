@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -42,31 +42,6 @@ STATIC CONST CHAR8 *DeviceType[] = {
 	[UNKNOWN]     = "Unknown",
 };
 
-STATIC CONST CHAR8 *HWPlatformName[] = {
-	[EFI_PLATFORMINFO_TYPE_UNKNOWN]     = "Unknown",
-	[EFI_PLATFORMINFO_TYPE_CDP]         = "CDP",
-	[EFI_PLATFORMINFO_TYPE_FFA]         = "FFA",
-	[EFI_PLATFORMINFO_TYPE_FLUID]       = "Fluid",
-	[EFI_PLATFORMINFO_TYPE_OEM]         = "OEM",
-	[EFI_PLATFORMINFO_TYPE_QT]          = "OT",
-	[EFI_PLATFORMINFO_TYPE_MTP]         = "MTP",
-	[EFI_PLATFORMINFO_TYPE_LIQUID]      = "LIQUID",
-	[EFI_PLATFORMINFO_TYPE_DRAGONBOARD] = "DRAGONBOARD",
-	[EFI_PLATFORMINFO_TYPE_QRD]         = "QRD",
-	[EFI_PLATFORMINFO_TYPE_EVB]         = "EVB",
-	[EFI_PLATFORMINFO_TYPE_RUMI]        = "RUMI",
-	[EFI_PLATFORMINFO_TYPE_VIRTIO]      = "VIRTIO",
-	[EFI_PLATFORMINFO_TYPE_GOBI]        = "GOBI",
-	[EFI_PLATFORMINFO_TYPE_BTS]         = "BTS",
-	[EFI_PLATFORMINFO_TYPE_XPM]         = "XPM",
-	[EFI_PLATFORMINFO_TYPE_RCM]         = "RCM",
-	[EFI_PLATFORMINFO_TYPE_STP]         = "STP",
-	[EFI_PLATFORMINFO_TYPE_SBC]         = "SBC",
-	[EFI_PLATFORMINFO_TYPE_ADP]         = "ADP",
-	[EFI_PLATFORMINFO_TYPE_SDP]         = "SDP",
-	[EFI_PLATFORMINFO_TYPE_RRP]         = "RRP",
-};
-
 EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartitions) {
 
 	EFI_STATUS Status = EFI_NOT_FOUND;
@@ -82,7 +57,7 @@ EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartit
 	if (Status == EFI_BUFFER_TOO_SMALL)
 	{
 		*RamPartitions = AllocatePool (*NumPartitions * sizeof (RamPartitionEntry));
-		if (RamPartitions == NULL)
+		if (*RamPartitions == NULL)
 			return EFI_OUT_OF_RESOURCES;
 
 		Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, *RamPartitions, NumPartitions);
@@ -185,10 +160,31 @@ endtest:
 	return eResult;
 }
 
-STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *pmic_info)
+STATIC EFI_STATUS GetPmicInfoExt(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_EXT_TYPE *pmic_info_ext)
 {
 	EFI_STATUS Status;
 	EFI_QCOM_PMIC_VERSION_PROTOCOL *pPmicVersionProtocol;
+
+	Status = gBS->LocateProtocol (&gQcomPmicVersionProtocolGuid, NULL,
+			(VOID **) &pPmicVersionProtocol);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Error locating pmic protocol: %r\n", Status));
+		return Status;
+	}
+
+	Status = pPmicVersionProtocol->GetPmicInfoExt(PmicDeviceIndex, pmic_info_ext);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Error getting pmic info ext: %r\n", Status));
+		return Status;
+	}
+	return Status;
+}
+
+STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *pmic_info, UINT64 *Revision)
+{
+	EFI_STATUS Status;
+	EFI_QCOM_PMIC_VERSION_PROTOCOL *pPmicVersionProtocol;
+
 	Status = gBS->LocateProtocol (&gQcomPmicVersionProtocolGuid, NULL,
 			(VOID **) &pPmicVersionProtocol);
 	if (EFI_ERROR(Status))
@@ -196,6 +192,9 @@ STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *p
 		DEBUG((EFI_D_ERROR, "Error locating pmic protocol: %r\n", Status));
 		return Status;
 	}
+
+	*Revision = pPmicVersionProtocol->Revision;
+
 	Status = pPmicVersionProtocol->GetPmicInfo(PmicDeviceIndex, pmic_info);
 	if (EFI_ERROR(Status))
 	{
@@ -296,7 +295,9 @@ UINT32 BoardPmicModel(UINT32 PmicDeviceIndex)
 {
 	EFI_STATUS Status;
 	EFI_PM_DEVICE_INFO_TYPE pmic_info;
-	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info);
+	UINT64 Revision;
+
+	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info, &Revision);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error getting pmic model info: %r\n", Status));
@@ -310,15 +311,30 @@ UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex)
 {
 	UINT32 target;
 	EFI_STATUS Status;
-
+	UINT64 Revision;
 	EFI_PM_DEVICE_INFO_TYPE pmic_info;
-	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info);
+	EFI_PM_DEVICE_INFO_EXT_TYPE pmic_info_ext;
+
+	Status = GetPmicInfo(PmicDeviceIndex, &pmic_info, &Revision);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error finding board pmic info: %r\n", Status));
 		ASSERT(0);
 	}
-	target = (pmic_info.PmicAllLayerRevision << 16) | pmic_info.PmicModel;
+
+	if (Revision >= PMIC_VERSION_REVISION) {
+		Status = GetPmicInfoExt(PmicDeviceIndex, &pmic_info_ext);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Error finding board pmic info: %r\n", Status));
+			return 0;
+		}
+
+		target = (pmic_info_ext.PmicVariantRevision << 24 ) | (pmic_info_ext.PmicAllLayerRevision << 16) |
+				(pmic_info_ext.PmicMetalRevision << 8) | pmic_info_ext.PmicModel;
+	} else {
+		target = (pmic_info.PmicAllLayerRevision << 16) | (pmic_info.PmicMetalRevision << 8) | pmic_info.PmicModel;
+	}
+
 	DEBUG((EFI_D_VERBOSE, "PMIC Target 0x%x: 0x%x\n", PmicDeviceIndex, target));
 	return target;
 }
@@ -344,28 +360,16 @@ EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet)
 	UINT32 Attribs = 0;
 	UINT32 MaxHandles;
 	PartiSelectFilter HandleFilter;
-	MemCardType Type = EMMC;
 
 	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
-
 	MaxHandles = ARRAY_SIZE(HandleInfoList);
 	HandleFilter.PartitionType = 0;
 	HandleFilter.VolumeName = 0;
-	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
+	HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
 
 	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
-	if (EFI_ERROR (Status) || MaxHandles == 0)
-	{
-		MaxHandles = ARRAY_SIZE(HandleInfoList);
-		HandleFilter.PartitionType = 0;
-		HandleFilter.VolumeName = 0;
-		HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
-
-		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
-		if (EFI_ERROR (Status))
-			return EFI_NOT_FOUND;
-		Type = UFS;
-	}
+	if (EFI_ERROR (Status))
+		return EFI_NOT_FOUND;
 
 	Status = gBS->HandleProtocol(HandleInfoList[0].Handle, &gEfiMemCardInfoProtocolGuid, (VOID**)&CardInfo);
 
@@ -424,12 +428,13 @@ EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 				return Status;
 			}
 			AsciiSPrint(StrSerialNum, Len, "%x", SerialNo);
-			/* adb is case sensitive, convert the serial number to lower case
-			 * to maintain uniformity across the system. */
-			ToLower(StrSerialNum);
+		} else {
+			 AsciiSPrint(StrSerialNum, Len, "%x", *(UINT32 *)CardInfoData.product_serial_num);
 		}
-		else
-			 AsciiSPrint(StrSerialNum, Len, "%x", CardInfoData.product_serial_num);
+
+		/* adb is case sensitive, convert the serial number to lower case
+		 * to maintain uniformity across the system. */
+		ToLower(StrSerialNum);
 	}
 	return Status;
 }
@@ -485,31 +490,24 @@ UINT32 BoardTargetId()
 VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len)
 {
 	EFI_STATUS Status;
-	UINT32     HWId;
+	EFI_CHIPINFO_PROTOCOL *pChipInfoProtocol;
+	UINT32 ChipIdValidLen = 4;
 
 	if (StrHwPlatform == NULL) {
 		DEBUG((EFI_D_ERROR, "Error: HW Platform string is NULL\n"));
 		return;
 	}
 
-	/* Populate board data */
-	Status = BoardInit();
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error: Board Initialization failed: %x\n", Status));
-		ASSERT(0);
-	}
-
-	HWId = BoardPlatformType();
-
-	if (HWId > (ARRAY_SIZE(HWPlatformName) - 1)) {
-		DEBUG((EFI_D_ERROR, "Error: Hw Platform Id (0x%x) not found!!\n", HWId));
+	Status = gBS->LocateProtocol (&gEfiChipInfoProtocolGuid, NULL,(VOID **) &pChipInfoProtocol);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Locate Protocol failed for gEfiChipInfoProtocolGuid\n"));
 		return;
 	}
 
-	if (Len < (AsciiStrLen(HWPlatformName[HWId]) + 1)) {
-		DEBUG((EFI_D_ERROR, "Error: Hw Platform String length (%d) is too small\n\n", Len));
+	Status = pChipInfoProtocol->GetChipIdString(pChipInfoProtocol, StrHwPlatform, EFICHIPINFO_MAX_ID_LENGTH);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Failed to Get the ChipIdString\n"));
 		return;
 	}
-
-	AsciiSPrint(StrHwPlatform, Len, "%a", HWPlatformName[HWId]);
+	StrHwPlatform[ChipIdValidLen-1] = '\0';
 }

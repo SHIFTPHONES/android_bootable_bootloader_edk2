@@ -3,7 +3,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,6 +51,7 @@ STATIC CONST CHAR8 *LogLevel         = " quite";
 STATIC CONST CHAR8 *BatteryChgPause = " androidboot.mode=charger";
 STATIC CONST CHAR8 *AuthorizedKernel = " androidboot.authorized_kernel=true";
 STATIC CONST CHAR8 *MdtpActiveFlag = " mdtp";
+STATIC CONST CHAR8 *AlarmBootCmdLine = " androidboot.alarmboot=true";
 
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
@@ -64,19 +65,25 @@ STATIC UINT32 AuthorizeKernelImage = 0;
 /* Display command line related structures */
 #define MAX_DISPLAY_CMD_LINE 256
 CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
-UINT32 DisplayCmdLineLen = sizeof(DisplayCmdLine);
+UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
 
-#if VERIFIED_BOOT
+boot_state_t BootState = BOOT_STATE_MAX;
+QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf = NULL;
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
-STATIC struct verified_boot_verity_mode vbvm[] =
+STATIC CONST CHAR8 *VerifiedState = " androidboot.verifiedbootstate=";
+STATIC CONST CHAR8 *KeymasterLoadState = " androidboot.keymaster=1";
+STATIC struct verified_boot_verity_mode VbVm[] =
 {
 	{FALSE, "logging"},
 	{TRUE, "enforcing"},
 };
-#else
-STATIC CONST CHAR8 *VerityMode;
-STATIC struct verified_boot_verity_mode vbvm[] = {};
-#endif
+STATIC struct verified_boot_state_name VbSn[] =
+{
+	{GREEN, "green"},
+	{ORANGE, "orange"},
+	{YELLOW, "yellow"},
+	{RED, "red"},
+};
 
 /*Function that returns whether the kernel is signed
  *Currently assumed to be signed*/
@@ -141,7 +148,7 @@ STATIC EFI_STATUS TargetPauseForBatteryCharge(UINT32 *BatteryStatus)
 	if (IsColdBoot &&
 		(!(PONReason.HARD_RESET) &&
 		(!(PONReason.KPDPWR)) &&
-		(PONReason.PON1) &&
+		(PONReason.PON1 || PONReason.USB_CHG) &&
 		(ChgPresent)))
 	{
 		*BatteryStatus = 1;
@@ -224,7 +231,7 @@ VOID GetDisplayCmdline()
 			L"DisplayPanelConfiguration",
 			&gQcomTokenSpaceGuid,
 			NULL,
-			(UINTN*)&DisplayCmdLineLen,
+			&DisplayCmdLineLen,
 			DisplayCmdLine);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
@@ -241,9 +248,7 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 	CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
 	CHAR16* CurSlotSuffix = GetCurrentSlotSuffix();
 	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
-	HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
-	UINT32 MaxHandles = ARRAY_SIZE(HandleInfoList);
-	MemCardType Type = UNKNOWN;
+	CHAR8 RootDevStr[BOOT_DEV_NAME_SIZE_MAX];
 
 	*SysPath = AllocatePool(sizeof(char) * MAX_PATH_SIZE);
 	if (!*SysPath) {
@@ -251,23 +256,25 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
 		return 0;
 	}
 
-	StrnCpyS(PartitionName, MAX_GPT_NAME_SIZE, L"system", StrLen(L"system"));
-	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE, CurSlotSuffix, StrLen(CurSlotSuffix));
+	StrnCpyS(PartitionName, StrLen(L"system") + 1, L"system", StrLen(L"system"));
+	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE - 1, CurSlotSuffix, StrLen(CurSlotSuffix));
 
 	Index = GetPartitionIndex(PartitionName);
-	if (Index == INVALID_PTN) {
+	if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
 		DEBUG((EFI_D_ERROR, "System partition does not exit\n"));
 		FreePool(*SysPath);
 		return 0;
 	}
 
 	Lun = GetPartitionLunFromIndex(Index);
-	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
-	if (Type == UNKNOWN)
+	GetRootDeviceType(RootDevStr, BOOT_DEV_NAME_SIZE_MAX);
+	if (!AsciiStrCmp("Unknown", RootDevStr)) {
+		FreePool(*SysPath);
 		return 0;
+	}
 
-	if (Type == EMMC)
-		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", (Index + 1));
+	if (!AsciiStrCmp("EMMC", RootDevStr))
+		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", Index);
 	else
 		AsciiSPrint(*SysPath, MAX_PATH_SIZE, " root=/dev/sd%c%d", LunCharMapping[Lun],
 				GetPartitionIdxInLun(PartitionName, Lun));
@@ -282,8 +289,8 @@ STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
  *that is taken from boot image header*/
 EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 				CHAR8 *FfbmStr,
-				DeviceInfo *DeviceInfo,
 				BOOLEAN Recovery,
+				BOOLEAN AlarmBoot,
 				CHAR8 **FinalCmdLine)
 {
 	EFI_STATUS Status;
@@ -321,7 +328,24 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 
 	if (VerifiedBootEnbled()) {
 		CmdLineLen += AsciiStrLen(VerityMode);
-		CmdLineLen += AsciiStrLen(vbvm[DeviceInfo->verity_mode].name);
+		CmdLineLen += AsciiStrLen(VbVm[IsEnforcing()].name);
+		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid,
+				     NULL, (VOID **) &VbIntf);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Unable to locate VerifiedBoot Protocol to update cmdline\n"));
+			return Status;
+		}
+
+		if (VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+			Status = VbIntf->VBGetBootState(VbIntf, &BootState);
+			if (Status != EFI_SUCCESS) {
+				DEBUG((EFI_D_ERROR, "Failed to read boot state to update cmdline\n"));
+				return Status;
+			}
+			CmdLineLen += AsciiStrLen(VerifiedState) +
+				AsciiStrLen(VbSn[BootState].name);
+		}
+		CmdLineLen += AsciiStrLen(KeymasterLoadState);
 	}
 
 	CmdLineLen += AsciiStrLen(BootDeviceCmdLine);
@@ -352,10 +376,12 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		CmdLineLen += AsciiStrLen(FfbmStr);
 		/* reduce kernel console messages to speed-up boot */
 		CmdLineLen += AsciiStrLen(LogLevel);
-	} else if (BatteryStatus && DeviceInfo->is_charger_screen_enabled) {
+	} else if (BatteryStatus && IsChargingScreenEnable()) {
 		DEBUG((EFI_D_INFO, "Device will boot into off mode charging mode\n"));
 		PauseAtBootUp = 1;
 		CmdLineLen += AsciiStrLen(BatteryChgPause);
+	} else if (AlarmBoot) {
+		CmdLineLen += AsciiStrLen(AlarmBootCmdLine);
 	}
 
 	if(TargetUseSignedKernel() && AuthorizeKernelImage) {
@@ -412,6 +438,27 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		}
 
+		if (VerifiedBootEnbled()) {
+			Src = VerityMode;
+			--Dst;
+			STR_COPY(Dst,Src);
+			--Dst;
+			Src = VbVm[IsEnforcing()].name;
+			STR_COPY(Dst,Src);
+			if (VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+				Src = VerifiedState;
+				--Dst;
+				STR_COPY(Dst,Src);
+				--Dst;
+				Src = VbSn[BootState].name;
+				STR_COPY(Dst,Src);
+			}
+			Src = KeymasterLoadState;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
+		}
+
+
 		Src = BootDeviceCmdLine;
 		if (HaveCmdLine) --Dst;
 		HaveCmdLine = 1;
@@ -448,6 +495,10 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			Src = BatteryChgPause;
 			if (HaveCmdLine) --Dst;
 			STR_COPY(Dst,Src);
+		} else if (AlarmBoot) {
+			Src = AlarmBootCmdLine;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst,Src);
 		}
 
 		if(TargetUseSignedKernel() && AuthorizeKernelImage) {
@@ -477,7 +528,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		}
 
-		if (MultiSlotBoot) {
+		if (MultiSlotBoot && !AsciiStrStr(CmdLine, "root=")) {
 			/* Slot suffix */
 			Src = AndroidSlotSuffix;
 			if (HaveCmdLine) --Dst;
@@ -500,12 +551,9 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			if (HaveCmdLine) --Dst;
 			STR_COPY(Dst, Src);
 
-			/* Suffix System path in command line*/
-			if (*SystemPath) {
-				Src = SystemPath;
-				if (HaveCmdLine) --Dst;
-				STR_COPY(Dst, Src);
-			}
+			Src = SystemPath;
+			if (HaveCmdLine) --Dst;
+			STR_COPY(Dst, Src);
 		}
 	}
 

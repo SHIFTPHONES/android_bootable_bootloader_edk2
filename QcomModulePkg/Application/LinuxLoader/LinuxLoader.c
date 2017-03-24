@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,6 +38,8 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/DrawUI.h>
 #include <Library/StackCanary.h>
+#include <Library/DeviceInfo.h>
+#include <FastbootLib/FastbootMain.h>
 
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
@@ -45,11 +47,11 @@
 STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
-DeviceInfo DevInfo;
 
 // This function would load and authenticate boot/recovery partition based
 // on the partition type from the entry function.
-STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootIntoRecovery)
+STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot,
+	BOOLEAN BootIntoRecovery, BOOLEAN BootReasonAlarm)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	VOID* ImageBuffer = NULL;
@@ -67,9 +69,37 @@ STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot, BOOLEAN BootI
 		MarkPtnActive(CurrentSlot);
 	}
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, &DevInfo, Pname, BootIntoRecovery);
+	BootLinux(ImageBuffer, ImageSizeActual, Pname, BootIntoRecovery, BootReasonAlarm);
 	// would never return here
 	return EFI_ABORTED;
+}
+
+// This function is used to Deactivate MDTP by entering recovery UI
+
+STATIC EFI_STATUS MdtpDisable(VOID)
+{
+    BOOLEAN MdtpActive = FALSE;
+    EFI_STATUS Status = EFI_SUCCESS;
+    QCOM_MDTP_PROTOCOL *MdtpProtocol;
+
+    if (FixedPcdGetBool(EnableMdtpSupport)) {
+        Status = IsMdtpActive(&MdtpActive);
+
+        if (EFI_ERROR(Status))
+	    return Status;
+
+	if(MdtpActive) {
+	    Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid, NULL, (VOID**)&MdtpProtocol);
+	    if (EFI_ERROR(Status)) {
+	        DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
+		return Status;
+	    }
+	    /* Perform Local Deactivation of MDTP */
+	    Status = MdtpProtocol->MdtpDeactivate(MdtpProtocol, FALSE);
+	}
+    }
+
+    return Status;
 }
 
 STATIC UINT8 GetRebootReason(UINT32 *ResetReason)
@@ -107,9 +137,6 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	UINT32 BootReason = NORMAL_MODE;
 	UINT32 KeyPressed;
-	CHAR8 Fastboot[MAX_APP_STR_LEN];
-	CHAR8 *AppList[] = {Fastboot};
-	UINT32 i;
 	CHAR16 Pname[MAX_GPT_NAME_SIZE];
 	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
 	/* MultiSlot Boot */
@@ -122,44 +149,13 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	BootStatsSetTimeStamp(BS_BL_START);
 
 	// Initialize verified boot & Read Device Info
-	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	Status = DeviceInfoInit();
 	if (Status != EFI_SUCCESS)
 	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
+		DEBUG((EFI_D_ERROR, "Initialize the device info failed: %r\n", Status));
 		return Status;
 	}
 
-	if (CompareMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE))
-	{
-		DEBUG((EFI_D_ERROR, "Device Magic does not match\n"));
-		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
-		if (IsSecureBootEnabled())
-		{
-			DevInfo.is_unlocked = FALSE;
-			DevInfo.is_unlock_critical = FALSE;
-		}
-		else
-		{
-			DevInfo.is_unlocked = TRUE;
-			DevInfo.is_unlock_critical = TRUE;
-		}
-		DevInfo.is_charger_screen_enabled = FALSE;
-		DevInfo.verity_mode = TRUE;
-		Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
-			return Status;
-		}
-	}
-
-	// Check Alarm Boot
-
-	// Populate Serial number
-
-	// Check force reset (then do normal boot)
-
-	// Check for keys
 	Status = EnumeratePartitions();
 
 	if (EFI_ERROR (Status)) {
@@ -211,27 +207,30 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			BootReasonAlarm = TRUE;
 			break;
 		case DM_VERITY_ENFORCING:
-			DevInfo.verity_mode = 1;
 			// write to device info
-			Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
+			Status = EnableEnforcingMode(TRUE);
 			if (Status != EFI_SUCCESS)
-			{
-				DEBUG((EFI_D_ERROR, "VBRwDeviceState Returned error: %r\n", Status));
 				return Status;
-			}
 			break;
 		case DM_VERITY_LOGGING:
-			DevInfo.verity_mode = 0;
-			// write to device info
-			Status = ReadWriteDeviceInfo(WRITE_CONFIG, &DevInfo, sizeof(DevInfo));
-			if (Status != EFI_SUCCESS)
-			{
-				DEBUG((EFI_D_ERROR, "VBRwDeviceState Returned error: %r\n", Status));
+			/* Disable MDTP if it's Enabled through Local Deactivation */
+			Status = MdtpDisable();
+			if(EFI_ERROR(Status) && Status != EFI_NOT_FOUND) {
+				DEBUG((EFI_D_ERROR, "MdtpDisable Returned error: %r\n", Status));
 				return Status;
 			}
+			// write to device info
+			Status = EnableEnforcingMode(FALSE);
+			if (Status != EFI_SUCCESS)
+				return Status;
+
 			break;
 		case DM_VERITY_KEYSCLEAR:
-			// send delete keys to TZ
+			Status = ResetDeviceState();
+			if (Status != EFI_SUCCESS) {
+				DEBUG((EFI_D_ERROR, "VB Reset Device State error: %r\n", Status));
+				return Status;
+			}
 			break;
 		default:
 			break;
@@ -249,35 +248,29 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	if (!BootIntoFastboot) {
 
 		if (MultiSlotBoot) {
-			FindBootableSlot(BootableSlot, sizeof(BootableSlot));
+			FindBootableSlot(BootableSlot, ARRAY_SIZE(BootableSlot) - 1);
 			if(!BootableSlot[0])
 				goto fastboot;
-			StrnCpyS(Pname, MAX_GPT_NAME_SIZE, BootableSlot, StrLen(BootableSlot));
+			StrnCpyS(Pname, StrLen(BootableSlot) + 1, BootableSlot, StrLen(BootableSlot));
 		} else {
 
 			if(BootIntoRecovery == TRUE) {
 				DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
-				StrnCpyS(Pname, MAX_GPT_NAME_SIZE, L"recovery", StrLen(L"recovery"));
+				StrnCpyS(Pname, StrLen(L"recovery") + 1, L"recovery", StrLen(L"recovery"));
 			} else {
 				DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
-				StrnCpyS(Pname, MAX_GPT_NAME_SIZE, L"boot", StrLen(L"boot"));
+				StrnCpyS(Pname, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
 			}
 		}
 
-		Status = LoadLinux(Pname, MultiSlotBoot, BootIntoRecovery);
+		Status = LoadLinux(Pname, MultiSlotBoot, BootIntoRecovery, BootReasonAlarm);
 		if (Status != EFI_SUCCESS)
 			DEBUG((EFI_D_ERROR, "Failed to boot Linux, Reverting to fastboot mode\n"));
 	}
 
 fastboot:
 	DEBUG((EFI_D_INFO, "Launching fastboot\n"));
-	for (i = 0 ; i < MAX_NUM_FS; i++)
-	{
-		SetMem(Fastboot, MAX_APP_STR_LEN, 0);
-		AsciiSPrint(Fastboot, MAX_APP_STR_LEN, "fs%d:Fastboot", i);
-		Status = LaunchApp(1, AppList);
-	}
-
+	Status = FastbootInitialize();
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Failed to Launch Fastboot App: %d\n", Status));

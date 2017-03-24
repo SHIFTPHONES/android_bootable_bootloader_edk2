@@ -41,7 +41,8 @@
 /** @ingroup
   Protocol version.
 */
-#define QCOM_VERIFIEDBOOT_PROTOCOL_REVISION 0x0000000000010001
+#define QCOM_VERIFIEDBOOT_PROTOCOL_REVISION 0x0000000000010002
+
 #define MAX_PNAME_LENGTH 32
 #define MAX_VERSION_LEN  64
 
@@ -107,14 +108,7 @@ typedef struct _device_info_vb_t
 *   Enum to select read or write.
 *
 * @param void *buf
-*   Pointer to the buffer
-*   For Write, caller will allocate memory according to
-*   the data to be written
-*   For Read, caller will allocate memory and provide the
-*   length in buf_len, API will return the data read len.
-*   If allocated memory is less than data present, error
-*   will be returned and the required size will be provided
-*   in buf_len
+*   Pointer to the buffer for read and write
 *
 * @param uint32_t *buf_len
 *   Size of the buffer
@@ -132,7 +126,7 @@ EFI_STATUS
   IN     QCOM_VERIFIEDBOOT_PROTOCOL *This,
   IN     vb_device_state_op_t       op,
   IN OUT UINT8                      *buf,
-  IN OUT UINT32                     buf_len
+  IN     UINT32                     buf_len
 );
 
 /**
@@ -183,7 +177,7 @@ EFI_STATUS
 (EFIAPI *QCOM_VB_IS_DEVICE_SECURE )
 (
   IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This,
-  OUT BOOLEAN *State
+  OUT BOOLEAN                      *State
 );
 
 /**
@@ -247,6 +241,33 @@ EFI_STATUS
 (
   IN     QCOM_VERIFIEDBOOT_PROTOCOL   *This
 );
+
+/**
+* Get boot state
+*
+* @return boot_state_t
+* In case of success returns 0.
+*
+*
+*/
+typedef EFI_STATUS(EFIAPI *QCOM_VB_GET_BOOT_STATE)(
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This,
+    OUT boot_state_t *bootstate);
+/**
+*  Get hash of certificate in Yellow boot state
+*  @return *buf
+*  In case of success return 0.
+*
+*/
+typedef
+EFI_STATUS
+(EFIAPI *QCOM_VB_GET_CERT_FINGERPRINT)
+(
+  IN QCOM_VERIFIEDBOOT_PROTOCOL  *This,
+  OUT UINT8                      *buf,
+  IN  UINTN                      buf_len,
+  OUT UINTN                      *out_len
+ );
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -266,6 +287,8 @@ struct _QCOM_VERIFIEDBOOT_PROTOCOL {
   QCOM_VB_VERIFY_IMAGE              VBVerifyImage;
   QCOM_VB_RESET_STATE               VBDeviceResetState;
   QCOM_VB_IS_DEVICE_SECURE          VBIsDeviceSecure;
+  QCOM_VB_GET_BOOT_STATE            VBGetBootState;
+  QCOM_VB_GET_CERT_FINGERPRINT      VBGetCertFingerPrint;
 };
 
 #endif /* __EFIVERIFIEDBOOT_H__ */
