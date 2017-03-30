@@ -39,6 +39,8 @@
 #include <Library/UpdateDeviceTree.h>
 #include <Protocol/EFIVerifiedBoot.h>
 
+#define FINGERPRINT_LINE_LEN 16
+#define FINGERPRINT_FORMATED_LINE_LEN  FINGERPRINT_LINE_LEN + 5
 #define VERIFIED_BOOT_OPTION_NUM  5
 STATIC OPTION_MENU_INFO gMenuInfo;
 
@@ -131,10 +133,119 @@ STATIC MENU_MSG_INFO mOptionMenuMsgInfo[] = {
 };
 
 /**
-  Draw the verified boot option menu
-  @param[out] OptionMenuInfo  The option info
-  @retval     EFI_SUCCESS       The entry point is executed successfully.
-  @retval     other	       Some error occurs when executing this entry point.
+Convert UINT8 array to a CHAR8 hex array.
+The caller of the function should allocate memory properly.
+Size of target should be at least twice than the source size (len).
+
+@param[out]     *target    Pointer to the output array
+@param[in]      *source    Pointer to the source array
+@param[in]      len        Size of the source array
+
+**/
+STATIC VOID GetHexString(CHAR8 *Target, UINT8 *Source, UINTN Len)
+{
+
+	UINTN TargetIndex = 0;
+	UINTN SourceIndex = 0;
+	UINTN TargetLen = Len * 2;
+	CHAR8 HexBuf[3];
+	for (TargetIndex = 0; TargetIndex < TargetLen;
+		TargetIndex = TargetIndex + 2) {
+		AsciiSPrint(HexBuf, sizeof(HexBuf), "%02x",
+			    Source[SourceIndex]);
+		CopyMem(Target + TargetIndex, HexBuf, 2);
+		SourceIndex++;
+	 }
+}
+
+/**
+
+Construct display output array.
+The caller should allocate the buffer properly before invoking this function.
+The assumption is display output and finger print have larger size than 22 and 16.
+
+The target array starts with string "ID: " following with the fingerprint.
+Each 16 charcaters of fingerprint are shown in one line.
+If fingerprint size is too big, it only copies the number of characters
+that matches the output size.
+
+Eaxmple output:
+
+ID: 3F957EBAD2EE02F2
+    CD23ED905C51913D
+    4E9AAA2C5A4A1AE8
+    0F9D6BF727593F14
+
+@param[out] *target    Pointer to the output array
+@param[in]  target_len Size of output
+@param[in]  *source    Pointer to the input array
+@param[in]  source_len Size of input
+
+**/
+STATIC VOID GetDisplayOutPut(CHAR8 *Target, UINTN TargetLen, CHAR8 *Source,
+		      UINTN SourceLen)
+{
+	UINTN LastLineCharsCount = 0;
+	UINTN TargetIndex = 0;
+	UINTN SourceIndex = 0;
+	UINTN LineNum = 0;
+	UINTN FinalLen = 0;
+
+	/* First line starts with 4 characters of "ID: ",
+	   other lines start with 4 spaces to make the length of each line 21
+	*/
+	CONST CHAR8 ID[4] = "ID: ";
+	CONST CHAR8 StartlineSpace[4] = "    ";
+
+	/* Each line contains 21 characters (4 spaces in the beginning),
+	16 characters from fingerprint, one character for endline */
+	UINTN NumberOfLines = SourceLen / FINGERPRINT_LINE_LEN +
+		((SourceLen % FINGERPRINT_LINE_LEN== 0 ? 0 :1));
+
+	/* each line contains 4 spaces at the beginning and one endline
+	   character at the end */
+	FinalLen = (sizeof(ID) + 1) * (NumberOfLines) + SourceLen;
+
+	/* if final size is bigger that display output size,
+	   reduce the numbe of lines,
+	   one character is needed for NULL character */
+	while (FinalLen > TargetLen - 1) {
+		NumberOfLines--;
+                FinalLen = FinalLen - FINGERPRINT_FORMATED_LINE_LEN;
+		SourceLen = SourceLen - FINGERPRINT_LINE_LEN;
+	}
+
+	for (LineNum= 0; LineNum < NumberOfLines; LineNum++) {
+		if (LineNum == 0) {
+			CopyMem(Target + TargetIndex, ID, sizeof(ID));
+		} else {
+			CopyMem(Target + TargetIndex, StartlineSpace, sizeof(StartlineSpace));
+		}
+		TargetIndex = TargetIndex + sizeof(ID);
+		if ((SourceLen - SourceIndex) >= FINGERPRINT_LINE_LEN) {
+			CopyMem(Target + TargetIndex,
+				Source + SourceIndex, FINGERPRINT_LINE_LEN);
+			TargetIndex = TargetIndex + FINGERPRINT_LINE_LEN;
+			SourceIndex = SourceIndex + FINGERPRINT_LINE_LEN;
+		} else {
+			LastLineCharsCount = SourceLen % FINGERPRINT_LINE_LEN;
+			CopyMem(Target + TargetIndex, Source + SourceIndex,
+			LastLineCharsCount);
+			TargetIndex = TargetIndex + LastLineCharsCount;
+			SourceIndex = SourceIndex + LastLineCharsCount;
+		}
+		Target[TargetIndex] = '\n';
+		TargetIndex = TargetIndex + 1;
+	}
+	/* NULL terminat the target array */
+	Target[TargetIndex] = '\0';
+}
+
+/**
+Draw the verified boot option menu
+@param[out] OptionMenuInfo    The option info
+@retval     EFI_SUCCESS       The entry point is executed successfully.
+@retval     other             Some error occurs when executing this entry point.
  **/
 EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 {
@@ -212,8 +323,49 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 T
 
 	if (Type == DISPLAY_MENU_YELLOW) {
 		mCommonMsgInfo[Type].Fingerprint.Location = Location;
-		AsciiSPrint(mCommonMsgInfo[Type].Fingerprint.Msg,
-			MAX_MSG_SIZE, "ID: %a\n", "unsupported");
+		QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf = NULL;
+		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid,
+					     NULL, (VOID **) &VbIntf);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Unable to locate VerifiedBoot Protocol\n"));
+			return Status;
+		}
+
+		if (VbIntf->Revision >=
+		    QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+			UINT8 FingerPrint[MAX_MSG_SIZE];
+			UINTN FingerPrintLen = 0;
+                        UINTN DisplayStrLen = 0;
+			CHAR8 *DisplayStr = NULL;
+
+			Status = VbIntf->VBGetCertFingerPrint(VbIntf,
+							      FingerPrint,
+							      MAX_MSG_SIZE,
+							      &FingerPrintLen);
+			if (Status != EFI_SUCCESS) {
+				DEBUG((EFI_D_ERROR,
+				"Failed Reading CERT FingerPrint\n"));
+				return Status;
+			}
+			/* Each bytes needs two characters to be shown on display */
+			DisplayStrLen = FingerPrintLen * 2;
+			DisplayStr = AllocatePool(DisplayStrLen);
+			if (DisplayStr == NULL) {
+				return EFI_OUT_OF_RESOURCES;
+			}
+			/* Convert the fingerprint to a charcater string */
+			GetHexString(DisplayStr, FingerPrint, FingerPrintLen);
+			/* Save fingerprint in a formated string for display */
+			GetDisplayOutPut(mCommonMsgInfo[Type].Fingerprint.Msg,
+					 MAX_MSG_SIZE, DisplayStr,
+					 DisplayStrLen);
+			if (DisplayStr) {
+				FreePool(DisplayStr);
+			}
+		}else {
+			AsciiSPrint(mCommonMsgInfo[Type].Fingerprint.Msg,
+				MAX_MSG_SIZE, "ID: %a\n", "unsupported");
+		}
 		Status = DrawMenu(&mCommonMsgInfo[Type].Fingerprint, &Height);
 		if (Status != EFI_SUCCESS)
 			return Status;

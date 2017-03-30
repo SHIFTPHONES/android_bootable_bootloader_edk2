@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -76,6 +76,8 @@ typedef struct {
   device_info_vb_t                DevInfo;
 } MDTP_VB_EXTERNAL_PARTITION;
 
+typedef BOOLEAN MDTP_ISV_PIN;
+
 typedef enum {
   MDTP_STATE_DISABLED,         /* MDTP is disabled on the device. */
   MDTP_STATE_INACTIVE,         /* MDTP is not activated on the device. */
@@ -109,8 +111,7 @@ EFI_STATUS
 );
 
 /**
-* Run MDTP integrity verification.
-*
+* Set MDTP BootState.
 * @param MDTP_VB_EXTERNAL_PARTITION *ExternalPartition
 *   Pointer to verified boot external partition
 *
@@ -121,10 +122,29 @@ EFI_STATUS
 */
 typedef
 EFI_STATUS
-(EFIAPI *QCOM_MDTP_VERIFY )
+(EFIAPI *QCOM_MDTP_SET_BOOT_STATE )
 (
 	IN QCOM_MDTP_PROTOCOL           *This,
 	IN MDTP_VB_EXTERNAL_PARTITION   *ExternalPartition
+);
+
+/**
+* Run MDTP Local Deactivation, displaying Recovery UI
+*
+* @param MDTP_ISV_PIN *MasterPIN
+*   Indicates if this is ISV PIN or not
+*
+* @return int
+*   Status:
+*     0 - Success
+*     Negative value indicates failure.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *QCOM_MDTP_DEACTIVATE )
+(
+        IN  QCOM_MDTP_PROTOCOL  *This,
+        OUT MDTP_ISV_PIN        MasterPIN
 );
 
 /*===========================================================================
@@ -139,8 +159,9 @@ EFI_STATUS
 */
 struct _QCOM_MDTP_PROTOCOL {
 	UINT64                    Revision;
-	QCOM_MDTP_GET_STATE       MdtpGetState;
-	QCOM_MDTP_VERIFY          MdtpVerify;
+        QCOM_MDTP_GET_STATE       MdtpGetState;
+        QCOM_MDTP_SET_BOOT_STATE  MdtpBootState;
+        QCOM_MDTP_DEACTIVATE      MdtpDeactivate;
 };
 
 #endif /* __EFIMDTP_H__ */

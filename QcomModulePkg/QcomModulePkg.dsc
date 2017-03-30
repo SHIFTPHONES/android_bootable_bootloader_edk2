@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+# * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
 # *
 # * Redistribution and use in source and binary forms, with or without
 # * modification, are permitted provided that the following conditions are
@@ -93,6 +93,8 @@
   !endif
   !if $(USER_BUILD_VARIANT) == 0
       GCC:*_*_*_CC_FLAGS = -DENABLE_UPDATE_PARTITIONS_CMDS -DENABLE_BOOT_CMD -DENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS
+  !else
+      GCC:*_*_*_CC_FLAGS = -DUSER_BUILD_VARIANT
   !endif
 
 [PcdsFixedAtBuild.common]
@@ -115,17 +117,11 @@
 ################################################################################
 [Components.common]
 
-	QcomModulePkg/Application/FastbootApp/FastbootApp.inf {
-		<LibraryClasses>
-			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
-	}
 	QcomModulePkg/Application/LinuxLoader/LinuxLoader.inf {
 		<LibraryClasses>
 			FdtLib|EmbeddedPkg/Library/FdtLib/FdtLib.inf
 			ArmSmcLib|ArmPkg/Library/ArmSmcLib/ArmSmcLib.inf
 			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
-	}
-	QcomModulePkg/Drivers/MdtpDxe/MdtpDxe.inf {
-		<LibraryClasses>
-			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
+			StackCanary|QcomModulePkg/Library/StackCanary/StackCanary.inf
+			FastbootLib|QcomModulePkg/Library/FastbootLib/FastbootLib.inf
 	}

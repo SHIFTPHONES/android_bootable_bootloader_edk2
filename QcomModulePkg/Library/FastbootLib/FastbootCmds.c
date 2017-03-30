@@ -16,7 +16,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -59,6 +59,7 @@
 #include <Library/MenuKeysDetection.h>
 #include <Library/PartitionTableUpdate.h>
 #include <Library/BoardCustom.h>
+#include <Library/DeviceInfo.h>
 
 #include <Protocol/BlockIo.h>
 
@@ -151,27 +152,10 @@ STATIC INT32 Lun = NO_LUN;
 STATIC BOOLEAN LunSet;
 
 STATIC FASTBOOT_CMD *cmdlist;
-DeviceInfo FbDevInfo;
 STATIC UINT32 IsAllowUnlock;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
 STATIC VOID AcceptCmd (IN UINT64 Size,IN  CHAR8 *Data);
-
-/* Enumerate the partitions during init */
-STATIC
-EFI_STATUS
-FastbootInit()
-{ 
-	EFI_STATUS Status;
-
-	Status = EnumeratePartitions();
-	if(EFI_ERROR(Status)) {
-		DEBUG((EFI_D_ERROR, "Error enumerating the partitions : %r\n",Status));
-		return Status;
-	}
-	UpdatePartitionEntries();
-	return Status;
-}
 
 /* Clean up memory for the getvar variables during exit */
 EFI_STATUS
@@ -363,13 +347,13 @@ STATIC VOID FastbootPublishSlotVars() {
 
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuffix, MAX_SLOT_SUFFIX_SZ, Suffix, AsciiStrLen(Suffix));
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVar, SLOT_ATTR_SIZE, "slot-successful:", AsciiStrLen("slot-successful:"));
-			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL;
+			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL ? TRUE : FALSE;
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, Set ? "yes": "no", Set? AsciiStrLen("yes"): AsciiStrLen("no"));
 			AsciiStrnCatS(BootSlotInfo[j].SlotSuccessfulVar, SLOT_ATTR_SIZE, Suffix, AsciiStrLen(Suffix));
 			FastbootPublishVar(BootSlotInfo[j].SlotSuccessfulVar, BootSlotInfo[j].SlotSuccessfulVal);
 
 			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVar, SLOT_ATTR_SIZE, "slot-unbootable:", AsciiStrLen("slot-unbootable:"));
-			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL;
+			Set = PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL ? TRUE : FALSE;
 			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, Set? "yes": "no", Set? AsciiStrLen("yes"): AsciiStrLen("no"));
 			AsciiStrnCatS(BootSlotInfo[j].SlotUnbootableVar, SLOT_ATTR_SIZE, Suffix, AsciiStrLen(Suffix));
 			FastbootPublishVar(BootSlotInfo[j].SlotUnbootableVar, BootSlotInfo[j].SlotUnbootableVal);
@@ -494,15 +478,24 @@ HandleSparseImgFlash(
 	sparse_header_t *sparse_header;
 	chunk_header_t  *chunk_header;
 	UINT32 total_blocks = 0;
+	UINT64 block_count_factor = 0;
+	UINT64 written_block_count = 0;
 	UINT64 PartitionSize = 0;
 	UINT32 i;
-	UINT64 ImageEnd = (UINT64) Image + sz;
+	UINT64 ImageEnd;
 	EFI_STATUS Status;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	EFI_HANDLE *Handle = NULL;
 	CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	BOOLEAN HasSlot = FALSE;
+
+	if (CHECK_ADD64((UINT64)Image, sz)) {
+		DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and sz\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	ImageEnd = (UINT64) Image + sz;
 
 	/* For multislot boot the partition may not support a/b slots.
 	 * Look for default partition, if it does not exist then try for a/b
@@ -550,6 +543,14 @@ HandleSparseImgFlash(
 		FastbootFail("Sparse header size mismatch");
 		return EFI_BAD_BUFFER_SIZE;
 	}
+
+	if ((sparse_header->blk_sz) % (BlockIo->Media->BlockSize)) {
+		DEBUG((EFI_D_ERROR, "Unsupported sparse block size %x\n", sparse_header->blk_sz));
+		FastbootFail("Unsupported sparse block size");
+		return EFI_INVALID_PARAMETER;
+	}
+
+	block_count_factor = (sparse_header->blk_sz) / (BlockIo->Media->BlockSize);
 
 	DEBUG((EFI_D_VERBOSE, "=== Sparse Image Header ===\n"));
 	DEBUG((EFI_D_VERBOSE, "magic: 0x%x\n", sparse_header->magic));
@@ -623,7 +624,8 @@ HandleSparseImgFlash(
 			}
 
 			/* Data is validated, now write to the disk */
-			Status = WriteToDisk(BlockIo, Handle, Image, chunk_data_sz, (UINT64)total_blocks);
+			written_block_count = total_blocks * block_count_factor;
+			Status = WriteToDisk(BlockIo, Handle, Image, chunk_data_sz, written_block_count);
 			if (EFI_ERROR(Status))
 			{
 				FastbootFail("Flash Write Failure");
@@ -676,7 +678,8 @@ HandleSparseImgFlash(
 					return EFI_VOLUME_FULL;
 				}
 
-				Status = WriteToDisk(BlockIo, Handle, (VOID *) fill_buf, sparse_header->blk_sz, (UINT64)total_blocks);
+				written_block_count = total_blocks * block_count_factor;
+				Status = WriteToDisk(BlockIo, Handle, (VOID *) fill_buf, sparse_header->blk_sz, written_block_count);
 				if (EFI_ERROR(Status))
 				{
 					FastbootFail("Flash write failure for FILL Chunk");
@@ -752,8 +755,8 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	UnicodeStrToAsciiStr(SlotSuffix, SlotSuffixAscii);
 
-	StrnCpyS(PartName, MAX_GPT_NAME_SIZE, L"boot", StrLen(L"boot"));
-	StrnCatS(PartName, MAX_GPT_NAME_SIZE, SlotSuffix, StrLen(SlotSuffix));
+	StrnCpyS(PartName, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
+	StrnCatS(PartName, MAX_GPT_NAME_SIZE - 1, SlotSuffix, StrLen(SlotSuffix));
 
 	Index = GetPartitionIndex(PartName);
 	if (Index == INVALID_PTN)
@@ -874,11 +877,11 @@ FastbootErasePartition(
 	if (Status != EFI_SUCCESS)
 		return Status;
 	if (!BlockIo) {
-		DEBUG((EFI_D_ERROR, "BlockIo for %a is corrupted\n",PartitionName));
+		DEBUG((EFI_D_ERROR, "BlockIo for %s is corrupted\n", PartitionName));
 		return EFI_VOLUME_CORRUPTED;
 	}
 	if (!Handle) {
-		DEBUG((EFI_D_ERROR, "EFI handle for %a is corrupted\n",PartitionName));
+		DEBUG((EFI_D_ERROR, "EFI handle for %s is corrupted\n", PartitionName));
 		return EFI_VOLUME_CORRUPTED;
 	}
 
@@ -952,7 +955,9 @@ BOOLEAN NamePropertyMatches(CHAR8* Name) {
 		!AsciiStrnCmp(Name, "slot-retry-count", AsciiStrLen("slot-retry-count")) ||
 		!AsciiStrnCmp(Name, "slot-unbootable", AsciiStrLen("slot-unbootable")) ||
 		!AsciiStrnCmp(Name, "slot-successful", AsciiStrLen("slot-successful")) ||
-		!AsciiStrnCmp(Name, "slot-suffixes", AsciiStrLen("slot-suffixes")));
+		!AsciiStrnCmp(Name, "slot-suffixes", AsciiStrLen("slot-suffixes")) ||
+		!AsciiStrnCmp(Name, "partition-type:system", AsciiStrLen("partition-type:system")) ||
+		!AsciiStrnCmp(Name, "partition-size:system", AsciiStrLen("partition-size:system")));
 }
 
 STATIC VOID ClearFastbootVarsofAB() {
@@ -985,6 +990,9 @@ VOID IsBootPtnUpdated(INT32 Lun, BOOLEAN *BootPtnUpdated) {
 	EFI_STATUS Status;
 	EFI_PARTITION_ENTRY *PartEntry;
 	UINT32 j;
+
+	if (Lun == NO_LUN)
+		Lun = 0;
 
 	for (j = 0; j < Ptable[Lun].MaxHandles; j++) {
 		Status = gBS->HandleProtocol(Ptable[Lun].HandleInfoList[j].Handle, &gEfiPartitionRecordGuid, (VOID **)&PartEntry);
@@ -1043,12 +1051,20 @@ STATIC VOID CmdFlash(
 		FastbootFail("No data to flash");
 		return;
 	}
-
-	if (FbDevInfo.is_unlocked == FALSE) {
-		FastbootFail("Flashing is not allowed in Lock State");
-		return;
-	}
 	AsciiStrToUnicodeStr(arg, PartitionName);
+
+	if (TargetBuildVariantUser()) {
+		if (!IsUnlocked()) {
+			FastbootFail("Flashing is not allowed in Lock State");
+			return;
+		}
+
+		if (!IsUnlockCritical() && IsCriticalPartition(PartitionName)) {
+			FastbootFail("Flashing is not allowed for Critical Partitions\n");
+			return;
+		}
+	}
+
 	/* Find the lun number from input string */
 	Token = StrStr(PartitionName, L":");
 
@@ -1065,11 +1081,6 @@ STATIC VOID CmdFlash(
 		}
 
 		LunSet = TRUE;
-	}
-
-	if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
-		FastbootFail("Flashing is not allowed for Critical Partitions\n");
-		return;
 	}
 
 	if (!StrnCmp(PartitionName, L"partition", StrLen(L"partition"))) {
@@ -1107,7 +1118,6 @@ STATIC VOID CmdFlash(
 
 			IsBootPtnUpdated(Lun, &BootPtnUpdated);
 			if (BootPtnUpdated) {
-				SetMultiSlotBootVal(FALSE);
 				/*Check for multislot boot support*/
 				MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 				if (MultiSlotBoot) {
@@ -1188,14 +1198,16 @@ STATIC VOID CmdErase(
 	CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
 	AsciiStrToUnicodeStr(arg, PartitionName);
 
-	if (FbDevInfo.is_unlocked == FALSE) {
-		FastbootFail("Erase is not allowed in Lock State");
-		return;
-	}
+	if (TargetBuildVariantUser()) {
+		if (!IsUnlocked()) {
+			FastbootFail("Erase is not allowed in Lock State");
+			return;
+		}
 
-	if ((FbDevInfo.is_unlock_critical == FALSE) && IsCriticalPartition(PartitionName)) {
-		FastbootFail("Erase is not allowed for Critical Partitions\n");
-		return;
+		if (!IsUnlockCritical() && IsCriticalPartition(PartitionName)) {
+			FastbootFail("Erase is not allowed for Critical Partitions\n");
+			return;
+		}
 	}
 
 	/* In A/B to have backward compatibility user can still give fastboot flash boot/system/modem etc
@@ -1242,7 +1254,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	BOOLEAN SwitchSlot = FALSE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 
-	if (FbDevInfo.is_unlocked == FALSE) {
+	if (!IsUnlocked()) {
 		FastbootFail("Slot Change is not allowed in Lock State\n");
 		return;
 	}
@@ -1271,7 +1283,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 			return;
 		}
 		/*Arg will be either _a or _b, so apppend it to boot*/
-		StrnCatS(SetActive, MAX_GPT_NAME_SIZE, InputSlotInUnicode, StrLen(InputSlotInUnicode));
+		StrnCatS(SetActive, MAX_GPT_NAME_SIZE - 1, InputSlotInUnicode, StrLen(InputSlotInUnicode));
 	} else {
 		FastbootFail("set_active _a or _b should be entered");
 		return;
@@ -1366,8 +1378,10 @@ VOID DataReady(
 		AcceptCmd (Size, (CHAR8 *) Data);
 	else if (mState == ExpectDataState)
 		AcceptData (Size, Data);
-	else
-		ASSERT (FALSE);
+	else {
+		DEBUG((EFI_D_ERROR, "DataReady Unknown status received\r\n"));
+		return;
+	}
 }
 
 STATIC VOID FatalErrorNotify(
@@ -1416,14 +1430,7 @@ FastbootCmdsInit (VOID)
 
 	mDataBuffer = NULL;
   
-	/* Initialize the Fastboot Platform Protocol */
 	DEBUG((EFI_D_INFO, "Fastboot: Initializing...\n"));
-	Status = FastbootInit();
-	if (EFI_ERROR (Status))
-	{
-		DEBUG ((EFI_D_ERROR, "Fastboot: Couldn't initialise Fastboot Protocol: %r\n", Status));
-		return Status;
-	}
 
 	/* Disable watchdog */
 	Status = gBS->SetWatchdogTimer (0, 0x10000, 0, NULL);
@@ -1506,11 +1513,11 @@ STATIC VOID CmdContinue(
 
 	if (MultiSlotBoot)
 	{
-		FindBootableSlot(BootableSlot, sizeof(BootableSlot));
+		FindBootableSlot(BootableSlot, ARRAY_SIZE(BootableSlot) - 1);
 		if(!BootableSlot[0])
 			return;
 	} else
-		StrnCpyS(BootableSlot, MAX_GPT_NAME_SIZE, L"boot", StrLen(L"boot"));
+		StrnCpyS(BootableSlot, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
 
 	Status = LoadImage(BootableSlot, (VOID**)&ImageBuffer, &ImageSizeActual);
 	if (Status != EFI_SUCCESS)
@@ -1527,7 +1534,7 @@ STATIC VOID CmdContinue(
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, &FbDevInfo, BootableSlot, FALSE);
+	BootLinux(ImageBuffer, ImageSizeActual, BootableSlot, FALSE, FALSE);
 }
 
 STATIC VOID UpdateGetVarVariable()
@@ -1538,8 +1545,8 @@ STATIC VOID UpdateGetVarVariable()
 	BatterySocOk = TargetBatterySocOk(&BatteryVoltage);
 	AsciiSPrint(StrBatteryVoltage, sizeof(StrBatteryVoltage), "%d", BatteryVoltage);
 	AsciiSPrint(StrBatterySocOk, sizeof(StrBatterySocOk), "%a", BatterySocOk ? "yes" : "no");
-	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", FbDevInfo.is_charger_screen_enabled);
-	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", FbDevInfo.is_charger_screen_enabled);
+	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", IsChargingScreenEnable());
+	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", IsChargingScreenEnable());
 }
 
 STATIC VOID WaitForTransferComplete()
@@ -1664,7 +1671,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 
 	FastbootOkay("");
 	FastbootUsbDeviceStop();
-	BootLinux(Data, ImageSizeActual, &FbDevInfo, L"boot", FALSE);
+	BootLinux(Data, ImageSizeActual, L"boot", FALSE, FALSE);
 }
 #endif
 
@@ -1680,28 +1687,16 @@ STATIC VOID CmdRebootBootloader(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 }
 
 #if (defined(ENABLE_DEVICE_CRITICAL_LOCK_UNLOCK_CMDS) || defined(ENABLE_UPDATE_PARTITIONS_CMDS))
-STATIC VOID SetDeviceUnlockValue(UINT32 Type, BOOLEAN Status)
-{
-	if (Type == UNLOCK)
-		FbDevInfo.is_unlocked = Status;
-	else if (Type == UNLOCK_CRITICAL)
-		FbDevInfo.is_unlock_critical = Status;
-
-	ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
-}
-
 STATIC VOID SetDeviceUnlock(UINT32 Type, BOOLEAN State)
 {
 	BOOLEAN is_unlocked = FALSE;
-	EFI_GUID MiscPartGUID = {0x82ACC91F, 0x357C, 0x4A68, {0x9C,0x8F,0x68,0x9E,0x1B,0x1A,0x23,0xA1}};
 	char response[MAX_RSP_SIZE] = {0};
-	struct RecoveryMessage Msg;
 	EFI_STATUS Status;
 
 	if (Type == UNLOCK)
-		is_unlocked = FbDevInfo.is_unlocked;
+		is_unlocked = IsUnlocked();
 	else if (Type == UNLOCK_CRITICAL)
-		is_unlocked = FbDevInfo.is_unlock_critical;
+		is_unlocked = IsUnlockCritical();
 	if (State == is_unlocked)
 	{
 		AsciiSPrint(response, MAX_RSP_SIZE, "\tDevice already : %a", (State ? "unlocked!" : "locked!"));
@@ -1719,16 +1714,12 @@ STATIC VOID SetDeviceUnlock(UINT32 Type, BOOLEAN State)
 		}
 	}
 
-	SetDeviceUnlockValue(Type, State);
-	Status = ResetDeviceState();
+	Status = SetDeviceUnlockValue(Type, State);
 	if (Status != EFI_SUCCESS) {
-		SetDeviceUnlockValue(Type, !State);
-		FastbootFail("Fastboot: Unable to set the Value");
+		AsciiSPrint(response, MAX_RSP_SIZE, "\tSet device %a failed: %r", (State ? "unlocked!" : "locked!"), Status);
+		FastbootFail(response);
 		return;
 	}
-	SetMem((VOID *)&Msg, sizeof(Msg), 0);
-	AsciiStrnCpyS(Msg.recovery, sizeof(Msg.recovery), RECOVERY_WIPE_DATA, AsciiStrLen(RECOVERY_WIPE_DATA));
-	WriteToPartition(&MiscPartGUID, &Msg);
 
 	FastbootOkay("");
 	RebootDevice(RECOVERY_MODE);
@@ -1764,10 +1755,8 @@ STATIC VOID CmdOemEnableChargerScreen(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	EFI_STATUS Status;
 	DEBUG((EFI_D_INFO, "Enabling Charger Screen\n"));
 
-	FbDevInfo.is_charger_screen_enabled = TRUE;
-	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	Status = EnableChargingScreen(TRUE);
 	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error Enabling charger screen, power-off charging will not work: %r\n", Status));
 		FastbootFail("Failed to enable charger screen");
 	} else {
 		FastbootOkay("");
@@ -1779,10 +1768,8 @@ STATIC VOID CmdOemDisableChargerScreen(CONST CHAR8 *Arg, VOID *Data, UINT32 Size
 	EFI_STATUS Status;
 	DEBUG((EFI_D_INFO, "Disabling Charger Screen\n"));
 
-	FbDevInfo.is_charger_screen_enabled = FALSE;
-	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	Status = EnableChargingScreen(FALSE);
 	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error Disabling charger screen: %r\n", Status));
 		FastbootFail("Failed to disable charger screen");
 	} else {
 		FastbootOkay("");
@@ -1794,23 +1781,30 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	CHAR8 *Ptr = NULL;
 	CONST CHAR8 *Delim = " ";
 	EFI_STATUS Status;
+	BOOLEAN IsEnable = FALSE;
 	CHAR8 Resp[MAX_RSP_SIZE] = "Set off mode charger: ";
-
-	AsciiStrnCatS(Resp, sizeof(Resp), Arg, AsciiStrLen(Arg));
 
 	if (Arg) {
 		Ptr = AsciiStrStr(Arg, Delim);
 		if (Ptr) {
 			Ptr++;
-			if (!AsciiStrnCmp(Ptr, "0", 1))
-				FbDevInfo.is_charger_screen_enabled = FALSE;
-			else if (!AsciiStrnCmp(Ptr, "1", 1))
-				FbDevInfo.is_charger_screen_enabled = TRUE;
+			if (!AsciiStrCmp(Ptr, "0"))
+				IsEnable = FALSE;
+			else if (!AsciiStrCmp(Ptr, "1"))
+				IsEnable = TRUE;
+			else {
+				FastbootFail("Invalid input entered");
+				return;
+			}
+		} else {
+			FastbootFail("Enter fastboot oem off-mode-charge 0/1");
+			return;
 		}
 	}
 
+	AsciiStrnCatS(Resp, sizeof(Resp), Arg, AsciiStrLen(Arg));
 	/* update charger_screen_enabled value for getvar command */
-	Status = ReadWriteDeviceInfo(WRITE_CONFIG, &FbDevInfo, sizeof(FbDevInfo));
+	Status = EnableChargingScreen(IsEnable);
 	if (Status != EFI_SUCCESS) {
 		AsciiStrnCatS(Resp, sizeof(Resp), ": failed", AsciiStrLen(": failed"));
 		FastbootFail(Resp);
@@ -1863,16 +1857,16 @@ STATIC VOID CmdOemDevinfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
 	CHAR8      DeviceInfo[MAX_RSP_SIZE];
 
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Verity mode: %a", FbDevInfo.verity_mode ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Verity mode: %a", IsEnforcing() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device unlocked: %a", FbDevInfo.is_unlocked ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device unlocked: %a", IsUnlocked() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device critical unlocked: %a", FbDevInfo.is_unlock_critical ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Device critical unlocked: %a", IsUnlockCritical() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
-	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Charger screen enabled: %a", FbDevInfo.is_charger_screen_enabled ? "true" : "false");
+	AsciiSPrint(DeviceInfo, sizeof(DeviceInfo), "Charger screen enabled: %a", IsChargingScreenEnable() ? "true" : "false");
 	FastbootInfo(DeviceInfo);
 	WaitForTransferComplete();
 	FastbootOkay("");
@@ -1915,10 +1909,18 @@ STATIC EFI_STATUS PublishGetVarPartitionInfo(
 	EFI_HANDLE *Handle = NULL;
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	CHAR16 PartitionNameUniCode[MAX_GPT_NAME_SIZE];
+	CHAR16* CurrentSlot;
+	CHAR8 CurrSlotAscii[MAX_SLOT_SUFFIX_SZ];
 
 	for (i = 0; i < num_parts; i++)
 	{
 		AsciiStrToUnicodeStr(info[i].part_name, PartitionNameUniCode);
+		if (PartitionHasMultiSlot(PartitionNameUniCode)) {
+			CurrentSlot = GetCurrentSlotSuffix();
+			StrnCatS(PartitionNameUniCode, MAX_GPT_NAME_SIZE, CurrentSlot, StrLen(CurrentSlot));
+			UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), CurrSlotAscii);
+			AsciiStrnCatS((CHAR8 *)info[i].part_name, MAX_GET_VAR_NAME_SIZE, CurrSlotAscii, MAX_SLOT_SUFFIX_SZ);
+		}
 		Status = PartitionGetInfo(PartitionNameUniCode, &BlockIo, &Handle);
 		if (Status != EFI_SUCCESS)
 			return Status;
@@ -1992,8 +1994,9 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	)
 {
 	EFI_STATUS Status;
-	CHAR8      HWPlatformBuf[MAX_RSP_SIZE];
-	CHAR8      DeviceType[MAX_RSP_SIZE];
+	CHAR8      HWPlatformBuf[MAX_RSP_SIZE] = "\0";
+	CHAR8      DeviceType[MAX_RSP_SIZE] = "\0";
+	CHAR8      VersionTemp[MAX_VERSION_LEN] = "\0";
 	BOOLEAN    BatterySocOk = FALSE;
 	UINT32     BatteryVoltage = 0;
 
@@ -2003,14 +2006,6 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 	/* Find all Software Partitions in the User Partition */
 	UINT32 i;
-
-	// Read Device Info
-	Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&FbDevInfo, sizeof(FbDevInfo));
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Status));
-		return Status;
-	}
 
 	struct FastbootCmdDesc cmd_list[] =
 	{
@@ -2066,9 +2061,6 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	FastbootPublishVar("product", FullProduct);
 	FastbootPublishVar("serial", StrSerialNum);
 	FastbootPublishVar("secure", IsSecureBootEnabled()? "yes":"no");
-	Status = PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
-	if (Status != EFI_SUCCESS)
-		DEBUG((EFI_D_ERROR, "Partition Table info is not populated\n"));
 	if (MultiSlotBoot)
 	{
 		/*Find ActiveSlot, bydefault _a will be the active slot
@@ -2081,22 +2073,28 @@ STATIC EFI_STATUS FastbootCommandSetup(
 		DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
 	}
 
+	Status = PublishGetVarPartitionInfo(part_info, sizeof(part_info)/sizeof(part_info[0]));
+	if (Status != EFI_SUCCESS)
+		DEBUG((EFI_D_ERROR, "Partition Table info is not populated\n"));
 	BoardHwPlatformName(HWPlatformBuf, sizeof(HWPlatformBuf));
 	GetRootDeviceType(DeviceType, sizeof(DeviceType));
 	AsciiSPrint(StrVariant, sizeof(StrVariant), "%a %a", HWPlatformBuf, DeviceType);
 	FastbootPublishVar("variant", StrVariant);
-	FastbootPublishVar("version-bootloader", FbDevInfo.bootloader_version);
-	FastbootPublishVar("version-baseband", FbDevInfo.radio_version);
+	GetBootloaderVersion(VersionTemp, sizeof(VersionTemp));
+	FastbootPublishVar("version-bootloader", VersionTemp);
+	ZeroMem(VersionTemp, sizeof(VersionTemp));
+	GetRadioVersion(VersionTemp, sizeof(VersionTemp));
+	FastbootPublishVar("version-baseband", VersionTemp);
 	BatterySocOk = TargetBatterySocOk(&BatteryVoltage);
 	AsciiSPrint(StrBatteryVoltage, sizeof(StrBatteryVoltage), "%d", BatteryVoltage);
 	FastbootPublishVar("battery-voltage", StrBatteryVoltage);
 	AsciiSPrint(StrBatterySocOk, sizeof(StrBatterySocOk), "%a", BatterySocOk ? "yes" : "no");
 	FastbootPublishVar("battery-soc-ok", StrBatterySocOk);
-	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", FbDevInfo.is_charger_screen_enabled);
+	AsciiSPrint(ChargeScreenEnable, sizeof(ChargeScreenEnable), "%d", IsChargingScreenEnable());
 	FastbootPublishVar("charger-screen-enabled", ChargeScreenEnable);
-	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", FbDevInfo.is_charger_screen_enabled);
+	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", IsChargingScreenEnable());
 	FastbootPublishVar("off-mode-charge", ChargeScreenEnable);
-	FastbootPublishVar("unlocked", FbDevInfo.is_unlocked ? "yes":"no");
+	FastbootPublishVar("unlocked", IsUnlocked() ? "yes":"no");
 
 	/* Register handlers for the supported commands*/
 	UINT32 FastbootCmdCnt = sizeof(cmd_list)/sizeof(cmd_list[0]);

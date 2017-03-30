@@ -43,12 +43,18 @@ static struct dt_entry_node *dt_entry_list_init(VOID)
 	dt_node_member = (struct dt_entry_node *)
 		AllocatePool(sizeof(struct dt_entry_node));
 
-	ASSERT(dt_node_member);
+	if (!dt_node_member) {
+		DEBUG((EFI_D_ERROR, "Failed to allocate memory for dt_node_member\n"));
+		return NULL;
+	}
 
 	list_clear_node(&dt_node_member->node);
 	dt_node_member->dt_entry_m = (struct dt_entry *)
 		AllocatePool(sizeof(struct dt_entry));
-	ASSERT(dt_node_member->dt_entry_m);
+	if (!dt_node_member->dt_entry_m) {
+		DEBUG((EFI_D_ERROR, "Failed to allocate memory for dt_node_member->dt_entry_m\n"));
+		return NULL;
+	}
 
 	memset(dt_node_member->dt_entry_m ,0 ,sizeof(struct dt_entry));
 	return dt_node_member;
@@ -68,7 +74,7 @@ static VOID dt_entry_list_delete(struct dt_entry_node *dt_node_member)
 	}
 }
 
-static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node *dtb_list)
+static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node *dtb_list)
 {
 	int root_offset;
 	const VOID *prop = NULL;
@@ -100,7 +106,10 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 	prop = fdt_getprop(dtb, root_offset, "model", &len);
 	if (prop && len > 0) {
 		model = (char *) AllocatePool(sizeof(char) * len);
-		ASSERT(model);
+		if (!model) {
+			DEBUG((EFI_D_ERROR, "Failed to allocate memory for model\n"));
+			return FALSE;
+		}
 		AsciiStrnCpyS(model, (sizeof(CHAR8)* len), prop, len);
 	} else {
 		DEBUG ((EFI_D_ERROR, "model does not exist in device tree\n"));
@@ -151,12 +160,22 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 		 *  If we are using dtb v2.0, then we have split board & msmdata in the DTB
 		 */
 		board_data = (struct board_id *) AllocatePool(sizeof(struct board_id) * (len_board_id / BOARD_ID_SIZE));
-		ASSERT(board_data);
+		if (!board_data) {
+			DEBUG((EFI_D_ERROR, "Failed to allocate memory for board_data\n"));
+			return FALSE;
+		}
+
 		platform_data = (struct plat_id *) AllocatePool(sizeof(struct plat_id) * (len_plat_id / PLAT_ID_SIZE));
-		ASSERT(platform_data);
+		if (!platform_data) {
+			DEBUG((EFI_D_ERROR, "Failed to allocate memory for platform_data\n"));
+			return FALSE;
+		}
 		if (dtb_ver == DEV_TREE_VERSION_V3) {
 			pmic_data = (struct pmic_id *) AllocatePool(sizeof(struct pmic_id) * (len_pmic_id / PMIC_ID_SIZE));
-			ASSERT(pmic_data);
+			if (!pmic_data) {
+				DEBUG((EFI_D_ERROR, "Failed to allocate memory for pmic_data\n"));
+				return FALSE;
+			}
 		}
 		i = 0;
 
@@ -222,7 +241,10 @@ static int DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_node
 			}
 
 			dt_entry_array = (struct dt_entry*) AllocatePool(sizeof(struct dt_entry) * num_entries);
-			ASSERT(dt_entry_array);
+			if (!dt_entry_array) {
+				DEBUG((EFI_D_ERROR, "Failed to allocate memory for dt_entry_array\n"));
+				return FALSE;
+			}
 
 			/* If we have '<X>; <Y>; <Z>' as platform data & '<A>; <B>; <C>' as board data.
 			 * Then dt entry should look like
@@ -360,7 +382,9 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 			break;
 		dtb_size = fdt_totalsize(&dtb_hdr);
 
-		DeviceTreeCompatible(dtb, dtb_size, dt_entry_queue);
+		if (!DeviceTreeCompatible(dtb, dtb_size, dt_entry_queue)) {
+			DEBUG((EFI_D_VERBOSE, "Error while DTB parse continue with next DTB\n"));
+		}
 
 		/* goto the next device tree if any */
 		dtb += dtb_size;
@@ -489,12 +513,17 @@ STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_e
 			(cur_dt_hw_subtype == BoardPlatformSubType()) &&
 			(cur_dt_entry->soc_rev <= BoardPlatformChipVersion()) &&
 			((cur_dt_entry->variant_id & 0x00ffff00) <= (BoardTargetId() & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[0] & 0x00ffff00) <= (BoardPmicTarget(0) & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[1] & 0x00ffff00) <= (BoardPmicTarget(1) & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[2] & 0x00ffff00) <= (BoardPmicTarget(2) & 0x00ffff00)) &&
-			((cur_dt_entry->pmic_rev[3] & 0x00ffff00) <= (BoardPmicTarget(3) & 0x00ffff00))) {
+			(cur_dt_entry->pmic_rev[0] <= BoardPmicTarget(0)) &&
+			(cur_dt_entry->pmic_rev[1] <= BoardPmicTarget(1)) &&
+			(cur_dt_entry->pmic_rev[2] <= BoardPmicTarget(2)) &&
+			(cur_dt_entry->pmic_rev[3] <= BoardPmicTarget(3))) {
 
 		dt_node_tmp = dt_entry_list_init();
+		if (!dt_node_tmp) {
+			DEBUG((EFI_D_ERROR, "dt_node_tmp is NULL\n"));
+			return 0;
+		}
+
 		CopyMem((VOID *)dt_node_tmp->dt_entry_m,(VOID *)cur_dt_entry, sizeof(struct dt_entry));
 
 		DEBUG((EFI_D_VERBOSE, "Add DTB entry 0x%x/%08x/0x%08x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x\n",
@@ -642,20 +671,20 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 				board_info = BoardTargetId() & 0x00ffff00;
 				break;
 			case DTB_PMIC0:
-				current_info =((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00);
-				board_info = BoardPmicTarget(0) & 0x00ffff00;
+				current_info =dt_node_tmp1->dt_entry_m->pmic_rev[0];
+				board_info = BoardPmicTarget(0);
 				break;
 			case DTB_PMIC1:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[1]) & 0x00ffff00);
-				board_info = BoardPmicTarget(1) & 0x00ffff00;
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[1];
+				board_info = BoardPmicTarget(1);
 				break;
 			case DTB_PMIC2:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[2]) & 0x00ffff00);
-				board_info = BoardPmicTarget(2) & 0x00ffff00;
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[2];
+				board_info = BoardPmicTarget(2);
 				break;
 			case DTB_PMIC3:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[3]) & 0x00ffff00);
-				board_info = BoardPmicTarget(3) & 0x00ffff00;
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[3];
+				board_info = BoardPmicTarget(3);
 				break;
 			default:
 				DEBUG((EFI_D_ERROR, "ERROR: Unsupported version (%d) in dt node check \n",
@@ -697,16 +726,16 @@ int update_dtb_entry_node(struct dt_entry_node *dt_list, UINT32 dtb_info) {
 				current_info = ((dt_node_tmp1->dt_entry_m->variant_id) & 0x00ffff00);
 				break;
 			case DTB_PMIC0:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[0]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[0];
 				break;
 			case DTB_PMIC1:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[1]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[1];
 				break;
 			case DTB_PMIC2:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[2]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[2];
 				break;
 			case DTB_PMIC3:
-				current_info = ((dt_node_tmp1->dt_entry_m->pmic_rev[3]) & 0x00ffff00);
+				current_info = dt_node_tmp1->dt_entry_m->pmic_rev[3];
 				break;
 			default:
 				DEBUG((EFI_D_ERROR, "ERROR: Unsupported version (%d) in dt node check \n",
