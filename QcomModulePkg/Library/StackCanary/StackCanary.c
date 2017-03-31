@@ -33,12 +33,6 @@ UINTN  __stack_chk_guard = 0xc0c0c0c0;
 
 VOID StackGuardChkSetup()
 {
-	// Temporarily disable with new CLANG version
-	//
-	// ABI mismatch with XBL on some of the RNG calls
-	// leading to stack corruption of this function's
-	// stack when setting up a random stack canary!
-#if 0
 	EFI_QCOM_RNG_PROTOCOL *RngIf;
 	EFI_STATUS Status;
 	EFI_GUID AlgoId;
@@ -61,7 +55,6 @@ VOID StackGuardChkSetup()
 		DEBUG((EFI_D_ERROR, "Error getting PRNG random number, using default canary: %r\n", Status));
 		return;
 	}
-#endif
 }
 
 /*
