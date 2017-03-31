@@ -1044,6 +1044,7 @@ STATIC VOID CmdFlash(
 	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
 	BOOLEAN BootPtnUpdated = FALSE;
+	UINT32 UfsBootLun = 0;
 
 	if (mDataBuffer == NULL)
 	{
@@ -1121,6 +1122,13 @@ STATIC VOID CmdFlash(
 				/*Check for multislot boot support*/
 				MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 				if (MultiSlotBoot) {
+
+					UfsGetSetBootLun(&UfsBootLun, TRUE); /* True = Get */
+					if (UfsBootLun != 0x1) {
+						UfsBootLun = 0x1;
+						UfsGetSetBootLun(&UfsBootLun, FALSE); /* False = Set */
+					}
+
 					FindPtnActiveSlot();
 					PopulateMultislotMetadata();
 					DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
