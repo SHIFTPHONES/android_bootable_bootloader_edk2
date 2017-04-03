@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -118,13 +118,21 @@ int decompress(unsigned char *in_buf, unsigned int in_len,
 		goto gunzip_end;
 	}
 
-	rc = inflate(stream, 0);
-	/* Z_STREAM_END is "we unpacked it all" */
-	if (rc == Z_STREAM_END) {
-		rc = 0;
-	} else if (rc != Z_OK) {
-		DEBUG((EFI_D_ERROR, "uncompression error \n"));
+/* If inflate() returns
+ * Z_OK and with zero avail_out: O/P buffer is full
+ * Z_STREAM_END: we uncompressed it all
+ */
+	rc = inflate(stream, Z_NO_FLUSH);
+	if (stream->avail_out == 0 && rc == Z_OK) {
 		rc = -1;
+		DEBUG((EFI_D_ERROR, "Error in decompression: Output buffer full\n"));
+		goto gunzip_end;
+	} else if (rc == Z_STREAM_END) {
+		rc = 0;
+	} else {
+		DEBUG((EFI_D_ERROR, "Error in decompression: Something went wrong while decompression\n"));
+		rc = -1;
+		goto gunzip_end;
 	}
 
 	inflateEnd(stream);
