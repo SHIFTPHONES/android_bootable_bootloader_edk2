@@ -531,32 +531,34 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		}
 
-		if (MultiSlotBoot && !AsciiStrStr(CmdLine, "root=")) {
-			/* Slot suffix */
-			Src = AndroidSlotSuffix;
-			if (HaveCmdLine) --Dst;
-			STR_COPY(Dst,Src);
-			--Dst;
+		if (HaveCmdLine) {
+			if (MultiSlotBoot && !AsciiStrStr(CmdLine, "root=")) {
+				/* Slot suffix */
+				Src = AndroidSlotSuffix;
+				--Dst;
+				STR_COPY(Dst,Src);
+				--Dst;
 
-			UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), SlotSuffixAscii);
-			Src = SlotSuffixAscii;
-			STR_COPY(Dst,Src);
+				UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), SlotSuffixAscii);
+				Src = SlotSuffixAscii;
+				STR_COPY(Dst,Src);
 
-			/* Skip Initramfs*/
-			if (!Recovery) {
-				Src = SkipRamFs;
-				if (HaveCmdLine) --Dst;
+				/* Skip Initramfs*/
+				if (!Recovery) {
+					Src = SkipRamFs;
+					--Dst;
+					STR_COPY(Dst, Src);
+				}
+
+				/*Add Multi slot command line suffix*/
+				Src = MultiSlotCmdSuffix;
+				--Dst;
+				STR_COPY(Dst, Src);
+
+				Src = SystemPath;
+				--Dst;
 				STR_COPY(Dst, Src);
 			}
-
-			/*Add Multi slot command line suffix*/
-			Src = MultiSlotCmdSuffix;
-			if (HaveCmdLine) --Dst;
-			STR_COPY(Dst, Src);
-
-			Src = SystemPath;
-			if (HaveCmdLine) --Dst;
-			STR_COPY(Dst, Src);
 		}
 	}
 
