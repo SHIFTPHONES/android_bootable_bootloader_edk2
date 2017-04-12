@@ -134,6 +134,16 @@ STATIC struct GetVarSlotInfo *BootSlotInfo = NULL;
 STATIC CHAR8 SlotSuffixArray[SLOT_SUFFIX_ARRAY_SIZE];
 STATIC CHAR8 CurrentSlotFB[MAX_SLOT_SUFFIX_SZ];
 
+/*Note: This needs to be used only when Slot already has prefix "_" */
+#define SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(Slot) \
+	do { \
+		int i = 0;   \
+		do {        \
+			Slot[i] = Slot[i+1]; \
+			i++; \
+		} while(i < MAX_SLOT_SUFFIX_SZ-1); \
+	} while(0);
+
 /*This variable is used to skip populating the FastbootVar
  * When PopulateMultiSlotInfo called while flashing each Lun
  */
@@ -343,7 +353,7 @@ STATIC VOID FastbootPublishSlotVars() {
 		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
 
 		if(!(AsciiStrnCmp(PartitionNameAscii,"boot",AsciiStrLen("boot")))) {
-			Suffix = PartitionNameAscii + AsciiStrLen("boot");
+			Suffix = PartitionNameAscii + AsciiStrLen("boot_");
 
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuffix, MAX_SLOT_SUFFIX_SZ, Suffix, AsciiStrLen(Suffix));
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVar, SLOT_ATTR_SIZE, "slot-successful:", AsciiStrLen("slot-successful:"));
@@ -368,6 +378,9 @@ STATIC VOID FastbootPublishSlotVars() {
 	}
 	FastbootPublishVar("has-slot:boot","yes");
 	UnicodeStrToAsciiStr(GetCurrentSlotSuffix(),CurrentSlotFB);
+	if (AsciiStrStr(CurrentSlotFB, "_")) {
+		SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
+	}
 	FastbootPublishVar("current-slot", CurrentSlotFB);
 	FastbootPublishVar("has-slot:system",PartitionHasMultiSlot(L"system") ? "yes" : "no");
 	FastbootPublishVar("has-slot:modem",PartitionHasMultiSlot(L"modem") ? "yes" : "no");
@@ -1246,11 +1259,13 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	struct PartitionEntry *PartEntriesPtr = NULL;
 	CHAR8 *InputSlot = NULL;
 	CHAR16 InputSlotInUnicode[MAX_SLOT_SUFFIX_SZ];
+	CHAR16 InputSlotInUnicodetemp[MAX_SLOT_SUFFIX_SZ];
 	CONST CHAR8 *Delim = ":";
 	UINT16 j = 0;
 	BOOLEAN SlotVarUpdateComplete = FALSE;
 	CHAR16 SlotSuffixUnicode[MAX_SLOT_SUFFIX_SZ];
 	UINT32 PartitionCount =0;
+	UINT32 SlotEnd = 0;
 	BOOLEAN SwitchSlot = FALSE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 
@@ -1273,14 +1288,23 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	InputSlot = AsciiStrStr(Arg, Delim);
 	if (InputSlot) {
 		InputSlot++;
-		AsciiStrToUnicodeStr(InputSlot, InputSlotInUnicode);
+		if (!AsciiStrStr(InputSlot, "_")) {
+			AsciiStrToUnicodeStr(InputSlot, InputSlotInUnicodetemp);
+			StrnCpyS(InputSlotInUnicode, MAX_SLOT_SUFFIX_SZ, L"_", StrLen(L"_"));
+			StrnCatS(InputSlotInUnicode, MAX_SLOT_SUFFIX_SZ, InputSlotInUnicodetemp, StrLen(InputSlotInUnicodetemp));
+		} else {
+			AsciiStrToUnicodeStr(InputSlot, InputSlotInUnicode);
+		}
 		if (StrnCmp(GetCurrentSlotSuffix(), InputSlotInUnicode, StrLen(InputSlotInUnicode)))
 			SwitchSlot = TRUE;
 
-		if((InputSlot[MAX_SLOT_SUFFIX_SZ-1] != 0) || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
-			DEBUG((EFI_D_ERROR,"%a Invalid InputSlot Suffix\n",InputSlot));
-			FastbootFail("Invalid Slot Suffix");
-			return;
+		if ((AsciiStrLen(InputSlot) == MAX_SLOT_SUFFIX_SZ-2) || (AsciiStrLen(InputSlot) == MAX_SLOT_SUFFIX_SZ-1) ) {
+			SlotEnd = AsciiStrLen(InputSlot);
+			if((InputSlot[SlotEnd] != 0) || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
+				DEBUG((EFI_D_ERROR,"%a Invalid InputSlot Suffix\n",InputSlot));
+				FastbootFail("Invalid Slot Suffix");
+				return;
+			}
 		}
 		/*Arg will be either _a or _b, so apppend it to boot*/
 		StrnCatS(SetActive, MAX_GPT_NAME_SIZE - 1, InputSlotInUnicode, StrLen(InputSlotInUnicode));
@@ -1306,7 +1330,10 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 				| PART_ATT_MAX_RETRY_COUNT_VAL) & (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
 
 				AsciiStrnCpyS(CurrentSlotFB, MAX_SLOT_SUFFIX_SZ, InputSlot, AsciiStrLen(InputSlot));
-				AsciiStrToUnicodeStr(InputSlot, SlotSuffixUnicode);
+				if (AsciiStrStr(CurrentSlotFB, "_")) {
+					SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
+				}
+				StrnCpyS(SlotSuffixUnicode, MAX_SLOT_SUFFIX_SZ, InputSlotInUnicode, StrLen(InputSlotInUnicode));
 				SetCurrentSlotSuffix(SlotSuffixUnicode);
 			}
 			else
