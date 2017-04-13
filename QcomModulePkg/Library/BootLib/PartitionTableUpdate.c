@@ -190,6 +190,8 @@ VOID UpdatePartitionAttributes()
 	UINT32 MaxHandles = MAX_HANDLEINF_LST_SIZE;
 	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 	UINT32 PartEntriesblocks = 0;
+	BOOLEAN SkipUpdation;
+	UINT64 Attr;
 
 	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
 	for( Lun = 0; Lun < MaxLuns; Lun++) {
@@ -230,8 +232,8 @@ VOID UpdatePartitionAttributes()
 		GptHdrPtr = GptHdr;
 
 		/* This loop iterates twice to update both primary and backup Gpt*/
-		for (Iter= 0; Iter < 2; Iter++) {
-
+		for (Iter= 0; Iter < 2; Iter++, (Offset = CardSizeSec - MaxGptPartEntrySzBytes/BlkSz)) {
+			SkipUpdation = TRUE;
 			Status = BlockIo->ReadBlocks (BlockIo, BlockIo->Media->MediaId, Offset, MaxGptPartEntrySzBytes, GptHdr);
 
 			if(EFI_ERROR(Status)) {
@@ -264,12 +266,20 @@ VOID UpdatePartitionAttributes()
 					if (PtnEntries[i].lun != Lun)
 						continue;
 				}
-				/* Update the partition attributes  and partiton GUID values */
-				PUT_LONG_LONG(&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET], PtnEntries[i].PartEntry.Attributes);
-				CopyMem((VOID *)PtnEntriesPtr, (VOID *)&PtnEntries[i].PartEntry.PartitionTypeGUID, GUID_SIZE);
+				Attr = GET_LLWORD_FROM_BYTE(&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET]);
+				if(Attr != PtnEntries[i].PartEntry.Attributes) {
+					/* Update the partition attributes  and partiton GUID values */
+					PUT_LONG_LONG(&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET], PtnEntries[i].PartEntry.Attributes);
+					CopyMem((VOID *)PtnEntriesPtr, (VOID *)&PtnEntries[i].PartEntry.PartitionTypeGUID, GUID_SIZE);
+					SkipUpdation = FALSE;
+				}
+
 				/* point to the next partition entry */
 				PtnEntriesPtr += PARTITION_ENTRY_SIZE;
 			}
+
+			if(SkipUpdation)
+				continue;
 
 			MaxPtnCount = GET_LWORD_FROM_BYTE(&GptHdr[PARTITION_COUNT_OFFSET]);
 			PtnEntrySz =  GET_LWORD_FROM_BYTE(&GptHdr[PENTRY_SIZE_OFFSET]);
@@ -305,8 +315,6 @@ VOID UpdatePartitionAttributes()
 				DEBUG((EFI_D_ERROR, "Error writing primary GPT header: %r\n", Status));
 				return;
 			}
-
-			Offset = CardSizeSec - MaxGptPartEntrySzBytes/BlkSz;
 		}
 		FreePool(GptHdrPtr);
 	}
