@@ -1916,6 +1916,9 @@ STATIC VOID AcceptCmd(
 	)
 {
 	FASTBOOT_CMD *cmd;
+	UINT32  BatteryVoltage = 0;
+	STATIC BOOLEAN IsFirstEraseFlash;
+
 	if (!Data)
 	{
 		FastbootFail("Invalid input command");
@@ -1925,6 +1928,28 @@ STATIC VOID AcceptCmd(
 		Size = MAX_FASTBOOT_COMMAND_SIZE;
 	Data[Size] = '\0';
 	DEBUG((EFI_D_INFO, "Handling Cmd: %a\n", Data));
+
+	if (FixedPcdGetBool(EnableBatteryVoltageCheck)) {
+		/* Check battery voltage before erase or flash image
+		 * It gets partition type once when to flash or erase image,
+		 * for sparse image, it calls flash command more than once, it's
+		 * no need to check the battery voltage at every time, it's risky
+		 * to stop the update when the image is half-flashed.
+		 */
+		if (IsFirstEraseFlash) {
+			if (!AsciiStrnCmp(Data, "erase", AsciiStrLen("erase")) ||
+				!AsciiStrnCmp(Data, "flash", AsciiStrLen("flash"))) {
+				if (!TargetBatterySocOk(&BatteryVoltage)) {
+					DEBUG((EFI_D_VERBOSE,"fastboot: battery voltage: %d\n", BatteryVoltage));
+					FastbootFail("Warning: battery's capacity is very low\n");
+					return;
+				}
+				IsFirstEraseFlash = FALSE;
+			}
+		} else if (!AsciiStrnCmp(Data, "getvar:partition-type", AsciiStrLen("getvar:partition-type"))) {
+			IsFirstEraseFlash = TRUE;
+		}
+	}
 
 	for (cmd = cmdlist; cmd; cmd = cmd->next)
 	{
