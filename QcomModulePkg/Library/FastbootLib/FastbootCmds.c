@@ -1045,6 +1045,7 @@ STATIC VOID CmdFlash(
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
 	BOOLEAN BootPtnUpdated = FALSE;
 	UINT32 UfsBootLun = 0;
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 	if (mDataBuffer == NULL)
 	{
@@ -1085,6 +1086,14 @@ STATIC VOID CmdFlash(
 	}
 
 	if (!StrnCmp(PartitionName, L"partition", StrLen(L"partition"))) {
+		GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+		if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
+			UfsGetSetBootLun(&UfsBootLun, TRUE); /* True = Get */
+			if (UfsBootLun != 0x1) {
+				UfsBootLun = 0x1;
+				UfsGetSetBootLun(&UfsBootLun, FALSE); /* False = Set */
+			}
+		}
 		DEBUG((EFI_D_INFO, "Attemping to update partition table\n"));
 		DEBUG((EFI_D_INFO, "*************** Current partition Table Dump Start *******************\n"));
 		PartitionDump();
@@ -1122,13 +1131,6 @@ STATIC VOID CmdFlash(
 				/*Check for multislot boot support*/
 				MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 				if (MultiSlotBoot) {
-
-					UfsGetSetBootLun(&UfsBootLun, TRUE); /* True = Get */
-					if (UfsBootLun != 0x1) {
-						UfsBootLun = 0x1;
-						UfsGetSetBootLun(&UfsBootLun, FALSE); /* False = Set */
-					}
-
 					FindPtnActiveSlot();
 					PopulateMultislotMetadata();
 					DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
