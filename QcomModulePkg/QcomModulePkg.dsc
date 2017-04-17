@@ -65,6 +65,7 @@
   UefiApplicationEntryPoint|MdePkg/Library/UefiApplicationEntryPoint/UefiApplicationEntryPoint.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   FdtLib|EmbeddedPkg/Library/FdtLib/FdtLib.inf
+  LibUfdt|EmbeddedPkg/Library/LibUfdt/LibUfdt.inf
   EfiFileLib|EmbeddedPkg/Library/EfiFileLib/EfiFileLib.inf
   EblNetworkLib|EmbeddedPkg/Library/EblNetworkLib/EblNetworkLib.inf
   TimerLib|ArmPkg/Library/ArmArchTimerLib/ArmArchTimerLib.inf
@@ -120,6 +121,7 @@
 	QcomModulePkg/Application/LinuxLoader/LinuxLoader.inf {
 		<LibraryClasses>
 			FdtLib|EmbeddedPkg/Library/FdtLib/FdtLib.inf
+			LibUfdt|EmbeddedPkg/Library/LibUfdt/LibUfdt.inf
 			ArmSmcLib|ArmPkg/Library/ArmSmcLib/ArmSmcLib.inf
 			BootLib|QcomModulePkg/Library/BootLib/BootLib.inf
 			StackCanary|QcomModulePkg/Library/StackCanary/StackCanary.inf

@@ -1,10 +1,11 @@
 #include "libufdt_sysdeps.h"
+#define EFI_DTBO_ERROR -1
 
+#if INCLUDE_PLATFORM_HDRS
 #include <debug.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-
 int dto_print(const char *fmt, ...) {
   int err;
 
@@ -15,7 +16,11 @@ int dto_print(const char *fmt, ...) {
 
   return err;
 }
+#endif
 
+int dto_print(const char *fmt, ...) {
+  return EFI_DTBO_ERROR;
+}
 /* Codes from
  * https://android.googlesource.com/platform/bionic.git/+/eclair-release/libc/stdlib/qsort.c
  * Start

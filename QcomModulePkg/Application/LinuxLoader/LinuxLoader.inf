@@ -49,6 +49,7 @@
 	PerformanceLib
 	DebugPrintErrorLevelLib
 	FdtLib
+	LibUfdt
 	TimerLib
 	BootLib
 	StackCanary
