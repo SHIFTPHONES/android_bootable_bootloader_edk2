@@ -227,7 +227,7 @@ UINT32 GetSystemPath(CHAR8 **SysPath)
 	INT32 Index;
 	UINT32 Lun;
 	CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
-	CHAR16* CurSlotSuffix = GetCurrentSlotSuffix();
+	Slot CurSlot = GetCurrentSlotSuffix();
 	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 	CHAR8 RootDevStr[BOOT_DEV_NAME_SIZE_MAX];
 
@@ -238,7 +238,7 @@ UINT32 GetSystemPath(CHAR8 **SysPath)
 	}
 
 	StrnCpyS(PartitionName, StrLen(L"system") + 1, L"system", StrLen(L"system"));
-	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE - 1, CurSlotSuffix, StrLen(CurSlotSuffix));
+	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE - 1, CurSlot.Suffix, StrLen(CurSlot.Suffix));
 
 	Index = GetPartitionIndex(PartitionName);
 	if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
@@ -483,7 +483,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 				STR_COPY(Dst,Src);
 				--Dst;
 
-				UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), SlotSuffixAscii);
+				UnicodeStrToAsciiStr(GetCurrentSlotSuffix().Suffix, SlotSuffixAscii);
 				Src = SlotSuffixAscii;
 				STR_COPY(Dst,Src);
 

@@ -460,7 +460,7 @@ out:
 			avb_free(VBData);
 		}
 		Info->BootState = RED;
-		/* HandleActiveSlotUnbootable(); */
+		HandleActiveSlotUnbootable();
 		/* HandleActiveSlotUnbootable should have swapped slots and
 		* reboot the
 		* device. If no bootable slot found, enter fastboot */
@@ -538,14 +538,18 @@ EFI_STATUS LoadImageAndAuth(BootInfo *Info)
 			         StrLen(L"boot"));
 		}
 	} else {
-		FindBootableSlot(Info->BootableSlot,
-		                 ARRAY_SIZE(Info->BootableSlot) - 1);
-		if (!Info->BootableSlot[0]) {
+		Slot CurrentSlot = {{0}};
+
+		GUARD(FindBootableSlot(&CurrentSlot));
+		if (IsSuffixEmpty(&CurrentSlot)) {
 			DEBUG((EFI_D_ERROR, "No bootable slot\n"));
 			return EFI_LOAD_ERROR;
 		}
-		StrnCpyS(Info->Pname, ARRAY_SIZE(Info->Pname),
-		         Info->BootableSlot, StrLen(Info->BootableSlot));
+
+		GUARD(StrnCpyS(Info->Pname, ARRAY_SIZE(Info->Pname), L"boot",
+		               StrLen(L"boot")));
+		GUARD(StrnCatS(Info->Pname, ARRAY_SIZE(Info->Pname),
+		               CurrentSlot.Suffix, StrLen(CurrentSlot.Suffix)));
 	}
 
 	DEBUG((EFI_D_VERBOSE, "MultiSlot %a, partition name %s\n",
