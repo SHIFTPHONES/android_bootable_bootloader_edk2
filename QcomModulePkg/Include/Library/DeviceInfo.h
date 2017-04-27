@@ -34,6 +34,8 @@
 #define DEVICE_MAGIC "ANDROID-BOOT!"
 #define DEVICE_MAGIC_SIZE 13
 #define MAX_VERSION_LEN  64
+#define MAX_VB_PARTITIONS 32
+#define MAX_USER_KEY_SIZE 2048
 
 enum unlock_type {
 	UNLOCK = 0,
@@ -49,6 +51,9 @@ typedef struct device_info
 	CHAR8 bootloader_version[MAX_VERSION_LEN];
 	CHAR8 radio_version[MAX_VERSION_LEN];
 	BOOLEAN verity_mode; // TRUE = enforcing, FALSE = logging
+	UINT32 user_public_key_length;
+	CHAR8 user_public_key[MAX_USER_KEY_SIZE];
+	UINT64 rollback_index[MAX_VB_PARTITIONS];
 }DeviceInfo;
 
 struct verified_boot_verity_mode
@@ -73,4 +78,9 @@ EFI_STATUS EnableChargingScreen(BOOLEAN IsEnabled);
 EFI_STATUS EnableEnforcingMode(BOOLEAN IsEnabled);
 EFI_STATUS SetDeviceUnlockValue(UINT32 Type, BOOLEAN State);
 EFI_STATUS DeviceInfoInit();
+EFI_STATUS ReadRollbackIndex(UINT32 Loc, UINT64 *RollbackIndex);
+EFI_STATUS WriteRollbackIndex(UINT32 Loc, UINT64 RollbackIndex);
+EFI_STATUS StoreUserKey(CHAR8 *UserKey, UINT32 UserKeySize);
+EFI_STATUS GetUserKey(CHAR8 **UserKey, UINT32 *UserKeySize);
+EFI_STATUS EraseUserKey();
 #endif
