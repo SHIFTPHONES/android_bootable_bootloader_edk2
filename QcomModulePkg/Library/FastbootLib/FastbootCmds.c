@@ -1080,6 +1080,18 @@ STATIC VOID CmdFlash(
 		}
 	}
 
+	/* Handle virtual partition avb_custom_key */
+	if (!StrnCmp(PartitionName, L"avb_custom_key", StrLen(L"avb_custom_key"))) {
+		DEBUG((EFI_D_INFO, "flashing avb_custom_key\n"));
+		Status = StoreUserKey(data, sz);
+		if (Status != EFI_SUCCESS) {
+			FastbootFail("Flashing avb_custom_key failed");
+		} else {
+			FastbootOkay("");
+		}
+		return;
+	}
+
 	/* Find the lun number from input string */
 	Token = StrStr(PartitionName, L":");
 
@@ -1231,6 +1243,18 @@ STATIC VOID CmdErase(
 			FastbootFail("Erase is not allowed for Critical Partitions\n");
 			return;
 		}
+	}
+
+	/* Handle virtual partition avb_custom_key */
+	if (!StrnCmp(PartitionName, L"avb_custom_key", StrLen(L"avb_custom_key"))) {
+		DEBUG((EFI_D_INFO, "erasing avb_custom_key\n"));
+		Status = EraseUserKey();
+		if (Status != EFI_SUCCESS) {
+			FastbootFail("Erasing avb_custom_key failed");
+		} else {
+			FastbootOkay("");
+		}
+		return;
 	}
 
 	/* In A/B to have backward compatibility user can still give fastboot flash boot/system/modem etc
