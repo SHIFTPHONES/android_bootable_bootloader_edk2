@@ -46,7 +46,6 @@
 #include <Library/PrintLib.h>
 #include <Library/CacheMaintenanceLib.h>
 #include <Library/DrawUI.h>
-#include <Library/VerifiedBoot.h>
 #include <PiDxe.h>
 #include <Protocol/BlockIo.h>
 #include <Protocol/SimpleFileSystem.h>
@@ -69,6 +68,8 @@
 #include "LinuxLoaderLib.h"
 #include "Board.h"
 #include "Recovery.h"
+#include "PartitionTableUpdate.h"
+#include "VerifiedBoot.h"
 
 #define ALIGN32_BELOW(addr)   ALIGN_POINTER(addr - 32,32)
 #define LOCAL_ROUND_TO_PAGE(x,y) (((x) + (y - 1)) & (~(y - 1)))
@@ -76,12 +77,35 @@
 #define ALIGN_PAGES(x,y) (((x) + (y - 1)) / (y))
 #define DECOMPRESS_SIZE_FACTOR 8
 #define ALIGNMENT_MASK_4KB 4096
+#define MAX_NUMBER_OF_LOADED_IMAGES 32
 
 typedef VOID (*LINUX_KERNEL)(UINT64 ParametersBase, UINT64 Reserved0, UINT64 Reserved1, UINT64 Reserved2);
 
-EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName, BOOLEAN Recovery, BOOLEAN AlarmBoot);
+typedef struct {
+	CHAR8 *Name;
+	VOID *ImageBuffer;
+	UINTN ImageSize;
+} ImageData;
+
+typedef struct BootInfo {
+	BOOLEAN MultiSlotBoot;
+	BOOLEAN BootIntoRecovery;
+	BOOLEAN BootReasonAlarm;
+	CHAR16 Pname[MAX_GPT_NAME_SIZE];
+	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
+	ImageData Images[MAX_NUMBER_OF_LOADED_IMAGES];
+	UINTN NumLoadedImages;
+	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
+	boot_state_t BootState;
+	CHAR8 *VBCmdLine;
+	UINT32 VBCmdLineLen;
+	UINT32 VBCmdLineFilledLen;
+} BootInfo;
+
+EFI_STATUS BootLinux(BootInfo *Info);
 EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize);
 EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
 BOOLEAN TargetBuildVariantUser();
+EFI_STATUS GetImage(CONST BootInfo *Info, VOID**ImageBuffer, UINTN *ImageSize, CHAR8 *ImageName);
 #endif

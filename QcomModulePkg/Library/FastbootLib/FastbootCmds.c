@@ -1542,23 +1542,12 @@ STATIC VOID CmdContinue(
 	)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
-	VOID* ImageBuffer = NULL;
-	UINT32 ImageSizeActual = 0;
-	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
 	CHAR8 Resp[MAX_RSP_SIZE];
-	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	BootInfo Info = {0};
 
-	if (MultiSlotBoot)
-	{
-		FindBootableSlot(BootableSlot, ARRAY_SIZE(BootableSlot) - 1);
-		if(!BootableSlot[0])
-			return;
-	} else
-		StrnCpyS(BootableSlot, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
-
-	Status = LoadImage(BootableSlot, (VOID**)&ImageBuffer, &ImageSizeActual);
-	if (Status != EFI_SUCCESS)
-	{
+	Info.MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	Status = LoadImageAndAuth(&Info);
+	if (Status != EFI_SUCCESS) {
 		AsciiSPrint(Resp, sizeof(Resp), "Failed to load image from partition: %r", Status);
 		FastbootFail(Resp);
 		return;
@@ -1571,7 +1560,7 @@ STATIC VOID CmdContinue(
 	FastbootUsbDeviceStop();
 	Finished = TRUE;
 	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, BootableSlot, FALSE, FALSE);
+	BootLinux(&Info);
 }
 
 STATIC VOID UpdateGetVarVariable()
@@ -1658,6 +1647,7 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	UINT32 SigActual = SIGACTUAL;
 	CHAR8 Resp[MAX_RSP_SIZE];
 	BOOLEAN MdtpActive = FALSE;
+	BootInfo Info = {0};
 
 	if (FixedPcdGetBool(EnableMdtpSupport)) {
 		Status = IsMdtpActive(&MdtpActive);
@@ -1703,12 +1693,23 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		return;
 	}
 
+	Info.Images[0].ImageBuffer = Data;
+	Info.Images[0].ImageSize = ImageSizeActual;
+	Info.Images[0].Name = "boot";
+	Info.NumLoadedImages = 1;
+	Status = LoadImageAndAuth(&Info);
+	if (Status != EFI_SUCCESS) {
+		AsciiSPrint(Resp, sizeof(Resp), "Failed to load/authenticate boot image: %r", Status);
+		FastbootFail(Resp);
+		return;
+	}
+
 	/* Exit keys' detection firstly */
 	ExitMenuKeysDetection();
 
 	FastbootOkay("");
 	FastbootUsbDeviceStop();
-	BootLinux(Data, ImageSizeActual, L"boot", FALSE, FALSE);
+	BootLinux(&Info);
 }
 #endif
 

@@ -57,7 +57,6 @@ STATIC CONST CHAR8 *AlarmBootCmdLine = " androidboot.alarmboot=true";
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
 STATIC CHAR8 *MultiSlotCmdSuffix = " rootwait ro init=/init";
 STATIC CHAR8 *SkipRamFs = " skip_initramfs";
-STATIC CHAR8 *SystemPath;
 
 /* Assuming unauthorized kernel image by default */
 STATIC UINT32 AuthorizeKernelImage = 0;
@@ -66,24 +65,6 @@ STATIC UINT32 AuthorizeKernelImage = 0;
 #define MAX_DISPLAY_CMD_LINE 256
 CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
 UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
-
-boot_state_t BootState = BOOT_STATE_MAX;
-QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf = NULL;
-STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
-STATIC CONST CHAR8 *VerifiedState = " androidboot.verifiedbootstate=";
-STATIC CONST CHAR8 *KeymasterLoadState = " androidboot.keymaster=1";
-STATIC struct verified_boot_verity_mode VbVm[] =
-{
-	{FALSE, "logging"},
-	{TRUE, "enforcing"},
-};
-STATIC struct verified_boot_state_name VbSn[] =
-{
-	{GREEN, "green"},
-	{ORANGE, "orange"},
-	{YELLOW, "yellow"},
-	{RED, "red"},
-};
 
 /*Function that returns whether the kernel is signed
  *Currently assumed to be signed*/
@@ -241,7 +222,7 @@ VOID GetDisplayCmdline()
 /*
  * Returns length = 0 when there is failure.
  */
-STATIC UINT32 GetSystemPath(CHAR8 **SysPath)
+UINT32 GetSystemPath(CHAR8 **SysPath)
 {
 	INT32 Index;
 	UINT32 Lun;
@@ -291,12 +272,12 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 				CHAR8 *FfbmStr,
 				BOOLEAN Recovery,
 				BOOLEAN AlarmBoot,
+				CONST CHAR8 *VBCmdLine,
 				CHAR8 **FinalCmdLine)
 {
 	EFI_STATUS Status;
 	UINT32 CmdLineLen = 0;
 	UINT32 HaveCmdLine = 0;
-	UINT32 SysPathLength = 0;
 	UINT32 PauseAtBootUp = 0;
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	BOOLEAN MultiSlotBoot;
@@ -326,27 +307,10 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		}
 	}
 
-	if (VerifiedBootEnbled()) {
-		CmdLineLen += AsciiStrLen(VerityMode);
-		CmdLineLen += AsciiStrLen(VbVm[IsEnforcing()].name);
-		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid,
-				     NULL, (VOID **) &VbIntf);
-		if (Status != EFI_SUCCESS) {
-			DEBUG((EFI_D_ERROR, "Unable to locate VerifiedBoot Protocol to update cmdline\n"));
-			return Status;
-		}
-
-		if (VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
-			Status = VbIntf->VBGetBootState(VbIntf, &BootState);
-			if (Status != EFI_SUCCESS) {
-				DEBUG((EFI_D_ERROR, "Failed to read boot state to update cmdline\n"));
-				return Status;
-			}
-			if ((BootState >= GREEN) && (BootState <= RED))
-				CmdLineLen += AsciiStrLen(VerifiedState) +
-						AsciiStrLen(VbSn[BootState].name);
-		}
-		CmdLineLen += AsciiStrLen(KeymasterLoadState);
+	if (VBCmdLine != NULL) {
+		DEBUG((EFI_D_VERBOSE, "UpdateCmdLine VBCmdLine present len %d\n",
+			AsciiStrLen(VBCmdLine)));
+		CmdLineLen += AsciiStrLen(VBCmdLine);
 	}
 
 	CmdLineLen += AsciiStrLen(BootDeviceCmdLine);
@@ -408,11 +372,6 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 
 		if (!Recovery)
 			CmdLineLen += AsciiStrLen(SkipRamFs);
-
-		SysPathLength = GetSystemPath(&SystemPath);
-		if (!SysPathLength)
-			return EFI_NOT_FOUND;
-		CmdLineLen += SysPathLength;
 	}
 
 	GetDisplayCmdline();
@@ -439,24 +398,9 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		}
 
-		if (VerifiedBootEnbled()) {
-			Src = VerityMode;
-			--Dst;
-			STR_COPY(Dst,Src);
-			--Dst;
-			Src = VbVm[IsEnforcing()].name;
-			STR_COPY(Dst,Src);
-			if (VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
-				if ((BootState >= GREEN) && (BootState <= RED)) {
-					Src = VerifiedState;
-					--Dst;
-					STR_COPY(Dst,Src);
-					--Dst;
-					Src = VbSn[BootState].name;
-					STR_COPY(Dst,Src);
-				}
-			}
-			Src = KeymasterLoadState;
+
+		if (VBCmdLine != NULL) {
+			Src = VBCmdLine;
 			if (HaveCmdLine) --Dst;
 			STR_COPY(Dst,Src);
 		}
@@ -552,10 +496,6 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 
 				/*Add Multi slot command line suffix*/
 				Src = MultiSlotCmdSuffix;
-				--Dst;
-				STR_COPY(Dst, Src);
-
-				Src = SystemPath;
 				--Dst;
 				STR_COPY(Dst, Src);
 			}

@@ -48,32 +48,6 @@ STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
 
-// This function would load and authenticate boot/recovery partition based
-// on the partition type from the entry function.
-STATIC EFI_STATUS LoadLinux (CHAR16 *Pname, BOOLEAN MultiSlotBoot,
-	BOOLEAN BootIntoRecovery, BOOLEAN BootReasonAlarm)
-{
-	EFI_STATUS Status = EFI_SUCCESS;
-	VOID* ImageBuffer = NULL;
-	UINT32 ImageSizeActual = 0;
-	CHAR16* CurrentSlot = NULL;
-
-	Status = LoadImage(Pname, (VOID**)&ImageBuffer, &ImageSizeActual);
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "ERROR: Failed to load image from partition: %r\n", Status));
-		return EFI_LOAD_ERROR;
-	}
-
-	if (MultiSlotBoot) {
-		CurrentSlot = GetCurrentSlotSuffix();
-		MarkPtnActive(CurrentSlot);
-	}
-	// call start Linux here
-	BootLinux(ImageBuffer, ImageSizeActual, Pname, BootIntoRecovery, BootReasonAlarm);
-	// would never return here
-	return EFI_ABORTED;
-}
-
 // This function is used to Deactivate MDTP by entering recovery UI
 
 STATIC EFI_STATUS MdtpDisable(VOID)
@@ -137,8 +111,6 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	UINT32 BootReason = NORMAL_MODE;
 	UINT32 KeyPressed;
-	CHAR16 Pname[MAX_GPT_NAME_SIZE];
-	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
 	/* MultiSlot Boot */
 	BOOLEAN MultiSlotBoot;
 
@@ -246,26 +218,17 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 		DEBUG((EFI_D_VERBOSE, "RecoveryInit failed ignore: %r\n", Status));
 
 	if (!BootIntoFastboot) {
-
-		if (MultiSlotBoot) {
-			FindBootableSlot(BootableSlot, ARRAY_SIZE(BootableSlot) - 1);
-			if(!BootableSlot[0])
-				goto fastboot;
-			StrnCpyS(Pname, StrLen(BootableSlot) + 1, BootableSlot, StrLen(BootableSlot));
-		} else {
-
-			if(BootIntoRecovery == TRUE) {
-				DEBUG((EFI_D_INFO, "Booting Into Recovery Mode\n"));
-				StrnCpyS(Pname, StrLen(L"recovery") + 1, L"recovery", StrLen(L"recovery"));
-			} else {
-				DEBUG((EFI_D_INFO, "Booting Into Mission Mode\n"));
-				StrnCpyS(Pname, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
-			}
+		BootInfo Info = {0};
+		Info.MultiSlotBoot = MultiSlotBoot;
+		Info.BootIntoRecovery = BootIntoRecovery;
+		Info.BootReasonAlarm = BootReasonAlarm;
+		Status = LoadImageAndAuth(&Info);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "LoadImageAndAuth failed: %r\n", Status));
+			goto fastboot;
 		}
 
-		Status = LoadLinux(Pname, MultiSlotBoot, BootIntoRecovery, BootReasonAlarm);
-		if (Status != EFI_SUCCESS)
-			DEBUG((EFI_D_ERROR, "Failed to boot Linux, Reverting to fastboot mode\n"));
+		BootLinux(&Info);
 	}
 
 fastboot:
