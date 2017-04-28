@@ -30,6 +30,7 @@
 #define AVB_OPS_H_
 
 #include "avb_sysdeps.h"
+#include <Library/DeviceInfo.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -206,6 +207,16 @@ struct AvbOps {
                                                char* guid_buf,
                                                size_t guid_buf_size);
 };
+
+typedef struct {
+    BOOLEAN IsUserKey;
+    UINTN PublicKeyLen;
+    CHAR8 PublicKey[MAX_USER_KEY_SIZE];
+} AvbOpsUserData;
+
+AvbOps *AvbOpsNew(VOID *UserData);
+
+VOID AvbOpsFree(AvbOps *Ops);
 
 #ifdef __cplusplus
 }

@@ -40,6 +40,7 @@
 #include "avb_kernel_cmdline_descriptor.h"
 #include "avb_ops.h"
 #include "avb_property_descriptor.h"
+#include "avb_sha.h"
 #include "avb_slot_verify.h"
 #include "avb_sysdeps.h"
 #include "avb_util.h"

@@ -501,6 +501,18 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     }
   }
 
+  if (stored_rollback_index < vbmeta_header.rollback_index) {
+    io_ret = ops->write_rollback_index(
+        ops, rollback_index_location, vbmeta_header.rollback_index);
+    if (io_ret != AVB_IO_RESULT_OK) {
+      avb_errorv(full_partition_name,
+                 ": Error storing rollback index for location.\n",
+                 NULL);
+      ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
+      goto out;
+    }
+  }
+
   /* Copy vbmeta to vbmeta_images before recursing. */
   if (is_main_vbmeta) {
     avb_assert(slot_data->num_vbmeta_images == 0);
@@ -964,7 +976,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
                                0 /* expected_public_key_length */,
                                slot_data,
                                &algorithm_type);
-  if (!allow_verification_error && ret != AVB_SLOT_VERIFY_RESULT_OK) {
+  if ((!allow_verification_error && ret != AVB_SLOT_VERIFY_RESULT_OK) ||
+      !result_should_continue(ret)) {
     goto fail;
   }
 

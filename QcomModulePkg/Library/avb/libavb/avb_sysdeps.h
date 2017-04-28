@@ -38,10 +38,19 @@ extern "C" {
  * like uint8_t, uint64_t, and bool (with |false|, |true| keywords)
  * must be present.
  */
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <Base.h>
+
+#define true ((BOOLEAN) (1 == 1))
+#define false ((BOOLEAN) (0 == 1))
+
+typedef BOOLEAN bool;
+typedef UINT8 uint8_t;
+typedef UINT16 uint16_t;
+typedef UINT32 uint32_t;
+typedef UINT64 uint64_t;
+typedef UINTN uintptr_t;
+typedef UINTN size_t;
+typedef INT64 int64_t;
 
 /* If you don't have gcc or clang, these attribute macros may need to
  * be adjusted.
@@ -92,7 +101,7 @@ void avb_print(const char* message);
 void avb_printv(const char* message, ...) AVB_ATTR_SENTINEL;
 
 /* Aborts the program or reboots the device. */
-void avb_abort(void) AVB_ATTR_NO_RETURN;
+void avb_abort(void);
 
 /* Allocates |size| bytes. Returns NULL if no memory is available,
  * otherwise a pointer to the allocated memory.
