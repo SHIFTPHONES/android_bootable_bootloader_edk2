@@ -254,7 +254,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	CHAR8 PnameAscii[MAX_GPT_NAME_SIZE] = {0};
 	CHAR8 *SlotSuffix = NULL;
 	BOOLEAN AllowVerificationError = IsUnlocked();
-	CONST CHAR8 *RequestedPartitionAll[] = {"boot", NULL};
+	CONST CHAR8 *RequestedPartitionAll[] = {"boot", "dtbo", NULL};
 	CONST CHAR8 *CONST *RequestedPartition = NULL;
 	UINTN NumRequestedPartition = 0;
 	UINT32 ImageHdrSize = 0;
