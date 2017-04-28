@@ -41,7 +41,26 @@
 
 
 [Sources]
+   libavb/avb_chain_partition_descriptor.c
+   libavb/avb_crc32.c
+   libavb/avb_crypto.c
+   libavb/avb_descriptor.c
+   libavb/avb_footer.c
+   libavb/avb_hash_descriptor.c
+   libavb/avb_hashtree_descriptor.c
+   libavb/avb_kernel_cmdline_descriptor.c
+   libavb/avb_property_descriptor.c
+   libavb/avb_rsa.c
+   libavb/avb_sha256.c
+   libavb/avb_sha512.c
+   libavb/avb_slot_verify.c
+   libavb/avb_sysdeps.c
+   libavb/avb_util.c
+   libavb/avb_vbmeta_image.c
+   libavb/avb_version.c
+   libavb/avb_ops.c
    VerifiedBoot.c
+   KeymasterClient.c
 
 
 [Packages]
@@ -69,6 +88,7 @@
 
 [Protocols]
 	gQcomQseecomProtocolGuid
+	gEfiPartitionRecordGuid
 
 [FixedPcd]
 	gQcomTokenSpaceGuid.EnableMdtpSupport
