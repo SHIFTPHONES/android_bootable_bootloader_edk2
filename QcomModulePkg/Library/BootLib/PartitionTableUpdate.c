@@ -1088,3 +1088,8 @@ EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct St
 
 	return Status;
 }
+
+BOOLEAN IsCurrentSlotBootable() {
+/* Todo: */
+    return TRUE;
+}

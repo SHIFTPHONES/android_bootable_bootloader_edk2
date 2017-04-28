@@ -1721,6 +1721,8 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	Info.Images[0].ImageSize = ImageSizeActual;
 	Info.Images[0].Name = "boot";
 	Info.NumLoadedImages = 1;
+	Info.MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+
 	Status = LoadImageAndAuth(&Info);
 	if (Status != EFI_SUCCESS) {
 		AsciiSPrint(Resp, sizeof(Resp), "Failed to load/authenticate boot image: %r", Status);

@@ -100,6 +100,7 @@ typedef struct BootInfo {
 	CHAR8 *VBCmdLine;
 	UINT32 VBCmdLineLen;
 	UINT32 VBCmdLineFilledLen;
+	VOID    *VBData;
 } BootInfo;
 
 EFI_STATUS BootLinux(BootInfo *Info);

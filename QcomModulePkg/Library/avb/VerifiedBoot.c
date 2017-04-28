@@ -28,6 +28,8 @@
 
 #include "VerifiedBoot.h"
 #include "BootLinux.h"
+#include "KeymasterClient.h"
+#include "libavb/libavb.h"
 #include <Library/VerifiedBootMenu.h>
 
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
@@ -59,9 +61,17 @@ STATIC struct boolean_string BooleanString[] =
 	{TRUE, "true"}
 };
 
+
+typedef struct {
+	AvbOps *Ops;
+	AvbSlotVerifyData *SlotData;
+} VB2Data;
+
 UINT32 GetAVBVersion()
 {
-#if VERIFIED_BOOT
+#if VERIFIED_BOOT_2
+	return 2;
+#elif VERIFIED_BOOT
 	return 1;
 #else
 	return 0;
@@ -104,6 +114,13 @@ STATIC EFI_STATUS AppendVBCommonCmdLine(BootInfo *Info)
 STATIC EFI_STATUS VBCommonInit(BootInfo *Info)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
+
+	/* AVB 2.0 requires multi slot */
+	if (GetAVBVersion() >= AVB_2 && !Info->MultiSlotBoot) {
+		DEBUG((EFI_D_ERROR, "AVB requires multislot support!\n"));
+		return EFI_LOAD_ERROR;
+	}
+
 	Info->BootState = RED;
 
 	Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid, NULL,
@@ -203,6 +220,231 @@ STATIC EFI_STATUS LoadImageAndAuthVB1(BootInfo *Info)
 	GUARD(AppendVBCommonCmdLine(Info));
 	GUARD(AppendVBCmdLine(Info, SystemPath));
 
+	Info->VBData = NULL;
+	return Status;
+}
+
+STATIC BOOLEAN ResultShouldContinue(AvbSlotVerifyResult Result)
+{
+	switch (Result) {
+	case AVB_SLOT_VERIFY_RESULT_ERROR_OOM:
+	case AVB_SLOT_VERIFY_RESULT_ERROR_IO:
+	case AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA:
+	case AVB_SLOT_VERIFY_RESULT_ERROR_UNSUPPORTED_VERSION:
+		return FALSE;
+
+	case AVB_SLOT_VERIFY_RESULT_OK:
+	case AVB_SLOT_VERIFY_RESULT_ERROR_VERIFICATION:
+	case AVB_SLOT_VERIFY_RESULT_ERROR_ROLLBACK_INDEX:
+	case AVB_SLOT_VERIFY_RESULT_ERROR_PUBLIC_KEY_REJECTED:
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	AvbSlotVerifyResult Result;
+	AvbSlotVerifyData *SlotData = NULL;
+	VB2Data *VBData = NULL;
+	AvbOpsUserData *UserData = NULL;
+	AvbOps *Ops = NULL;
+	CHAR8 PnameAscii[MAX_GPT_NAME_SIZE] = {0};
+	CHAR8 *SlotSuffix = NULL;
+	BOOLEAN AllowVerificationError = IsUnlocked();
+	CONST CHAR8 *RequestedPartitionAll[] = {"boot", NULL};
+	CONST CHAR8 *CONST *RequestedPartition = NULL;
+	UINTN NumRequestedPartition = 0;
+	UINT32 ImageHdrSize = 0;
+	UINT32 PageSize = 0;
+	UINT32 ImageSizeActual = 0;
+	VOID *ImageBuffer = NULL;
+	UINTN ImageSize = 0;
+	KMRotAndBootState Data = {0};
+	CONST boot_img_hdr *BootImgHdr = NULL;
+
+	Info->BootState = RED;
+	GUARD(VBCommonInit(Info));
+
+	UserData = avb_calloc(sizeof(AvbOpsUserData));
+	if (UserData == NULL) {
+		DEBUG((EFI_D_ERROR,
+		       "ERROR: Failed to allocate AvbOpsUserData\n"));
+		Status = EFI_OUT_OF_RESOURCES;
+		goto out;
+	}
+
+	Ops = AvbOpsNew(UserData);
+	if (Ops == NULL) {
+		DEBUG((EFI_D_ERROR, "ERROR: Failed to allocate AvbOps\n"));
+		Status = EFI_OUT_OF_RESOURCES;
+		goto out;
+	}
+
+	UnicodeStrToAsciiStr(Info->Pname, PnameAscii);
+	if ((MAX_SLOT_SUFFIX_SZ + 1) > AsciiStrLen(PnameAscii)) {
+		DEBUG((EFI_D_ERROR, "ERROR: Can not determine slot suffix\n"));
+		Status = EFI_INVALID_PARAMETER;
+		goto out;
+	}
+	SlotSuffix = &PnameAscii[AsciiStrLen(PnameAscii) - MAX_SLOT_SUFFIX_SZ + 1];
+
+	DEBUG((EFI_D_VERBOSE, "Slot: %a, allow verification error: %a\n",
+	       SlotSuffix, BooleanString[AllowVerificationError].name));
+
+	RequestedPartition = RequestedPartitionAll;
+	NumRequestedPartition = ARRAY_SIZE(RequestedPartitionAll) - 1;
+	if (Info->NumLoadedImages) {
+		/* fastboot boot option, skip Index 0, as boot image already
+		 * loaded */
+		RequestedPartition = &RequestedPartitionAll[1];
+		NumRequestedPartition--;
+	}
+	Result = avb_slot_verify(Ops, RequestedPartition, SlotSuffix,
+	                         AllowVerificationError, &SlotData);
+
+	if (IsUnlocked() && ResultShouldContinue(Result)) {
+		DEBUG((EFI_D_ERROR, "State: Unlocked, AvbSlotVerify returned "
+		                    "%a, continue boot\n",
+		       avb_slot_verify_result_to_string(Result)));
+	} else if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
+		DEBUG((EFI_D_ERROR,
+		       "ERROR: Device State %a, AvbSlotVerify returned %a\n",
+		       IsUnlocked() ? "Unlocked" : "Locked",
+		       avb_slot_verify_result_to_string(Result)));
+		Status = EFI_LOAD_ERROR;
+		Info->BootState = RED;
+		goto out;
+	}
+
+	for (UINTN ReqIndex = 0; ReqIndex < NumRequestedPartition; ReqIndex++) {
+		DEBUG((EFI_D_VERBOSE, "Requested Partition: %a\n",
+		       RequestedPartition[ReqIndex]));
+		for (UINTN LoadedIndex = 0;
+		     LoadedIndex < SlotData->num_loaded_partitions; LoadedIndex++) {
+			DEBUG((EFI_D_VERBOSE, "Loaded Partition: %a\n",
+			       SlotData->loaded_partitions[LoadedIndex].partition_name));
+			if (!AsciiStrnCmp(
+			            RequestedPartition[ReqIndex],
+			            SlotData->loaded_partitions[LoadedIndex].partition_name,
+			            AsciiStrLen(SlotData->loaded_partitions[LoadedIndex]
+			                                .partition_name))) {
+				if (Info->NumLoadedImages >= ARRAY_SIZE(Info->Images)) {
+					DEBUG((EFI_D_ERROR, "NumLoadedPartition"
+					                    "(%d) too large "
+					                    "max images(%d)\n",
+					       Info->NumLoadedImages,
+					       ARRAY_SIZE(Info->Images)));
+					Status = EFI_LOAD_ERROR;
+					Info->BootState = RED;
+					goto out;
+				}
+				Info->Images[Info->NumLoadedImages].Name =
+				        SlotData->loaded_partitions[LoadedIndex].partition_name;
+				Info->Images[Info->NumLoadedImages].ImageBuffer =
+				        SlotData->loaded_partitions[LoadedIndex].data;
+				Info->Images[Info->NumLoadedImages].ImageSize =
+				        SlotData->loaded_partitions[LoadedIndex].data_size;
+				Info->NumLoadedImages++;
+				break;
+			}
+		}
+	}
+
+	if (Info->NumLoadedImages < (ARRAY_SIZE(RequestedPartitionAll) - 1)) {
+		DEBUG((EFI_D_ERROR,
+		       "ERROR: AvbSlotVerify slot data error: num of "
+		       "loaded partitions %d, requested %d\n",
+		       Info->NumLoadedImages, ARRAY_SIZE(RequestedPartitionAll) - 1));
+		Status = EFI_LOAD_ERROR;
+		goto out;
+	}
+
+	DEBUG((EFI_D_VERBOSE, "Total loaded partition %d\n", Info->NumLoadedImages));
+
+	VBData = (VB2Data *)avb_calloc(sizeof(VB2Data));
+	if (VBData == NULL) {
+		DEBUG((EFI_D_ERROR, "ERROR: Failed to allocate VB2Data\n"));
+		Status = EFI_OUT_OF_RESOURCES;
+		goto out;
+	}
+	VBData->Ops = Ops;
+	VBData->SlotData = SlotData;
+	Info->VBData = (VOID *)VBData;
+
+	GetPageSize(&ImageHdrSize);
+	GUARD_OUT(GetImage(Info, &ImageBuffer, &ImageSize, "boot"));
+
+	Status = CheckImageHeader(ImageBuffer, ImageHdrSize, &ImageSizeActual, &PageSize);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
+		goto out;
+	}
+
+	if (ImageSizeActual > ImageSize) {
+		Status = EFI_BUFFER_TOO_SMALL;
+		DEBUG((EFI_D_ERROR,
+		       "Boot size in vbmeta less than actual boot image size "
+		       "flash corresponding vbmeta.img\n"));
+		goto out;
+	}
+
+	if (IsUnlocked()) {
+		Info->BootState = ORANGE;
+	} else {
+		if (UserData->IsUserKey) {
+			Info->BootState = YELLOW;
+		} else {
+			Info->BootState = GREEN;
+		}
+	}
+
+	/* command line */
+	GUARD_OUT(AppendVBCommonCmdLine(Info));
+	GUARD_OUT(AppendVBCmdLine(Info, SlotData->cmdline));
+
+	/* Set Rot & Boot State*/
+	Data.Color = Info->BootState;
+	Data.IsUnlocked = IsUnlocked();
+	Data.PublicKeyLength = UserData->PublicKeyLen;
+	Data.PublicKey = UserData->PublicKey;
+
+	BootImgHdr = (struct boot_img_hdr *)ImageBuffer;
+	Data.SystemSecurityLevel = (BootImgHdr->os_version & 0x7FF);
+	Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF8) >> 11;
+
+	GUARD_OUT(KeyMasterSetRotAndBootState(&Data));
+
+	DEBUG((EFI_D_INFO, "VB2: Authenticate complete! boot state is: %a\n",
+	       VbSn[Info->BootState].name));
+
+out:
+	if (Status != EFI_SUCCESS) {
+		if (SlotData != NULL) {
+			avb_slot_verify_data_free(SlotData);
+		}
+		if (Ops != NULL) {
+			AvbOpsFree(Ops);
+		}
+		if (UserData != NULL) {
+			avb_free(UserData);
+		}
+		if (VBData != NULL) {
+			avb_free(VBData);
+		}
+		Info->BootState = RED;
+		/* HandleActiveSlotUnbootable(); */
+		/* HandleActiveSlotUnbootable should have swapped slots and
+		* reboot the
+		* device. If no bootable slot found, enter fastboot */
+		DEBUG((EFI_D_WARN,
+		       "No bootable slots found enter fastboot mode\n"));
+	}
+
+	DEBUG((EFI_D_ERROR, "VB2: boot state: %a(%d)\n",
+	       VbSn[Info->BootState].name, Info->BootState));
 	return Status;
 }
 
@@ -308,6 +550,9 @@ EFI_STATUS LoadImageAndAuth(BootInfo *Info)
 	case AVB_1:
 		Status = LoadImageAndAuthVB1(Info);
 		break;
+	case AVB_2:
+		Status = LoadImageAndAuthVB2(Info);
+		break;
 	default:
 		DEBUG((EFI_D_ERROR, "Unsupported AVB version %d\n", AVBVersion));
 		Status = EFI_UNSUPPORTED;
@@ -346,6 +591,28 @@ EFI_STATUS LoadImageAndAuth(BootInfo *Info)
 VOID FreeVerifiedBootResource(BootInfo *Info)
 {
 	DEBUG((EFI_D_VERBOSE, "FreeVerifiedBootResource\n"));
+
+	if (Info == NULL) {
+		return;
+	}
+
+	VB2Data *VBData = Info->VBData;
+	if (VBData != NULL) {
+		AvbOps *Ops = VBData->Ops;
+		if (Ops != NULL) {
+			if (Ops->user_data != NULL) {
+				avb_free(Ops->user_data);
+			}
+			AvbOpsFree(Ops);
+		}
+
+		AvbSlotVerifyData *SlotData = VBData->SlotData;
+		if (SlotData != NULL) {
+			avb_slot_verify_data_free(SlotData);
+		}
+		avb_free(VBData);
+	}
+
 	if (Info->VBCmdLine != NULL) {
 		FreePool(Info->VBCmdLine);
 	}

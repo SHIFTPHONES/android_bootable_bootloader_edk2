@@ -33,6 +33,7 @@
 
 #define NO_AVB 0
 #define AVB_1 1
+#define AVB_2 2
 
 #define GUARD(code)                                                            \
     do {                                                                       \
@@ -62,6 +63,7 @@ BOOLEAN VerifiedBootEnbled();
 /**
  * @return  0 - AVB disabled
  *          1 - VB 1.0
+ *          2 - VB 2.0
  */
 UINT32 GetAVBVersion();
 

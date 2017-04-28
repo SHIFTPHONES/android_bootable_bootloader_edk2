@@ -32,7 +32,7 @@
 
 #include <DrawUI.h>
 
-#if VERIFIED_BOOT
+#if VERIFIED_BOOT || VERIFIED_BOOT_2
 VOID DisplayVerifiedBootMenu(UINT32 Type);
 EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo);
 EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type);

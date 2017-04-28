@@ -68,6 +68,7 @@
 
 
 [Protocols]
+	gQcomQseecomProtocolGuid
 
 [FixedPcd]
 	gQcomTokenSpaceGuid.EnableMdtpSupport

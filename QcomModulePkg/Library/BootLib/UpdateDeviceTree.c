@@ -35,7 +35,7 @@
 #include "UpdateDeviceTree.h"
 #include <Protocol/EFIRng.h>
 
-#define DTB_PAD_SIZE          1024
+#define DTB_PAD_SIZE          2048
 #define NUM_SPLASHMEM_PROP_ELEM   4
 
 STATIC struct DisplaySplashBufferInfo splashBuf;

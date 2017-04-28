@@ -57,7 +57,7 @@ typedef struct boot_img_hdr
 	UINT32 tags_addr;    /* physical addr for kernel tags */
 	UINT32 page_size;    /* flash page size we assume */
 	UINT32 dt_size;      /* device_tree in bytes */
-	UINT32 unused;    /* future expansion: should be 0 */
+	UINT32 os_version;   /* version << 11 | patch_level */
 
 	UINT8 name[BOOT_NAME_SIZE]; /* asciiz product name */
 

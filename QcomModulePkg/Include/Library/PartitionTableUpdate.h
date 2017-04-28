@@ -196,4 +196,5 @@ VOID FindPtnActiveSlot();
 VOID FindBootableSlot(CHAR16 *BootableSlot, UINT32 BootableSlotSizeMax);
 VOID SwitchPtnSlots(CONST CHAR16 *SetActive);
 VOID MarkPtnActive(CHAR16 *ActiveSlot);
+BOOLEAN IsCurrentSlotBootable();
 #endif
