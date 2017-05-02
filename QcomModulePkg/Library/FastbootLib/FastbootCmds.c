@@ -1057,6 +1057,8 @@ STATIC VOID CmdFlash(
 	EFI_GUID gBlockIoRefreshGuid = { 0xb1eb3d10, 0x9d67, 0x40ca,
 					               { 0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb } };
 	BOOLEAN BootPtnUpdated = FALSE;
+	UINT32 UfsBootLun = 0;
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 	if (mDataBuffer == NULL)
 	{
@@ -1097,6 +1099,14 @@ STATIC VOID CmdFlash(
 	}
 
 	if (!StrnCmp(PartitionName, L"partition", StrLen(L"partition"))) {
+		GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+		if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
+			UfsGetSetBootLun(&UfsBootLun, TRUE); /* True = Get */
+			if (UfsBootLun != 0x1) {
+				UfsBootLun = 0x1;
+				UfsGetSetBootLun(&UfsBootLun, FALSE); /* False = Set */
+			}
+		}
 		DEBUG((EFI_D_INFO, "Attemping to update partition table\n"));
 		DEBUG((EFI_D_INFO, "*************** Current partition Table Dump Start *******************\n"));
 		PartitionDump();
@@ -1382,7 +1392,7 @@ STATIC VOID AcceptData (IN UINT64 Size, IN  VOID  *Data)
 	if (mBytesReceivedSoFar == mNumDataBytes)
 	{
 		/* Download Finished */
-		DEBUG((EFI_D_INFO, "Download Finised\n"));
+		DEBUG((EFI_D_INFO, "Download Finished\n"));
 		FastbootOkay("");
 		mState = ExpectCmdState;
 	}

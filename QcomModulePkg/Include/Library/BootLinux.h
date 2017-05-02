@@ -46,6 +46,7 @@
 #include <Library/PrintLib.h>
 #include <Library/CacheMaintenanceLib.h>
 #include <Library/DrawUI.h>
+#include <Library/VerifiedBoot.h>
 #include <PiDxe.h>
 #include <Protocol/BlockIo.h>
 #include <Protocol/SimpleFileSystem.h>
@@ -82,6 +83,5 @@ EFI_STATUS BootLinux(VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName,
 EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize);
 EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
-BOOLEAN VerifiedBootEnbled();
 BOOLEAN TargetBuildVariantUser();
 #endif

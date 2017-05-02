@@ -93,9 +93,6 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 	UINT64 out_avai_len = 0;
 	CHAR8* CmdLine = NULL;
 	UINT64 BaseMemory = 0;
-	boot_state_t BootState = BOOT_STATE_MAX;
-	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
-	device_info_vb_t DevInfo_vb;
 	CHAR8 StrPartition[MAX_GPT_NAME_SIZE] = {'\0'};
 	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE] = {'\0'};
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
@@ -139,21 +136,6 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 
 	if (VerifiedBootEnbled())
 	{
-		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid, NULL, (VOID **) &VbIntf);
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Unable to locate VB protocol: %r\n", Status));
-			return Status;
-		}
-		DevInfo_vb.is_unlocked = IsUnlocked();
-		DevInfo_vb.is_unlock_critical = IsUnlockCritical();
-		Status = VbIntf->VBDeviceInit(VbIntf, (device_info_vb_t *)&DevInfo_vb);
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Error during VBDeviceInit: %r\n", Status));
-			return Status;
-		}
-
 		UnicodeStrToAsciiStr(PartitionName, PartitionNameAscii);
 
 		AsciiStrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, "/", AsciiStrLen("/"));
@@ -164,51 +146,9 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 			AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameAscii, AsciiStrLen(PartitionNameAscii));
 		}
 
-		Status = VbIntf->VBVerifyImage(VbIntf, (UINT8 *)StrPartition, (UINT8 *) ImageBuffer, ImageSize, &BootState);
-		if (Status != EFI_SUCCESS && BootState == BOOT_STATE_MAX)
-		{
-			DEBUG((EFI_D_ERROR, "VBVerifyImage failed with: %r\n", Status));
-			// if MDTP is active Display Recovery UI
-			if(MdtpActive) {
-	                    Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid, NULL, (VOID**)&MdtpProtocol);
-	                    if (EFI_ERROR(Status)) {
-	                        DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
-				return Status;
-	                    }
-	                    /* Perform Local Deactivation of MDTP */
-	                    Status = MdtpProtocol->MdtpDeactivate(MdtpProtocol, FALSE);
-			}
-			return Status;
-		}
-
-		DEBUG((EFI_D_VERBOSE, "Boot State is : %d\n", BootState));
-		switch (BootState)
-		{
-			case RED:
-				DisplayVerifiedBootMenu(DISPLAY_MENU_RED);
-				MicroSecondDelay(5000000);
-				ShutdownDevice();
-				break;
-			case YELLOW:
-				DisplayVerifiedBootMenu(DISPLAY_MENU_YELLOW);
-				MicroSecondDelay(5000000);
-				break;
-			case ORANGE:
-				if (FfbmStr[0] == '\0') {
-					DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
-					MicroSecondDelay(5000000);
-				}
-				break;
-			default:
-				break;
-		}
-
-		Status = VbIntf->VBSendRot(VbIntf);
+		Status = VerifiedBootImage(ImageBuffer, ImageSize, StrPartition, MdtpActive, FfbmStr);
 		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Error sending Rot : %r\n", Status));
 			return Status;
-		}
 	}
 
 	KernelSize = ((boot_img_hdr*)(ImageBuffer))->kernel_size;
@@ -383,14 +323,10 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 		}
 	}
 
-	if (VerifiedBootEnbled()){
-		DEBUG((EFI_D_INFO, "Sending Milestone Call\n"));
-		Status = VbIntf->VBSendMilestone(VbIntf);
+	if (VerifiedBootEnbled()) {
+		Status = VerifiedBootSendMilestone();
 		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_INFO, "Error sending milestone call to TZ\n"));
 			return Status;
-		}
 	}
 
 	if (FixedPcdGetBool(EnableMdtpSupport)) {
@@ -641,14 +577,6 @@ EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual
 	}
 
 	return Status;
-}
-
-BOOLEAN VerifiedBootEnbled()
-{
-#ifdef VERIFIED_BOOT
-	return TRUE;
-#endif
-	return FALSE;
 }
 
 /* Return Build variant */

@@ -171,7 +171,7 @@ VOID UpdatePartitionAttributes()
 	UINT32 BlkSz;
 	UINT8 *GptHdr = NULL;
 	UINT8 *GptHdrPtr = NULL;
-	UINTN MaxGptSz;
+	UINTN MaxGptPartEntrySzBytes;
 	UINT32 Offset;
 	UINT32 MaxPtnCount = 0;
 	UINT32 PtnEntrySz = 0;
@@ -189,6 +189,9 @@ VOID UpdatePartitionAttributes()
 	HandleInfo BlockIoHandle[MAX_HANDLEINF_LST_SIZE];
 	UINT32 MaxHandles = MAX_HANDLEINF_LST_SIZE;
 	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
+	UINT32 PartEntriesblocks = 0;
+	BOOLEAN SkipUpdation;
+	UINT64 Attr;
 
 	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
 	for( Lun = 0; Lun < MaxLuns; Lun++) {
@@ -215,22 +218,23 @@ VOID UpdatePartitionAttributes()
 		BlockIo = BlockIoHandle[0].BlkIo;
 		DeviceDensity = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
 		BlkSz = BlockIo->Media->BlockSize;
-		MaxGptSz = GPT_HDR_AND_PTN_ENTRIES * BlkSz;
+		PartEntriesblocks = MAX_PARTITION_ENTRIES_SZ/BlkSz;
+		MaxGptPartEntrySzBytes = (GPT_HDR_BLOCKS + PartEntriesblocks) * BlkSz;
 		CardSizeSec = (DeviceDensity) / BlkSz;
 		Offset = PRIMARY_HDR_LBA;
-		GptHdr = AllocatePool(MaxGptSz);
-
+		GptHdr = AllocatePool(MaxGptPartEntrySzBytes);
 		if (!GptHdr) {
 			DEBUG ((EFI_D_ERROR, "Unable to Allocate Memory for GptHdr \n"));
 			return;
 		}
-		SetMem((VOID *) GptHdr, MaxGptSz, 0);
+
+		SetMem((VOID *) GptHdr, MaxGptPartEntrySzBytes, 0);
 		GptHdrPtr = GptHdr;
 
 		/* This loop iterates twice to update both primary and backup Gpt*/
-		for (Iter= 0; Iter < 2; Iter++) {
-
-			Status = BlockIo->ReadBlocks (BlockIo, BlockIo->Media->MediaId, Offset, MaxGptSz, GptHdr);
+		for (Iter= 0; Iter < 2; Iter++, (Offset = CardSizeSec - MaxGptPartEntrySzBytes/BlkSz)) {
+			SkipUpdation = TRUE;
+			Status = BlockIo->ReadBlocks (BlockIo, BlockIo->Media->MediaId, Offset, MaxGptPartEntrySzBytes, GptHdr);
 
 			if(EFI_ERROR(Status)) {
 				DEBUG ((EFI_D_ERROR, "Unable to read the media \n"));
@@ -239,7 +243,7 @@ VOID UpdatePartitionAttributes()
 			if(Iter == 0x1) {
 				/* This is the back up GPT */
 				Ptn_Entries = GptHdr;
-				GptHdr = GptHdr + ((GPT_HDR_AND_PTN_ENTRIES - 1) * BlkSz);
+				GptHdr = GptHdr + ((PartEntriesblocks) * BlkSz);
 			} else
 				/* otherwise we are at the primary gpt */
 				Ptn_Entries = GptHdr + BlkSz;
@@ -262,12 +266,20 @@ VOID UpdatePartitionAttributes()
 					if (PtnEntries[i].lun != Lun)
 						continue;
 				}
-				/* Update the partition attributes  and partiton GUID values */
-				PUT_LONG_LONG(&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET], PtnEntries[i].PartEntry.Attributes);
-				CopyMem((VOID *)PtnEntriesPtr, (VOID *)&PtnEntries[i].PartEntry.PartitionTypeGUID, GUID_SIZE);
+				Attr = GET_LLWORD_FROM_BYTE(&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET]);
+				if(Attr != PtnEntries[i].PartEntry.Attributes) {
+					/* Update the partition attributes  and partiton GUID values */
+					PUT_LONG_LONG(&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET], PtnEntries[i].PartEntry.Attributes);
+					CopyMem((VOID *)PtnEntriesPtr, (VOID *)&PtnEntries[i].PartEntry.PartitionTypeGUID, GUID_SIZE);
+					SkipUpdation = FALSE;
+				}
+
 				/* point to the next partition entry */
 				PtnEntriesPtr += PARTITION_ENTRY_SIZE;
 			}
+
+			if(SkipUpdation)
+				continue;
 
 			MaxPtnCount = GET_LWORD_FROM_BYTE(&GptHdr[PARTITION_COUNT_OFFSET]);
 			PtnEntrySz =  GET_LWORD_FROM_BYTE(&GptHdr[PENTRY_SIZE_OFFSET]);
@@ -293,18 +305,16 @@ VOID UpdatePartitionAttributes()
 			PUT_LONG(&GptHdr[HEADER_CRC_OFFSET], CrcVal);
 
 			if (Iter == 0x1)
-				/* Write the backup GPT header, which is at an offset of CardSizeSec - GPT_HDR_AND_PTN_ENTRIES in blocks*/
-				Status = BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, Offset, MaxGptSz, (VOID *)Ptn_Entries);
+				/* Write the backup GPT header, which is at an offset of CardSizeSec - MaxGptPartEntrySzBytes/BlkSz in blocks*/
+				Status = BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, Offset, MaxGptPartEntrySzBytes, (VOID *)Ptn_Entries);
 			else
 				/* Write the primary GPT header, which is at an offset of BlkSz */
-				Status = BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, Offset, MaxGptSz, (VOID *)GptHdr);
+				Status = BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, Offset, MaxGptPartEntrySzBytes, (VOID *)GptHdr);
 
 			if (EFI_ERROR(Status)) {
 				DEBUG((EFI_D_ERROR, "Error writing primary GPT header: %r\n", Status));
 				return;
 			}
-
-			Offset = CardSizeSec - GPT_HDR_AND_PTN_ENTRIES;
 		}
 		FreePool(GptHdrPtr);
 	}
