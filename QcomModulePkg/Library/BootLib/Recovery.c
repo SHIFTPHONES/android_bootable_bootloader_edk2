@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -106,17 +106,7 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 		DEBUG((EFI_D_INFO,"Recovery command: %d %a\n", sizeof(Msg->command), Msg->command));
 
 	if (!AsciiStrnCmp(Msg->command, "boot-recovery", AsciiStrLen("boot-recovery")))
-	{
 		*BootIntoRecovery = TRUE;
-		AsciiStrnCpyS(Msg->command, sizeof(Msg->command), "", sizeof(""));
-		AsciiStrnCpyS(Msg->status, sizeof(Msg->status), "OKAY", AsciiStrLen("OKAY"));
-		Status = WriteToPartition(&gEfiMiscPartitionGuid, Msg);
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Error Writing to misc partition: %r\n", Status));
-			return Status;
-		}
-	}
 
 	if (Msg)
 		FreePool(Msg);

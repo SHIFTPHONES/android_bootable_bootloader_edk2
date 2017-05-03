@@ -342,8 +342,9 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 				DEBUG((EFI_D_ERROR, "Failed to read boot state to update cmdline\n"));
 				return Status;
 			}
-			CmdLineLen += AsciiStrLen(VerifiedState) +
-				AsciiStrLen(VbSn[BootState].name);
+			if ((BootState >= GREEN) && (BootState <= RED))
+				CmdLineLen += AsciiStrLen(VerifiedState) +
+						AsciiStrLen(VbSn[BootState].name);
 		}
 		CmdLineLen += AsciiStrLen(KeymasterLoadState);
 	}
@@ -446,12 +447,14 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			Src = VbVm[IsEnforcing()].name;
 			STR_COPY(Dst,Src);
 			if (VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
-				Src = VerifiedState;
-				--Dst;
-				STR_COPY(Dst,Src);
-				--Dst;
-				Src = VbSn[BootState].name;
-				STR_COPY(Dst,Src);
+				if ((BootState >= GREEN) && (BootState <= RED)) {
+					Src = VerifiedState;
+					--Dst;
+					STR_COPY(Dst,Src);
+					--Dst;
+					Src = VbSn[BootState].name;
+					STR_COPY(Dst,Src);
+				}
 			}
 			Src = KeymasterLoadState;
 			if (HaveCmdLine) --Dst;
@@ -528,32 +531,34 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		}
 
-		if (MultiSlotBoot && !AsciiStrStr(CmdLine, "root=")) {
-			/* Slot suffix */
-			Src = AndroidSlotSuffix;
-			if (HaveCmdLine) --Dst;
-			STR_COPY(Dst,Src);
-			--Dst;
+		if (HaveCmdLine) {
+			if (MultiSlotBoot && !AsciiStrStr(CmdLine, "root=")) {
+				/* Slot suffix */
+				Src = AndroidSlotSuffix;
+				--Dst;
+				STR_COPY(Dst,Src);
+				--Dst;
 
-			UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), SlotSuffixAscii);
-			Src = SlotSuffixAscii;
-			STR_COPY(Dst,Src);
+				UnicodeStrToAsciiStr(GetCurrentSlotSuffix(), SlotSuffixAscii);
+				Src = SlotSuffixAscii;
+				STR_COPY(Dst,Src);
 
-			/* Skip Initramfs*/
-			if (!Recovery) {
-				Src = SkipRamFs;
-				if (HaveCmdLine) --Dst;
+				/* Skip Initramfs*/
+				if (!Recovery) {
+					Src = SkipRamFs;
+					--Dst;
+					STR_COPY(Dst, Src);
+				}
+
+				/*Add Multi slot command line suffix*/
+				Src = MultiSlotCmdSuffix;
+				--Dst;
+				STR_COPY(Dst, Src);
+
+				Src = SystemPath;
+				--Dst;
 				STR_COPY(Dst, Src);
 			}
-
-			/*Add Multi slot command line suffix*/
-			Src = MultiSlotCmdSuffix;
-			if (HaveCmdLine) --Dst;
-			STR_COPY(Dst, Src);
-
-			Src = SystemPath;
-			if (HaveCmdLine) --Dst;
-			STR_COPY(Dst, Src);
 		}
 	}
 

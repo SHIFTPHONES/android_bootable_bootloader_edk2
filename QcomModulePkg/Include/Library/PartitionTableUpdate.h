@@ -105,7 +105,8 @@ table in the respective position mentioned below.
 #define MIN_PARTITION_ARRAY_SIZE  0x4000
 #define ATTRIBUTE_FLAG_OFFSET     48
 #define INVALID_PTN               -1
-#define GPT_HDR_AND_PTN_ENTRIES   33
+#define GPT_HDR_BLOCKS             0x1
+#define MAX_PARTITION_ENTRIES_SZ (MAX_NUM_PARTITIONS * PARTITION_ENTRY_SIZE)
 #define GUID_SIZE                 16
 #define PRIMARY_HDR_LBA           0x1
 #define BOOT_PART_SIZE            32
