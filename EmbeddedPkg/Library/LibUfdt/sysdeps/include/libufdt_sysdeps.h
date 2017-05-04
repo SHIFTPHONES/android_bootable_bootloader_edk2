@@ -62,4 +62,8 @@ void *dto_memchr(const void *s, int c, size_t n);
 
 void *dto_memset(void *s, int c, size_t n);
 
+void* pre_overlay_malloc();
+
+void post_overlay_free();
+
 #endif /* LIBDTOVERLAY_SYSDEPS_H */

@@ -81,14 +81,6 @@ static inline char *strchr(const char *s, int c) {
   return AsciiStrStr (s, pattern);
 }
 
-static inline void * malloc( size_t size) {
-        return AllocatePool(size);
-}
-
-static inline void free( void *ptr) {
-        return FreePool(ptr);
-}
-
 static inline int strcmp(const char *s1, const char *s2)
 {
   return (int)AsciiStrCmp( s1, s2);
@@ -211,20 +203,4 @@ strtoul(const char * __restrict nptr, char ** __restrict endptr, int base)
   }
   return Result;
 }
-
-static inline char* strdup(const char* str)
-{
-        char * RetPtr = NULL;
-        uint32_t Len = AsciiStrLen(str) + 1;
-
-        RetPtr = AllocatePool(Len);
-        if (!RetPtr) {
-                return NULL;
-        }
-        SetMem(RetPtr, 0, Len);
-        AsciiStrnCpyS(RetPtr, Len, str, AsciiStrLen(str));
-
-        return RetPtr;
-}
-
 #endif /* _LIBFDT_ENV_H */
