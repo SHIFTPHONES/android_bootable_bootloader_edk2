@@ -158,7 +158,12 @@ struct StoragePartInfo
 };
 extern struct StoragePartInfo Ptable[MAX_LUNS];
 
-CHAR16* GetCurrentSlotSuffix();
+typedef struct
+{
+	CHAR16 Suffix[MAX_SLOT_SUFFIX_SZ];
+} Slot;
+
+Slot GetCurrentSlotSuffix();
 UINT32 GetMaxLuns();
 VOID GetPartitionCount(UINT32 *Val);
 VOID SetMultiSlotBootVal(BOOLEAN Val);
@@ -191,9 +196,10 @@ BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname);
 EFI_STATUS EnumeratePartitions ();
 VOID UpdatePartitionEntries();
 VOID UpdatePartitionAttributes();
-VOID SetCurrentSlotSuffix(CHAR16* SlotSuffix);
 VOID FindPtnActiveSlot();
-VOID FindBootableSlot(CHAR16 *BootableSlot, UINT32 BootableSlotSizeMax);
-VOID SwitchPtnSlots(CONST CHAR16 *SetActive);
-VOID MarkPtnActive(CHAR16 *ActiveSlot);
+EFI_STATUS FindBootableSlot(Slot *BootableSlot);
+BOOLEAN IsSuffixEmpty(Slot *CheckSlot);
+EFI_STATUS SetActiveSlot(Slot *NewSlot);
+BOOLEAN IsCurrentSlotBootable();
+EFI_STATUS HandleActiveSlotUnbootable();
 #endif

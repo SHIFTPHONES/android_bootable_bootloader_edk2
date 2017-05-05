@@ -32,29 +32,28 @@
 #include "PartitionTableUpdate.h"
 #include <Library/LinuxLoaderLib.h>
 #include <Library/Board.h>
-
+#include <VerifiedBoot.h>
 STATIC BOOLEAN FlashingGpt;
 STATIC BOOLEAN ParseSecondaryGpt;
 struct StoragePartInfo Ptable[MAX_LUNS];
 struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 STATIC UINT32 MaxLuns;
-STATIC CHAR16 CurrentSlot[MAX_SLOT_SUFFIX_SZ];
-STATIC CHAR16 ActiveSlot[MAX_SLOT_SUFFIX_SZ];
 STATIC UINT32 PartitionCount;
 
 STATIC struct BootPartsLinkedList *HeadNode;
+STATIC EFI_STATUS GetActiveSlot(Slot *ActiveSlot);
 
-CHAR16* GetCurrentSlotSuffix() {
-	return ActiveSlot;
-}
+Slot GetCurrentSlotSuffix()
+{
+	Slot CurrentSlot = {{0}};
+	BOOLEAN IsMultiSlot = PartitionHasMultiSlot(L"boot");
 
-VOID SetCurrentSlotSuffix(CHAR16* SlotSuffix) {
-	if (MAX_SLOT_SUFFIX_SZ > StrLen(SlotSuffix))
-		StrnCpyS(ActiveSlot, StrLen(SlotSuffix) + 1, SlotSuffix, StrLen(SlotSuffix));
-	else
-		DEBUG((EFI_D_ERROR, "ERROR: the buffer is too small\n"));
+	if (IsMultiSlot == FALSE) {
+		return CurrentSlot;
+	}
 
-	return;
+	GetActiveSlot(&CurrentSlot);
+	return CurrentSlot;
 }
 
 UINT32 GetMaxLuns() {
@@ -540,166 +539,10 @@ BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname)
 
 VOID FindPtnActiveSlot()
 {
-	UINT32 i;
-	CHAR16 *Suffix = NULL;
-	UINT32 HighPriority = 0;
-	CHAR16 DefaultActive[MAX_SLOT_SUFFIX_SZ]= L"_a";
-	UINT32 Unbootable = 0;
-	CHAR16 SlotInfo[MAX_SLOT_SUFFIX_SZ];
+	Slot ActiveSlot = {{0}};
 
-	/*Traverse through partition entries,count matching slots with boot */
-	for (i = 0; i < PartitionCount; i++) {
-		/* We determine the active slot chain based on the attributes of boot partition */
-		if(!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, L"boot", StrLen(L"boot")))) {
-			Suffix = PtnEntries[i].PartEntry.PartitionName + StrLen(L"boot");
-
-
-			if ((HighPriority < (PtnEntries[i].PartEntry.Attributes & PART_ATT_PRIORITY_VAL))
-					&& !(PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL) &&
-					PtnEntries[i].PartEntry.Attributes & PART_ATT_ACTIVE_VAL) {
-				HighPriority = (PtnEntries[i].PartEntry.Attributes & PART_ATT_PRIORITY_VAL);
-				StrnCpyS(ActiveSlot, MAX_SLOT_SUFFIX_SZ, Suffix, StrLen(Suffix));
-			}
-			if (PtnEntries[i].PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL) {
-				StrnCpyS(SlotInfo, MAX_SLOT_SUFFIX_SZ, Suffix, StrLen(Suffix));
-				SetMem(ActiveSlot, sizeof(ActiveSlot), 0);
-				Unbootable++;
-			}
-		}
-	}
-	if (Unbootable == (MAX_SLOTS - 1)) {
-		if (SlotInfo[1] == L'a')
-			StrnCpyS(ActiveSlot, MAX_SLOT_SUFFIX_SZ, L"_b", StrLen(L"_b"));
-		else
-			StrnCpyS(ActiveSlot, MAX_SLOT_SUFFIX_SZ, L"_a", StrLen(L"_a"));
-	}
-
-	/* Probably we are booting for the first time and the active slot is not set using
-	 * fastboot set_active, so default to slot 'a'
-	 */
-	if (!Unbootable && !ActiveSlot[0] && !HighPriority) {
-		StrnCpyS(ActiveSlot, StrLen(DefaultActive) + 1, DefaultActive, StrLen(DefaultActive));
-		for (i = 0; i < PartitionCount; i++) {
-			if (!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, L"boot_a", StrLen(L"boot_a")))) {
-				PtnEntries[i].PartEntry.Attributes |=
-					(PART_ATT_PRIORITY_VAL | PART_ATT_ACTIVE_VAL | PART_ATT_MAX_RETRY_COUNT_VAL) &
-					(~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
-			}
-		}
-	}
-
-	if (!ActiveSlot[0] && !ActiveSlot[1]) {
-		DEBUG((EFI_D_ERROR, "ERROR: NO ACTIVE SLOT FOUND\n"));
-		ASSERT(0);
-	}
-	UpdatePartitionAttributes();
-	StrnCpyS(CurrentSlot, StrLen(ActiveSlot) + 1, ActiveSlot, StrLen(ActiveSlot));
-
-	if (Unbootable)
-		SwitchPtnSlots(CurrentSlot);
-
+	GetActiveSlot(&ActiveSlot);
 	return;
-}
-
-/* If we are here after marking the current slot as unbootable, then we
- * switch the slots for the entire bootchain so we are booting all the images
- * from the new slot and reboot the device so that bootchain is picked from new slot
- */
-STATIC VOID MarkSlotUnbootable()
-{
-	CHAR16 PartName[MAX_GPT_NAME_SIZE];
-	UINT32 i;
-	SwitchPtnSlots(CurrentSlot);
-	StrnCpyS(PartName, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
-	StrnCatS(PartName, MAX_GPT_NAME_SIZE - 1, CurrentSlot, StrLen(CurrentSlot));
-	for (i = 0; i < PartitionCount; i++) {
-		if(!StrnCmp(PtnEntries[i].PartEntry.PartitionName, PartName, StrLen(PartName))) {
-			/*select the slot and increase the priority = 7,retry-count =7,slot_successful = 0 and slot_unbootable =0*/
-			PtnEntries[i].PartEntry.Attributes =
-				(PtnEntries[i].PartEntry.Attributes | PART_ATT_PRIORITY_VAL |
-				 PART_ATT_ACTIVE_VAL | PART_ATT_MAX_RETRY_COUNT_VAL) &
-				(~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
-		}
-	}
-	UpdatePartitionAttributes();
-
-	DEBUG((EFI_D_INFO, "Rebooting\n"));
-	gRT->ResetSystem (EfiResetCold, EFI_SUCCESS, 0, NULL);
-
-	// Shouldn't get here
-	DEBUG ((EFI_D_ERROR, "Fastboot: gRT->Resetystem didn't work\n"));
-	return;
-}
-
-/*Function to get high priority bootable slot
- *Note: Updates the BootableSlot with high
- *priority boot slot. If no high priority slot
- *avaiable and all slots marked as unbootable,
- *then update BootableSlot with recovery.
- */
-VOID FindBootableSlot(CHAR16 *BootableSlot, UINT32 BootableSlotSizeMax)
-{
-	/* Only two slots are supported */
-	UINT32 RetryCount = 0;
-	INT32 Index;
-	UINT32 SlotUnbootable = 0;
-	struct PartitionEntry *PartEntryPtr;
-	UINT32 UfsBootLun = 0;
-	BOOLEAN UfsGet = TRUE;
-	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
-
-TryNextSlot:
-	FindPtnActiveSlot();
-
-	/* If we are here after marking the current slot as unbootable, then we
-	 * switch the slots for the entire bootchain so we are booting all the images
-	 * from the new slot and reboot the device so that bootchain is picked from new slot
-	 */
-	if (SlotUnbootable)
-		MarkSlotUnbootable();
-	StrnCpyS(BootableSlot, BootableSlotSizeMax, L"boot", StrLen(L"boot"));
-	StrnCatS(BootableSlot, BootableSlotSizeMax, CurrentSlot, StrLen(CurrentSlot));
-
-	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
-	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
-		UfsGetSetBootLun(&UfsBootLun,UfsGet);
-		if (UfsBootLun == 0x1 && !StrCmp(CurrentSlot, L"_a"))
-			DEBUG((EFI_D_INFO,"Booting from slot (%s) , BootableSlot = %s\n", CurrentSlot, BootableSlot));
-		else if (UfsBootLun == 0x2 && !StrCmp(CurrentSlot, L"_b"))
-			DEBUG((EFI_D_INFO,"Booting from slot (%s) , BootableSlot = %s\n", CurrentSlot, BootableSlot));
-		else {
-			DEBUG((EFI_D_ERROR,"Boot lun: %x and Currentslot: %s do not match\n", UfsBootLun, CurrentSlot));
-			*BootableSlot = '\0';
-			return;
-		}
-	} else if (!AsciiStrnCmp(BootDeviceType, "EMMC", AsciiStrLen("EMMC"))) {
-		DEBUG((EFI_D_INFO,"Booting from slot (%s) , BootableSlot = %s\n", CurrentSlot, BootableSlot));
-	} else {
-		DEBUG((EFI_D_ERROR,"Unsupported Device Type\n"));
-		return;
-	}
-	Index = GetPartitionIndex(BootableSlot);
-	if (Index == INVALID_PTN) {
-		DEBUG((EFI_D_ERROR, "Invalid partition index for BootableSlot=%s \n", BootableSlot));
-		return;
-	}
-	PartEntryPtr = &PtnEntries[Index];
-	/*if slot_successful is set do normal bootup*/
-	if (PartEntryPtr->PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL) {
-		return;
-	} else {
-		/*if retry-count > 0,decrement it, do normal boot*/
-		if((RetryCount = ((PartEntryPtr->PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >> PART_ATT_MAX_RETRY_CNT_BIT))) {
-			PartEntryPtr->PartEntry.Attributes = (PartEntryPtr->PartEntry.Attributes & ~PART_ATT_MAX_RETRY_COUNT_VAL) |(((UINT64)RetryCount-1) << PART_ATT_MAX_RETRY_CNT_BIT);
-		} else {
-			/*else mark slot as unbootable update fields then go for next slot*/
-			PartEntryPtr->PartEntry.Attributes |= PART_ATT_UNBOOTABLE_VAL & ~PART_ATT_ACTIVE_VAL & ~PART_ATT_PRIORITY_VAL;
-			StrnCpyS(BootableSlot, BootableSlotSizeMax, L"", StrLen(L""));
-			SlotUnbootable++;
-			goto TryNextSlot;
-		}
-	}
-	UpdatePartitionAttributes();
 }
 
 STATIC UINT32 PartitionVerifyMbrSignature(UINT32 Sz, UINT8 *Gpt)
@@ -1086,5 +929,425 @@ EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct St
 			break;
 	}
 
+	return Status;
+}
+
+STATIC CONST struct PartitionEntry *GetPartitionEntry(CHAR16 *Partition)
+{
+	INT32 Index = GetPartitionIndex(Partition);
+
+	if (Index == INVALID_PTN) {
+		DEBUG((EFI_D_ERROR, "GetPartitionEntry: No partition entry for "
+		                    "%s, invalid index\n",
+		       Partition));
+		return NULL;
+	}
+	return &PtnEntries[Index];
+}
+
+STATIC struct PartitionEntry *GetBootPartitionEntry(Slot *BootSlot)
+{
+	INT32 Index = INVALID_PTN;
+
+	if (StrnCmp(L"_a", BootSlot->Suffix, StrLen(BootSlot->Suffix)) == 0) {
+		Index = GetPartitionIndex(L"boot_a");
+	} else if (StrnCmp(L"_b", BootSlot->Suffix, StrLen(BootSlot->Suffix)) == 0) {
+		Index = GetPartitionIndex(L"boot_b");
+	} else {
+		DEBUG((EFI_D_ERROR, "GetBootPartitionEntry: No boot partition "
+		                    "entry for slot %s\n",
+		       BootSlot->Suffix));
+		return NULL;
+	}
+
+	if (Index == INVALID_PTN) {
+		DEBUG((EFI_D_ERROR,
+		       "GetBootPartitionEntry: No boot partition entry "
+		       "for slot %s, invalid index\n",
+		       BootSlot->Suffix));
+		return NULL;
+	}
+	return &PtnEntries[Index];
+}
+
+BOOLEAN IsCurrentSlotBootable()
+{
+	Slot CurrentSlot = {{0}};
+	struct PartitionEntry *BootPartition = NULL;
+	EFI_STATUS Status = GetActiveSlot(&CurrentSlot);
+
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR,
+		       "IsCurrentSlotBootable: no active slots found!\n"));
+		return FALSE;
+	}
+
+	BootPartition = GetBootPartitionEntry(&CurrentSlot);
+	if (BootPartition == NULL) {
+		DEBUG((EFI_D_ERROR, "IsCurrentSlotBootable: No boot partition "
+		                    "entry for slot %s\n",
+		       CurrentSlot.Suffix));
+		return FALSE;
+	}
+	DEBUG((EFI_D_VERBOSE, "Slot suffix %s Part Attr 0x%lx\n",
+	       CurrentSlot.Suffix, BootPartition->PartEntry.Attributes));
+
+	if (!(BootPartition->PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL) &&
+	    BootPartition->PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL) {
+		DEBUG((EFI_D_VERBOSE, "Slot %s is bootable\n", CurrentSlot.Suffix));
+		return TRUE;
+	}
+
+	DEBUG((EFI_D_VERBOSE, "Slot %s is unbootable \n", CurrentSlot.Suffix));
+	return FALSE;
+}
+
+BOOLEAN IsSuffixEmpty(Slot *CheckSlot)
+{
+	if (CheckSlot == NULL) {
+		return TRUE;
+	}
+
+	if (StrLen(CheckSlot->Suffix) == 0) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+STATIC EFI_STATUS GetActiveSlot(Slot *ActiveSlot)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	Slot Slots[] = {{L"_a"}, {L"_b"}};
+	UINT64 Priority = 0;
+
+	if (ActiveSlot == NULL) {
+		DEBUG((EFI_D_ERROR, "GetActiveSlot: bad parameter\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	for (UINTN SlotIndex = 0; SlotIndex < ARRAY_SIZE(Slots); SlotIndex++) {
+		struct PartitionEntry *BootPartition =
+		        GetBootPartitionEntry(&Slots[SlotIndex]);
+		UINT64 BootPriority = 0;
+		if (BootPartition == NULL) {
+			DEBUG((EFI_D_ERROR, "GetActiveSlot: No boot partition "
+			                    "entry for slot %s\n",
+			       Slots[SlotIndex].Suffix));
+			return EFI_NOT_FOUND;
+		}
+
+		BootPriority = (BootPartition->PartEntry.Attributes &
+		                PART_ATT_PRIORITY_VAL) >>
+		               PART_ATT_PRIORITY_BIT;
+
+		if ((BootPartition->PartEntry.Attributes & PART_ATT_ACTIVE_VAL) &&
+		    (BootPriority > Priority)) {
+			GUARD(StrnCpyS(ActiveSlot->Suffix, ARRAY_SIZE(ActiveSlot->Suffix),
+			               Slots[SlotIndex].Suffix,
+			               StrLen(Slots[SlotIndex].Suffix)));
+			Priority = BootPriority;
+		}
+	}
+
+	DEBUG((EFI_D_VERBOSE, "GetActiveSlot: found active slot %s, priority %d\n",
+		   ActiveSlot->Suffix, Priority));
+
+	if (IsSuffixEmpty(ActiveSlot) == TRUE) {
+		/* Check for first boot and set default slot */
+		/* For First boot all A/B attributes for the slot would be 0 */
+		UINT64 BootPriority = 0;
+		UINT64 RetryCount = 0;
+		struct PartitionEntry *SlotA = GetBootPartitionEntry(&Slots[0]);
+		if (SlotA == NULL) {
+			DEBUG((EFI_D_ERROR,
+			       "GetActiveSlot: First Boot: No boot partition "
+			       "entry for slot %s\n",
+			       Slots[0].Suffix));
+			return EFI_NOT_FOUND;
+		}
+
+		BootPriority =
+		        (SlotA->PartEntry.Attributes & PART_ATT_PRIORITY_VAL) >>
+		        PART_ATT_PRIORITY_BIT;
+		RetryCount = (SlotA->PartEntry.Attributes &
+		              PART_ATT_MAX_RETRY_COUNT_VAL) >>
+		             PART_ATT_MAX_RETRY_CNT_BIT;
+
+		if ((SlotA->PartEntry.Attributes & PART_ATT_ACTIVE_VAL) == 0 &&
+		    (SlotA->PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL) == 0 &&
+		    (SlotA->PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL) == 0 &&
+		    BootPriority == 0) {
+
+			DEBUG((EFI_D_INFO, "GetActiveSlot: First boot: set "
+			                   "default slot _a\n"));
+			SlotA->PartEntry.Attributes &=
+			        (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+			SlotA->PartEntry.Attributes |=
+			        (PART_ATT_PRIORITY_VAL | PART_ATT_ACTIVE_VAL |
+			         PART_ATT_MAX_RETRY_COUNT_VAL);
+
+			GUARD(StrnCpyS(ActiveSlot->Suffix, ARRAY_SIZE(ActiveSlot->Suffix),
+			               Slots[0].Suffix, StrLen(Slots[0].Suffix)));
+			UpdatePartitionAttributes();
+			return EFI_SUCCESS;
+		}
+
+		DEBUG((EFI_D_ERROR, "GetActiveSlot: No active slot found\n"));
+		DEBUG((EFI_D_ERROR,
+		       "GetActiveSlot: Slot attr: Priority %ld, Retry "
+		       "%ld, Active %ld, Success %ld, unboot %ld\n",
+		       BootPriority, RetryCount,
+		       (SlotA->PartEntry.Attributes & PART_ATT_ACTIVE_VAL) >> PART_ATT_ACTIVE_BIT,
+		       (SlotA->PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL),
+		       (SlotA->PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL)));
+
+		return EFI_NOT_FOUND;
+	}
+
+	return EFI_SUCCESS;
+}
+
+EFI_STATUS SetActiveSlot(Slot *NewSlot)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	Slot CurrentSlot = {{0}};
+	struct PartitionEntry *BootEntry = NULL;
+
+	if (NewSlot == NULL) {
+		DEBUG((EFI_D_ERROR,
+		       "SetActiveSlot: input parameter invalid\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	GUARD(GetActiveSlot(&CurrentSlot));
+
+	if (StrnCmp(CurrentSlot.Suffix, NewSlot->Suffix,
+	            StrLen(CurrentSlot.Suffix)) == 0) {
+		/* This Slot is already active do nothing */
+		DEBUG((EFI_D_INFO, "SetActiveSlot: %s already active slot\n",
+		       NewSlot->Suffix));
+		return EFI_SUCCESS;
+	}
+
+	BootEntry = GetBootPartitionEntry(NewSlot);
+	if (BootEntry == NULL) {
+		DEBUG((EFI_D_ERROR,
+		       "SetActiveSlot: No boot partition entry for slot %s\n",
+		       NewSlot->Suffix));
+		return EFI_NOT_FOUND;
+	}
+
+	BootEntry->PartEntry.Attributes |= (PART_ATT_PRIORITY_VAL | PART_ATT_ACTIVE_VAL |
+	                                    PART_ATT_MAX_RETRY_COUNT_VAL);
+	BootEntry->PartEntry.Attributes &=
+	        (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+
+	/* Reduce the priority and clear the active flag for inactive slot*/
+	BootEntry = GetBootPartitionEntry(&CurrentSlot);
+	if (BootEntry == NULL) {
+		DEBUG((EFI_D_ERROR,
+		       "SetActiveSlot: No boot partition entry for slot %s\n",
+		       CurrentSlot.Suffix));
+		return EFI_NOT_FOUND;
+	}
+
+	BootEntry->PartEntry.Attributes &=
+	        (~PART_ATT_PRIORITY_VAL & ~PART_ATT_ACTIVE_VAL);
+	BootEntry->PartEntry.Attributes |=
+	        (((UINT64)MAX_PRIORITY - 1) << PART_ATT_PRIORITY_BIT);
+
+	DEBUG((EFI_D_INFO, "Current slot %s, New slot %s\n", CurrentSlot.Suffix,
+	       NewSlot->Suffix));
+
+	SwitchPtnSlots(NewSlot->Suffix);
+	UpdatePartitionAttributes();
+
+	return EFI_SUCCESS;
+}
+
+EFI_STATUS HandleActiveSlotUnbootable()
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	struct PartitionEntry *BootEntry = NULL;
+	Slot ActiveSlot = {{0}};
+	Slot *AlternateSlot = NULL;
+	Slot Slots[] = {{L"_a"}, {L"_b"}};
+	UINT64 Unbootable = 0;
+	UINT64 BootSuccess = 0;
+
+	/* Mark current Slot as unbootable */
+	GUARD(GetActiveSlot(&ActiveSlot));
+	BootEntry = GetBootPartitionEntry(&ActiveSlot);
+	if (BootEntry == NULL) {
+		DEBUG((EFI_D_ERROR, "HandleActiveSlotUnbootable: No boot "
+		                    "partition entry for slot %s\n",
+		       ActiveSlot.Suffix));
+		return EFI_NOT_FOUND;
+	}
+
+	BootEntry->PartEntry.Attributes |=
+	        (PART_ATT_UNBOOTABLE_VAL) & (~PART_ATT_SUCCESSFUL_VAL);
+	UpdatePartitionAttributes();
+
+	if (StrnCmp(ActiveSlot.Suffix, Slots[0].Suffix, StrLen(Slots[0].Suffix)) == 0) {
+		AlternateSlot = &Slots[1];
+	} else {
+		AlternateSlot = &Slots[0];
+	}
+
+	/* Validate Aternate Slot is bootable */
+	BootEntry = GetBootPartitionEntry(AlternateSlot);
+	if (BootEntry == NULL) {
+		DEBUG((EFI_D_ERROR, "HandleActiveSlotUnbootable: No boot "
+		                    "partition entry for slot %s\n",
+		       AlternateSlot->Suffix));
+		return EFI_NOT_FOUND;
+	}
+
+	Unbootable = (BootEntry->PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL) >>
+	             PART_ATT_UNBOOTABLE_BIT;
+	BootSuccess = (BootEntry->PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL) >>
+	              PART_ATT_SUCCESS_BIT;
+
+	if (Unbootable == 0 && BootSuccess == 1) {
+		DEBUG((EFI_D_INFO, "Alternate Slot %s is bootable\n",
+		       AlternateSlot->Suffix));
+		GUARD(SetActiveSlot(AlternateSlot));
+
+		DEBUG((EFI_D_INFO, "HandleActiveSlotUnbootable: Rebooting\n"));
+		gRT->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
+
+		// Shouldn't get here
+		DEBUG((EFI_D_ERROR, "HandleActiveSlotUnbootable: "
+		                    "gRT->Resetystem didn't work\n"));
+		return EFI_LOAD_ERROR;
+	}
+
+	return EFI_LOAD_ERROR;
+}
+
+STATIC EFI_STATUS ValidateSlotGuids(Slot *BootableSlot)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	struct PartitionEntry *BootEntry = NULL;
+	CHAR16 SystemPartitionName[] = L"system_x";
+	CONST struct PartitionEntry *SystemEntry = NULL;
+	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
+	UINT32 UfsBootLun = 0;
+
+	BootEntry = GetBootPartitionEntry(BootableSlot);
+	if (BootEntry == NULL) {
+		DEBUG((EFI_D_ERROR, "ValidateSlotGuids: No boot partition "
+		                    "entry for slot %s\n",
+		       BootableSlot->Suffix));
+		return EFI_NOT_FOUND;
+	}
+
+	SystemPartitionName[StrLen(SystemPartitionName) - 1] =
+	        BootableSlot->Suffix[StrLen(BootableSlot->Suffix) - 1];
+	SystemEntry = GetPartitionEntry(SystemPartitionName);
+	if (SystemEntry == NULL) {
+		DEBUG((EFI_D_ERROR,
+		       "ValidateSlotGuids: No partition entry for %s\n",
+		       SystemPartitionName));
+		return EFI_NOT_FOUND;
+	}
+
+	if (CompareMem(&BootEntry->PartEntry.PartitionTypeGUID,
+	               &SystemEntry->PartEntry.PartitionTypeGUID,
+	               sizeof(EFI_GUID)) == 0) {
+		DEBUG((EFI_D_ERROR, "ValidateSlotGuids: BootableSlot %s does "
+		                    "not have valid guids\n",
+		       BootableSlot->Suffix));
+		DEBUG((EFI_D_INFO, "Boot GUID %g\n",
+		       &BootEntry->PartEntry.PartitionTypeGUID));
+		DEBUG((EFI_D_INFO, "System GUID %g\n",
+		       &SystemEntry->PartEntry.PartitionTypeGUID));
+		return EFI_DEVICE_ERROR;
+	}
+
+	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
+		GUARD(UfsGetSetBootLun(&UfsBootLun, TRUE));
+		if (UfsBootLun == 0x1 && !StrCmp(BootableSlot->Suffix, L"_a")) {
+		} else if (UfsBootLun == 0x2 && !StrCmp(BootableSlot->Suffix, L"_b")) {
+		} else {
+			DEBUG((EFI_D_ERROR, "Boot lun: %x and BootableSlot: %s "
+			                    "do not match\n",
+			       UfsBootLun, BootableSlot->Suffix));
+			return EFI_DEVICE_ERROR;
+		}
+	} else if (!AsciiStrnCmp(BootDeviceType, "EMMC", AsciiStrLen("EMMC"))) {
+	} else {
+		DEBUG((EFI_D_ERROR, "Unsupported Device Type\n"));
+		return EFI_DEVICE_ERROR;
+	}
+
+	DEBUG((EFI_D_INFO, "Booting from slot (%s)\n", BootableSlot->Suffix));
+	return EFI_SUCCESS;
+}
+
+EFI_STATUS FindBootableSlot(Slot *BootableSlot)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	struct PartitionEntry *BootEntry = NULL;
+	UINT64 Unbootable = 0;
+	UINT64 BootSuccess = 0;
+	UINT64 RetryCount = 0;
+
+	if (BootableSlot == NULL) {
+		DEBUG((EFI_D_ERROR,
+		       "FindBootableSlot: input parameter invalid\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	GUARD_OUT(GetActiveSlot(BootableSlot));
+
+	/* Validate Active Slot is bootable */
+	BootEntry = GetBootPartitionEntry(BootableSlot);
+	if (BootEntry == NULL) {
+		DEBUG((EFI_D_ERROR, "FindBootableSlot: No boot partition entry "
+		                    "for slot %s\n",
+		       BootableSlot->Suffix));
+		return EFI_NOT_FOUND;
+	}
+
+	Unbootable = (BootEntry->PartEntry.Attributes & PART_ATT_UNBOOTABLE_VAL) >>
+	             PART_ATT_UNBOOTABLE_BIT;
+	BootSuccess = (BootEntry->PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL) >>
+	              PART_ATT_SUCCESS_BIT;
+	RetryCount =
+	        (BootEntry->PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >>
+	        PART_ATT_MAX_RETRY_CNT_BIT;
+
+	if (Unbootable == 0 && BootSuccess == 1) {
+		DEBUG((EFI_D_VERBOSE, "Active Slot %s is bootable\n",
+		       BootableSlot->Suffix));
+	} else if (Unbootable == 0 && BootSuccess == 0 && RetryCount > 0) {
+		RetryCount--;
+		BootEntry->PartEntry.Attributes &= ~PART_ATT_MAX_RETRY_COUNT_VAL;
+		BootEntry->PartEntry.Attributes |=
+		        RetryCount << PART_ATT_MAX_RETRY_CNT_BIT;
+		UpdatePartitionAttributes();
+		DEBUG((EFI_D_INFO,
+		       "Active Slot %s is bootable, retry count %ld\n",
+		       BootableSlot->Suffix, RetryCount));
+	} else {
+		DEBUG((EFI_D_INFO,
+		       "Slot %s is unbootable, try alternate slot\n",
+		       BootableSlot->Suffix));
+		GUARD_OUT(HandleActiveSlotUnbootable());
+	}
+
+	/* Validate slot suffix and partition guids */
+	if (Status == EFI_SUCCESS) {
+		GUARD_OUT(ValidateSlotGuids(BootableSlot));
+	}
+	MarkPtnActive(BootableSlot->Suffix);
+out:
+	if (Status != EFI_SUCCESS) {
+		/* clear bootable slot */
+		BootableSlot->Suffix[0] = '\0';
+	}
 	return Status;
 }

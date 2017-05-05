@@ -58,7 +58,6 @@
 	VerifiedBootMenu.c
 	PartitionTableUpdate.c
 	DeviceInfo.c
-	VerifiedBoot.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
@@ -85,6 +84,7 @@
 	MemoryAllocationLib
 	UefiHiiServicesLib
 	StackCanary
+	AvbLib
 
 [Guids]
 	gEfiFileInfoGuid

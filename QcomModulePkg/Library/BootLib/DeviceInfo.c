@@ -33,6 +33,7 @@
 #include <FastbootLib/FastbootCmds.h>
 
 DeviceInfo DevInfo;
+STATIC BOOLEAN FirstReadDevInfo = TRUE;
 
 BOOLEAN IsUnlocked()
 {
@@ -171,7 +172,6 @@ EFI_STATUS SetDeviceUnlockValue(UINT32 Type, BOOLEAN State)
 EFI_STATUS DeviceInfoInit()
 {
 	EFI_STATUS Status = EFI_SUCCESS;
-	STATIC BOOLEAN FirstReadDevInfo = TRUE;
 
 	if (FirstReadDevInfo) {
 		Status = ReadWriteDeviceInfo(READ_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
@@ -186,6 +186,9 @@ EFI_STATUS DeviceInfoInit()
 	if (CompareMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE)) {
 		DEBUG((EFI_D_ERROR, "Device Magic does not match\n"));
 		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
+		DevInfo.user_public_key_length = 0;
+		SetMem(DevInfo.rollback_index, sizeof(DevInfo.rollback_index), 0);
+		SetMem(DevInfo.user_public_key, sizeof(DevInfo.user_public_key), 0);
 		if (IsSecureBootEnabled())
 		{
 			DevInfo.is_unlocked = FALSE;
@@ -204,4 +207,114 @@ EFI_STATUS DeviceInfoInit()
 	}
 
 	return Status;
+}
+
+EFI_STATUS ReadRollbackIndex(UINT32 Loc, UINT64 *RollbackIndex)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (FirstReadDevInfo) {
+		Status = EFI_NOT_STARTED;
+		DEBUG((EFI_D_ERROR,
+		       "ReadRollbackIndex DeviceInfo not initalized \n"));
+		return Status;
+	}
+
+	if (Loc >= ARRAY_SIZE(DevInfo.rollback_index)) {
+		Status = EFI_INVALID_PARAMETER;
+		DEBUG((EFI_D_ERROR, "ReadRollbackIndex Loc out of range, "
+		                    "index: %d, array len: %d\n",
+		       Loc, ARRAY_SIZE(DevInfo.rollback_index)));
+		return Status;
+	}
+
+	*RollbackIndex = DevInfo.rollback_index[Loc];
+	return Status;
+}
+
+EFI_STATUS WriteRollbackIndex(UINT32 Loc, UINT64 RollbackIndex)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (FirstReadDevInfo) {
+		Status = EFI_NOT_STARTED;
+		DEBUG((EFI_D_ERROR,
+		       "WriteRollbackIndex DeviceInfo not initalized \n"));
+		return Status;
+	}
+
+	if (Loc >= ARRAY_SIZE(DevInfo.rollback_index)) {
+		Status = EFI_INVALID_PARAMETER;
+		DEBUG((EFI_D_ERROR, "WriteRollbackIndex Loc out of range, "
+		                    "index: %d, array len: %d\n",
+		       Loc, ARRAY_SIZE(DevInfo.rollback_index)));
+		return Status;
+	}
+
+	DevInfo.rollback_index[Loc] = RollbackIndex;
+	Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
+		return Status;
+	}
+	return Status;
+}
+
+EFI_STATUS StoreUserKey(CHAR8 *UserKey, UINT32 UserKeySize)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (FirstReadDevInfo) {
+		Status = EFI_NOT_STARTED;
+		DEBUG((EFI_D_ERROR,
+		       "StoreUserKey DeviceInfo not initalized \n"));
+		return Status;
+	}
+
+	if (UserKeySize > ARRAY_SIZE(DevInfo.user_public_key)) {
+		DEBUG((EFI_D_ERROR, "StoreUserKey, UserKeySize too large!\n"));
+		return EFI_OUT_OF_RESOURCES;
+	}
+
+	CopyMem(DevInfo.user_public_key, UserKey, UserKeySize);
+	DevInfo.user_public_key_length = UserKeySize;
+	Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
+		return Status;
+	}
+	return Status;
+}
+
+EFI_STATUS EraseUserKey()
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (FirstReadDevInfo) {
+		Status = EFI_NOT_STARTED;
+		DEBUG((EFI_D_ERROR,
+		       "EraseUserKey DeviceInfo not initalized \n"));
+		return Status;
+	}
+
+	SetMem(DevInfo.user_public_key, ARRAY_SIZE(DevInfo.user_public_key), 0);
+	DevInfo.user_public_key_length = 0;
+	Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Unable to Write Device Info: %r\n", Status));
+		return Status;
+	}
+	return Status;
+}
+
+EFI_STATUS GetUserKey(CHAR8 **UserKey, UINT32 *UserKeySize)
+{
+	if (FirstReadDevInfo) {
+		DEBUG((EFI_D_ERROR, "GetUserKey DeviceInfo not initalized \n"));
+		return EFI_NOT_STARTED;
+	}
+
+	*UserKey = DevInfo.user_public_key;
+	*UserKeySize = DevInfo.user_public_key_length;
+	return EFI_SUCCESS;
 }

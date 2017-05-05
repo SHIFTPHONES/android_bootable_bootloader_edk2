@@ -62,11 +62,15 @@ STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceT
 	return EFI_NOT_STARTED;
 }
 
-EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName,
-	BOOLEAN Recovery, BOOLEAN AlarmBoot)
+EFI_STATUS BootLinux (BootInfo *Info)
 {
 
 	EFI_STATUS Status;
+	VOID *ImageBuffer = NULL;
+	UINTN ImageSize = 0;
+	CHAR16 *PartitionName = NULL;
+	BOOLEAN Recovery = FALSE;
+	BOOLEAN AlarmBoot = FALSE;
 
 	LINUX_KERNEL LinuxKernel;
 	UINT32 DeviceTreeOffset = 0;
@@ -94,13 +98,20 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 	CHAR8* CmdLine = NULL;
 	UINT64 BaseMemory = 0;
 	CHAR8 StrPartition[MAX_GPT_NAME_SIZE] = {'\0'};
-	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE] = {'\0'};
-	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	BOOLEAN BootingWith32BitKernel = FALSE;
 	BOOLEAN MdtpActive = FALSE;
 	QCOM_MDTP_PROTOCOL *MdtpProtocol;
 	MDTP_VB_EXTERNAL_PARTITION ExternalPartition;
 	CHAR8 FfbmStr[FFBM_MODE_BUF_SIZE] = {'\0'};
+
+	if (Info == NULL) {
+		DEBUG((EFI_D_ERROR, "BootLinux: invalid parameter Info\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	PartitionName = Info->Pname;
+	Recovery = Info->BootIntoRecovery;
+	AlarmBoot = Info->BootReasonAlarm;
 
 	if (!StrnCmp(PartitionName, L"boot", StrLen(L"boot")))
 	{
@@ -111,6 +122,11 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 		}
 	}
 
+	Status = GetImage(Info, &ImageBuffer, &ImageSize, "boot");
+	if (Status != EFI_SUCCESS || ImageBuffer == NULL || ImageSize <= 0) {
+		DEBUG((EFI_D_ERROR, "BootLinux: GetBootImage failed!\n"));
+		goto Exit;
+	}
 	/* Find if MDTP is enabled and Active */
         if (FixedPcdGetBool(EnableMdtpSupport)) {
 		Status = IsMdtpActive(&MdtpActive);
@@ -134,22 +150,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 		}
 	}
 
-	if (VerifiedBootEnbled())
-	{
-		UnicodeStrToAsciiStr(PartitionName, PartitionNameAscii);
 
-		AsciiStrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, "/", AsciiStrLen("/"));
-		if (MultiSlotBoot) {
-			AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameAscii,
-					AsciiStrLen(PartitionNameAscii) - (MAX_SLOT_SUFFIX_SZ - 1));
-		} else {
-			AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameAscii, AsciiStrLen(PartitionNameAscii));
-		}
-
-		Status = VerifiedBootImage(ImageBuffer, ImageSize, StrPartition, MdtpActive, FfbmStr);
-		if (Status != EFI_SUCCESS)
-			return Status;
-	}
 
 	KernelSize = ((boot_img_hdr*)(ImageBuffer))->kernel_size;
 	RamdiskSize = ((boot_img_hdr*)(ImageBuffer))->ramdisk_size;
@@ -265,7 +266,7 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
 
-	Status = UpdateCmdLine(CmdLine, FfbmStr, Recovery, AlarmBoot, &FinalCmdLine);
+	Status = UpdateCmdLine(CmdLine, FfbmStr, Recovery, AlarmBoot, Info->VBCmdLine, &FinalCmdLine);
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Error updating cmdline. Device Error %r\n", Status));
@@ -323,12 +324,6 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 		}
 	}
 
-	if (VerifiedBootEnbled()) {
-		Status = VerifiedBootSendMilestone();
-		if (Status != EFI_SUCCESS)
-			return Status;
-	}
-
 	if (FixedPcdGetBool(EnableMdtpSupport)) {
 		Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid,
 			NULL,
@@ -355,6 +350,8 @@ EFI_STATUS BootLinux (VOID *ImageBuffer, UINT32 ImageSize, CHAR16 *PartitionName
 		else
 			DEBUG((EFI_D_ERROR, "Failed to locate MDTP protocol, Status=%r\n", Status));
 	}
+
+	FreeVerifiedBootResource(Info);
 
 	/* Free the boot logo blt buffer before starting kernel */
 	FreeBootLogoBltBuffer();
@@ -577,6 +574,26 @@ EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual
 	}
 
 	return Status;
+}
+
+EFI_STATUS GetImage(CONST BootInfo *Info, VOID **ImageBuffer, UINTN *ImageSize,
+                    CHAR8 *ImageName)
+{
+	if (Info == NULL || ImageBuffer == NULL || ImageSize == NULL ||
+	    ImageName == NULL) {
+		DEBUG((EFI_D_ERROR, "GetImage: invalid parameters\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	for (UINTN LoadedIndex = 0; LoadedIndex < Info->NumLoadedImages; LoadedIndex++) {
+		if (!AsciiStrnCmp(Info->Images[LoadedIndex].Name, ImageName,
+		                  AsciiStrLen(ImageName))) {
+			*ImageBuffer = Info->Images[LoadedIndex].ImageBuffer;
+			*ImageSize = Info->Images[LoadedIndex].ImageSize;
+			return EFI_SUCCESS;
+		}
+	}
+	return EFI_NOT_FOUND;
 }
 
 /* Return Build variant */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,24 +26,22 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef __KEYMASTER_CLIENT_H__
+#define __KEYMASTER_CLIENT_H__
 
-#ifndef _VERIFIEDBOOTMENU_H_
-#define _VERIFIEDBOOTMENU_H_
+#include <Uefi.h>
+#include <Protocol/EFIVerifiedBoot.h>
 
-#include <DrawUI.h>
+typedef struct {
+	BOOLEAN IsUnlocked;
+	boot_state_t Color;
+	UINT32 PublicKeyLength;
+	CONST CHAR8 *PublicKey;
+	UINT32 SystemVersion;
+	UINT32 SystemSecurityLevel;
+} KMRotAndBootState;
 
-#if VERIFIED_BOOT || VERIFIED_BOOT_2
-VOID DisplayVerifiedBootMenu(UINT32 Type);
-EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo);
-EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type);
-#else
-STATIC inline VOID DisplayVerifiedBootMenu(UINT32 type) {}
-STATIC inline EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo) {
-	return EFI_NOT_FOUND;
-}
-STATIC inline EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type) {
-	return EFI_NOT_FOUND;
-}
-#endif
+EFI_STATUS KeyMasterSetRotAndBootState(KMRotAndBootState *BootState);
 
-#endif
+#endif /* __KEYMASTER_CLIENT_H__ */
+
