@@ -302,7 +302,7 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 
 			for (i=0 ;i < num_entries; i++) {
 				if (platform_dt_absolute_match(&(dt_entry_array[i]), dtb_list)) {
-					DEBUG((EFI_D_INFO, "Device tree exact match the board: <0x%x 0x%x 0x%x 0x%x> == <0x%x 0x%x 0x%x 0x%x>\n",
+					DEBUG((EFI_D_VERBOSE, "Device tree exact match the board: <0x%x 0x%x 0x%x 0x%x> == <0x%x 0x%x 0x%x 0x%x>\n",
 								dt_entry_array[i].platform_id,
 								dt_entry_array[i].variant_id,
 								dt_entry_array[i].soc_rev,
