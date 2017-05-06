@@ -275,6 +275,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	UINTN ImageSize = 0;
 	KMRotAndBootState Data = {0};
 	CONST boot_img_hdr *BootImgHdr = NULL;
+	BOOLEAN IsCriticalError = TRUE;
 
 	Info->BootState = RED;
 	GUARD(VBCommonInit(Info));
@@ -405,7 +406,11 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	Status = CheckImageHeader(ImageBuffer, ImageHdrSize, &ImageSizeActual, &PageSize);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
-		goto out;
+		if (IsUnlocked()) {
+			goto out_non_critical;
+		} else {
+			goto out;
+		}
 	}
 
 	if (ImageSizeActual > ImageSize) {
@@ -445,6 +450,8 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	DEBUG((EFI_D_INFO, "VB2: Authenticate complete! boot state is: %a\n",
 	       VbSn[Info->BootState].name));
 
+out_non_critical:
+	IsCriticalError = FALSE;
 out:
 	if (Status != EFI_SUCCESS) {
 		if (SlotData != NULL) {
@@ -460,12 +467,13 @@ out:
 			avb_free(VBData);
 		}
 		Info->BootState = RED;
-		HandleActiveSlotUnbootable();
-		/* HandleActiveSlotUnbootable should have swapped slots and
-		* reboot the
-		* device. If no bootable slot found, enter fastboot */
-		DEBUG((EFI_D_WARN,
-		       "No bootable slots found enter fastboot mode\n"));
+		if (IsCriticalError) {
+			HandleActiveSlotUnbootable();
+			/* HandleActiveSlotUnbootable should have swapped slots and
+			* reboot the device. If no bootable slot found, enter fastboot */
+			DEBUG((EFI_D_WARN,
+			       "No bootable slots found enter fastboot mode\n"));
+		}
 	}
 
 	DEBUG((EFI_D_ERROR, "VB2: boot state: %a(%d)\n",
