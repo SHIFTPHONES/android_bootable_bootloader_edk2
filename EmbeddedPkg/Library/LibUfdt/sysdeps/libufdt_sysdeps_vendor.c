@@ -1,5 +1,6 @@
 #include "libufdt_sysdeps.h"
 #define EFI_DTBO_ERROR -1
+#define PRE_ALLOC_BUFFER_SZ (5 * 1024 * 1024)
 
 #if INCLUDE_PLATFORM_HDRS
 #include <debug.h>
@@ -185,11 +186,49 @@ void dto_qsort(void *base, size_t nmemb, size_t size,
  * bootloader source with the names conforming to POSIX.
  */
 
-void *dto_malloc(size_t size) { return malloc(size); }
+static void* buffer;
 
-void dto_free(void *ptr) { free(ptr); }
+void* pre_overlay_malloc()
+{
+	buffer = AllocatePool(PRE_ALLOC_BUFFER_SZ);
+	if (!buffer) {
+		return NULL;
+	}
+	return buffer;
+}
 
-char *dto_strdup(const char *s) { return strdup(s); }
+void post_overlay_free()
+{
+	if (buffer)
+		FreePool(buffer);
+}
+
+void *dto_malloc(size_t size) {
+	static int ssize = 0;
+        void *retbuf;
+
+	if (((MAX_UINT64 - ssize) < size) || ((ssize + size) > PRE_ALLOC_BUFFER_SZ)) {
+		return NULL;
+	}
+
+	retbuf = buffer + ssize;
+	ssize += size;
+	return retbuf;
+}
+
+void dto_free(void *ptr) { }
+
+char *dto_strdup(const char *s) {
+	char * RetPtr = NULL;
+	uint32_t Len = strlen(s) + 1;
+
+	RetPtr = dto_malloc(Len);
+	if (!RetPtr)
+		return NULL;
+	memset(RetPtr, 0, Len);
+	memcpy(RetPtr, s, strlen(s));
+	return RetPtr;
+}
 
 char *dto_strchr(const char *s, int c) { return strchr(s, c); }
 
