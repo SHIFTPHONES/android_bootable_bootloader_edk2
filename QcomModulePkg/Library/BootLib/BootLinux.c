@@ -36,11 +36,15 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/DeviceInfo.h>
 #include <Protocol/EFIMdtp.h>
+#include <libufdt_sysdeps.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
 #include "BootImage.h"
 #include "UpdateDeviceTree.h"
+#include "libfdt.h"
+#include <ufdt_overlay.h>
+
 
 STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
 
@@ -103,6 +107,12 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	QCOM_MDTP_PROTOCOL *MdtpProtocol;
 	MDTP_VB_EXTERNAL_PARTITION ExternalPartition;
 	CHAR8 FfbmStr[FFBM_MODE_BUF_SIZE] = {'\0'};
+	VOID *SocDtb = NULL;
+	VOID *BoardDtb = NULL;
+	VOID *SocDtbHdr = NULL;
+	VOID *FinalDtbHdr = NULL;
+	BOOLEAN DtboCheckNeeded = FALSE;
+	BOOLEAN DtboPartitionPresent = FALSE;
 
 	if (Info == NULL) {
 		DEBUG((EFI_D_ERROR, "BootLinux: invalid parameter Info\n"));
@@ -273,12 +283,50 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		return Status;
 	}
 
-	// appended device tree
-	void *dtb;
-	dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
-	if (!dtb) {
-		DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
-		return EFI_NOT_FOUND;
+	DtboPartitionPresent = PartitionHasDtbo(Info);
+	if (!DtboPartitionPresent) {
+		// appended device tree
+		void *dtb;
+		dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
+		if (!dtb) {
+			DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
+			return EFI_NOT_FOUND;
+		}
+	} else {
+		/*It is the case of DTB overlay Get the Soc specific dtb */
+		FinalDtbHdr = SocDtb = GetSocDtb((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
+		if (!SocDtb) {
+			DEBUG((EFI_D_ERROR, "Error: Appended Soc Device Tree blob not found\n"));
+			return EFI_NOT_FOUND;
+		}
+
+		/*Check do we really need to gothrough DTBO or not*/
+		DtboCheckNeeded = GetDtboNeeded();
+		if (DtboCheckNeeded == TRUE) {
+			BoardDtb = GetBoardDtb(Info);
+			if (!BoardDtb) {
+				DEBUG((EFI_D_ERROR, "Error: Board Dtbo blob not found\n"));
+				return EFI_NOT_FOUND;
+			}
+			if (!pre_overlay_malloc()) {
+				DEBUG((EFI_D_ERROR, "Error: Unable to Allocate Pre Buffer for Overlay\n"));
+				return EFI_OUT_OF_RESOURCES;
+			}
+
+			SocDtbHdr = ufdt_install_blob(SocDtb, fdt_totalsize(SocDtb));
+			if (!SocDtbHdr) {
+				DEBUG((EFI_D_ERROR, "Error: Istall blob failed\n"));
+				return EFI_NOT_FOUND;
+			}
+
+			FinalDtbHdr = ufdt_apply_overlay(SocDtbHdr, fdt_totalsize(SocDtbHdr), BoardDtb, fdt_totalsize(BoardDtb));
+			if (!FinalDtbHdr) {
+				DEBUG((EFI_D_ERROR, "Ufdt ufdt apply overlay failed\n"));
+				return EFI_NOT_FOUND;
+			}
+		}
+		CopyMem((VOID*)DeviceTreeLoadAddr, FinalDtbHdr, fdt_totalsize(FinalDtbHdr));
+		post_overlay_free();
 	}
 
 	Status = UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , FinalCmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);

@@ -33,6 +33,7 @@
 #include <Library/LinuxLoaderLib.h>
 #include <Library/Board.h>
 #include <VerifiedBoot.h>
+#include <Library/BootLinux.h>
 STATIC BOOLEAN FlashingGpt;
 STATIC BOOLEAN ParseSecondaryGpt;
 struct StoragePartInfo Ptable[MAX_LUNS];
@@ -1350,4 +1351,35 @@ out:
 		BootableSlot->Suffix[0] = '\0';
 	}
 	return Status;
+}
+
+/*Function to provide Dtbo Present info
+ *return: TRUE or FALSE.
+ */
+BOOLEAN PartitionHasDtbo(BootInfo *Info)
+{
+	UINT32 i;
+	UINTN DtboImgSize = 0;
+	VOID* DtboImgBuffer = NULL;
+	EFI_STATUS Status = EFI_SUCCESS;
+	struct DtboTableHdr* DtboTableHdr = NULL;
+
+	for (i = 0; i < PartitionCount; i++) {
+		if (!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, L"dtbo", StrLen(L"dtbo")))) {
+
+			Status = GetImage(Info, &DtboImgBuffer, &DtboImgSize, "dtbo");
+			if (Status != EFI_SUCCESS) {
+				DEBUG((EFI_D_ERROR, "BootLinux: GetImage failed!"));
+				return FALSE;
+			}
+
+			DtboTableHdr = DtboImgBuffer;
+			if (fdt32_to_cpu(DtboTableHdr->Magic) != DTBO_TABLE_MAGIC) {
+				DEBUG((EFI_D_ERROR, "Dtbo hdr magic mismatch %x, %x\n", DtboTableHdr->Magic, DTBO_TABLE_MAGIC));
+				return FALSE;
+			}
+			return TRUE;
+		}
+	}
+	return FALSE;
 }
