@@ -40,6 +40,7 @@
 #include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/BootLinux.h>
 
 #define DEV_TREE_SUCCESS           0
 #define DEV_TREE_MAGIC             0x54444351 /* "QCDT" */

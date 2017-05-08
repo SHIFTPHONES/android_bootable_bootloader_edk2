@@ -283,7 +283,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		return Status;
 	}
 
-	DtboPartitionPresent = PartitionHasDtbo();
+	DtboPartitionPresent = PartitionHasDtbo(Info);
 	if (!DtboPartitionPresent) {
 		// appended device tree
 		void *dtb;
