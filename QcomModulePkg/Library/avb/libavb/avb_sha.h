@@ -50,6 +50,7 @@ typedef struct {
   uint32_t len;
   uint8_t block[2 * AVB_SHA256_BLOCK_SIZE];
   uint8_t buf[AVB_SHA256_DIGEST_SIZE]; /* Used for storing the final digest. */
+  void *user_data;
 } AvbSHA256Ctx;
 
 /* Data structure used for SHA-512. */
