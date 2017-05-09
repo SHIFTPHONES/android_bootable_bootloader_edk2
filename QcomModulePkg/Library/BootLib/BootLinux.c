@@ -112,7 +112,8 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	VOID *SocDtbHdr = NULL;
 	VOID *FinalDtbHdr = NULL;
 	BOOLEAN DtboCheckNeeded = FALSE;
-	BOOLEAN DtboPartitionPresent = FALSE;
+	BOOLEAN DtboImgInvalid = FALSE;
+	VOID* DtboImgBuffer = NULL;
 
 	if (Info == NULL) {
 		DEBUG((EFI_D_ERROR, "BootLinux: invalid parameter Info\n"));
@@ -283,8 +284,8 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		return Status;
 	}
 
-	DtboPartitionPresent = PartitionHasDtbo(Info);
-	if (!DtboPartitionPresent) {
+	DtboImgInvalid = LoadAndValidateDtboImg(Info, &DtboImgBuffer);
+	if (!DtboImgInvalid) {
 		// appended device tree
 		void *dtb;
 		dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
@@ -303,7 +304,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		/*Check do we really need to gothrough DTBO or not*/
 		DtboCheckNeeded = GetDtboNeeded();
 		if (DtboCheckNeeded == TRUE) {
-			BoardDtb = GetBoardDtb(Info);
+			BoardDtb = GetBoardDtb(Info, DtboImgBuffer);
 			if (!BoardDtb) {
 				DEBUG((EFI_D_ERROR, "Error: Board Dtbo blob not found\n"));
 				return EFI_NOT_FOUND;
@@ -321,7 +322,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 
 			FinalDtbHdr = ufdt_apply_overlay(SocDtbHdr, fdt_totalsize(SocDtbHdr), BoardDtb, fdt_totalsize(BoardDtb));
 			if (!FinalDtbHdr) {
-				DEBUG((EFI_D_ERROR, "Ufdt ufdt apply overlay failed\n"));
+				DEBUG((EFI_D_ERROR, "ufdt apply overlay failed\n"));
 				return EFI_NOT_FOUND;
 			}
 		}

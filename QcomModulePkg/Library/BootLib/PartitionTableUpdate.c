@@ -1363,30 +1363,56 @@ out:
 /*Function to provide Dtbo Present info
  *return: TRUE or FALSE.
  */
-BOOLEAN PartitionHasDtbo(BootInfo *Info)
+BOOLEAN LoadAndValidateDtboImg(BootInfo *Info, VOID** DtboImgBuffer)
 {
-	UINT32 i;
 	UINTN DtboImgSize = 0;
-	VOID* DtboImgBuffer = NULL;
 	EFI_STATUS Status = EFI_SUCCESS;
 	struct DtboTableHdr* DtboTableHdr = NULL;
 
-	for (i = 0; i < PartitionCount; i++) {
-		if (!(StrnCmp(PtnEntries[i].PartEntry.PartitionName, L"dtbo", StrLen(L"dtbo")))) {
-
-			Status = GetImage(Info, &DtboImgBuffer, &DtboImgSize, "dtbo");
-			if (Status != EFI_SUCCESS) {
-				DEBUG((EFI_D_ERROR, "BootLinux: GetImage failed!"));
-				return FALSE;
-			}
-
-			DtboTableHdr = DtboImgBuffer;
-			if (fdt32_to_cpu(DtboTableHdr->Magic) != DTBO_TABLE_MAGIC) {
-				DEBUG((EFI_D_ERROR, "Dtbo hdr magic mismatch %x, %x\n", DtboTableHdr->Magic, DTBO_TABLE_MAGIC));
-				return FALSE;
-			}
-			return TRUE;
-		}
+	Status = GetImage(Info, DtboImgBuffer, &DtboImgSize, "dtbo");
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "BootLinux: GetImage failed!"));
+		return FALSE;
 	}
-	return FALSE;
+	if (!DtboImgBuffer) {
+		DEBUG((EFI_D_ERROR, "DtboImgBuffer is NULL"));
+		return FALSE;
+	}
+
+	DtboTableHdr = *DtboImgBuffer;
+	if (fdt32_to_cpu(DtboTableHdr->Magic) != DTBO_TABLE_MAGIC) {
+		DEBUG((EFI_D_ERROR, "Dtbo hdr magic mismatch %x, with %x\n", DtboTableHdr->Magic, DTBO_TABLE_MAGIC));
+		return FALSE;
+	}
+
+	if (DtboImgSize > DTBO_MAX_SIZE_ALLOWED) {
+		DEBUG((EFI_D_ERROR, "Dtbo Size too big %x, Allowed size %x\n", DtboImgSize,DTBO_MAX_SIZE_ALLOWED));
+		return FALSE;
+	}
+
+	/*Check for TotalSize of Dtbo image*/
+	if ((fdt32_to_cpu(DtboTableHdr->TotalSize) > DTBO_MAX_SIZE_ALLOWED) || (fdt32_to_cpu(DtboTableHdr->TotalSize) == 0)) {
+		DEBUG((EFI_D_ERROR, "Dtbo Table TotalSize got corrupted\n"));
+		return FALSE;
+	}
+
+	/*Check for HeaderSize of Dtbo image*/
+	if (fdt32_to_cpu(DtboTableHdr->HeaderSize) != sizeof(struct DtboTableHdr)) {
+		DEBUG((EFI_D_ERROR, "Dtbo Table HeaderSize got corrupted\n"));
+		return FALSE;
+	}
+
+	/*Check for DtEntrySize of Dtbo image*/
+	if (fdt32_to_cpu(DtboTableHdr->DtEntrySize) != sizeof(struct DtboTableEntry)) {
+		DEBUG((EFI_D_ERROR, "Dtbo Table DtEntrySize got corrupted\n"));
+		return FALSE;
+	}
+
+	/*Check for DtEntryOffset of Dtbo image*/
+	if (fdt32_to_cpu(DtboTableHdr->DtEntryOffset) > DTBO_MAX_SIZE_ALLOWED) {
+		DEBUG((EFI_D_ERROR, "Dtbo Table DtEntryOffset got corrupted\n"));
+		return FALSE;
+	}
+
+	return TRUE;
 }
