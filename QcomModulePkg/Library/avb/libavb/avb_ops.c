@@ -63,17 +63,63 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Uefi.h>
 
+STATIC AvbIOResult GetHandleInfo(const char *Partition, HandleInfo *HandleInfo)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	CHAR16 UnicodePartition[MAX_GPT_NAME_SIZE] = {0};
+	UINT32 BlkIOAttrib = 0;
+	PartiSelectFilter HandleFilter = {0};
+	UINT32 MaxHandles = 1;
+
+	if ((AsciiStrLen(Partition) + 1) > ARRAY_SIZE(UnicodePartition)) {
+		DEBUG((EFI_D_ERROR,
+		       "GetHandleInfo: Partition %a, name too large\n", Partition));
+		return AVB_IO_RESULT_ERROR_IO;
+	}
+
+	AsciiStrToUnicodeStr(Partition, UnicodePartition);
+
+	HandleFilter.RootDeviceType = NULL;
+	HandleFilter.PartitionLabel = NULL;
+	HandleFilter.VolumeName = 0;
+
+	BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_MBR;
+	BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_GPT;
+	BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
+	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_LABEL;
+	HandleFilter.PartitionLabel = UnicodePartition;
+
+	Status = GetBlkIOHandles(BlkIOAttrib, &HandleFilter, HandleInfo, &MaxHandles);
+
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR,
+		       "GetHandleInfo: GetBlkIOHandles failed!\n"));
+		return AVB_IO_RESULT_ERROR_IO;
+	}
+
+	if (MaxHandles == 0) {
+		DEBUG((EFI_D_ERROR, "GetHandleInfo: No media!\n"));
+		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+	}
+
+	if (MaxHandles != 1) {
+		// Unable to deterministically load from single
+		// partition
+		DEBUG((EFI_D_ERROR, "GetHandleInfo: More than one result!\n"));
+		return AVB_IO_RESULT_ERROR_IO;
+	}
+
+	return AVB_IO_RESULT_OK;
+}
+
 AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t ReadOffset,
-                              size_t NumBytes, void *Buffer, size_t *OutNumRead)
+                     size_t NumBytes, void *Buffer, size_t *OutNumRead)
 {
 	AvbIOResult Result = AVB_IO_RESULT_OK;
 	EFI_STATUS Status = EFI_SUCCESS;
-	CHAR16 *PartitionLabel = NULL;
 	VOID *Page = NULL;
 	UINT32 Offset = 0;
-	UINT32 BlockIoAttr = 0;
 	HandleInfo InfoList[1];
-	UINT32 MaxHandle = ARRAY_SIZE(InfoList);
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	UINTN PartitionSize = 0;
 	UINT32 PageSize = 0;
@@ -89,39 +135,10 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 	}
 	*OutNumRead = 0;
 
-	BlockIoAttr = BLK_IO_SEL_PARTITIONED_MBR;
-	BlockIoAttr |= BLK_IO_SEL_PARTITIONED_GPT;
-	BlockIoAttr |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
-	BlockIoAttr |= BLK_IO_SEL_MATCH_PARTITION_LABEL;
-
-	PartitionLabel = avb_malloc((AsciiStrLen(Partition) + 1) * sizeof(CHAR16));
-	if (PartitionLabel == NULL) {
-		DEBUG((EFI_D_ERROR, "Allocate for partition label failed!\n"));
-		Result = AVB_IO_RESULT_ERROR_OOM;
-		goto out;
-	}
-	AsciiStrToUnicodeStr(Partition, PartitionLabel);
-
-	PartiSelectFilter Filter;
-	Filter.RootDeviceType = NULL;
-	Filter.PartitionLabel = PartitionLabel;
-	Filter.VolumeName = 0;
-
-	Status = GetBlkIOHandles(BlockIoAttr, &Filter, InfoList, &MaxHandle);
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "GetBlkIOHandles failed!\n"));
-		Result = AVB_IO_RESULT_ERROR_IO;
-		goto out;
-	}
-
-	if (MaxHandle == 0) {
-		DEBUG((EFI_D_ERROR, "no such partition: str(%a) unicode(%s) \n",
-		       Partition, PartitionLabel));
-		Result = AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
-		goto out;
-	} else if (MaxHandle != 1) {
-		DEBUG((EFI_D_ERROR, "multiple partitions found\n"));
-		Result = AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+	Result = GetHandleInfo(Partition, InfoList);
+	if (Result != AVB_IO_RESULT_OK) {
+		DEBUG((EFI_D_ERROR,
+		       "AvbGetSizeOfPartition: GetHandleInfo failed"));
 		goto out;
 	}
 
@@ -273,9 +290,6 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 	}
 
 out:
-	if (PartitionLabel != NULL) {
-		avb_free(PartitionLabel);
-	}
 	if (Page != NULL) {
 		avb_free(Page);
 	}
@@ -284,7 +298,7 @@ out:
 }
 
 AvbIOResult AvbWriteToPartition(AvbOps *Ops, const char *Partition, int64_t Offset,
-                             size_t NumBytes, const void *Buffer)
+                                size_t NumBytes, const void *Buffer)
 {
 	/* unsupported api */
 	return AVB_IO_RESULT_ERROR_IO;
@@ -292,8 +306,8 @@ AvbIOResult AvbWriteToPartition(AvbOps *Ops, const char *Partition, int64_t Offs
 
 AvbIOResult
 AvbValidateVbmetaPublicKey(AvbOps *Ops, const uint8_t *PublicKeyData,
-                        size_t PublicKeyLength, const uint8_t *PublicKeyMetadata,
-                        size_t PublicKeyMetadataLength, bool *OutIsTrusted)
+                           size_t PublicKeyLength, const uint8_t *PublicKeyMetadata,
+                           size_t PublicKeyMetadataLength, bool *OutIsTrusted)
 {
 	CHAR8 *UserKeyBuffer = NULL;
 	UINT32 UserKeyLength = 0;
@@ -348,7 +362,7 @@ AvbValidateVbmetaPublicKey(AvbOps *Ops, const uint8_t *PublicKeyData,
 }
 
 AvbIOResult AvbReadRollbackIndex(AvbOps *Ops, size_t RollbackIndexLocation,
-                              uint64_t *OutRollbackIndex)
+                                 uint64_t *OutRollbackIndex)
 {
 
 	EFI_STATUS Status = ReadRollbackIndex(RollbackIndexLocation, OutRollbackIndex);
@@ -442,43 +456,19 @@ STATIC VOID GuidToHex(CHAR8 *Buf, EFI_GUID *Guid)
 }
 
 AvbIOResult AvbGetUniqueGuidForPartition(AvbOps *Ops, const char *PartitionName,
-                                      char *GuidBuf, size_t GuidBufSize)
+                                         char *GuidBuf, size_t GuidBufSize)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
-	CHAR16 UnicodePartitionNameSlot[MAX_GPT_NAME_SIZE] = {0};
-	UINT32 BlkIOAttrib = 0;
-	PartiSelectFilter HandleFilter = {0};
+	AvbIOResult Result = AVB_IO_RESULT_OK;
 	HandleInfo HandleInfoList[1];
-	UINT32 MaxHandles = 0;
 	EFI_PARTITION_ENTRY *PartEntry = NULL;
+	CHAR16 UnicodePartition[MAX_GPT_NAME_SIZE] = {0};
 
-	AsciiStrToUnicodeStr(PartitionName, UnicodePartitionNameSlot);
-
-	HandleFilter.RootDeviceType = NULL;
-	HandleFilter.PartitionLabel = NULL;
-	HandleFilter.VolumeName = 0;
-
-	BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_MBR;
-	BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_GPT;
-	BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
-	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_LABEL;
-	HandleFilter.PartitionLabel = UnicodePartitionNameSlot;
-
-	MaxHandles = ARRAY_SIZE(HandleInfoList);
-	Status = GetBlkIOHandles(BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
-
-	if (Status == EFI_SUCCESS) {
-		if (MaxHandles == 0) {
-			DEBUG((EFI_D_ERROR, "No media!\n"));
-			return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
-		}
-
-		if (MaxHandles != 1) {
-			// Unable to deterministically load from single
-			// partition
-			DEBUG((EFI_D_ERROR, "More than one result!\n"));
-			return AVB_IO_RESULT_ERROR_IO;
-		}
+	Result = GetHandleInfo(PartitionName, HandleInfoList);
+	if (Result != AVB_IO_RESULT_OK) {
+		DEBUG((EFI_D_ERROR,
+		       "AvbGetSizeOfPartition: GetHandleInfo failed"));
+		return Result;
 	}
 
 	Status = gBS->HandleProtocol(HandleInfoList[0].Handle,
@@ -488,14 +478,48 @@ AvbIOResult AvbGetUniqueGuidForPartition(AvbOps *Ops, const char *PartitionName,
 		return AVB_IO_RESULT_ERROR_IO;
 	}
 
-	if (!(StrnCmp(UnicodePartitionNameSlot, PartEntry->PartitionName,
-	              StrLen(UnicodePartitionNameSlot)))) {
+	if ((AsciiStrLen(PartitionName) + 1) > ARRAY_SIZE(UnicodePartition)) {
+		DEBUG((EFI_D_ERROR, "AvbGetUniqueGuidForPartition: Partition "
+		                    "%a, name too large\n",
+		       PartitionName));
+		return AVB_IO_RESULT_ERROR_IO;
+	}
+
+	AsciiStrToUnicodeStr(PartitionName, UnicodePartition);
+
+	if (!(StrnCmp(UnicodePartition, PartEntry->PartitionName,
+	              StrLen(UnicodePartition)))) {
 		GuidToHex(GuidBuf, &PartEntry->UniquePartitionGUID);
-		DEBUG((EFI_D_VERBOSE, "%s uuid: %a\n", UnicodePartitionNameSlot, GuidBuf));
+		DEBUG((EFI_D_VERBOSE, "%s uuid: %a\n", UnicodePartition, GuidBuf));
 		return AVB_IO_RESULT_OK;
 	}
 
 	return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+}
+
+AvbIOResult AvbGetSizeOfPartition(AvbOps *Ops, const char *Partition, uint64_t *OutSizeNumBytes)
+{
+	AvbIOResult Result = AVB_IO_RESULT_OK;
+	HandleInfo HandleInfoList[1];
+	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
+
+	if (Ops == NULL || Partition == NULL || OutSizeNumBytes == NULL) {
+		DEBUG((EFI_D_ERROR,
+		       "AvbGetSizeOfPartition invalid parameter pointers\n"));
+		return AVB_IO_RESULT_ERROR_IO;
+	}
+
+	Result = GetHandleInfo(Partition, HandleInfoList);
+	if (Result != AVB_IO_RESULT_OK) {
+		DEBUG((EFI_D_ERROR,
+		       "AvbGetSizeOfPartition: GetHandleInfo failed"));
+		return Result;
+	}
+
+	BlockIo = HandleInfoList[0].BlkIo;
+	*OutSizeNumBytes = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+
+	return AVB_IO_RESULT_OK;
 }
 
 AvbOps *AvbOpsNew(VOID *UserData)
@@ -515,6 +539,7 @@ AvbOps *AvbOpsNew(VOID *UserData)
 	Ops->write_rollback_index = AvbWriteRollbackIndex;
 	Ops->read_is_device_unlocked = AvbReadIsDeviceUnlocked;
 	Ops->get_unique_guid_for_partition = AvbGetUniqueGuidForPartition;
+	Ops->get_size_of_partition = AvbGetSizeOfPartition;
 
 out:
 	return Ops;
