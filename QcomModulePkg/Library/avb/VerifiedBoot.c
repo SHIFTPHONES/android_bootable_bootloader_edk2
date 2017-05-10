@@ -647,3 +647,61 @@ VOID FreeVerifiedBootResource(BootInfo *Info)
 	}
 	return;
 }
+
+EFI_STATUS GetCertFingerPrint(UINT8 *FingerPrint, UINTN FingerPrintLen,
+                              UINTN *FingerPrintLenOut)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (FingerPrint == NULL || FingerPrintLenOut == NULL ||
+	    FingerPrintLen < AVB_SHA256_DIGEST_SIZE) {
+		DEBUG((EFI_D_ERROR,
+		       "GetCertFingerPrint: Invalid parameters\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	if (GetAVBVersion() == AVB_1) {
+		QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf = NULL;
+
+		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid,
+		                             NULL, (VOID **)&VbIntf);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR,
+			       "Unable to locate VerifiedBoot Protocol\n"));
+			return Status;
+		}
+
+		if (VbIntf->Revision < QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+			DEBUG((EFI_D_ERROR, "GetCertFingerPrint: VB1: not "
+			                    "supported for this revision\n"));
+			return EFI_UNSUPPORTED;
+		}
+
+		Status = VbIntf->VBGetCertFingerPrint(
+		        VbIntf, FingerPrint, FingerPrintLen, FingerPrintLenOut);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR,
+			       "Failed Reading CERT FingerPrint\n"));
+			return Status;
+		}
+	} else if (GetAVBVersion() == AVB_2) {
+		CHAR8 *UserKeyBuffer = NULL;
+		UINT32 UserKeyLength = 0;
+		AvbSHA256Ctx UserKeyCtx = {{0}};
+		CHAR8 *UserKeyDigest = NULL;
+
+		GUARD(GetUserKey(&UserKeyBuffer, &UserKeyLength));
+
+		avb_sha256_init(&UserKeyCtx);
+		avb_sha256_update(&UserKeyCtx, (UINT8 *)UserKeyBuffer, UserKeyLength);
+		UserKeyDigest = (CHAR8 *)avb_sha256_final(&UserKeyCtx);
+
+		CopyMem(FingerPrint, UserKeyDigest, AVB_SHA256_DIGEST_SIZE);
+		*FingerPrintLenOut = AVB_SHA256_DIGEST_SIZE;
+	} else {
+		DEBUG((EFI_D_ERROR, "GetCertFingerPrint: not supported\n"));
+		return EFI_UNSUPPORTED;
+	}
+
+	return Status;
+}
