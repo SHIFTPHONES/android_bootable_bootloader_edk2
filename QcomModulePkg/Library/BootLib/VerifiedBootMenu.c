@@ -298,8 +298,6 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 T
 	UINT32 Height = 0;
 	UINT32 i = 0;
 
-	/* Clear the screen before launch the verified boot menu */
-	gST->ConOut->ClearScreen (gST->ConOut);
 	ZeroMem(&OptionMenuInfo->Info, sizeof(MENU_OPTION_ITEM_INFO));
 
 	for (i = 0; i < ARRAY_SIZE(mTitleMsgInfo); i++) {
@@ -387,6 +385,8 @@ VOID DisplayVerifiedBootMenu(UINT32 Type)
 	OptionMenuInfo = &gMenuInfo;
 
 	if (FixedPcdGetBool(EnableDisplayMenu)) {
+		DrawMenuInit();
+
 		/* Initialize the last_msg_type */
 		OptionMenuInfo->LastMenuType =
 			OptionMenuInfo->Info.MenuType;
