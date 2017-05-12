@@ -388,7 +388,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			return EFI_OUT_OF_RESOURCES;
 		}
 
-		SetMem(Dst, CmdLineLen + 4, 0x0);
+		gBS->SetMem(Dst, CmdLineLen + 4, 0x0);
 
 		/* Save start ptr for debug print */
 		*FinalCmdLine = Dst;
@@ -459,7 +459,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		STR_COPY(Dst,Src);
 		--Dst;
 
-		SetMem(ChipBaseBand, CHIP_BASE_BAND_LEN, 0);
+		gBS->SetMem(ChipBaseBand, CHIP_BASE_BAND_LEN, 0);
 		AsciiStrnCpyS(ChipBaseBand, CHIP_BASE_BAND_LEN, BoardPlatformChipBaseBand(), CHIP_BASE_BAND_LEN-1);
 		ToLower(ChipBaseBand);
 		Src = ChipBaseBand;

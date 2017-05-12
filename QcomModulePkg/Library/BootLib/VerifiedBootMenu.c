@@ -154,7 +154,7 @@ STATIC VOID GetHexString(CHAR8 *Target, UINT8 *Source, UINTN Len)
 		TargetIndex = TargetIndex + 2) {
 		AsciiSPrint(HexBuf, sizeof(HexBuf), "%02x",
 			    Source[SourceIndex]);
-		CopyMem(Target + TargetIndex, HexBuf, 2);
+		gBS->CopyMem(Target + TargetIndex, HexBuf, 2);
 		SourceIndex++;
 	 }
 }
@@ -218,19 +218,19 @@ STATIC VOID GetDisplayOutPut(CHAR8 *Target, UINTN TargetLen, CHAR8 *Source,
 
 	for (LineNum= 0; LineNum < NumberOfLines; LineNum++) {
 		if (LineNum == 0) {
-			CopyMem(Target + TargetIndex, ID, sizeof(ID));
+			gBS->CopyMem(Target + TargetIndex, (VOID *)ID, sizeof(ID));
 		} else {
-			CopyMem(Target + TargetIndex, StartlineSpace, sizeof(StartlineSpace));
+			gBS->CopyMem(Target + TargetIndex, (VOID *)StartlineSpace, sizeof(StartlineSpace));
 		}
 		TargetIndex = TargetIndex + sizeof(ID);
 		if ((SourceLen - SourceIndex) >= FINGERPRINT_LINE_LEN) {
-			CopyMem(Target + TargetIndex,
+			gBS->CopyMem(Target + TargetIndex,
 				Source + SourceIndex, FINGERPRINT_LINE_LEN);
 			TargetIndex = TargetIndex + FINGERPRINT_LINE_LEN;
 			SourceIndex = SourceIndex + FINGERPRINT_LINE_LEN;
 		} else {
 			LastLineCharsCount = SourceLen % FINGERPRINT_LINE_LEN;
-			CopyMem(Target + TargetIndex, Source + SourceIndex,
+			gBS->CopyMem(Target + TargetIndex, Source + SourceIndex,
 			LastLineCharsCount);
 			TargetIndex = TargetIndex + LastLineCharsCount;
 			SourceIndex = SourceIndex + LastLineCharsCount;
