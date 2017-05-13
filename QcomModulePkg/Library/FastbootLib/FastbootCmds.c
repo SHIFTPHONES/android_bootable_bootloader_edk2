@@ -132,6 +132,7 @@ struct GetVarSlotInfo {
 
 STATIC struct GetVarSlotInfo *BootSlotInfo = NULL;
 STATIC CHAR8 SlotSuffixArray[SLOT_SUFFIX_ARRAY_SIZE];
+STATIC CHAR8 SlotCountVar[ATTR_RESP_SIZE];
 STATIC CHAR8 CurrentSlotFB[MAX_SLOT_SUFFIX_SZ];
 
 /*Note: This needs to be used only when Slot already has prefix "_" */
@@ -417,7 +418,9 @@ void PopulateMultislotMetadata()
 		}
 		i = AsciiStrLen(SlotSuffixArray);
 		SlotSuffixArray[i] = '\0';
-		FastbootPublishVar("slot-suffixes",SlotSuffixArray);
+
+		AsciiSPrint(SlotCountVar, sizeof(SlotCountVar), "%d", SlotCount);
+		FastbootPublishVar("slot-count", SlotCountVar);
 
 		/*Allocate memory for available number of slots*/
 		BootSlotInfo = AllocatePool(SlotCount * sizeof(struct GetVarSlotInfo));
