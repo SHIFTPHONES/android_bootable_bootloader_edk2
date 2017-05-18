@@ -40,6 +40,7 @@ struct StoragePartInfo Ptable[MAX_LUNS];
 struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 STATIC UINT32 MaxLuns;
 STATIC UINT32 PartitionCount;
+STATIC BOOLEAN FirstBoot;
 
 STATIC struct BootPartsLinkedList *HeadNode;
 STATIC EFI_STATUS GetActiveSlot(Slot *ActiveSlot);
@@ -1090,6 +1091,7 @@ STATIC EFI_STATUS GetActiveSlot(Slot *ActiveSlot)
 			GUARD(StrnCpyS(ActiveSlot->Suffix, ARRAY_SIZE(ActiveSlot->Suffix),
 			               Slots[0].Suffix, StrLen(Slots[0].Suffix)));
 			UpdatePartitionAttributes();
+			FirstBoot = TRUE;
 			return EFI_SUCCESS;
 		}
 
@@ -1186,9 +1188,14 @@ EFI_STATUS HandleActiveSlotUnbootable()
 		return EFI_NOT_FOUND;
 	}
 
-	BootEntry->PartEntry.Attributes |=
-	        (PART_ATT_UNBOOTABLE_VAL) & (~PART_ATT_SUCCESSFUL_VAL);
-	UpdatePartitionAttributes();
+	if (FirstBoot && !TargetBuildVariantUser()) {
+		DEBUG((EFI_D_VERBOSE, "FirstBoot, skipping slot Unbootable\n"));
+		FirstBoot = FALSE;
+	} else {
+		BootEntry->PartEntry.Attributes |=
+			(PART_ATT_UNBOOTABLE_VAL) & (~PART_ATT_SUCCESSFUL_VAL);
+		UpdatePartitionAttributes();
+	}
 
 	if (StrnCmp(ActiveSlot.Suffix, Slots[0].Suffix, StrLen(Slots[0].Suffix)) == 0) {
 		AlternateSlot = &Slots[1];
