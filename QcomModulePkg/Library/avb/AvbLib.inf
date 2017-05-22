@@ -36,9 +36,8 @@
 	VERSION_STRING                 = 1.0
 	LIBRARY_CLASS                  = AvbLib
 
-[BuildOptions.AARCH64]
+[BuildOptions]
 	GCC:*_*_*_CC_FLAGS = -DAVB_COMPILATION -DAVB_ENABLE_DEBUG
-
 
 [Sources]
    libavb/avb_chain_partition_descriptor.c
