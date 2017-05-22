@@ -79,6 +79,10 @@
   UefiHiiServicesLib|MdeModulePkg/Library/UefiHiiServicesLib/UefiHiiServicesLib.inf
   AvbLib|QcomModulePkg/Library/avb/AvbLib.inf
 
+[LibraryClasses.ARM]
+  ArmLib|ArmPkg/Library/ArmLib/ArmV7/ArmV7Lib.inf
+  NULL|ArmPkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
+
 [LibraryClasses.AARCH64]
   ArmLib|ArmPkg/Library/ArmLib/AArch64/AArch64Lib.inf
   NULL|ArmPkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
@@ -87,9 +91,10 @@
   ReportStatusCodeLib|IntelFrameworkModulePkg/Library/DxeReportStatusCodeLibFramework/DxeReportStatusCodeLib.inf
   ExtractGuidedSectionLib|MdePkg/Library/DxeExtractGuidedSectionLib/DxeExtractGuidedSectionLib.inf
 
-[BuildOptions.AARCH64]
-  GCC:*_*_AARCH64_ARCHCC_FLAGS  = -Wno-shift-negative-value -fstack-protector-strong -Wno-varargs
-  GCC:*_*_AARCH64_DLINK_FLAGS = -Ttext=0x0
+[BuildOptions.common]
+  GCC:*_*_*_ARCHCC_FLAGS  = -Wno-shift-negative-value -fstack-protector-strong -Wno-varargs
+  GCC:*_*_*_DLINK_FLAGS = -Ttext=0x0
+
   !if $(VERIFIED_BOOT)
       GCC:*_*_*_CC_FLAGS = -DVERIFIED_BOOT
   !endif
