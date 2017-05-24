@@ -52,7 +52,7 @@ STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceT
 	EFI_STATUS Status;
 	EFI_HLOS_BOOT_ARGS HlosBootArgs;
 
-	gBS->SetMem((VOID*)&HlosBootArgs, sizeof(HlosBootArgs), 0);
+	SetMem((VOID*)&HlosBootArgs, sizeof(HlosBootArgs), 0);
 	HlosBootArgs.el1_x2 = DeviceTreeLoadAddr;
 	/* Write 0 into el1_x4 to switch to 32bit mode */
 	HlosBootArgs.el1_x4 = 0;
