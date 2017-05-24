@@ -31,6 +31,7 @@
 #include "KeymasterClient.h"
 #include "libavb/libavb.h"
 #include <Library/VerifiedBootMenu.h>
+#include <Library/MenuKeysDetection.h>
 
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
 STATIC CONST CHAR8 *VerifiedState = " androidboot.verifiedbootstate=";
@@ -500,24 +501,38 @@ STATIC EFI_STATUS DisplayVerifiedBootScreen(BootInfo *Info)
 	}
 
 	DEBUG((EFI_D_VERBOSE, "Boot State is : %d\n", Info->BootState));
-	switch (Info->BootState) {
-	case RED:
-		DisplayVerifiedBootMenu(DISPLAY_MENU_RED);
-		MicroSecondDelay(5000000);
-		ShutdownDevice();
-		break;
-	case YELLOW:
-		DisplayVerifiedBootMenu(DISPLAY_MENU_YELLOW);
-		MicroSecondDelay(5000000);
-		break;
-	case ORANGE:
-		if (FfbmStr[0] == '\0') {
-			DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
-			MicroSecondDelay(5000000);
-		}
-		break;
-	default:
-		break;
+	switch (Info->BootState)
+        {
+	        case RED:
+		        Status = DisplayVerifiedBootMenu(DISPLAY_MENU_RED);
+                        if (Status != EFI_SUCCESS) {
+                                DEBUG((EFI_D_INFO, "Your device is corrupt. It can't be trusted and will not boot." \
+						"\nYour device will shutdown in 30s\n"));
+                        }
+                        MicroSecondDelay(30000000);
+		        ShutdownDevice();
+		        break;
+	        case YELLOW:
+		        Status = DisplayVerifiedBootMenu(DISPLAY_MENU_YELLOW);
+                        if (Status == EFI_SUCCESS) {
+			        WaitForExitKeysDetection();
+		        } else {
+			        DEBUG((EFI_D_INFO, "Your device has loaded a different operating system." \
+				           "\nWait for 5 seconds before proceeding\n"));
+			        MicroSecondDelay(5000000);
+		        }
+		        break;
+	        case ORANGE:
+		        Status = DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
+		        if (Status == EFI_SUCCESS) {
+			        WaitForExitKeysDetection();
+		        } else {
+			        DEBUG((EFI_D_INFO, "Device is unlocked, Skipping boot verification\n"));
+				MicroSecondDelay(5000000);
+		        }
+		        break;
+	        default:
+		        break;
 	}
 	return EFI_SUCCESS;
 }

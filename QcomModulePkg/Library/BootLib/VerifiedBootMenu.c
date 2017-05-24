@@ -66,8 +66,8 @@ STATIC WARNING_MENU_MSG_INFO mMenuMsgInfo[] = {
 		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 	[DISPLAY_MENU_ORANGE] = {
 		{{"<!>"},BIG_FACTOR, BGR_ORANGE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"\n\nYour device software can't be checked for corruption. "\
-			"Please lock the bootloader\n\n"\
+		{{"\n\nThe boot loader is unlocked and software integrity cannot be guaranteed. Any data stored on the device may be available to attackers. "\
+			"Do not store any sensitive data on the device.\n\n"\
 			"Visit this link on another device:\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
 		{{"g.co/ABH\n\n\n"},
@@ -303,7 +303,8 @@ EFI_STATUS VerifiedBootMenuUpdateShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 		goto Exit;
 	Location += Height;
 
-	OptionMenuInfo->Info.TimeoutTime = 30;
+	OptionMenuInfo->Info.TimeoutTime = 60;
+	OptionMenuInfo->Info.MsgInfo->Action = POWEROFF;
 
 Exit:
 	if (MsgStrInfo)
@@ -357,7 +358,7 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, DISPLAY_
 		UINT8 FingerPrint[MAX_MSG_SIZE];
 		UINTN FingerPrintLen = 0;
 
-		mCommonMsgInfo[Type].Fingerprint.Location = Location;
+		mMenuMsgInfo[Type].Fingerprint.Location = Location;
 
 		Status = GetCertFingerPrint(FingerPrint, ARRAY_SIZE(FingerPrint),
 		                            &FingerPrintLen);
@@ -395,7 +396,7 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, DISPLAY_
 	if (Type == DISPLAY_MENU_RED || Type == DISPLAY_MENU_EIO)
 		OptionMenuInfo->Info.TimeoutTime = 30;
 	else
-		OptionMenuInfo->Info.TimeoutTime = 5;
+		OptionMenuInfo->Info.TimeoutTime = 10;
 
 	return Status;
 }

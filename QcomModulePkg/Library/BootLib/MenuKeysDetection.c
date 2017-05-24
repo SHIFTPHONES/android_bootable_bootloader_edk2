@@ -211,7 +211,7 @@ STATIC VOID PowerKeyFunc(OPTION_MENU_INFO *MenuInfo)
 {
 	int Reason = -1;
 	UINT32 OptionIndex = MenuInfo->Info.OptionIndex;
-	UINT32 OptionItem;
+	UINT32 OptionItem = 0;
 	STATIC BOOLEAN IsRefresh;
 
 	switch (MenuInfo->Info.MenuType) {
@@ -366,7 +366,10 @@ VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 		TimerDiff = GetTimerCountms() - StartTimer;
 		if (TimerDiff > (MenuInfo->Info.TimeoutTime)*1000) {
 			ExitMenuKeysDetection();
-			if (MenuInfo->Info.MenuType == DISPLAY_MENU_EIO)
+			if ((MenuInfo->Info.MenuType == DISPLAY_MENU_EIO) ||
+				((MenuInfo->Info.MsgInfo->Action == POWEROFF) &&
+				((MenuInfo->Info.MenuType == DISPLAY_MENU_YELLOW) ||
+				(MenuInfo->Info.MenuType == DISPLAY_MENU_ORANGE))))
 				ShutdownDevice();
 			return;
 		}
