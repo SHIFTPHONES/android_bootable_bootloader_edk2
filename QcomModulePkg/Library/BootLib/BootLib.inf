@@ -58,6 +58,7 @@
 	VerifiedBootMenu.c
 	PartitionTableUpdate.c
 	DeviceInfo.c
+	Rtic.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
@@ -135,6 +136,7 @@
 	gQcomScmModeSwithProtocolGuid
 	gQcomRngProtocolGuid
 	gQcomMdtpProtocolGuid
+	gQcomScmProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
