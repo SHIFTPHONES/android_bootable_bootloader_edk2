@@ -31,9 +31,12 @@
 
 #include <Uefi.h>
 
-#define NO_AVB 0
-#define AVB_1 1
-#define AVB_2 2
+enum
+{
+	NO_AVB = 0,
+	AVB_1,
+	AVB_2
+};
 
 #define GUARD(code)                                                            \
     do {                                                                       \
@@ -86,4 +89,13 @@ EFI_STATUS LoadImageAndAuth(BootInfo *Info);
  */
 VOID FreeVerifiedBootResource(BootInfo *Info);
 
+/**
+ *
+ * Returns the Finger print for this
+ * boot. A hash of user public key.
+ *
+ * @return EFI_STATUS
+ */
+EFI_STATUS GetCertFingerPrint(UINT8 *FingerPrint, UINTN FingerPrintLen,
+                              UINTN *FingerPrintLenOut);
 #endif /* __VERIFIEDBOOT_H__ */

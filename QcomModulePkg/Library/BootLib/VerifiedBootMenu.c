@@ -38,6 +38,7 @@
 #include <Library/MenuKeysDetection.h>
 #include <Library/UpdateDeviceTree.h>
 #include <Protocol/EFIVerifiedBoot.h>
+#include <Library/VerifiedBoot.h>
 
 #define FINGERPRINT_LINE_LEN 16
 #define FINGERPRINT_FORMATED_LINE_LEN  FINGERPRINT_LINE_LEN + 5
@@ -322,31 +323,17 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 T
 	Location += Height;
 
 	if (Type == DISPLAY_MENU_YELLOW) {
-		mCommonMsgInfo[Type].Fingerprint.Location = Location;
-		QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf = NULL;
-		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid,
-					     NULL, (VOID **) &VbIntf);
-		if (Status != EFI_SUCCESS) {
-			DEBUG((EFI_D_ERROR, "Unable to locate VerifiedBoot Protocol\n"));
-			return Status;
-		}
+		UINT8 FingerPrint[MAX_MSG_SIZE];
+		UINTN FingerPrintLen = 0;
 
-		if (VbIntf->Revision >=
-		    QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
-			UINT8 FingerPrint[MAX_MSG_SIZE];
-			UINTN FingerPrintLen = 0;
-                        UINTN DisplayStrLen = 0;
+		mCommonMsgInfo[Type].Fingerprint.Location = Location;
+
+		Status = GetCertFingerPrint(FingerPrint, ARRAY_SIZE(FingerPrint),
+		                            &FingerPrintLen);
+		if (Status == EFI_SUCCESS) {
+			UINTN DisplayStrLen = 0;
 			CHAR8 *DisplayStr = NULL;
 
-			Status = VbIntf->VBGetCertFingerPrint(VbIntf,
-							      FingerPrint,
-							      MAX_MSG_SIZE,
-							      &FingerPrintLen);
-			if (Status != EFI_SUCCESS) {
-				DEBUG((EFI_D_ERROR,
-				"Failed Reading CERT FingerPrint\n"));
-				return Status;
-			}
 			/* Each bytes needs two characters to be shown on display */
 			DisplayStrLen = FingerPrintLen * 2;
 			DisplayStr = AllocatePool(DisplayStrLen);

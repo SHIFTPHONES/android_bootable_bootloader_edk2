@@ -1342,7 +1342,7 @@ EFI_STATUS FindBootableSlot(Slot *BootableSlot)
 		       BootableSlot->Suffix, RetryCount));
 	} else {
 		DEBUG((EFI_D_INFO,
-		       "Slot %s is unbootable, try alternate slot\n",
+		       "Slot %s is unbootable, trying alternate slot\n",
 		       BootableSlot->Suffix));
 		GUARD_OUT(HandleActiveSlotUnbootable());
 	}
