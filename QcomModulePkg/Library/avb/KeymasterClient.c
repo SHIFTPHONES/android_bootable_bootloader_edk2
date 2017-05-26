@@ -219,8 +219,8 @@ KeyMasterSetRotAndBootState(KMRotAndBootState *BootState)
 		return EFI_INVALID_PARAMETER;
 	}
 
+	/* Compute ROT digest */
 	avb_sha256_init(&RotCtx);
-	avb_sha256_init(&BootStateCtx);
 
 	switch (BootState->Color) {
 	case GREEN:
@@ -229,13 +229,28 @@ KeyMasterSetRotAndBootState(KMRotAndBootState *BootState)
 		                  BootState->PublicKeyLength);
 		avb_sha256_update(&RotCtx, (const uint8_t *)&BootState->IsUnlocked,
 		                  sizeof(BootState->IsUnlocked));
-		avb_sha256_update(&BootStateCtx, (const uint8_t *)BootState->PublicKey,
-		                  BootState->PublicKeyLength);
-		BootStateDigest = (CHAR8 *)avb_sha256_final(&BootStateCtx);
 		break;
 	case ORANGE:
 		avb_sha256_update(&RotCtx, (const uint8_t *)&BootState->IsUnlocked,
 		                  sizeof(BootState->IsUnlocked));
+		break;
+	case RED:
+	default:
+		DEBUG((EFI_D_ERROR, "Invalid state to boot!\n"));
+		return EFI_LOAD_ERROR;
+	}
+
+	RotDigest = (CHAR8 *)avb_sha256_final(&RotCtx);
+
+	/* Compute BootState digest */
+	switch (BootState->Color) {
+	case GREEN:
+	case YELLOW:
+		avb_sha256_init(&BootStateCtx);
+		avb_sha256_update(&BootStateCtx, (const uint8_t *)BootState->PublicKey,
+		                  BootState->PublicKeyLength);
+		BootStateDigest = (CHAR8 *)avb_sha256_final(&BootStateCtx);
+	case ORANGE:
 		BootStateDigest = BootStateOrgangeDigest;
 		break;
 	case RED:
@@ -243,7 +258,6 @@ KeyMasterSetRotAndBootState(KMRotAndBootState *BootState)
 		DEBUG((EFI_D_ERROR, "Invalid state to boot!\n"));
 		return EFI_LOAD_ERROR;
 	}
-	RotDigest = (CHAR8 *)avb_sha256_final(&RotCtx);
 
 	/* Load KeyMaster App */
 	GUARD(KeyMasterStartApp(&Handle));

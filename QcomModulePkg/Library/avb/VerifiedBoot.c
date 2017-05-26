@@ -275,6 +275,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	UINTN ImageSize = 0;
 	KMRotAndBootState Data = {0};
 	CONST boot_img_hdr *BootImgHdr = NULL;
+	BOOLEAN IsCriticalError = TRUE;
 
 	Info->BootState = RED;
 	GUARD(VBCommonInit(Info));
@@ -405,7 +406,11 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	Status = CheckImageHeader(ImageBuffer, ImageHdrSize, &ImageSizeActual, &PageSize);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
-		goto out;
+		if (IsUnlocked()) {
+			goto out_non_critical;
+		} else {
+			goto out;
+		}
 	}
 
 	if (ImageSizeActual > ImageSize) {
@@ -445,6 +450,8 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	DEBUG((EFI_D_INFO, "VB2: Authenticate complete! boot state is: %a\n",
 	       VbSn[Info->BootState].name));
 
+out_non_critical:
+	IsCriticalError = FALSE;
 out:
 	if (Status != EFI_SUCCESS) {
 		if (SlotData != NULL) {
@@ -460,12 +467,13 @@ out:
 			avb_free(VBData);
 		}
 		Info->BootState = RED;
-		HandleActiveSlotUnbootable();
-		/* HandleActiveSlotUnbootable should have swapped slots and
-		* reboot the
-		* device. If no bootable slot found, enter fastboot */
-		DEBUG((EFI_D_WARN,
-		       "No bootable slots found enter fastboot mode\n"));
+		if (IsCriticalError) {
+			HandleActiveSlotUnbootable();
+			/* HandleActiveSlotUnbootable should have swapped slots and
+			* reboot the device. If no bootable slot found, enter fastboot */
+			DEBUG((EFI_D_WARN,
+			       "No bootable slots found enter fastboot mode\n"));
+		}
 	}
 
 	DEBUG((EFI_D_ERROR, "VB2: boot state: %a(%d)\n",
@@ -646,4 +654,62 @@ VOID FreeVerifiedBootResource(BootInfo *Info)
 		FreePool(Info->VBCmdLine);
 	}
 	return;
+}
+
+EFI_STATUS GetCertFingerPrint(UINT8 *FingerPrint, UINTN FingerPrintLen,
+                              UINTN *FingerPrintLenOut)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (FingerPrint == NULL || FingerPrintLenOut == NULL ||
+	    FingerPrintLen < AVB_SHA256_DIGEST_SIZE) {
+		DEBUG((EFI_D_ERROR,
+		       "GetCertFingerPrint: Invalid parameters\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	if (GetAVBVersion() == AVB_1) {
+		QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf = NULL;
+
+		Status = gBS->LocateProtocol(&gEfiQcomVerifiedBootProtocolGuid,
+		                             NULL, (VOID **)&VbIntf);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR,
+			       "Unable to locate VerifiedBoot Protocol\n"));
+			return Status;
+		}
+
+		if (VbIntf->Revision < QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+			DEBUG((EFI_D_ERROR, "GetCertFingerPrint: VB1: not "
+			                    "supported for this revision\n"));
+			return EFI_UNSUPPORTED;
+		}
+
+		Status = VbIntf->VBGetCertFingerPrint(
+		        VbIntf, FingerPrint, FingerPrintLen, FingerPrintLenOut);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR,
+			       "Failed Reading CERT FingerPrint\n"));
+			return Status;
+		}
+	} else if (GetAVBVersion() == AVB_2) {
+		CHAR8 *UserKeyBuffer = NULL;
+		UINT32 UserKeyLength = 0;
+		AvbSHA256Ctx UserKeyCtx = {{0}};
+		CHAR8 *UserKeyDigest = NULL;
+
+		GUARD(GetUserKey(&UserKeyBuffer, &UserKeyLength));
+
+		avb_sha256_init(&UserKeyCtx);
+		avb_sha256_update(&UserKeyCtx, (UINT8 *)UserKeyBuffer, UserKeyLength);
+		UserKeyDigest = (CHAR8 *)avb_sha256_final(&UserKeyCtx);
+
+		CopyMem(FingerPrint, UserKeyDigest, AVB_SHA256_DIGEST_SIZE);
+		*FingerPrintLenOut = AVB_SHA256_DIGEST_SIZE;
+	} else {
+		DEBUG((EFI_D_ERROR, "GetCertFingerPrint: not supported\n"));
+		return EFI_UNSUPPORTED;
+	}
+
+	return Status;
 }

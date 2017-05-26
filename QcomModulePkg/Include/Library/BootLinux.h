@@ -109,5 +109,5 @@ EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual
 EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
 BOOLEAN TargetBuildVariantUser();
 EFI_STATUS GetImage(CONST BootInfo *Info, VOID**ImageBuffer, UINTN *ImageSize, CHAR8 *ImageName);
-BOOLEAN PartitionHasDtbo(BootInfo *Info);
+BOOLEAN LoadAndValidateDtboImg(BootInfo *Info, VOID** DtboImgBuffer);
 #endif

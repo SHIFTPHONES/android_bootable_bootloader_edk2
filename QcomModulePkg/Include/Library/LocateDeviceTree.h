@@ -59,6 +59,7 @@
 #define DTBO_TABLE_MAGIC           0xD7B7AB1E
 #define DTBO_CUSTOM_MAX            4
 #define PLATFORM_FOUNDRY_SHIFT    16
+#define DTBO_MAX_SIZE_ALLOWED     (8 * 1024 * 1024)
 
 typedef enum {
 	FOUNDRYID_MATCH = BIT(0),

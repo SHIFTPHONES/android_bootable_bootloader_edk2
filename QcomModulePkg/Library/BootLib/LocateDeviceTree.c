@@ -496,7 +496,8 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 	if (PlatProp && (LenPlatId > 0) && (!(LenPlatId % MinPlatIdLen))) {
 		/*Compare msm-id of the dtb vs Board*/
 		DtPlatformId = fdt32_to_cpu(((struct plat_id *)PlatProp)->platform_id);
-		if ((BoardPlatformRawChipId() & 0xffff) == DtPlatformId) {
+		DEBUG ((EFI_D_VERBOSE, "Boardsocid = %x, Dtsocid = %x\n", (BoardPlatformRawChipId() & 0xffff),(DtPlatformId & 0xffff)));
+		if ((BoardPlatformRawChipId() & 0xffff) == (DtPlatformId & 0xffff)) {
 			*MatchVal |= SOC_MATCH;
 		} else {
 			DEBUG ((EFI_D_VERBOSE, "qcom,msm-id doesnot match\n"));
@@ -504,6 +505,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 		}
 		/*Compare soc rev of the dtb vs Board*/
 		DtSocRev = fdt32_to_cpu(((struct plat_id *)PlatProp)->soc_rev);
+		DEBUG ((EFI_D_VERBOSE, "BoardSocRev = %x, DtSocRev =%x\n", BoardPlatformChipVersion(), DtSocRev));
 		if (DtSocRev == BoardPlatformChipVersion()) {
 			*MatchVal |= VERSION_MATCH;
 		} else if (DtSocRev) {
@@ -512,11 +514,11 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 		}
 		/*Compare Foundry Id of the dtb vs Board*/
 		DtFoundryId = fdt32_to_cpu(((struct plat_id *)PlatProp)->platform_id) & 0x00ff0000;
+		DEBUG ((EFI_D_VERBOSE, "BoardFoundry = %x, DtFoundry = %x\n", (BoardPlatformFoundryId() << PLATFORM_FOUNDRY_SHIFT), DtFoundryId));
 		if (DtFoundryId == (BoardPlatformFoundryId() << PLATFORM_FOUNDRY_SHIFT)) {
 			*MatchVal |= FOUNDRYID_MATCH;
-		} else if (DtFoundryId) {
+		} else {
 			DEBUG ((EFI_D_VERBOSE, "soc foundry doesnot match\n"));
-			return FALSE;
 		}
 	} else {
 		DEBUG ((EFI_D_VERBOSE, "qcom, msm-id does not exist (or) is (%d) not a multiple of (%d)\n", LenPlatId, MinPlatIdLen));
@@ -530,6 +532,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 		if (DtPlatformSubtype == 0)
 			DtPlatformSubtype = fdt32_to_cpu(((struct board_id *)BoardProp)->variant_id) >> 0x18;
 
+		DEBUG ((EFI_D_VERBOSE, "BoardVariant = %x, DtVariant = %x\n", BoardPlatformType(), DtVariantId));
 		if (DtVariantId == BoardPlatformType()) {
 			*MatchVal |= VARIANT_MATCH;
 		} else if (DtVariantId) {
@@ -537,6 +540,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 			return FALSE;
 		}
 
+		DEBUG ((EFI_D_VERBOSE, "BoardSubtype = %x, DtSubType = %x\n",BoardPlatformSubType(), DtPlatformSubtype));
 		if (DtPlatformSubtype == BoardPlatformSubType()) {
 			*MatchVal |= SUBTYPE_MATCH;
 		} else if (DtPlatformSubtype) {
@@ -555,6 +559,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 		DtPmicTarget[PMIC_IDX2]= fdt32_to_cpu(((struct pmic_id *)PmicProp)->pmic_version[PMIC_IDX2]);
 		DtPmicTarget[PMIC_IDX3]= fdt32_to_cpu(((struct pmic_id *)PmicProp)->pmic_version[PMIC_IDX3]);
 
+		DEBUG ((EFI_D_VERBOSE, "BoardPmicids = %x/%x/%x/%x DtPmicids = %x/%x/%x/%x\n", BoardPmicTarget(0), BoardPmicTarget(1),BoardPmicTarget(2),BoardPmicTarget(4), DtPmicTarget[0], DtPmicTarget[1], DtPmicTarget[2], DtPmicTarget[3]));
 		if ((DtPmicTarget[PMIC_IDX0] == BoardPmicTarget(PMIC_IDX0))
 				&& (DtPmicTarget[PMIC_IDX1] == BoardPmicTarget(PMIC_IDX1))
 				&& (DtPmicTarget[PMIC_IDX2] == BoardPmicTarget(PMIC_IDX2))
@@ -612,6 +617,7 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 				BestMatchDt = Dtb;
 			}
 		}
+		DEBUG ((EFI_D_VERBOSE, "Match = %x Bestmatch = %x\n", Match, BestSocDtMatch));
 		Dtb += DtbSize;
 	}
 	if (!BestMatchDt) {
@@ -622,46 +628,53 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 	return BestMatchDt;
 }
 
-VOID* GetBoardDtb (BootInfo *Info)
+VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer)
 {
-	EFI_STATUS Status;
-	struct DtboTableHdr* DtboTableHdr = NULL;
+	struct DtboTableHdr* DtboTableHdr = DtboImgBuffer;
 	struct DtboTableEntry *DtboTableEntry = NULL;
 	UINT32 DtboCount = 0;
 	UINT32 LocalBoardDtMatch = 0;
 	VOID* BestMatchDt = NULL;
 	VOID *BoardDtb = NULL;
 	BOOLEAN Match = FALSE;
-	UINTN DtboImgSize = 0;
-	VOID* DtboImgBuffer = NULL;
+	UINT32 DtboTableEntriesCount = 0;
+	UINT32 FirstDtboTableEntryOffset = 0;
 
-	Status = GetImage(Info, &DtboImgBuffer, &DtboImgSize, "dtbo");
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "BootLinux: GetImage failed!"));
+	if (!DtboImgBuffer) {
+		DEBUG((EFI_D_ERROR, "Dtbo Img buffer is NULL\n"));
 		return NULL;
 	}
 
-	DtboTableHdr = DtboImgBuffer;
-	if (fdt32_to_cpu(DtboTableHdr->Magic) != DTBO_TABLE_MAGIC) {
-		DEBUG((EFI_D_ERROR, "Dtbo hdr magic mismatch %x, %x\n", DtboTableHdr->Magic, DTBO_TABLE_MAGIC));
+	FirstDtboTableEntryOffset = fdt32_to_cpu(DtboTableHdr->DtEntryOffset);
+	if (CHECK_ADD64((UINT64)DtboImgBuffer, FirstDtboTableEntryOffset)) {
+		DEBUG((EFI_D_ERROR, "Integer overflow deteced with Dtbo address\n"));
 		return NULL;
 	}
 
-	DtboTableEntry = DtboImgBuffer + sizeof(struct DtboTableHdr);
+	DtboTableEntry = (struct DtboTableEntry *)(DtboImgBuffer + FirstDtboTableEntryOffset);
 	if (!DtboTableEntry) {
 		DEBUG((EFI_D_ERROR, "No proper DtTable\n"));
 		return NULL;
 	}
 
-	for (DtboCount = 0; DtboCount < fdt32_to_cpu(DtboTableHdr->DtEntryCount); DtboCount++) {
-			BoardDtb = DtboImgBuffer + fdt32_to_cpu(DtboTableEntry->DtOffset);
-			Match = ReadDtbFindMatch(BoardDtb, &LocalBoardDtMatch);
-			if (Match) {
-				if (BestBoardDtMatch < LocalBoardDtMatch) {
-					BestBoardDtMatch = LocalBoardDtMatch;
-					BestMatchDt = BoardDtb;
-				}
+	DtboTableEntriesCount = fdt32_to_cpu(DtboTableHdr->DtEntryCount);
+	for (DtboCount = 0; DtboCount < DtboTableEntriesCount; DtboCount++) {
+		if (CHECK_ADD64((UINT64)DtboImgBuffer, fdt32_to_cpu(DtboTableEntry->DtOffset))) {
+			DEBUG((EFI_D_ERROR, "Integer overflow deteced with Dtbo address\n"));
+			return NULL;
+		}
+		BoardDtb = DtboImgBuffer + fdt32_to_cpu(DtboTableEntry->DtOffset);
+		if (fdt_check_header(BoardDtb) || fdt_check_header_ext(BoardDtb)) {
+			DEBUG ((EFI_D_ERROR, "No Valid Dtb\n"));
+			break;
+		}
+		Match = ReadDtbFindMatch(BoardDtb, &LocalBoardDtMatch);
+		if (Match) {
+			if (BestBoardDtMatch < LocalBoardDtMatch) {
+				BestBoardDtMatch = LocalBoardDtMatch;
+				BestMatchDt = BoardDtb;
 			}
+		}
 		DEBUG ((EFI_D_VERBOSE, "Dtbo count = %u LocalBoardDtMatch =%x\n",DtboCount, LocalBoardDtMatch));
 		DtboTableEntry++;
 	}
