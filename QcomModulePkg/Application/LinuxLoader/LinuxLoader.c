@@ -208,11 +208,6 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			break;
 	}
 
-	/* Backup the boot logo blt buffer */
-	Status = BackUpBootLogoBltBuffer();
-	if (Status != EFI_SUCCESS)
-		DEBUG((EFI_D_VERBOSE, "Backup the boot logo blt buffer failed: %r\n", Status));
-
 	Status = RecoveryInit(&BootIntoRecovery);
 	if (Status != EFI_SUCCESS)
 		DEBUG((EFI_D_VERBOSE, "RecoveryInit failed ignore: %r\n", Status));

@@ -150,8 +150,6 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 	CHAR8 StrTemp1[MAX_RSP_SIZE] = "\0";
 	CHAR8 VersionTemp[MAX_VERSION_LEN] = "\0";
 
-	/* Clear the screen before launch the fastboot menu */
-	gST->ConOut->ClearScreen (gST->ConOut);
 	ZeroMem(&OptionMenuInfo->Info, sizeof(MENU_OPTION_ITEM_INFO));
 
 	/* Update fastboot option title */
@@ -240,6 +238,7 @@ VOID DisplayFastbootMenu()
 	OptionMenuInfo = &gMenuInfo;
 
 	if (FixedPcdGetBool(EnableDisplayMenu)) {
+		DrawMenuInit();
 		OptionMenuInfo->LastMenuType =
 			OptionMenuInfo->Info.MenuType;
 

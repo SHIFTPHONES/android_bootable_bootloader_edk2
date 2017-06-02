@@ -519,3 +519,15 @@ EFI_STATUS UpdateMsgBackground(MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor)
 	}
 	return EFI_SUCCESS;
 }
+
+VOID DrawMenuInit() {
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	/* Backup the boot logo blt buffer before the screen gets changed */
+	Status = BackUpBootLogoBltBuffer();
+	if (Status != EFI_SUCCESS)
+		DEBUG((EFI_D_VERBOSE, "Backup the boot logo blt buffer failed: %r\n", Status));
+
+	/* Clear the screen before start drawing menu */
+	gST->ConOut->ClearScreen (gST->ConOut);
+}
