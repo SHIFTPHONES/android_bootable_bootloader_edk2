@@ -1354,10 +1354,16 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 			FastbootFail("set_active failed");
 			return;
 		}
+
+		// Updating fbvar `current-slot'
+		UnicodeStrToAsciiStr(GetCurrentSlotSuffix().Suffix,CurrentSlotFB);
+		if (AsciiStrStr(CurrentSlotFB, "_")) {
+			SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
+		}
 	}
 
 	do {
-		if (!AsciiStrStr(BootSlotInfo[j].SlotSuffix, InputSlot)) {
+		if (AsciiStrStr(BootSlotInfo[j].SlotSuffix, InputSlot)) {
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVal, ATTR_RESP_SIZE, "no", AsciiStrLen("no"));
 			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVal, ATTR_RESP_SIZE, "no", AsciiStrLen("no"));
 			AsciiSPrint(BootSlotInfo[j].SlotRetryCountVal, sizeof(BootSlotInfo[j].SlotRetryCountVal), "%d", MAX_RETRY_COUNT);
