@@ -476,7 +476,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		}
 
 		if (HaveCmdLine) {
-			if (MultiSlotBoot && !AsciiStrStr(CmdLine, "root=")) {
+			if (MultiSlotBoot && !IsBootDevImage()) {
 				/* Slot suffix */
 				Src = AndroidSlotSuffix;
 				--Dst;
