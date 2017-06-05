@@ -52,7 +52,7 @@ EFI_STATUS GetKeyPress(UINT32 *KeyPressed)
 		return Status;
 	}
 
-	SetMem(&KeyData, sizeof(KeyData), 0);
+	gBS->SetMem(&KeyData, sizeof(KeyData), 0);
 
 	Status = InputEx->ReadKeyStrokeEx (InputEx, &KeyData);
 	if (Status != EFI_SUCCESS)

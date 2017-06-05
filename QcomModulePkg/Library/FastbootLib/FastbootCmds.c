@@ -429,7 +429,7 @@ void PopulateMultislotMetadata()
 			DEBUG((EFI_D_ERROR,"Unable to allocate memory for BootSlotInfo\n"));
 			return;
 		}
-		SetMem((VOID *) BootSlotInfo, SlotCount * sizeof(struct GetVarSlotInfo), 0);
+		gBS->SetMem((VOID *) BootSlotInfo, SlotCount * sizeof(struct GetVarSlotInfo), 0);
 		FastbootPublishSlotVars();
 		InitialPopulate = TRUE;
 	} else {
@@ -953,7 +953,7 @@ STATIC VOID CmdDownload(
 
 	UnicodeSPrint (OutputString, sizeof (OutputString), L"Downloading %d bytes\r\n", mNumDataBytes);
 	AsciiStrnCpyS(Response + 4, sizeof(Response), NumBytesString, sizeof(Response)-4);
-	CopyMem(GetFastbootDeviceData().gTxBuffer, Response, 12);
+	gBS->CopyMem(GetFastbootDeviceData().gTxBuffer, Response, 12);
 	mState = ExpectDataState;
 	mBytesReceivedSoFar = 0;
 	GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_OUT, 12 , GetFastbootDeviceData().gTxBuffer);
@@ -1171,7 +1171,7 @@ STATIC VOID CmdFlash(
 						DEBUG((EFI_D_VERBOSE, "Nullifying A/B info\n"));
 						ClearFastbootVarsofAB();
 						FreePool(BootSlotInfo);
-						SetMem((VOID*)SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, 0);
+						gBS->SetMem((VOID*)SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, 0);
 						InitialPopulate = FALSE;
 					}
 				}

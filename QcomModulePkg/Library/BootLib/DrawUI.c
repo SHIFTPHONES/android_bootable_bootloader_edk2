@@ -296,7 +296,7 @@ STATIC VOID SetDisplayInfo(MENU_MSG_INFO *TargetMenu,
 
 	/* Set font name */
 	FontDisplayInfo->FontInfoMask = EFI_FONT_INFO_ANY_SIZE | EFI_FONT_INFO_ANY_STYLE;
-	CopyMem(&FontDisplayInfo->FontInfo.FontName, GetFontFactorName(TargetMenu->ScaleFactorType),
+	gBS->CopyMem(&FontDisplayInfo->FontInfo.FontName, GetFontFactorName(TargetMenu->ScaleFactorType),
 		StrSize(GetFontFactorName(TargetMenu->ScaleFactorType)));
 }
 
@@ -307,14 +307,14 @@ STATIC VOID StrAlignRight(CHAR8* Msg, CHAR8* FilledChar, UINT32 ScaleFactorType)
 	UINT32 Max_x = GetMaxFontCount();
 	UINT32 factor = GetFontScaleFactor(ScaleFactorType);
 
-	SetMem(StrSourceTemp, sizeof(StrSourceTemp), 0);
+	gBS->SetMem(StrSourceTemp, sizeof(StrSourceTemp), 0);
 	if (Max_x/factor > AsciiStrLen(Msg)) {
 		diff = Max_x/factor - AsciiStrLen(Msg);
 		for (i = 0; i < diff; i++) {
 			AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, FilledChar, Max_x/factor);
 		}
 		AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, Msg, Max_x/factor);
-		CopyMem(Msg, StrSourceTemp, AsciiStrSize(StrSourceTemp));
+		gBS->CopyMem(Msg, StrSourceTemp, AsciiStrSize(StrSourceTemp));
 	}
 }
 
@@ -325,7 +325,7 @@ STATIC VOID StrAlignLeft(CHAR8* Msg, UINT32 MaxMsgSize, CHAR8* FilledChar, UINT3
 	UINT32 Max_x = GetMaxFontCount();
 	UINT32 factor = GetFontScaleFactor(ScaleFactorType);
 
-	SetMem(StrSourceTemp, sizeof(StrSourceTemp), 0);
+	gBS->SetMem(StrSourceTemp, sizeof(StrSourceTemp), 0);
 	if (Max_x/factor > AsciiStrLen(Msg)) {
 		diff = Max_x/factor - AsciiStrLen(Msg);
 		for (i = 0; i < diff; i++) {
@@ -478,7 +478,7 @@ Exit:
 VOID SetMenuMsgInfo(MENU_MSG_INFO *MenuMsgInfo, CHAR8* Msg, UINT32 ScaleFactorType,
 	UINT32 FgColor, UINT32 BgColor, UINT32 Attribute, UINT32 Location, UINT32 Action)
 {
-	CopyMem(&MenuMsgInfo->Msg, Msg, AsciiStrSize(Msg));
+	gBS->CopyMem(&MenuMsgInfo->Msg, Msg, AsciiStrSize(Msg));
 	MenuMsgInfo->ScaleFactorType = ScaleFactorType;
 	MenuMsgInfo->FgColor = FgColor;
 	MenuMsgInfo->BgColor = BgColor;

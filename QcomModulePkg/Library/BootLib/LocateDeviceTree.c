@@ -385,7 +385,7 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 
 		/* the DTB could be unaligned, so extract the header,
 		 * and operate on it separately */
-		CopyMem(&dtb_hdr, dtb, sizeof(struct fdt_header));
+		gBS->CopyMem(&dtb_hdr, dtb, sizeof(struct fdt_header));
 		if (fdt_check_header((const VOID *)&dtb_hdr) != 0 ||
 				fdt_check_header_ext((VOID *)&dtb_hdr) != 0 ||
 				((uintptr_t)dtb + (uintptr_t)fdt_totalsize((const VOID *)&dtb_hdr) < (uintptr_t)dtb) ||
@@ -441,7 +441,7 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 			DEBUG((EFI_D_ERROR, "Tag size is over the limit\n"));
 			goto out;
 		}
-		CopyMem(tags, bestmatch_tag, bestmatch_tag_size);
+		gBS->CopyMem(tags, bestmatch_tag, bestmatch_tag_size);
 		/* clear out the old DTB magic so kernel doesn't find it */
 		*((UINT32 *)(kernel + dtb_offset)) = 0;
 		return tags;
@@ -597,7 +597,7 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 	while (((uintptr_t)Dtb + sizeof(struct fdt_header)) < (uintptr_t)KernelEnd) {
 		/* the DTB could be unaligned, so extract the header,
 		 * and operate on it separately */
-		CopyMem(&DtbHdr, Dtb, sizeof(struct fdt_header));
+		gBS->CopyMem(&DtbHdr, Dtb, sizeof(struct fdt_header));
 		DtbSize = fdt_totalsize((const VOID *)&DtbHdr);
 		if (fdt_check_header((const VOID *)&DtbHdr) != 0 ||
 				fdt_check_header_ext((VOID *)&DtbHdr) != 0 ||
@@ -761,7 +761,7 @@ STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_e
 			return 0;
 		}
 
-		CopyMem((VOID *)dt_node_tmp->dt_entry_m,(VOID *)cur_dt_entry, sizeof(struct dt_entry));
+		gBS->CopyMem((VOID *)dt_node_tmp->dt_entry_m,(VOID *)cur_dt_entry, sizeof(struct dt_entry));
 
 		DEBUG((EFI_D_VERBOSE, "Add DTB entry 0x%x/%08x/0x%08x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x/0x%x\n",
 					dt_node_tmp->dt_entry_m->platform_id, dt_node_tmp->dt_entry_m->variant_id,

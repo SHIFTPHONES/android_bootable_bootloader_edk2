@@ -162,7 +162,7 @@ EFI_STATUS SetDeviceUnlockValue(UINT32 Type, BOOLEAN State)
 		return Status;
 	}
 
-	SetMem((VOID *)&Msg, sizeof(Msg), 0);
+	gBS->SetMem((VOID *)&Msg, sizeof(Msg), 0);
 	AsciiStrnCpyS(Msg.recovery, sizeof(Msg.recovery), RECOVERY_WIPE_DATA, AsciiStrLen(RECOVERY_WIPE_DATA));
 	WriteToPartition(&gEfiMiscPartitionGuid, &Msg);
 
@@ -185,10 +185,10 @@ EFI_STATUS DeviceInfoInit()
 
 	if (CompareMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE)) {
 		DEBUG((EFI_D_ERROR, "Device Magic does not match\n"));
-		CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
+		gBS->CopyMem(DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
 		DevInfo.user_public_key_length = 0;
-		SetMem(DevInfo.rollback_index, sizeof(DevInfo.rollback_index), 0);
-		SetMem(DevInfo.user_public_key, sizeof(DevInfo.user_public_key), 0);
+		gBS->SetMem(DevInfo.rollback_index, sizeof(DevInfo.rollback_index), 0);
+		gBS->SetMem(DevInfo.user_public_key, sizeof(DevInfo.user_public_key), 0);
 		if (IsSecureBootEnabled())
 		{
 			DevInfo.is_unlocked = FALSE;
@@ -276,7 +276,7 @@ EFI_STATUS StoreUserKey(CHAR8 *UserKey, UINT32 UserKeySize)
 		return EFI_OUT_OF_RESOURCES;
 	}
 
-	CopyMem(DevInfo.user_public_key, UserKey, UserKeySize);
+	gBS->CopyMem(DevInfo.user_public_key, UserKey, UserKeySize);
 	DevInfo.user_public_key_length = UserKeySize;
 	Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
 	if (Status != EFI_SUCCESS) {
@@ -297,7 +297,7 @@ EFI_STATUS EraseUserKey()
 		return Status;
 	}
 
-	SetMem(DevInfo.user_public_key, ARRAY_SIZE(DevInfo.user_public_key), 0);
+	gBS->SetMem(DevInfo.user_public_key, ARRAY_SIZE(DevInfo.user_public_key), 0);
 	DevInfo.user_public_key_length = 0;
 	Status = ReadWriteDeviceInfo(WRITE_CONFIG, (UINT8 *)&DevInfo, sizeof(DevInfo));
 	if (Status != EFI_SUCCESS) {
