@@ -275,10 +275,11 @@ void avb_slot_verify_data_free(AvbSlotVerifyData* data);
  * ignore verification errors which is something needed in the
  * UNLOCKED state. See the AvbSlotVerifyFlags enumeration for details.
  *
- * The |hashtree_error_mode| parameter should be set the desired error
- * handling mode when hashtree validation fails inside the HLOS. This
- * value isn't used by libavb per se - it is forwarded to the HLOS
- * through the androidboot.veritymode cmdline parameter. See the
+ * The |hashtree_error_mode| parameter should be set to the desired
+ * error handling mode when hashtree validation fails inside the
+ * HLOS. This value isn't used by libavb per se - it is forwarded to
+ * the HLOS through the androidboot.veritymode and
+ * androidboot.vbmeta.invalidate_on_error cmdline parameters. See the
  * AvbHashtreeErrorMode enumeration for details.
  *
  * Also note that |out_data| is never set if
