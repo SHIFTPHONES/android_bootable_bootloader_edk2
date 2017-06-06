@@ -134,3 +134,4 @@
   gQcomTokenSpaceGuid.EnableDisplayMenu|TRUE|BOOLEAN|0x00015005
   gQcomTokenSpaceGuid.KernelLoadAddress32|0x00008000|UINT32|0x00015006
   gQcomTokenSpaceGuid.EnableMdtpSupport|FALSE|BOOLEAN|0x00015007
+  gQcomTokenSpaceGuid.AllowEio|FALSE|BOOLEAN|0x00015008
