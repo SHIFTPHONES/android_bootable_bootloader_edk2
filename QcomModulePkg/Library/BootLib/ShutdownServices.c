@@ -84,8 +84,9 @@ EFI_STATUS PreparePlatformHardware (VOID)
 {
 	ArmDisableBranchPrediction();
 
-	DisableInterrupts();
-	ArmDisableAllExceptions();
+	/* ArmDisableAllExceptions */
+	ArmDisableInterrupts();
+	ArmDisableAsynchronousAbort();
 
 	// Clean, invalidate, disable data cache
 	WriteBackInvalidateDataCache();
