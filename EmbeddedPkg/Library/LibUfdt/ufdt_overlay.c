@@ -489,7 +489,6 @@ static int ufdt_overlay_root_node(struct ufdt *tree,
      struct ufdt_node *overlay_node = ufdt_get_node_by_path(overlay_tree, "/");
      struct ufdt_node **it_prop;
      struct ufdt_node *target_prop;
-     int err = 0;
 
      if(!target_node)
           return 0;
