@@ -1,0 +1,145 @@
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * * Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following
+ * disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *   * Neither the name of The Linux Foundation nor the names of its
+ * contributors may be used to endorse or promote products derived
+ * from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+#include "libfdt.h"
+#include "BootLinux.h"
+#include <Library/Rtic.h>
+#include <Protocol/EFIScm.h>
+#include <Protocol/scm_sip_interface.h>
+#include <Library/MemoryAllocationLib.h>
+#include <Library/DebugLib.h>
+
+static VOID TxMpdatatoQhee(UINT64 KernelLoadAddr, UINT64 *MpDataAddr, size_t MpDataSize)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	QCOM_SCM_PROTOCOL *QcomScmProtocol = NULL;
+	UINT64	Parameters[SCM_MAX_NUM_PARAMETERS] = {0};
+	UINT64	Results[SCM_MAX_NUM_RESULTS] = {0};
+	HypNotifyRticDtb *HypNotify = (HypNotifyRticDtb *)Parameters;
+
+	/* Locate QCOM_SCM_PROTOCOL */
+	Status = gBS->LocateProtocol(&gQcomScmProtocolGuid, NULL,
+					(VOID **)&QcomScmProtocol);
+	if (EFI_ERROR(Status)) {
+		DEBUG((EFI_D_ERROR, "Locate SCM Protocol failed, Status = (0x%x)\n", Status));
+		return;
+	}
+
+	HypNotify->KernelPhysBase = KernelLoadAddr;
+	HypNotify->DtbAddress = MpDataAddr;
+	HypNotify->DtbSize = MpDataSize;
+
+	/* Make ScmSipSysCall */
+	Status = QcomScmProtocol->ScmSipSysCall(QcomScmProtocol,
+					HYP_NOTIFY_RTIC_DTB_LOCATION,
+					HYP_NOTIFY_RTIC_DTB_LOCATION_PARAM_ID,
+					Parameters,
+					Results);
+	if (EFI_ERROR(Status))
+		DEBUG((EFI_D_ERROR, "ScmSipSysCall() failed, Status = (0x%x)\n", Status));
+
+	return;
+}
+
+BOOLEAN GetRticDtb(VOID *Dtb)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	int RootOffset;
+	const char *RticProp = NULL;
+	const char *MpDataProp = NULL;
+	struct RticId RticData;
+	int LenRticId;
+	int LenMpData;
+	UINT8 *MpData = NULL;
+	UINT32 i;
+	UINT64 *MpDataAddr;
+	UINT64 BaseMemory = 0;
+	UINT64 KernelLoadAddr = 0;
+
+	RootOffset = fdt_path_offset(Dtb, "/");
+	if (RootOffset < 0)
+		return FALSE;
+
+	/* Get the rtic-id prop from DTB */
+	RticProp = (const char *)fdt_getprop(Dtb, RootOffset, "qcom,rtic-id", &LenRticId);
+	if (RticProp && (LenRticId > 0) && (!(LenRticId % RTIC_ID_SIZE))) {
+		RticData.Id = fdt32_to_cpu(((struct RticId *)RticProp)->Id);
+		if (RticData.Id != RTIC_ID)
+			return FALSE;
+
+	} else {
+		DEBUG((EFI_D_VERBOSE, "qcom, rtic-id does not exist (or) is (%d) not a multiple of (%d)\n", LenRticId, RTIC_ID_SIZE));
+		return FALSE;
+	}
+
+	/* Get the MP data prop from DTB */
+	MpDataProp = (const char *)fdt_getprop(Dtb, RootOffset, "MP_DATA", &LenMpData);
+	if (!MpDataProp || LenMpData <= 0) {
+		DEBUG((EFI_D_VERBOSE, "MP_DATA entry not found\n"));
+		return FALSE;
+	}
+
+	MpData = (UINT8 *)AllocatePool(LenMpData);
+	if (!MpData) {
+		DEBUG((EFI_D_ERROR, "Failed to allocate memory for MP Data\n"));
+		return FALSE;
+	}
+
+	/* Extract MP data from DTB */
+	for(i = 0 ; i < LenMpData; i++) {
+		MpData[i] = (UINT8 )*MpDataProp;
+		MpDataProp += sizeof(UINT8);
+	}
+
+	MpDataAddr = (UINT64 *)MpData;
+	Status = BaseMem(&BaseMemory);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Base memory not found!!! Status:%r\n", Status));
+		return FALSE;
+	}
+
+	KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress));
+	if (((struct kernel64_hdr *)KernelLoadAddr)->magic_64 != KERNEL64_HDR_MAGIC)
+		KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress32));
+
+	/* Display the RTIC id and mpdata */
+	DEBUG ((EFI_D_VERBOSE, "rtic-id (%x)\n", RticData.Id));
+	for(i = 0 ; i < LenMpData; i++)
+		DEBUG ((EFI_D_VERBOSE, "MpData : (%x) \n", MpData[i]));
+
+	DEBUG ((EFI_D_VERBOSE, "Length of MpData (%d)\n", LenMpData));
+	DEBUG ((EFI_D_VERBOSE, "MpData (%x) \n", MpDataAddr));
+	DEBUG ((EFI_D_VERBOSE, "Kernel base address (%x)\n", KernelLoadAddr));
+	DEBUG ((EFI_D_VERBOSE, "Kernel mode check 32/64: KernelLoadAddr->magic_64 (%x) KERNEL64_HDR_MAGIC = %x\n",
+			((struct kernel64_hdr *)KernelLoadAddr)->magic_64, KERNEL64_HDR_MAGIC));
+
+	TxMpdatatoQhee(KernelLoadAddr, MpDataAddr, LenMpData);
+
+	FreePool(MpData);
+	return TRUE;
+}
