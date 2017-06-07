@@ -46,62 +46,54 @@
 STATIC OPTION_MENU_INFO gMenuInfo;
 
 typedef struct {
+	MENU_MSG_INFO   WarningTitle;
 	MENU_MSG_INFO   WarningMsg;
 	MENU_MSG_INFO   UrlMsg;
+	MENU_MSG_INFO   NoticeMsg;
 	MENU_MSG_INFO   Fingerprint;
-	MENU_MSG_INFO   CommonMsg;
-} WARNING_COMMON_MSG_INFO;
+} WARNING_MENU_MSG_INFO;
 
-STATIC MENU_MSG_INFO mTitleMsgInfo[] = {
-	{{"Start >"},
-		BIG_FACTOR, BGR_WHITE, BGR_BLACK, ALIGN_RIGHT, 0, NOACTION},
-	{{"Continue boot\n"},
-		COMMON_FACTOR, BGR_SILVER, BGR_BLACK, ALIGN_RIGHT, 0, NOACTION},
-	{{"< More options"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"Press VOLUME keys\n\n"},
-		COMMON_FACTOR, BGR_SILVER, BGR_BLACK, COMMON, 0, NOACTION},
-};
-
-STATIC WARNING_COMMON_MSG_INFO mCommonMsgInfo[] = {
+STATIC WARNING_MENU_MSG_INFO mMenuMsgInfo[] = {
 	[DISPLAY_MENU_YELLOW] = {
-		{{"Your device has loaded a different operating system\n\n"\
+		{{"<!>"},BIG_FACTOR, BGR_YELLOW, BGR_BLACK, COMMON, 0, NOACTION},
+		{{"\n\nYour device has loaded a different operating system\n\n"\
 			"Visit this link on another device:\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"g.co/ABH\n\n"},
+		{{"g.co/ABH\n\n\n"},
 			COMMON_FACTOR, BGR_YELLOW, BGR_BLACK, COMMON, 0, NOACTION},
-		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
-			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
+		{{"PRESS POWER KEY TO PAUSE BOOT\n\n\n\n"},
+			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, ALIGN_LEFT, 0, NOACTION},
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 	[DISPLAY_MENU_ORANGE] = {
-		{{"Your device software can't be checked for corruption. "\
-			"Please lock the bootloader\n\n"\
+		{{"<!>"},BIG_FACTOR, BGR_ORANGE, BGR_BLACK, COMMON, 0, NOACTION},
+		{{"\n\nThe boot loader is unlocked and software integrity cannot be guaranteed. Any data stored on the device may be available to attackers. "\
+			"Do not store any sensitive data on the device.\n\n"\
 			"Visit this link on another device:\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"g.co/ABH\n\n"},
+		{{"g.co/ABH\n\n\n"},
 			COMMON_FACTOR, BGR_ORANGE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
-			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
+		{{"PRESS POWER KEY TO PAUSE BOOT\n\n\n\n"},
+			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, ALIGN_LEFT, 0, NOACTION},
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 	[DISPLAY_MENU_RED] = {
-		{{"Your device is corrupt. It can't be trusted and will not boot\n\n"\
+		{{"<!>"},BIG_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
+		{{"\n\nYour device is corrupt. It can't be trusted and will not boot\n\n"\
 			"Visit this link on another device:\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"g.co/ABH\n\n"},
+		{{"g.co/ABH\n\n\n"},
 			COMMON_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
-		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
-			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
-	[DISPLAY_MENU_LOGGING] = {
-		{{"The dm-verity is not started in enforcing mode and may "\
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
+	[DISPLAY_MENU_EIO] = {
+		{{"<!>"},BIG_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
+		{{"\n\nYour device is corrupt. It can't be trusted and may "\
 			"not work properly\n\n"\
 			"Visit this link on another device:\n"},
 			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"g.co/ABH\n\n"},
+		{{"g.co/ABH\n\n\n"},
 			COMMON_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
-		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-		{{"If no key pressed:\nYour device will boot in 5 seconds\n\n"},
-			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
+		{{"PRESS POWER KEY TO CONTINUE\n\n\n\n"},
+			COMMON_FACTOR, BGR_WHITE, BGR_BLACK, ALIGN_LEFT, 0, NOACTION},
+		{{""}, COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION}},
 };
 
 STATIC MENU_MSG_INFO mOptionMenuMsgInfo[] = {
@@ -285,37 +277,79 @@ EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 }
 
 /**
+  Update the verified boot menu
+  @param[out] OptionMenuInfo  The option info
+  @retval     EFI_SUCCESS     The entry point is executed successfully.
+  @retval     other           Some error occurs when executing this entry point.
+ **/
+EFI_STATUS VerifiedBootMenuUpdateShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	UINT32 Location = OptionMenuInfo->Info.MsgInfo->Location;
+	UINT32 Height = 0;
+	MENU_MSG_INFO *MsgStrInfo = NULL;
+
+	MsgStrInfo = AllocateZeroPool(sizeof(MENU_MSG_INFO));
+	if (MsgStrInfo == NULL) {
+		DEBUG((EFI_D_ERROR, "Failed to allocate zero pool.\n"));
+		Status = EFI_OUT_OF_RESOURCES;
+		goto Exit;
+	}
+
+	SetMenuMsgInfo(MsgStrInfo, "PRESS POWER KEY TO CONTINUE",
+		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, ALIGN_LEFT, Location, 0);
+	Status = DrawMenu(MsgStrInfo, &Height);
+	if (Status != EFI_SUCCESS)
+		goto Exit;
+	Location += Height;
+
+	OptionMenuInfo->Info.TimeoutTime = 60;
+	OptionMenuInfo->Info.MsgInfo->Action = POWEROFF;
+
+Exit:
+	if (MsgStrInfo)
+		FreePool(MsgStrInfo);
+
+	return Status;
+
+}
+
+/**
   Draw the verified boot menu
   @param[in]  Type              The warning menu type
   @param[out] OptionMenuInfo    The option info
   @retval     EFI_SUCCESS       The entry point is executed successfully.
   @retval     other	       Some error occurs when executing this entry point.
  **/
-EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 Type)
+EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, DISPLAY_MENU_TYPE Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 Location = 0;
 	UINT32 Height = 0;
-	UINT32 i = 0;
 
 	ZeroMem(&OptionMenuInfo->Info, sizeof(MENU_OPTION_ITEM_INFO));
 
-	for (i = 0; i < ARRAY_SIZE(mTitleMsgInfo); i++) {
-		mTitleMsgInfo[i].Location = Location;
-		Status = DrawMenu(&mTitleMsgInfo[i], &Height);
-		if (Status != EFI_SUCCESS)
-			return Status;
-		Location += Height;
-	}
-
-	mCommonMsgInfo[Type].WarningMsg.Location = Location;
-	Status = DrawMenu(&mCommonMsgInfo[Type].WarningMsg, &Height);
+	mMenuMsgInfo[Type].WarningTitle.Location = Location;
+	Status = DrawMenu(&mMenuMsgInfo[Type].WarningTitle, &Height);
 	if (Status != EFI_SUCCESS)
 		return Status;
 	Location += Height;
 
-	mCommonMsgInfo[Type].UrlMsg.Location = Location;
-	Status = DrawMenu(&mCommonMsgInfo[Type].UrlMsg, &Height);
+	mMenuMsgInfo[Type].WarningMsg.Location = Location;
+	Status = DrawMenu(&mMenuMsgInfo[Type].WarningMsg, &Height);
+	if (Status != EFI_SUCCESS)
+		return Status;
+	Location += Height;
+
+	mMenuMsgInfo[Type].UrlMsg.Location = Location;
+	Status = DrawMenu(&mMenuMsgInfo[Type].UrlMsg, &Height);
+	if (Status != EFI_SUCCESS)
+		return Status;
+	Location += Height;
+
+	OptionMenuInfo->Info.MsgInfo = &mMenuMsgInfo[Type].NoticeMsg;
+	OptionMenuInfo->Info.MsgInfo->Location = Location;
+	Status = DrawMenu(OptionMenuInfo->Info.MsgInfo, &Height);
 	if (Status != EFI_SUCCESS)
 		return Status;
 	Location += Height;
@@ -324,7 +358,7 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 T
 		UINT8 FingerPrint[MAX_MSG_SIZE];
 		UINTN FingerPrintLen = 0;
 
-		mCommonMsgInfo[Type].Fingerprint.Location = Location;
+		mMenuMsgInfo[Type].Fingerprint.Location = Location;
 
 		Status = GetCertFingerPrint(FingerPrint, ARRAY_SIZE(FingerPrint),
 		                            &FingerPrintLen);
@@ -341,44 +375,43 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 T
 			/* Convert the fingerprint to a charcater string */
 			GetHexString(DisplayStr, FingerPrint, FingerPrintLen);
 			/* Save fingerprint in a formated string for display */
-			GetDisplayOutPut(mCommonMsgInfo[Type].Fingerprint.Msg,
+			GetDisplayOutPut(mMenuMsgInfo[Type].Fingerprint.Msg,
 					 MAX_MSG_SIZE, DisplayStr,
 					 DisplayStrLen);
 			if (DisplayStr) {
 				FreePool(DisplayStr);
 			}
 		}else {
-			AsciiSPrint(mCommonMsgInfo[Type].Fingerprint.Msg,
+			AsciiSPrint(mMenuMsgInfo[Type].Fingerprint.Msg,
 				MAX_MSG_SIZE, "ID: %a\n", "unsupported");
 		}
-		Status = DrawMenu(&mCommonMsgInfo[Type].Fingerprint, &Height);
+		Status = DrawMenu(&mMenuMsgInfo[Type].Fingerprint, &Height);
 		if (Status != EFI_SUCCESS)
 			return Status;
 		Location += Height;
 	}
 
-	mCommonMsgInfo[Type].CommonMsg.Location = Location;
-	Status = DrawMenu(&mCommonMsgInfo[Type].CommonMsg, &Height);
-	if (Status != EFI_SUCCESS)
-		return Status;
-	Location += Height;
-
 	OptionMenuInfo->Info.MenuType = Type;
-	/* Initialize the time out time: 5s */
-	OptionMenuInfo->Info.TimeoutTime = 5;
+	/* Initialize the time out time */
+	if (Type == DISPLAY_MENU_RED || Type == DISPLAY_MENU_EIO)
+		OptionMenuInfo->Info.TimeoutTime = 30;
+	else
+		OptionMenuInfo->Info.TimeoutTime = 10;
 
 	return Status;
 }
 
 /**
   Draw the verified boot menu and start to detect the key's status
-  @param[in] Type    The type of the warning menu:
-                     [DISPLAY_MENU_YELLOW]  ----- Yellow warning menu
-                     [DISPLAY_MENU_ORANGE]  ----- Orange warning menu
-                     [DISPLAY_MENU_RED]     ----- Red warning menu
-                     [DISPLAY_MENU_LOGGING] ----- Logging warning menu
+  @param[in] Type     The type of the warning menu:
+                      [DISPLAY_MENU_YELLOW]  ----- Yellow warning menu
+                      [DISPLAY_MENU_ORANGE]  ----- Orange warning menu
+                      [DISPLAY_MENU_RED]     ----- Red warning menu
+                      [DISPLAY_MENU_EIO]     ----- dm-verity EIO warning menu
+ @retval EFI_SUCCESS  The entry point is executed successfully.
+ @retval other        Some error occurs when executing this entry point.
 **/
-VOID DisplayVerifiedBootMenu(UINT32 Type)
+EFI_STATUS DisplayVerifiedBootMenu(DISPLAY_MENU_TYPE Type)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO *OptionMenuInfo;
@@ -394,12 +427,15 @@ VOID DisplayVerifiedBootMenu(UINT32 Type)
 		Status = VerifiedBootMenuShowScreen(OptionMenuInfo, Type);
 		if (Status != EFI_SUCCESS) {
 			DEBUG((EFI_D_ERROR, "Unable to show verified menu on screen: %r\n", Status));
-			return;
+			return Status;
 		}
-
-		MenuKeysDetectionInit(OptionMenuInfo);
-		DEBUG((EFI_D_VERBOSE, "Creating boot verify keys detect event\n"));
+		if (Type != DISPLAY_MENU_RED) {
+			MenuKeysDetectionInit(OptionMenuInfo);
+		}
 	} else {
 		DEBUG((EFI_D_INFO, "Display menu is not enabled!\n"));
+		Status = EFI_NOT_STARTED;
 	}
+
+	return Status;
 }
