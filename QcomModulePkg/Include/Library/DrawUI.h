@@ -119,4 +119,5 @@ EFI_STATUS UpdateMsgBackground(MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor);
 EFI_STATUS BackUpBootLogoBltBuffer();
 EFI_STATUS RestoreBootLogoBitBuffer();
 VOID FreeBootLogoBltBuffer();
+VOID DrawMenuInit();
 #endif

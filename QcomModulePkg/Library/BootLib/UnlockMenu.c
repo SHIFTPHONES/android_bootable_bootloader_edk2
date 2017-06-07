@@ -90,8 +90,6 @@ STATIC EFI_STATUS UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, UINT32 
 	UINT32 i = 0;
 	UINT32 j = 0;
 
-	/* Clear the screen before launch the unlock menu */
-	gST->ConOut->ClearScreen (gST->ConOut);
 	ZeroMem(&OptionMenuInfo->Info, sizeof(MENU_OPTION_ITEM_INFO));
 
 	OptionMenuInfo->Info.MsgInfo = mUnlockMenuMsgInfo;
@@ -135,6 +133,8 @@ VOID DisplayUnlockMenu(UINT32 Type)
 	OptionMenuInfo = &gMenuInfo;
 
 	if (FixedPcdGetBool(EnableDisplayMenu)) {
+		DrawMenuInit();
+
 		/* Initialize the last menu type */
 		OptionMenuInfo->LastMenuType =
 			OptionMenuInfo->Info.MenuType;
