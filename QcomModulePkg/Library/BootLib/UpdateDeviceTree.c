@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,6 +38,10 @@
 #define DTB_PAD_SIZE          2048
 #define NUM_SPLASHMEM_PROP_ELEM   4
 
+STATIC struct FstabNode FstabTable =
+{
+        "/firmware/android/fstab", "dev", "/soc/"
+};
 STATIC struct DisplaySplashBufferInfo splashBuf;
 STATIC UINTN splashBufSize = sizeof(splashBuf);
 
@@ -427,8 +431,81 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 			return EFI_NOT_FOUND;
 		}
 	}
+
+	/* Update fstab node */
+	DEBUG((EFI_D_VERBOSE, "Start DT fstab node update: %u ms\n", GetTimerCountms()));
+	UpdateFstabNode(fdt);
+	DEBUG((EFI_D_VERBOSE, "End DT fstab node update: %u ms\n", GetTimerCountms()));
+
 	fdt_pack(fdt);
 
 	return ret;
 }
 
+/* Update device tree for fstab node */
+EFI_STATUS UpdateFstabNode(VOID *fdt)
+{
+	INT32 ParentOffset = 0;
+	INT32 SubNodeOffset = 0;
+	CONST struct fdt_property *Prop = NULL;
+	INT32 PropLen = 0;
+	char *NodeName = NULL;
+	EFI_STATUS Status = EFI_SUCCESS;
+	CHAR8 *BootDevBuf = NULL;
+	CHAR8 *ReplaceStr = NULL;
+	CHAR8 *NextStr = NULL;
+	struct FstabNode Table = FstabTable;
+
+	/* Find the parent node */
+	ParentOffset = fdt_path_offset(fdt, Table.ParentNode);
+	if (ParentOffset < 0) {
+		DEBUG((EFI_D_VERBOSE, "Failed to Get parent node: fstab\terror: %d\n", ParentOffset));
+		return EFI_NOT_FOUND;
+	}
+	DEBUG ((EFI_D_VERBOSE, "Node: %a found.\n", fdt_get_name(fdt, ParentOffset, NULL)));
+
+	/* Get boot device type */
+	BootDevBuf = AllocatePool(sizeof(CHAR8) * BOOT_DEV_MAX_LEN);
+	if (BootDevBuf == NULL) {
+		DEBUG((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
+		return EFI_OUT_OF_RESOURCES;
+	}
+
+	Status = GetBootDevice(BootDevBuf, BOOT_DEV_MAX_LEN);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "Failed to get Boot Device: %r\n", Status));
+		FreePool(BootDevBuf);
+		return Status;
+	}
+
+	/* Get properties of all sub nodes */
+	for (SubNodeOffset = fdt_first_subnode(fdt, ParentOffset); SubNodeOffset >= 0; SubNodeOffset = fdt_next_subnode(fdt, SubNodeOffset)) {
+		Prop = fdt_get_property(fdt, SubNodeOffset, Table.Property, &PropLen);
+		NodeName = (char *)(uintptr_t)fdt_get_name(fdt, SubNodeOffset, NULL);
+		if (!Prop) {
+			DEBUG((EFI_D_VERBOSE, "Property:%a is not found for sub-node:%a\n", Table.Property, NodeName));
+		} else {
+			DEBUG((EFI_D_VERBOSE, "Property:%a found for sub-node:%a\tProperty:%a\n", Table.Property, NodeName, Prop->data));
+
+			/* Pointer to fdt 'dev' property string that needs to update based on the 'androidboot.bootdevice' */
+			ReplaceStr = (CHAR8 *)Prop->data;
+			ReplaceStr = AsciiStrStr(ReplaceStr, Table.DevicePathId);
+			if (!ReplaceStr) {
+				DEBUG((EFI_D_VERBOSE, "Update property:%a value is not proper to update for sub-node:%a\n", Table.Property, NodeName));
+				continue;
+			}
+			ReplaceStr += AsciiStrLen(Table.DevicePathId);
+			NextStr = AsciiStrStr((ReplaceStr + 1), "/");
+			if ((NextStr - ReplaceStr) != AsciiStrLen(BootDevBuf)) {
+				DEBUG((EFI_D_VERBOSE, "String length mismatch b/w DT and Bootdevice strings or property is not proper to update.\n"));
+				continue;
+			}
+
+			/* Update the property with new value */
+			gBS->CopyMem(ReplaceStr, BootDevBuf, AsciiStrLen(BootDevBuf));
+		}
+	}
+
+	FreePool(BootDevBuf);
+	return Status;
+}
