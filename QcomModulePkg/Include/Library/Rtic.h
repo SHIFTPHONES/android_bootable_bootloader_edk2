@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,22 +26,31 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef __RTIC_H__
+#define __RTIC_H__
 
-#ifndef _VERIFIEDBOOTMENU_H_
-#define _VERIFIEDBOOTMENU_H_
+#define RTIC_ID_SIZE            0x4
+#define RTIC_ID                   1
 
-#include <DrawUI.h>
+#define TZ_SVC_RTIC              25
 
-#if VERIFIED_BOOT || VERIFIED_BOOT_2
-EFI_STATUS DisplayVerifiedBootMenu(DISPLAY_MENU_TYPE Type);
-EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo);
-EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, DISPLAY_MENU_TYPE Type);
-EFI_STATUS VerifiedBootMenuUpdateShowScreen(OPTION_MENU_INFO *OptionMenuInfo);
-#else
-STATIC inline EFI_STATUS DisplayVerifiedBootMenu(DISPLAY_MENU_TYPE Type) {return EFI_UNSUPPORTED;}
-STATIC inline EFI_STATUS VerifiedBootOptionMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo) {return EFI_UNSUPPORTED;}
-STATIC inline EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, DISPLAY_MENU_TYPE Type) {return EFI_UNSUPPORTED;}
-STATIC inline EFI_STATUS VerifiedBootMenuUpdateShowScreen(OPTION_MENU_INFO *OptionMenuInfo) {return EFI_UNSUPPORTED;}
-#endif
+#define HYP_NOTIFY_RTIC_DTB_LOCATION	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_SIP, TZ_SVC_RTIC, 0x1)
+#define HYP_NOTIFY_RTIC_DTB_LOCATION_PARAM_ID \
+	TZ_SYSCALL_CREATE_PARAM_ID_3( TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RO, TZ_SYSCALL_PARAM_TYPE_VAL )
+
+typedef struct HypNotifyRticDtb
+{
+	UINT64         KernelPhysBase;
+	const UINT64  *DtbAddress;
+	size_t         DtbSize;
+} __attribute__ ((packed)) HypNotifyRticDtb;
+
+
+struct RticId
+{
+	UINT32 Id;
+};
+
+BOOLEAN GetRticDtb(VOID *Dtb);
 
 #endif

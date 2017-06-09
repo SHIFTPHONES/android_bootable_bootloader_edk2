@@ -67,7 +67,7 @@ L31:
   b      L32
 L34:
   cmp      lr, #0
-  streqb  r2, [r12], #1
+  strbeq  r2, [r12], #1
   subeq    r1, r1, #1
   beq      L43
   sub      r1, r1, #32

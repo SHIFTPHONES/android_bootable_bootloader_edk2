@@ -31,6 +31,7 @@
 #include <Library/DeviceInfo.h>
 #include <Library/ShutdownServices.h>
 #include <Library/DrawUI.h>
+#include <Library/UnlockMenu.h>
 #include <Library/FastbootMenu.h>
 #include <Library/VerifiedBootMenu.h>
 #include <Library/MenuKeysDetection.h>
@@ -91,7 +92,7 @@ VOID WaitForExitKeysDetection()
 		MicroSecondDelay(10000);
 }
 
-STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, UINT32 Reason)
+STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, INTN Reason)
 {
 	CHAR8 FfbmPageBuffer[FFBM_MODE_BUF_SIZE];
 
@@ -100,14 +101,11 @@ STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, UINT32 Reason)
 
 	switch (Reason) {
 	case RECOVER:
-		switch (MsgInfo->Info.MenuType) {
-			case DISPLAY_MENU_UNLOCK:
-				SetDeviceUnlockValue(UNLOCK, TRUE);
-				break;
-			case DISPLAY_MENU_UNLOCK_CRITICAL:
-				SetDeviceUnlockValue(UNLOCK_CRITICAL, TRUE);
-				break;
-		}
+		if (MsgInfo->Info.MenuType == DISPLAY_MENU_UNLOCK ||
+			MsgInfo->Info.MenuType == DISPLAY_MENU_LOCK ||
+			MsgInfo->Info.MenuType == DISPLAY_MENU_LOCK_CRITICAL ||
+			MsgInfo->Info.MenuType == DISPLAY_MENU_UNLOCK_CRITICAL)
+			ResetDeviceUnlockStatus(MsgInfo->Info.MenuType);
 
 		RebootDevice(RECOVERY_MODE);
 		break;
@@ -208,30 +206,36 @@ STATIC VOID MenuVolumeDownFunc(OPTION_MENU_INFO *MenuInfo)
 	}
 }
 
-/* Enter to boot verification option page if volume key is pressed */
-STATIC VOID BootWarningVolumeKeysFunc(OPTION_MENU_INFO *MenuInfo)
-{
-	MenuInfo->LastMenuType = MenuInfo->Info.MenuType;
-	VerifiedBootOptionMenuShowScreen(MenuInfo);
-}
-
 /* Update device's status via select option */
 STATIC VOID PowerKeyFunc(OPTION_MENU_INFO *MenuInfo)
 {
 	int Reason = -1;
 	UINT32 OptionIndex = MenuInfo->Info.OptionIndex;
-	UINT32 OptionItem;
+	UINT32 OptionItem = 0;
+	STATIC BOOLEAN IsRefresh;
 
 	switch (MenuInfo->Info.MenuType) {
 		case DISPLAY_MENU_YELLOW:
 		case DISPLAY_MENU_ORANGE:
-		case DISPLAY_MENU_RED:
-		case DISPLAY_MENU_LOGGING:
+			if (!IsRefresh) {
+				/* If the power key is pressed for the first time:
+				 * Update the warning message and recalculate the timeout
+				 */
+				StartTimer = GetTimerCountms();
+				VerifiedBootMenuUpdateShowScreen(MenuInfo);
+				IsRefresh = TRUE;
+			} else {
+				Reason = CONTINUE;
+			}
+			break;
+		case DISPLAY_MENU_EIO:
 			Reason = CONTINUE;
 			break;
 		case DISPLAY_MENU_MORE_OPTION:
 		case DISPLAY_MENU_UNLOCK:
 		case DISPLAY_MENU_UNLOCK_CRITICAL:
+		case DISPLAY_MENU_LOCK:
+		case DISPLAY_MENU_LOCK_CRITICAL:
 		case DISPLAY_MENU_FASTBOOT:
 			if (OptionIndex < MenuInfo->Info.OptionNum) {
 				OptionItem = MenuInfo->Info.OptionItems[OptionIndex];
@@ -259,24 +263,29 @@ STATIC PAGES_ACTION MenuPagesAction[] = {
 		MenuVolumeDownFunc,
 		PowerKeyFunc,
 	},
+	[DISPLAY_MENU_LOCK] = {
+		MenuVolumeUpFunc,
+		MenuVolumeDownFunc,
+		PowerKeyFunc,
+	},
+	[DISPLAY_MENU_LOCK_CRITICAL] = {
+		MenuVolumeUpFunc,
+		MenuVolumeDownFunc,
+		PowerKeyFunc,
+	},
 	[DISPLAY_MENU_YELLOW] = {
-		BootWarningVolumeKeysFunc,
-		BootWarningVolumeKeysFunc,
+		NULL,
+		NULL,
 		PowerKeyFunc,
 	},
 	[DISPLAY_MENU_ORANGE] = {
-		BootWarningVolumeKeysFunc,
-		BootWarningVolumeKeysFunc,
+		NULL,
+		NULL,
 		PowerKeyFunc,
 	},
-	[DISPLAY_MENU_RED] = {
-		BootWarningVolumeKeysFunc,
-		BootWarningVolumeKeysFunc,
-		PowerKeyFunc,
-	},
-	[DISPLAY_MENU_LOGGING] = {
-		BootWarningVolumeKeysFunc,
-		BootWarningVolumeKeysFunc,
+	[DISPLAY_MENU_EIO] = {
+		NULL,
+		NULL,
 		PowerKeyFunc,
 	},
 	[DISPLAY_MENU_MORE_OPTION] = {
@@ -357,15 +366,23 @@ VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 		TimerDiff = GetTimerCountms() - StartTimer;
 		if (TimerDiff > (MenuInfo->Info.TimeoutTime)*1000) {
 			ExitMenuKeysDetection();
+			if ((MenuInfo->Info.MenuType == DISPLAY_MENU_EIO) ||
+				((MenuInfo->Info.MsgInfo->Action == POWEROFF) &&
+				((MenuInfo->Info.MenuType == DISPLAY_MENU_YELLOW) ||
+				(MenuInfo->Info.MenuType == DISPLAY_MENU_ORANGE))))
+				ShutdownDevice();
 			return;
 		}
 	}
 
-	if (IsKeyPressed(SCAN_UP))
+	if (IsKeyPressed(SCAN_UP) &&
+	   (MenuPagesAction[MenuInfo->Info.MenuType].Up_Action_Func != NULL))
 		MenuPagesAction[MenuInfo->Info.MenuType].Up_Action_Func(MenuInfo);
-	else if (IsKeyPressed(SCAN_DOWN))
+	else if (IsKeyPressed(SCAN_DOWN) &&
+		(MenuPagesAction[MenuInfo->Info.MenuType].Down_Action_Func != NULL))
 		MenuPagesAction[MenuInfo->Info.MenuType].Down_Action_Func(MenuInfo);
-	else if (IsKeyPressed(SCAN_SUSPEND))
+	else if (IsKeyPressed(SCAN_SUSPEND) &&
+		(MenuPagesAction[MenuInfo->Info.MenuType].Enter_Action_Func != NULL))
 		MenuPagesAction[MenuInfo->Info.MenuType].Enter_Action_Func(MenuInfo);
 
 }

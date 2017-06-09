@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,6 +28,7 @@
 
 #include "LocateDeviceTree.h"
 #include "UpdateDeviceTree.h"
+#include <Library/Rtic.h>
 #include <Library/PartitionTableUpdate.h>
 #include <Library/BootLinux.h>
 #include <Library/Board.h>
@@ -38,7 +39,7 @@ STATIC struct dt_entry *platform_dt_match_best(struct dt_entry_node *dt_list);
 
 STATIC UINT32 BestSocDtMatch;
 STATIC UINT32 BestBoardDtMatch;
-STATIC BOOLEAN DtboNeed = FALSE;
+STATIC BOOLEAN DtboNeed = TRUE;
 
 BOOLEAN GetDtboNeeded ()
 {
@@ -395,6 +396,9 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 
 		if (!DeviceTreeCompatible(dtb, dtb_size, dt_entry_queue)) {
 			DEBUG((EFI_D_VERBOSE, "Error while DTB parse continue with next DTB\n"));
+			if (!GetRticDtb(dtb))
+				DEBUG((EFI_D_VERBOSE, "Error while DTB parsing RTIC prop continue with next DTB\n"));
+
 		}
 
 		/* goto the next device tree if any */
@@ -609,22 +613,28 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 		if (Match) {
 			if (CheckAllBitsSet(LocalSocDtMatch)) {
 				DEBUG ((EFI_D_VERBOSE, "Exact DTB match found. DTBO search is not required\n"));
-				return Dtb;
+				DtboNeed = FALSE;
 			}
 
 			if (BestSocDtMatch < LocalSocDtMatch) {
 				BestSocDtMatch = LocalSocDtMatch;
 				BestMatchDt = Dtb;
 			}
+		} else {
+			if (!GetRticDtb(Dtb))
+				DEBUG((EFI_D_VERBOSE, "Error while DTB parsing RTIC prop continue with next DTB\n"));
+
 		}
+
 		DEBUG ((EFI_D_VERBOSE, "Match = %x Bestmatch = %x\n", Match, BestSocDtMatch));
 		Dtb += DtbSize;
 	}
+
 	if (!BestMatchDt) {
 		DEBUG ((EFI_D_ERROR, "No match found for Soc Dtb type\n"));
 		return NULL;
 	}
-	DtboNeed = TRUE;
+
 	return BestMatchDt;
 }
 
