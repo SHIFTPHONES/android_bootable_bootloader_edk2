@@ -36,6 +36,7 @@ InternalMemSetMem (
 **/
 
 .text
+.syntax unified
 .align 2
 GCC_ASM_EXPORT(InternalMemSetMem)
 

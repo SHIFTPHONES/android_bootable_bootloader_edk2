@@ -721,15 +721,15 @@ STATIC UINT32 PatchGpt (
 	/* Update the primary and backup GPT header offset with the sector location */
 	PrimaryGptHeader = (Gpt + BlkSz);
 	/* Patch primary GPT */
-	PUT_LONG_LONG(PrimaryGptHeader + BACKUP_HEADER_OFFSET, (UINTN) (NumSectors - 1));
-	PUT_LONG_LONG(PrimaryGptHeader + LAST_USABLE_LBA_OFFSET, (UINTN) (NumSectors - 34));
+	PUT_LONG_LONG(PrimaryGptHeader + BACKUP_HEADER_OFFSET, (UINT64) (NumSectors - 1));
+	PUT_LONG_LONG(PrimaryGptHeader + LAST_USABLE_LBA_OFFSET, (UINT64) (NumSectors - 34));
 
 	/* Patch Backup GPT */
 	Offset = (2 * PartEntryArrSz);
 	SecondaryGptHeader = Offset + BlkSz + PrimaryGptHeader;
-	PUT_LONG_LONG(SecondaryGptHeader + PRIMARY_HEADER_OFFSET, (UINTN)1);
-	PUT_LONG_LONG(SecondaryGptHeader + LAST_USABLE_LBA_OFFSET, (UINTN) (NumSectors - 34));
-	PUT_LONG_LONG(SecondaryGptHeader + PARTITION_ENTRIES_OFFSET, (UINTN) (NumSectors - 33));
+	PUT_LONG_LONG(SecondaryGptHeader + PRIMARY_HEADER_OFFSET, (UINT64)1);
+	PUT_LONG_LONG(SecondaryGptHeader + LAST_USABLE_LBA_OFFSET, (UINT64) (NumSectors - 34));
+	PUT_LONG_LONG(SecondaryGptHeader + PARTITION_ENTRIES_OFFSET, (UINT64) (NumSectors - 33));
 
 	/* Patch the last partition */
 	while (*(PrimaryGptHeader + BlkSz + TotalPart * PARTITION_ENTRY_SIZE) != 0)
@@ -737,8 +737,8 @@ STATIC UINT32 PatchGpt (
 
 	LastPartOffset = (TotalPart - 1) * PARTITION_ENTRY_SIZE + PARTITION_ENTRY_LAST_LBA;
 
-	PUT_LONG_LONG(PrimaryGptHeader + BlkSz + LastPartOffset, (UINTN) (NumSectors - 34));
-	PUT_LONG_LONG(PrimaryGptHeader + BlkSz + LastPartOffset + PartEntryArrSz, (UINTN) (NumSectors - 34));
+	PUT_LONG_LONG(PrimaryGptHeader + BlkSz + LastPartOffset, (UINT64) (NumSectors - 34));
+	PUT_LONG_LONG(PrimaryGptHeader + BlkSz + LastPartOffset + PartEntryArrSz, (UINT64) (NumSectors - 34));
 
 	/* Update CRC of the partition entry array for both headers */
 	PartitionEntryArrStart = PrimaryGptHeader + BlkSz;

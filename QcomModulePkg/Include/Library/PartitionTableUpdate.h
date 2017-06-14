@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 #ifndef __PARTITION_TABLE_H__
 #define __PARTITION_TABLE_H__
 
@@ -123,14 +123,14 @@ table in the respective position mentioned below.
         ((UINT32)*(x+2) << 16) | \
         ((UINT32)*(x+3) << 24))
 
-#define GET_LLWORD_FROM_BYTE(x)    ((UINTN)*(x) | \
-        ((UINTN)*(x+1) << 8) | \
-        ((UINTN)*(x+2) << 16) | \
-        ((UINTN)*(x+3) << 24) | \
-        ((UINTN)*(x+4) << 32) | \
-        ((UINTN)*(x+5) << 40) | \
-        ((UINTN)*(x+6) << 48) | \
-        ((UINTN)*(x+7) << 56))
+#define GET_LLWORD_FROM_BYTE(x)    ((UINT64)*(x) | \
+        ((UINT64)*(x+1) << 8) | \
+        ((UINT64)*(x+2) << 16) | \
+        ((UINT64)*(x+3) << 24) | \
+        ((UINT64)*(x+4) << 32) | \
+        ((UINT64)*(x+5) << 40) | \
+        ((UINT64)*(x+6) << 48) | \
+        ((UINT64)*(x+7) << 56))
 
 #define GET_LONG(x)    ((UINT32)*(x) | \
             ((UINT32)*(x+1) << 8) | \
@@ -142,14 +142,14 @@ table in the respective position mentioned below.
     *(x+2) = (y >> 16) & 0xff;    \
     *(x+3) = (y >> 24) & 0xff;
 
-#define PUT_LONG_LONG(x,y)    *(x) =(y) & 0xff; \
-     *((x)+1) = (((y) >> 8) & 0xff);    \
-     *((x)+2) = (((y) >> 16) & 0xff);   \
-     *((x)+3) = (((y) >> 24) & 0xff);   \
-     *((x)+4) = (((y) >> 32) & 0xff);   \
-     *((x)+5) = (((y) >> 40) & 0xff);   \
-     *((x)+6) = (((y) >> 48) & 0xff);   \
-     *((x)+7) = (((y) >> 56) & 0xff);
+#define PUT_LONG_LONG(x,y)    (*(x) =(y) & 0xff); \
+     (*((x)+1) = (((y) >> 8) & 0xff));    \
+     (*((x)+2) = (((y) >> 16) & 0xff));   \
+     (*((x)+3) = (((y) >> 24) & 0xff));   \
+     (*((x)+4) = (((y) >> 32) & 0xff));   \
+     (*((x)+5) = (((y) >> 40) & 0xff));   \
+     (*((x)+6) = (((y) >> 48) & 0xff));   \
+     (*((x)+7) = (((y) >> 56) & 0xff));
 
 struct StoragePartInfo
 {
