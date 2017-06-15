@@ -47,6 +47,7 @@
 
 
 STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
+STATIC BOOLEAN BootDevImage;
 
 STATIC EFI_STATUS SwitchTo32bitModeBooting(UINT64 KernelLoadAddr, UINT64 DeviceTreeLoadAddr) {
 	EFI_STATUS Status;
@@ -276,6 +277,9 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	/*Updates the command line from boot image, appends device serial no., baseband information, etc
 	 *Called before ShutdownUefiBootServices as it uses some boot service functions*/
 	CmdLine[BOOT_ARGS_SIZE-1] = '\0';
+
+	if (AsciiStrStr(CmdLine, "root="))
+		BootDevImage = TRUE;
 
 	Status = UpdateCmdLine(CmdLine, FfbmStr, Recovery, AlarmBoot, Info->VBCmdLine, &FinalCmdLine);
 	if (EFI_ERROR(Status))
@@ -657,3 +661,8 @@ BOOLEAN TargetBuildVariantUser()
 	return FALSE;
 }
 #endif
+
+BOOLEAN IsBootDevImage()
+{
+	return BootDevImage;
+}

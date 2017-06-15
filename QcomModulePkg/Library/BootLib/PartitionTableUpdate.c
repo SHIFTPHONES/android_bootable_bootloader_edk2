@@ -1332,14 +1332,16 @@ EFI_STATUS FindBootableSlot(Slot *BootableSlot)
 		DEBUG((EFI_D_VERBOSE, "Active Slot %s is bootable\n",
 		       BootableSlot->Suffix));
 	} else if (Unbootable == 0 && BootSuccess == 0 && RetryCount > 0) {
-		RetryCount--;
-		BootEntry->PartEntry.Attributes &= ~PART_ATT_MAX_RETRY_COUNT_VAL;
-		BootEntry->PartEntry.Attributes |=
-		        RetryCount << PART_ATT_MAX_RETRY_CNT_BIT;
-		UpdatePartitionAttributes();
-		DEBUG((EFI_D_INFO,
-		       "Active Slot %s is bootable, retry count %ld\n",
-		       BootableSlot->Suffix, RetryCount));
+		if (!IsBootDevImage()) {
+			RetryCount--;
+			BootEntry->PartEntry.Attributes &= ~PART_ATT_MAX_RETRY_COUNT_VAL;
+			BootEntry->PartEntry.Attributes |=
+				RetryCount << PART_ATT_MAX_RETRY_CNT_BIT;
+			UpdatePartitionAttributes();
+			DEBUG((EFI_D_INFO,
+			       "Active Slot %s is bootable, retry count %ld\n",
+			       BootableSlot->Suffix, RetryCount));
+		}
 	} else {
 		DEBUG((EFI_D_INFO,
 		       "Slot %s is unbootable, trying alternate slot\n",
