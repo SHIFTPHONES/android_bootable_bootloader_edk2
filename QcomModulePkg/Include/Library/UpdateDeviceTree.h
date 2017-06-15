@@ -118,7 +118,6 @@ INT32 dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
 INT32 dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
 
 EFI_STATUS UpdateDeviceTree(VOID* fdt, CONST CHAR8* cmdline, VOID* ramdisk,	UINT32 ramdisk_size);
-EFI_STATUS UpdatePartialGoodsNode(VOID *fdt);
 
 UINT32 fdt_check_header_ext(VOID *fdt);
 #endif
