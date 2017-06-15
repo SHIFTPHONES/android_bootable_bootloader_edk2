@@ -29,6 +29,15 @@
 #ifndef __EFICHIPINFOTYPES_H__
 #define __EFICHIPINFOTYPES_H__
 
+/** @addtogroup efi_chipInfo_constants
+@{ */
+
+/**
+  Maximum number of CPU clusters supported by the GetDefectiveParts API
+ **/
+#define EFICHIPINFO_MAX_CPU_CLUSTERS 4
+/** @endcond */
+
 /** @addtogroup efi_chipInfo_data_types 
 @{ */
 
@@ -38,11 +47,11 @@ typedef enum
 {
   /** @cond */
   EFICHIPINFO_ID_UNKNOWN    = 0,  /**< Unknown chip. */
-  EFICHIPINFO_ID_MSMCOBALT  = 292,
-  EFICHIPINFO_ID_APQCOBALT  = 319,
-  EFICHIPINFO_ID_MSMHAMSTER  = 306,
+  EFICHIPINFO_ID_MSM8998  = 292,
+  EFICHIPINFO_ID_APQ8098  = 319,
+  EFICHIPINFO_ID_SDM845      = 321,
 
-  EFICHIPINFO_NUM_IDS        = 301,
+  EFICHIPINFO_NUM_IDS        = 341,
   EFICHIPINFO_ID_32BITS      = 0x7FFFFFF
 /** @endcond */
 } EFIChipInfoIdType;
@@ -54,12 +63,30 @@ typedef enum
 {
   /** @cond */
   EFICHIPINFO_FAMILY_UNKNOWN    = 0,  /**< Unknown family. */
-  EFICHIPINFO_FAMILY_MSMCOBALT  = 67,
+  EFICHIPINFO_FAMILY_MSM8998  = 67,
+  EFICHIPINFO_FAMILY_SDM845     = 79,
+
 /** @cond */
-  EFICHIPINFO_NUM_FAMILIES      = 71,
+  EFICHIPINFO_NUM_FAMILIES      = 88,
   EFICHIPINFO_FAMILY_32BITS     = 0x7FFFFFF
 /** @endcond */
 } EFIChipInfoFamilyType;
+
+/**
+ * Defective parts supported by the GetDefectivePart API
+ */
+typedef enum
+{
+  EFICHIPINFO_PART_UNKNOWN,
+  EFICHIPINFO_PART_GPU,
+  EFICHIPINFO_PART_VIDEO,
+  EFICHIPINFO_PART_CAMERA,
+  EFICHIPINFO_PART_DISPLAY,
+  EFICHIPINFO_PART_AUDIO,
+
+  EFICHIPINFO_NUM_PARTS,
+  EFICHIPINFO_PART_32BITS = 0x7FFFFFFF
+} EFIChipInfoPartType;
 
 
 #endif /* __EFICHIPINFOTYPES_H__ */
