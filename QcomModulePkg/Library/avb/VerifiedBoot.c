@@ -444,7 +444,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 
 	BootImgHdr = (struct boot_img_hdr *)ImageBuffer;
 	Data.SystemSecurityLevel = (BootImgHdr->os_version & 0x7FF);
-	Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF8) >> 11;
+	Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF800) >> 11;
 
 	GUARD_OUT(KeyMasterSetRotAndBootState(&Data));
 
