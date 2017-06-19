@@ -29,5 +29,5 @@
 #define __STACK_CANARY__
 
 VOID StackGuardChkSetup();
-
+extern UINTN __stack_chk_guard;
 #endif

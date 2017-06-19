@@ -92,7 +92,7 @@
   ExtractGuidedSectionLib|MdePkg/Library/DxeExtractGuidedSectionLib/DxeExtractGuidedSectionLib.inf
 
 [BuildOptions.common]
-  GCC:*_*_*_ARCHCC_FLAGS  = -Wno-shift-negative-value -fstack-protector-strong -Wno-varargs
+  GCC:*_*_*_ARCHCC_FLAGS  = -Wno-shift-negative-value -fstack-protector-all -Wno-varargs
   GCC:*_*_*_DLINK_FLAGS = -Ttext=0x0
 
   !if $(VERIFIED_BOOT)
