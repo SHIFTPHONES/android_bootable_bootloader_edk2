@@ -367,16 +367,6 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		gBS->CopyMem((CHAR8*)KernelLoadAddr, ImageBuffer + PageSize, KernelSizeActual);
 	}
 
-	if (FixedPcdGetBool(EnablePartialGoods))
-	{
-		Status = UpdatePartialGoodsNode((VOID*)DeviceTreeLoadAddr);
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Failed to update device tree for partial goods, Status=%r\n", Status));
-			return Status;
-		}
-	}
-
 	if (FixedPcdGetBool(EnableMdtpSupport)) {
 		Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid,
 			NULL,

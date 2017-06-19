@@ -40,7 +40,7 @@ typedef struct _EFI_CHIPINFO_PROTOCOL EFI_CHIPINFO_PROTOCOL;
 /**
   Protocol version. 
 */
-#define EFI_CHIPINFO_PROTOCOL_REVISION 0x0000000000010000
+#define EFI_CHIPINFO_PROTOCOL_REVISION 0x0000000000010002
 /** @} */ /* end_addtogroup efi_chipInfo_constants */
 
 /*  Protocol GUID definition */
@@ -101,9 +101,8 @@ typedef UINT32 EFIChipInfoVersionType;
 typedef UINT32 EFIChipInfoModemType;
 
 
-
-typedef UINT64 EFIChipInfoSerialNumType;
-
+typedef UINT32 EFIChipInfoSerialNumType;
+typedef UINT32 EFIChipInfoQFPROMChipIdType;
 
 /**
 Chip Foundry type.  
@@ -116,8 +115,9 @@ typedef enum
   EFICHIPINFO_FOUNDRYID_SS         = 3,
   EFICHIPINFO_FOUNDRYID_IBM        = 4,
   EFICHIPINFO_FOUNDRYID_UMC        = 5,
+  EFICHIPINFO_FOUNDRYID_SMIC       = 6,
 
-  EFICHIPINFO_NUM_FOUNDRYIDS       = 6,
+  EFICHIPINFO_NUM_FOUNDRYIDS,
   EFICHIPINFO_FOUNDRYID_32BITS     = 0x7FFFFFF
 } EFIChipInfoFoundryIdType;
 
@@ -373,6 +373,158 @@ EFI_STATUS
    OUT EFIChipInfoFoundryIdType *peId
    );
 
+
+
+
+/* ============================================================================
+**  Function : EFI_DalChipInfo_GetRawDeviceFamily
+** ============================================================================
+*/
+/** @ingroup efi_chipInfo_getRawDeviceFamily
+  @par Summary
+   Returns the RawDeviceFamily as read from TCSR_SOC_VERSION register.
+
+  @param[in]   This        Pointer to the EFI_CHIPINFO_PROTOCOL instance.
+  @param[in,out]  peId       Pointer to a uint32 type variable
+                             passed by the caller that
+                             will be populated by the driver.
+  @return
+  EFI_SUCCESS        -- Function completed successfully. \n
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef 
+EFI_STATUS
+(EFIAPI *EFI_DALCHIPINFO_GETRAWDEVICEFAMILY)(
+   IN EFI_CHIPINFO_PROTOCOL *This,
+   OUT UINT32 *pnId
+   );
+
+
+
+/* ============================================================================
+**  Function : EFI_DalChipInfo_GetRawDeviceNumber
+** ============================================================================
+*/
+/** @ingroup efi_chipInfo_GETRAWDEVICENUMBER
+  @par Summary
+  Returns the RawDeviceNumber as read from TCSR_SOC_VERSION register. 
+
+  @param[in]   This        Pointer to the EFI_CHIPINFO_PROTOCOL instance.
+  @param[in,out]  peId       Pointer to a uint32 type variable
+                            passed by the caller that
+                             will be populated by the driver.
+  @return
+  EFI_SUCCESS        -- Function completed successfully. \n
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef 
+EFI_STATUS
+(EFIAPI *EFI_DALCHIPINFO_GETRAWDEVICENUMBER)(
+   IN EFI_CHIPINFO_PROTOCOL *This,
+   OUT UINT32 *pnId
+   );
+
+/* ============================================================================
+**  Function : EFI_DalChipInfo_GetQFPROMChipId
+** ============================================================================
+*/
+/** @ingroup efi_chipInfo_getQFPROMChipId
+  @par Summary
+  Gets the QFPROM Chip Id of this device. 
+
+  @param[in]   This        Pointer to the EFI_CHIPINFO_PROTOCOL instance.
+  @param[in,out]  peId       Pointer to a DalChipInfoQFPROMChipIdType variable 
+                             passed by the caller that will be populated by 
+                             the driver.
+  @return
+  EFI_SUCCESS        -- Function completed successfully. \n
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef 
+EFI_STATUS
+(EFIAPI *EFI_DALCHIPINFO_GETQFPROMCHIPID)(
+   IN EFI_CHIPINFO_PROTOCOL *This,
+   OUT EFIChipInfoQFPROMChipIdType *pnId 
+   );
+
+/* ============================================================================
+**  Function : EFI_DalChipInfo_GetMarketingNameString
+** ============================================================================
+*/
+/** @ingroup efi_chipInfo_getMarketingNameString
+  @par Summary
+  Gets the string representing the chip's marketing name. 
+
+  @param[in]   This        Pointer to the EFI_CHIPINFO_PROTOCOL instance.
+  @param[out]  szNameString  Pointer passed by the caller that will be 
+                           populated by the driver.
+  @param[in]   nMaxLength  Length of the string  to be passed by the caller. 
+                           EFICHIPINFO_MAX_NAME_LENGTH is the maximum length 
+                           supported.
+  @return
+  EFI_SUCCESS        -- Function completed successfully. \n
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef 
+EFI_STATUS
+(EFIAPI *EFI_DALCHIPINFO_GETMARKETINGNAMESTRING)(
+   IN EFI_CHIPINFO_PROTOCOL *This,
+   OUT CHAR8 *szNameString,  
+   IN UINT32 nMaxLength 
+   );
+
+/* ============================================================================
+**  Function : EFI_DalChipInfo_GetDefectivePart
+** ============================================================================
+*/
+/** @ingroup efi_chipInfo_getDefectivePart
+  @par Summary
+  Gets the defectiveness of the selected part
+
+  @param[in]   This     Pointer to the EFI_CHIPINFO_PROTOCOL instance.
+  @param[in]   ePart    The EFIChipInfoPartType to check
+  @param[out]  pnMask   Pointer to hold a mask signifying defectiveness. 
+                          A non-zero mask implies that the part is defective
+                                
+  @return
+  EFI_SUCCESS         -- Function completed successfully. \n
+  EFI_NOT_FOUND       -- The specified part is out of range
+  EFI_PROTOCOL_ERROR  -- Error occurred during the operation.
+*/
+typedef 
+EFI_STATUS
+(EFIAPI *EFI_DALCHIPINFO_GETDEFECTIVEPART)(
+   IN EFI_CHIPINFO_PROTOCOL *This,
+   IN EFIChipInfoPartType ePart,
+   OUT UINT32 *pnMask
+   );
+
+/* ============================================================================
+**  Function : EFI_DalChipInfo_GetDefectiveCPUs
+** ============================================================================
+*/
+/** @ingroup efi_chipInfo_getDefectiveCPUs
+ * @par Summary
+ * Gets the cores within the selected cluster which are marked "defective"
+ * in PTE fuses
+ *
+ * @param[in]   This          Pointer to the EFI_CHIPINFO_PROTOCOL instance
+ * @param[in]   nCPUCluster   The cluster whose defective cores need to be retrieved
+ * @param[out]  pnMask        Mask of defective cores in this cluster.
+ *
+ * @return
+ * EFI_SUCCESS        -- Function completed successfully \n
+ * EFI_NOT_FOUND      -- The provided nCPUCluster is outside the range of supported clusters \n
+ * EFI_PROTOCOL_ERROR -- Other error occured during the operation
+ */
+typedef
+EFI_STATUS
+(EFIAPI *EFI_DALCHIPINFO_GETDEFECTIVECPUS)(
+    IN EFI_CHIPINFO_PROTOCOL *This,
+    IN UINT32 nCPUCluster,
+    OUT UINT32 *pnMask
+    );
+
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -395,6 +547,12 @@ struct _EFI_CHIPINFO_PROTOCOL {
    EFI_DALCHIPINFO_GETPROCESSORNAMESTRING GetProcessorNameString;
    EFI_DALCHIPINFO_GETSERIALNUMBER        GetSerialNumber;
    EFI_DALCHIPINFO_GETFOUNDRYID           GetFoundryId;
+   EFI_DALCHIPINFO_GETRAWDEVICEFAMILY     GetRawDeviceFamily;
+   EFI_DALCHIPINFO_GETRAWDEVICENUMBER     GetRawDeviceNumber;
+   EFI_DALCHIPINFO_GETQFPROMCHIPID        GetQFPROMChipId;
+   EFI_DALCHIPINFO_GETMARKETINGNAMESTRING GetMarketingNameString; 
+   EFI_DALCHIPINFO_GETDEFECTIVEPART       GetDefectivePart;
+   EFI_DALCHIPINFO_GETDEFECTIVECPUS       GetDefectiveCPUs;
 }; 
 
 #endif /* __EFICHIPINFO_H__ */
