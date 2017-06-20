@@ -623,12 +623,12 @@ EFI_STATUS LoadImageAndAuth(BootInfo *Info)
 		Status = MdtpProtocol->MdtpDeactivate(MdtpProtocol, FALSE);
 	}
 
+	DisplayVerifiedBootScreen(Info);
+
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "LoadImageAndAuth failed %r\n", Status));
 		return Status;
 	}
-
-	DisplayVerifiedBootScreen(Info);
 
 	DEBUG((EFI_D_VERBOSE, "Sending Milestone Call\n"));
 	Status = Info->VbIntf->VBSendMilestone(Info->VbIntf);
