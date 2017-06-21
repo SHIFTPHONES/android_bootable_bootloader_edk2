@@ -92,6 +92,7 @@
 
 [FixedPcd]
 	gQcomTokenSpaceGuid.EnableMdtpSupport
+	gQcomTokenSpaceGuid.AllowEio
 
 [Depex]
 	TRUE
