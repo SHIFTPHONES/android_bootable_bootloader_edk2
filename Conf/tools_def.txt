@@ -4677,8 +4677,9 @@ RELEASE_GCC49_AARCH64_CC_FLAGS   = DEF(GCC49_AARCH64_CC_FLAGS) -Wno-unused-but-s
 *_CLANG35_*_ASLCC_PATH           = ENV(CLANG35_BIN)clang
 *_CLANG35_*_ASLPP_PATH           = ENV(CLANG35_BIN)clang
 
+DEFINE CLANG35_GCC_TOOLCHAIN = --gcc-toolchain=ENV(CLANG35_GCC_TOOLCHAIN)
 DEFINE CLANG35_WARNING_OVERRIDES = -Wno-parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body
-DEFINE CLANG35_AARCH64_CC_FLAGS  = DEF(GCC_AARCH64_CC_FLAGS) -target aarch64 -mcmodel=small -mstrict-align DEF(CLANG35_WARNING_OVERRIDES)
+DEFINE CLANG35_AARCH64_CC_FLAGS  = DEF(GCC_AARCH64_CC_FLAGS) DEF(CLANG35_GCC_TOOLCHAIN) -target aarch64-linux-gnu -mcmodel=small -mstrict-align DEF(CLANG35_WARNING_OVERRIDES)
 
 DEFINE CLANG35_ARM_TARGET        = -target arm
 DEFINE CLANG35_ARM_WARNING_OVERRIDES = -Wno-parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-varargs -Wno-unused-function

@@ -11,6 +11,7 @@ ifeq ($(ANDROID_BUILD_TOP),)
 export CLANG35_AARCH64_PREFIX := $(CLANG_PREFIX)
 else
 export CLANG35_AARCH64_PREFIX := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-$(TARGET_GCC_VERSION)/bin/aarch64-linux-android-
+export CLANG35_AARCH64_GCC_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-$(TARGET_GCC_VERSION)
 endif
 export CLANG35_BIN := $(CLANG_BIN)
 export CLANG35_ARM_PREFIX := $(CLANG_BIN)/tools/bin
@@ -22,6 +23,7 @@ ifeq ($(TARGET_ARCHITECTURE),arm)
 export ARCHITECTURE := ARM
 else
 export ARCHITECTURE := AARCH64
+export CLANG35_GCC_TOOLCHAIN := $(CLANG35_AARCH64_GCC_TOOLCHAIN)
 endif
 
 WORKSPACE=$(BUILDDIR)
