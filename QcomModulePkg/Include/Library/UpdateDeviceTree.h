@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -104,6 +104,14 @@ static struct PartialGoods MsmCobaltTable[] =
 	{0x4, "/soc",   {{"qcom,mss", "status", 1, 0x0},}},
 };
 
+/* Look up table for fstab node */
+struct FstabNode
+{
+	CONST CHAR8 *ParentNode; /* Parent Node name */
+	CONST CHAR8 *Property; /* Property Name */
+	CONST CHAR8 *DevicePathId;
+};
+
 struct DisplaySplashBufferInfo {
 	/* Version number used to track changes to the structure */
 	UINT32 uVersion;
@@ -118,6 +126,7 @@ INT32 dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
 INT32 dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
 
 EFI_STATUS UpdateDeviceTree(VOID* fdt, CONST CHAR8* cmdline, VOID* ramdisk,	UINT32 ramdisk_size);
+EFI_STATUS UpdateFstabNode(VOID *fdt);
 
 UINT32 fdt_check_header_ext(VOID *fdt);
 #endif
