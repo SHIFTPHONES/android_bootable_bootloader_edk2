@@ -1303,7 +1303,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	BOOLEAN SwitchSlot = FALSE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 
-	if (!IsUnlocked()) {
+	if (TargetBuildVariantUser() && !IsUnlocked()) {
 		FastbootFail("Slot Change is not allowed in Lock State\n");
 		return;
 	}
