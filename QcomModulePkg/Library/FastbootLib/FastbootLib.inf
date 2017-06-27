@@ -87,3 +87,4 @@
 
 [FixedPcd]
   gQcomTokenSpaceGuid.EnableMdtpSupport
+  gQcomTokenSpaceGuid.EnableBatteryVoltageCheck
