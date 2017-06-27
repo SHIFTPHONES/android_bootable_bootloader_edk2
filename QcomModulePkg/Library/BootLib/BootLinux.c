@@ -124,6 +124,8 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	PartitionName = Info->Pname;
 	Recovery = Info->BootIntoRecovery;
 	AlarmBoot = Info->BootReasonAlarm;
+	VOID *SingleDtHdr = NULL;
+	VOID *NextDtHdr = NULL;
 
 	if (!StrnCmp(PartitionName, L"boot", StrLen(L"boot")))
 	{
@@ -294,8 +296,25 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		void *dtb;
 		dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
 		if (!dtb) {
-			DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
-			return EFI_NOT_FOUND;
+			if (CHECK_ADD64((UINT64)(ImageBuffer + PageSize), DtbOffset)) {
+				DEBUG((EFI_D_ERROR, "Integer Overflow: in DTB offset addition\n"));
+				return EFI_BAD_BUFFER_SIZE;
+			}
+			SingleDtHdr = (ImageBuffer + PageSize + DtbOffset);
+
+			if (!fdt_check_header(SingleDtHdr)) {
+				NextDtHdr = (void *)((uintptr_t)SingleDtHdr + fdt_totalsize(SingleDtHdr));
+				if (!fdt_check_header(NextDtHdr)) {
+					DEBUG((EFI_D_VERBOSE, "Not the single appended DTB\n"));
+					return EFI_NOT_FOUND;
+				}
+
+				DEBUG((EFI_D_VERBOSE, "Single appended DTB found\n"));
+				gBS->CopyMem((VOID*)DeviceTreeLoadAddr, SingleDtHdr, fdt_totalsize(SingleDtHdr));
+			} else {
+				DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
+				return EFI_NOT_FOUND;
+			}
 		}
 	} else {
 		/*It is the case of DTB overlay Get the Soc specific dtb */
