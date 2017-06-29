@@ -781,16 +781,16 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 		DEBUG((EFI_D_ERROR, "Error boot partition for slot: %s not found\n", SlotSuffix));
 		return;
 	}
-
 	Ptn_Entries_Ptr = &PtnEntries[Index];
-	Ptn_Entries_Ptr->PartEntry.Attributes = Ptn_Entries_Ptr->PartEntry.Attributes  |=
-		(PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL) &
-		(~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+	Ptn_Entries_Ptr->PartEntry.Attributes &=
+				(~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+	Ptn_Entries_Ptr->PartEntry.Attributes |=
+				(PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL);
 
 	UpdatePartitionAttributes();
 	for (j = 0; j < MAX_SLOTS; j++)
 	{
-		if(!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix, SlotSuffixAscii, AsciiStrLen(SlotSuffixAscii)))
+		if(AsciiStrStr(SlotSuffixAscii, BootSlotInfo[j].SlotSuffix))
 		{
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVal, sizeof(BootSlotInfo[j].SlotSuccessfulVal), "no", AsciiStrLen("no"));
 			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVal, sizeof(BootSlotInfo[j].SlotUnbootableVal), "no", AsciiStrLen("no"));
