@@ -863,18 +863,39 @@ HandleMetaImgFlash(
 	img_header_entry_t *img_header_entry;
 	meta_header_t   *meta_header;
 	CHAR16 PartitionNameFromMeta[MAX_GPT_NAME_SIZE];
+	UINT64 ImageEnd = 0;
 
 	meta_header = (meta_header_t *) Image;
 	img_header_entry = (img_header_entry_t *) (Image + sizeof(meta_header_t));
 	images = meta_header->img_hdr_sz / sizeof(img_header_entry_t);
 
+	if (CHECK_ADD64((UINT64)Image, Size)) {
+		DEBUG((EFI_D_ERROR, "Integer overflow detected in %d, %a\n", __LINE__, __FUNCTION__));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+	ImageEnd = (UINT64)Image + Size;
+
 	for (i = 0; i < images; i++)
 	{
 		if (img_header_entry[i].ptn_name == NULL || img_header_entry[i].start_offset == 0 || img_header_entry[i].size == 0)
-		break;
+			break;
+
+		if (CHECK_ADD64((UINT64)Image, img_header_entry[i].start_offset)) {
+			DEBUG((EFI_D_ERROR, "Integer overflow detected in %d, %a\n", __LINE__, __FUNCTION__));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		if (CHECK_ADD64((UINT64)(Image + img_header_entry[i].start_offset), img_header_entry[i].size)) {
+			DEBUG((EFI_D_ERROR, "Integer overflow detected in %d, %a\n", __LINE__, __FUNCTION__));
+			return EFI_BAD_BUFFER_SIZE;
+		}
+		if (ImageEnd < ((UINT64)Image + img_header_entry[i].start_offset + img_header_entry[i].size)) {
+			DEBUG((EFI_D_ERROR, "Image size mismatch\n"));
+			return EFI_INVALID_PARAMETER;
+		}
+
 		AsciiStrToUnicodeStr(img_header_entry[i].ptn_name, PartitionNameFromMeta);
 		Status = HandleRawImgFlash(PartitionNameFromMeta, sizeof(PartitionNameFromMeta),
-								   (void *) Image + img_header_entry[i].start_offset, img_header_entry[i].size);
+				(void *) Image + img_header_entry[i].start_offset, img_header_entry[i].size);
 	}
 
 	/* ToDo: Add Bootloader version support */
