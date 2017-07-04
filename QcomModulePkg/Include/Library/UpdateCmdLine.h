@@ -53,7 +53,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			 BOOLEAN AlarmBoot,
 			 CONST CHAR8 *VBCmdLine,
 			 CHAR8 **FinalCmdLine);
-BOOLEAN TargetBatterySocOk();
+BOOLEAN TargetBatterySocOk(UINT32 *BatteryVoltage);
 
 UINT32 GetSystemPath(CHAR8 **SysPath);
 

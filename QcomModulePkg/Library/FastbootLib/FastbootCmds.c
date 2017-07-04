@@ -781,16 +781,16 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 		DEBUG((EFI_D_ERROR, "Error boot partition for slot: %s not found\n", SlotSuffix));
 		return;
 	}
-
 	Ptn_Entries_Ptr = &PtnEntries[Index];
-	Ptn_Entries_Ptr->PartEntry.Attributes = Ptn_Entries_Ptr->PartEntry.Attributes  |=
-		(PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL) &
-		(~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+	Ptn_Entries_Ptr->PartEntry.Attributes &=
+				(~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+	Ptn_Entries_Ptr->PartEntry.Attributes |=
+				(PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL);
 
 	UpdatePartitionAttributes();
 	for (j = 0; j < MAX_SLOTS; j++)
 	{
-		if(!AsciiStrnCmp(BootSlotInfo[j].SlotSuffix, SlotSuffixAscii, AsciiStrLen(SlotSuffixAscii)))
+		if(AsciiStrStr(SlotSuffixAscii, BootSlotInfo[j].SlotSuffix))
 		{
 			AsciiStrnCpyS(BootSlotInfo[j].SlotSuccessfulVal, sizeof(BootSlotInfo[j].SlotSuccessfulVal), "no", AsciiStrLen("no"));
 			AsciiStrnCpyS(BootSlotInfo[j].SlotUnbootableVal, sizeof(BootSlotInfo[j].SlotUnbootableVal), "no", AsciiStrLen("no"));
@@ -1303,7 +1303,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	BOOLEAN SwitchSlot = FALSE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 
-	if (!IsUnlocked()) {
+	if (TargetBuildVariantUser() && !IsUnlocked()) {
 		FastbootFail("Slot Change is not allowed in Lock State\n");
 		return;
 	}
@@ -1916,6 +1916,9 @@ STATIC VOID AcceptCmd(
 	)
 {
 	FASTBOOT_CMD *cmd;
+	UINT32  BatteryVoltage = 0;
+	STATIC BOOLEAN IsFirstEraseFlash;
+
 	if (!Data)
 	{
 		FastbootFail("Invalid input command");
@@ -1925,6 +1928,28 @@ STATIC VOID AcceptCmd(
 		Size = MAX_FASTBOOT_COMMAND_SIZE;
 	Data[Size] = '\0';
 	DEBUG((EFI_D_INFO, "Handling Cmd: %a\n", Data));
+
+	if (FixedPcdGetBool(EnableBatteryVoltageCheck)) {
+		/* Check battery voltage before erase or flash image
+		 * It gets partition type once when to flash or erase image,
+		 * for sparse image, it calls flash command more than once, it's
+		 * no need to check the battery voltage at every time, it's risky
+		 * to stop the update when the image is half-flashed.
+		 */
+		if (IsFirstEraseFlash) {
+			if (!AsciiStrnCmp(Data, "erase", AsciiStrLen("erase")) ||
+				!AsciiStrnCmp(Data, "flash", AsciiStrLen("flash"))) {
+				if (!TargetBatterySocOk(&BatteryVoltage)) {
+					DEBUG((EFI_D_VERBOSE,"fastboot: battery voltage: %d\n", BatteryVoltage));
+					FastbootFail("Warning: battery's capacity is very low\n");
+					return;
+				}
+				IsFirstEraseFlash = FALSE;
+			}
+		} else if (!AsciiStrnCmp(Data, "getvar:partition-type", AsciiStrLen("getvar:partition-type"))) {
+			IsFirstEraseFlash = TRUE;
+		}
+	}
 
 	for (cmd = cmdlist; cmd; cmd = cmd->next)
 	{

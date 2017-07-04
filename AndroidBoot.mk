@@ -20,6 +20,15 @@ else
 	USER_BUILD_VARIANT := USER_BUILD_VARIANT=0
 endif
 
+# For most platform, abl needed always be built
+# in aarch64 arthitecture to run.
+# Specify BOOTLOADER_ARCH if needed to built with
+# other ARCHs.
+ifeq ($(BOOTLOADER_ARCH),)
+	BOOTLOADER_ARCH := AARCH64
+endif
+TARGET_ARCHITECTURE := $(BOOTLOADER_ARCH)
+
 # ABL ELF output
 TARGET_ABL := $(PRODUCT_OUT)/abl.elf
 TARGET_EMMC_BOOTLOADER := $(TARGET_ABL)
@@ -33,7 +42,7 @@ $(ABL_OUT):
 
 # Top level target
 $(TARGET_ABL): abl_clean | $(ABL_OUT) $(INSTALLED_KEYSTOREIMAGE_TARGET)
-	$(MAKE) -C bootable/bootloader/edk2 BOOTLOADER_OUT=../../../$(ABL_OUT) all $(VERIFIED_BOOT) $(VERIFIED_BOOT_2) $(USER_BUILD_VARIANT) CLANG_BIN=$(CLANG_BIN)
+	$(MAKE) -C bootable/bootloader/edk2 BOOTLOADER_OUT=../../../$(ABL_OUT) all $(VERIFIED_BOOT) $(VERIFIED_BOOT_2) $(USER_BUILD_VARIANT) CLANG_BIN=$(CLANG_BIN) TARGET_ARCHITECTURE=$(TARGET_ARCHITECTURE)
 
 .PHONY: abl
 

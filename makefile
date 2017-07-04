@@ -6,9 +6,23 @@ endif
 export $(BOOTLOADER_OUT)
 
 BUILDDIR=$(shell pwd)
+
+ifeq ($(ANDROID_BUILD_TOP),)
+export CLANG35_AARCH64_PREFIX := $(CLANG_PREFIX)
+else
 export CLANG35_AARCH64_PREFIX := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-$(TARGET_GCC_VERSION)/bin/aarch64-linux-android-
+endif
 export CLANG35_BIN := $(CLANG_BIN)
+export CLANG35_ARM_PREFIX := $(CLANG_BIN)/tools/bin
+export CLANG_ARM_LINK_PATH := $(CLANG_LINK_PATH)
+
 ANDROID_PRODUCT_OUT := $(BOOTLOADER_OUT)/Build
+
+ifeq ($(TARGET_ARCHITECTURE),arm)
+export ARCHITECTURE := ARM
+else
+export ARCHITECTURE := AARCH64
+endif
 
 WORKSPACE=$(BUILDDIR)
 TARGET_TOOLS := CLANG35
@@ -27,7 +41,7 @@ all: ABL_FV_ELF
 
 cleanall:
 	@. ./edksetup.sh BaseTools && \
-	build -p $(WORKSPACE)/QcomModulePkg/QcomModulePkg.dsc -a AARCH64 -t $(TARGET_TOOLS) -b $(TARGET) -j build_modulepkg.log cleanall
+	build -p $(WORKSPACE)/QcomModulePkg/QcomModulePkg.dsc -a $(ARCHITECTURE) -t $(TARGET_TOOLS) -b $(TARGET) -j build_modulepkg.log cleanall
 	rm -rf $(WORKSPACE)/QcomModulePkg/Bin64
 
 EDK_TOOLS_BIN:
@@ -36,8 +50,8 @@ EDK_TOOLS_BIN:
 
 ABL_FV_IMG: EDK_TOOLS_BIN
 	@. ./edksetup.sh BaseTools && \
-	build -p $(WORKSPACE)/QcomModulePkg/QcomModulePkg.dsc -a AARCH64 -t $(TARGET_TOOLS) -b $(TARGET) -D ABL_OUT_DIR=$(ANDROID_PRODUCT_OUT) -D VERIFIED_BOOT=$(VERIFIED_BOOT) -D VERIFIED_BOOT_2=$(VERIFIED_BOOT_2) -D USER_BUILD_VARIANT=$(USER_BUILD_VARIANT) -j build_modulepkg.log $*
+	build -p $(WORKSPACE)/QcomModulePkg/QcomModulePkg.dsc -a $(ARCHITECTURE) -t $(TARGET_TOOLS) -b $(TARGET) -D ABL_OUT_DIR=$(ANDROID_PRODUCT_OUT) -D VERIFIED_BOOT=$(VERIFIED_BOOT) -D VERIFIED_BOOT_2=$(VERIFIED_BOOT_2) -D USER_BUILD_VARIANT=$(USER_BUILD_VARIANT) -j build_modulepkg.log $*
 	cp $(BUILD_ROOT)/FV/FVMAIN_COMPACT.Fv $(ABL_FV_IMG)
 
 ABL_FV_ELF: ABL_FV_IMG
-	python $(WORKSPACE)/QcomModulePkg/Tools/image_header.py $(ABL_FV_IMG) $(ABL_FV_ELF) $(LOAD_ADDRESS) elf 64
+	python $(WORKSPACE)/QcomModulePkg/Tools/image_header.py $(ABL_FV_IMG) $(ABL_FV_ELF) $(LOAD_ADDRESS) elf 32

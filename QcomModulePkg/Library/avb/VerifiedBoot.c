@@ -112,12 +112,6 @@ STATIC EFI_STATUS AppendVBCommonCmdLine(BootInfo *Info)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 
-	GUARD(AppendVBCmdLine(Info, VerityMode));
-	GUARD(AppendVBCmdLine(Info, VbVm[IsEnforcing()].name));
-	if (Info->VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
-		GUARD(AppendVBCmdLine(Info, VerifiedState));
-		GUARD(AppendVBCmdLine(Info, VbSn[Info->BootState].name));
-	}
 	GUARD(AppendVBCmdLine(Info, KeymasterLoadState));
 	GUARD(AppendVBCmdLine(Info, Space));
 	return EFI_SUCCESS;
@@ -230,6 +224,12 @@ STATIC EFI_STATUS LoadImageAndAuthVB1(BootInfo *Info)
 		return EFI_LOAD_ERROR;
 	}
 	GUARD(AppendVBCommonCmdLine(Info));
+	GUARD(AppendVBCmdLine(Info, VerityMode));
+	GUARD(AppendVBCmdLine(Info, VbVm[IsEnforcing()].name));
+	if (Info->VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+		GUARD(AppendVBCmdLine(Info, VerifiedState));
+		GUARD(AppendVBCmdLine(Info, VbSn[Info->BootState].name));
+	}
 	GUARD(AppendVBCmdLine(Info, SystemPath));
 
 	Info->VBData = NULL;
@@ -243,6 +243,7 @@ STATIC BOOLEAN ResultShouldContinue(AvbSlotVerifyResult Result)
 	case AVB_SLOT_VERIFY_RESULT_ERROR_IO:
 	case AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA:
 	case AVB_SLOT_VERIFY_RESULT_ERROR_UNSUPPORTED_VERSION:
+        case AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_ARGUMENT:
 		return FALSE;
 
 	case AVB_SLOT_VERIFY_RESULT_OK:
@@ -266,6 +267,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	CHAR8 PnameAscii[MAX_GPT_NAME_SIZE] = {0};
 	CHAR8 *SlotSuffix = NULL;
 	BOOLEAN AllowVerificationError = IsUnlocked();
+	BOOLEAN VerityEnforcing = IsEnforcing();
 	CONST CHAR8 *RequestedPartitionAll[] = {"boot", "dtbo", NULL};
 	CONST CHAR8 *CONST *RequestedPartition = NULL;
 	UINTN NumRequestedPartition = 0;
@@ -277,6 +279,10 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	KMRotAndBootState Data = {0};
 	CONST boot_img_hdr *BootImgHdr = NULL;
 	BOOLEAN IsCriticalError = TRUE;
+        AvbSlotVerifyFlags VerifyFlags = AllowVerificationError ?
+           AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR :
+           AVB_SLOT_VERIFY_FLAGS_NONE;
+	AvbHashtreeErrorMode VerityFlags = AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE;
 
 	Info->BootState = RED;
 	GUARD(VBCommonInit(Info));
@@ -315,17 +321,27 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 		RequestedPartition = &RequestedPartitionAll[1];
 		NumRequestedPartition--;
 	}
-	Result = avb_slot_verify(Ops, RequestedPartition, SlotSuffix,
-	                         AllowVerificationError, &SlotData);
 
-	if (IsUnlocked() && ResultShouldContinue(Result)) {
+	if(FixedPcdGetBool(AllowEio)) {
+		VerityFlags = VerityEnforcing ?
+				AVB_HASHTREE_ERROR_MODE_RESTART :
+				AVB_HASHTREE_ERROR_MODE_EIO;
+	} else {
+		VerityFlags = AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE;
+	}
+
+	Result = avb_slot_verify(Ops, RequestedPartition, SlotSuffix,
+				VerifyFlags, VerityFlags,
+				&SlotData);
+
+	if (AllowVerificationError && ResultShouldContinue(Result)) {
 		DEBUG((EFI_D_ERROR, "State: Unlocked, AvbSlotVerify returned "
 		                    "%a, continue boot\n",
 		       avb_slot_verify_result_to_string(Result)));
 	} else if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
 		DEBUG((EFI_D_ERROR,
 		       "ERROR: Device State %a, AvbSlotVerify returned %a\n",
-		       IsUnlocked() ? "Unlocked" : "Locked",
+		       AllowVerificationError ? "Unlocked" : "Locked",
 		       avb_slot_verify_result_to_string(Result)));
 		Status = EFI_LOAD_ERROR;
 		Info->BootState = RED;
@@ -407,7 +423,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	Status = CheckImageHeader(ImageBuffer, ImageHdrSize, &ImageSizeActual, &PageSize);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
-		if (IsUnlocked()) {
+		if (AllowVerificationError) {
 			goto out_non_critical;
 		} else {
 			goto out;
@@ -422,7 +438,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 		goto out;
 	}
 
-	if (IsUnlocked()) {
+	if (AllowVerificationError) {
 		Info->BootState = ORANGE;
 	} else {
 		if (UserData->IsUserKey) {
@@ -438,13 +454,13 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 
 	/* Set Rot & Boot State*/
 	Data.Color = Info->BootState;
-	Data.IsUnlocked = IsUnlocked();
+	Data.IsUnlocked = AllowVerificationError;
 	Data.PublicKeyLength = UserData->PublicKeyLen;
 	Data.PublicKey = UserData->PublicKey;
 
 	BootImgHdr = (struct boot_img_hdr *)ImageBuffer;
 	Data.SystemSecurityLevel = (BootImgHdr->os_version & 0x7FF);
-	Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF8) >> 11;
+	Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF800) >> 11;
 
 	GUARD_OUT(KeyMasterSetRotAndBootState(&Data));
 
@@ -623,12 +639,12 @@ EFI_STATUS LoadImageAndAuth(BootInfo *Info)
 		Status = MdtpProtocol->MdtpDeactivate(MdtpProtocol, FALSE);
 	}
 
+	DisplayVerifiedBootScreen(Info);
+
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "LoadImageAndAuth failed %r\n", Status));
 		return Status;
 	}
-
-	DisplayVerifiedBootScreen(Info);
 
 	DEBUG((EFI_D_VERBOSE, "Sending Milestone Call\n"));
 	Status = Info->VbIntf->VBSendMilestone(Info->VbIntf);

@@ -601,6 +601,7 @@ EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle)
 		return Status;
 	}
 
+	gBS->SetMem((VOID*)&EraseToken, sizeof(EraseToken), 0);
 	Status = EraseProt->EraseBlocks(BlockIo, BlockIo->Media->MediaId, 0, &EraseToken, PartitionSize);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Unable to Erase Block: %r\n", Status));

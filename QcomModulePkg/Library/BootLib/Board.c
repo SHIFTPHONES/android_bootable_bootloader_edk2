@@ -174,7 +174,7 @@ STATIC EFI_STATUS GetPmicInfoExt(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_EXT_
 
 	Status = pPmicVersionProtocol->GetPmicInfoExt(PmicDeviceIndex, pmic_info_ext);
 	if (EFI_ERROR(Status)) {
-		DEBUG((EFI_D_ERROR, "Error getting pmic info ext: %r\n", Status));
+		DEBUG((EFI_D_VERBOSE, "Error getting pmic info ext: %r\n", Status));
 		return Status;
 	}
 	return Status;
@@ -325,7 +325,7 @@ UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex)
 	if (Revision >= PMIC_VERSION_REVISION) {
 		Status = GetPmicInfoExt(PmicDeviceIndex, &pmic_info_ext);
 		if (Status != EFI_SUCCESS) {
-			DEBUG((EFI_D_ERROR, "Error finding board pmic info: %r\n", Status));
+			DEBUG((EFI_D_VERBOSE, "Error finding board pmic info: %r\n", Status));
 			return 0;
 		}
 

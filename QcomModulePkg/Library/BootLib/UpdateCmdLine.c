@@ -73,12 +73,12 @@ STATIC BOOLEAN TargetUseSignedKernel(VOID)
 	return TRUE;
 }
 
-STATIC EFI_STATUS TargetPauseForBatteryCharge(UINT32 *BatteryStatus)
+STATIC EFI_STATUS TargetPauseForBatteryCharge(BOOLEAN *BatteryStatus)
 {
-	EFI_STATUS Status;
+	EFI_STATUS Status = EFI_SUCCESS;
 	EFI_PM_PON_REASON_TYPE PONReason;
 	EFI_QCOM_PMIC_PON_PROTOCOL *PmicPonProtocol;
-	EFI_QCOM_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
+	EFI_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
 	BOOLEAN ChgPresent;
 	BOOLEAN WarmRtStatus;
 	BOOLEAN IsColdBoot;
@@ -87,57 +87,66 @@ STATIC EFI_STATUS TargetPauseForBatteryCharge(UINT32 *BatteryStatus)
 	 * Serves only performance purposes, defaults to return zero*/
 	*BatteryStatus = 0;
 
-	Status = gBS->LocateProtocol(&gQcomPmicPonProtocolGuid, NULL,
-			(VOID **) &PmicPonProtocol);
-	if (EFI_ERROR(Status)) {
-		DEBUG((EFI_D_ERROR, "Error locating pmic pon protocol: %r\n", Status));
-		return Status;
-	}
-
-	/* Passing 0 for PMIC device Index since the protocol infers internally */
-	Status = PmicPonProtocol->GetPonReason(0, &PONReason);
-	if (EFI_ERROR(Status)) {
-		DEBUG((EFI_D_ERROR, "Error getting pon reason: %r\n", Status));
-		return Status;
-	}
-
-	Status = PmicPonProtocol->WarmResetStatus(0, &WarmRtStatus);
-	if (EFI_ERROR(Status)) {
-		DEBUG((EFI_D_ERROR, "Error getting warm reset status: %r\n", Status));
-		return Status;
-	}
-
-	IsColdBoot = !WarmRtStatus;
-	Status = gBS->LocateProtocol(&gQcomChargerExProtocolGuid, NULL, (void **) &ChgDetectProtocol);
-	if (EFI_ERROR(Status)) {
+	Status = gBS->LocateProtocol(&gChargerExProtocolGuid, NULL, (VOID **) &ChgDetectProtocol);
+	if (EFI_ERROR(Status) || (NULL == ChgDetectProtocol)) {
 		DEBUG((EFI_D_ERROR, "Error locating charger detect protocol: %r\n", Status));
 		return Status;
 	}
 
-	Status = ChgDetectProtocol->GetChargerPresence(&ChgPresent);
-	if (EFI_ERROR(Status)) {
-		DEBUG((EFI_D_ERROR, "Error getting charger info: %r\n", Status));
+	/* The new protocol are supported on future chipsets */
+	if (ChgDetectProtocol->Revision >= CHARGER_EX_REVISION) {
+		Status = ChgDetectProtocol->IsOffModeCharging(BatteryStatus);
+		if (EFI_ERROR(Status))
+			DEBUG((EFI_D_ERROR, "Error getting off mode charging info: %r\n", Status));
+
+		return Status;
+	} else {
+		Status = gBS->LocateProtocol(&gQcomPmicPonProtocolGuid, NULL,
+				(VOID **) &PmicPonProtocol);
+		if (EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR, "Error locating pmic pon protocol: %r\n", Status));
+			return Status;
+		}
+
+		/* Passing 0 for PMIC device Index since the protocol infers internally */
+		Status = PmicPonProtocol->GetPonReason(0, &PONReason);
+		if (EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR, "Error getting pon reason: %r\n", Status));
+			return Status;
+		}
+
+		Status = PmicPonProtocol->WarmResetStatus(0, &WarmRtStatus);
+		if (EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR, "Error getting warm reset status: %r\n", Status));
+			return Status;
+		}
+
+		IsColdBoot = !WarmRtStatus;
+		Status = ChgDetectProtocol->GetChargerPresence(&ChgPresent);
+		if (EFI_ERROR(Status)) {
+			DEBUG((EFI_D_ERROR, "Error getting charger info: %r\n", Status));
+			return Status;
+		}
+
+		DEBUG((EFI_D_INFO, " PON Reason is %d cold_boot:%d charger path: %d\n",
+			PONReason, IsColdBoot, ChgPresent));
+		/* In case of fastboot reboot,adb reboot or if we see the power key
+		 * pressed we do not want go into charger mode.
+		 * fastboot/adb reboot is warm boot with PON hard reset bit set.
+		 */
+		if (IsColdBoot &&
+			(!(PONReason.HARD_RESET) &&
+			(!(PONReason.KPDPWR)) &&
+			(PONReason.PON1 || PONReason.USB_CHG) &&
+			(ChgPresent)))
+		{
+			*BatteryStatus = 1;
+		} else {
+			*BatteryStatus = 0;
+		}
+
 		return Status;
 	}
-
-	DEBUG((EFI_D_INFO, " PON Reason is %d cold_boot:%d charger path: %d\n",
-		PONReason, IsColdBoot, ChgPresent));
-	/* In case of fastboot reboot,adb reboot or if we see the power key
-	 * pressed we do not want go into charger mode.
-	 * fastboot/adb reboot is warm boot with PON hard reset bit set.
-	 */
-	if (IsColdBoot &&
-		(!(PONReason.HARD_RESET) &&
-		(!(PONReason.KPDPWR)) &&
-		(PONReason.PON1 || PONReason.USB_CHG) &&
-		(ChgPresent)))
-	{
-		*BatteryStatus = 1;
-	} else {
-		*BatteryStatus = 0;
-	}
-
-	return Status;
 }
 
 /**
@@ -152,9 +161,9 @@ STATIC EFI_STATUS TargetCheckBatteryStatus(BOOLEAN *BatteryPresent, BOOLEAN *Cha
 	UINT32 *BatteryVoltage)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
-	EFI_QCOM_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
+	EFI_CHARGER_EX_PROTOCOL *ChgDetectProtocol;
 
-	Status = gBS->LocateProtocol(&gQcomChargerExProtocolGuid, NULL, (void **) &ChgDetectProtocol);
+	Status = gBS->LocateProtocol(&gChargerExProtocolGuid, NULL, (void **) &ChgDetectProtocol);
 	if (EFI_ERROR(Status) || (NULL == ChgDetectProtocol)) {
 		DEBUG((EFI_D_ERROR, "Error locating charger detect protocol\n"));
 		return EFI_PROTOCOL_ERROR;
@@ -185,23 +194,51 @@ STATIC EFI_STATUS TargetCheckBatteryStatus(BOOLEAN *BatteryPresent, BOOLEAN *Cha
 /**
    Add safeguards such as refusing to flash if the battery levels is lower than the min voltage
    or bypass if the battery is not present.
-   @param[out] BatteryVoltage  The pointer to battry's voltage.
+   @param[out] BatteryVoltage  The current voltage of battery
    @retval     BOOLEAN         The value whether the device is allowed to flash image.
  **/
-BOOLEAN TargetBatterySocOk(UINT32  *BatteryVoltage)
+BOOLEAN TargetBatterySocOk(UINT32 *BatteryVoltage)
 {
-	EFI_STATUS  BatteryStatus;
+	EFI_STATUS  Status = EFI_SUCCESS;
+	EFI_CHARGER_EX_PROTOCOL *ChgDetectProtocol = NULL;
+	EFI_CHARGER_EX_FLASH_INFO FlashInfo;
 	BOOLEAN BatteryPresent = FALSE;
 	BOOLEAN ChargerPresent = FALSE;
 
-	BatteryStatus = TargetCheckBatteryStatus(&BatteryPresent, &ChargerPresent, BatteryVoltage);
-	if ((BatteryStatus == EFI_SUCCESS) &&
-		(!BatteryPresent || (BatteryPresent && (*BatteryVoltage > BATT_MIN_VOLT))))
-	{
-		return TRUE;
+	*BatteryVoltage = 0;
+	Status = gBS->LocateProtocol(&gChargerExProtocolGuid, NULL, (VOID **) &ChgDetectProtocol);
+	if (EFI_ERROR(Status) || (NULL == ChgDetectProtocol)) {
+		DEBUG((EFI_D_ERROR, "Error locating charger detect protocol\n"));
+		return FALSE;
 	}
 
-	return FALSE;
+	/* The new protocol are supported on future chipsets */
+	if (ChgDetectProtocol->Revision >= CHARGER_EX_REVISION) {
+		Status = ChgDetectProtocol->IsPowerOk(EFI_CHARGER_EX_POWER_FLASH_BATTERY_VOLTAGE_TYPE, &FlashInfo);
+		if (EFI_ERROR(Status)) {
+			/* But be bypassable where the device doesn't even have a battery */
+			if (Status == EFI_UNSUPPORTED)
+				return TRUE;
+
+			DEBUG((EFI_D_ERROR, "Error getting the info of charger: %r\n", Status));
+			return FALSE;
+		}
+
+		*BatteryVoltage = FlashInfo.BattCurrVoltage;
+		if (!(FlashInfo.bCanFlash) || (*BatteryVoltage < FlashInfo.BattRequiredVoltage))
+			return FALSE;
+		return TRUE;
+	} else {
+		Status = TargetCheckBatteryStatus(&BatteryPresent, &ChargerPresent, BatteryVoltage);
+		if (((Status == EFI_SUCCESS) &&
+			(!BatteryPresent || (BatteryPresent && (*BatteryVoltage > BATT_MIN_VOLT)))) ||
+			(Status == EFI_UNSUPPORTED))
+		{
+			return TRUE;
+		}
+
+		return FALSE;
+	}
 }
 
 VOID GetDisplayCmdline()
@@ -283,7 +320,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	BOOLEAN MultiSlotBoot;
 	CHAR8 ChipBaseBand[CHIP_BASE_BAND_LEN];
 	CHAR8 *BootDevBuf = NULL;
-	UINT32 BatteryStatus;
+	BOOLEAN BatteryStatus;
 	CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
 	BOOLEAN MdtpActive = FALSE;
 
