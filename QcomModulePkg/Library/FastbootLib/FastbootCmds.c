@@ -1302,6 +1302,8 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	UINT32 SlotEnd = 0;
 	BOOLEAN SwitchSlot = FALSE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	Slot NewSlot = {{0}};
+	EFI_STATUS Status;
 
 	if (TargetBuildVariantUser() && !IsUnlocked()) {
 		FastbootFail("Slot Change is not allowed in Lock State\n");
@@ -1347,20 +1349,17 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		return;
 	}
 
-	if (SwitchSlot) {
-		Slot NewSlot = {{0}};
-		StrnCpyS(NewSlot.Suffix, ARRAY_SIZE(NewSlot.Suffix), InputSlotInUnicode, StrLen(InputSlotInUnicode));
-		EFI_STATUS Status = SetActiveSlot(&NewSlot);
-		if (Status != EFI_SUCCESS) {
-			FastbootFail("set_active failed");
-			return;
-		}
+	StrnCpyS(NewSlot.Suffix, ARRAY_SIZE(NewSlot.Suffix), InputSlotInUnicode, StrLen(InputSlotInUnicode));
+	Status = SetActiveSlot(&NewSlot);
+	if (Status != EFI_SUCCESS) {
+		FastbootFail("set_active failed");
+		return;
+	}
 
-		// Updating fbvar `current-slot'
-		UnicodeStrToAsciiStr(GetCurrentSlotSuffix().Suffix,CurrentSlotFB);
-		if (AsciiStrStr(CurrentSlotFB, "_")) {
-			SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
-		}
+	// Updating fbvar `current-slot'
+	UnicodeStrToAsciiStr(GetCurrentSlotSuffix().Suffix,CurrentSlotFB);
+	if (AsciiStrStr(CurrentSlotFB, "_")) {
+		SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
 	}
 
 	do {
