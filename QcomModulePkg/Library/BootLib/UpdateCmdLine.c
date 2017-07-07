@@ -540,6 +540,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	}
 
 	DEBUG((EFI_D_INFO, "Cmdline: %a\n", *FinalCmdLine));
+	DEBUG((EFI_D_INFO, "\n"));
 
 	return EFI_SUCCESS;
 }
