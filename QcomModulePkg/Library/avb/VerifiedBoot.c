@@ -112,6 +112,10 @@ STATIC EFI_STATUS AppendVBCommonCmdLine(BootInfo *Info)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 
+	if (Info->VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
+		GUARD(AppendVBCmdLine(Info, VerifiedState));
+		GUARD(AppendVBCmdLine(Info, VbSn[Info->BootState].name));
+	}
 	GUARD(AppendVBCmdLine(Info, KeymasterLoadState));
 	GUARD(AppendVBCmdLine(Info, Space));
 	return EFI_SUCCESS;
@@ -226,10 +230,6 @@ STATIC EFI_STATUS LoadImageAndAuthVB1(BootInfo *Info)
 	GUARD(AppendVBCommonCmdLine(Info));
 	GUARD(AppendVBCmdLine(Info, VerityMode));
 	GUARD(AppendVBCmdLine(Info, VbVm[IsEnforcing()].name));
-	if (Info->VbIntf->Revision >= QCOM_VERIFIEDBOOT_PROTOCOL_REVISION) {
-		GUARD(AppendVBCmdLine(Info, VerifiedState));
-		GUARD(AppendVBCmdLine(Info, VbSn[Info->BootState].name));
-	}
 	GUARD(AppendVBCmdLine(Info, SystemPath));
 
 	Info->VBData = NULL;
