@@ -469,7 +469,7 @@ STATIC BOOLEAN CheckAllBitsSet(UINT32 DtMatchVal)
 	return (DtMatchVal & ALL_BITS_SET) == (ALL_BITS_SET);
 }
 
-STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
+STATIC VOID ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 {
 	const char *PlatProp = NULL;
 	const char *BoardProp = NULL;
@@ -492,7 +492,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 	RootOffset = fdt_path_offset(Dtb, "/");
 	if (RootOffset < 0) {
 		DEBUG ((EFI_D_ERROR, "Unable to locate root node\n"));
-		return FALSE;
+		return;
 	}
 
 	/* Get the msm-id prop from DTB */
@@ -505,7 +505,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 			*MatchVal |= SOC_MATCH;
 		} else {
 			DEBUG ((EFI_D_VERBOSE, "qcom,msm-id doesnot match\n"));
-			return FALSE;
+			return;
 		}
 		/*Compare soc rev of the dtb vs Board*/
 		DtSocRev = fdt32_to_cpu(((struct plat_id *)PlatProp)->soc_rev);
@@ -514,7 +514,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 			*MatchVal |= VERSION_MATCH;
 		} else if (DtSocRev) {
 			DEBUG ((EFI_D_VERBOSE, "soc version doesnot match\n"));
-			return FALSE;
+			return;
 		}
 		/*Compare Foundry Id of the dtb vs Board*/
 		DtFoundryId = fdt32_to_cpu(((struct plat_id *)PlatProp)->platform_id) & 0x00ff0000;
@@ -541,7 +541,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 			*MatchVal |= VARIANT_MATCH;
 		} else if (DtVariantId) {
 			DEBUG ((EFI_D_VERBOSE, "qcom,board-id doesnot match\n"));
-			return FALSE;
+			return;
 		}
 
 		DEBUG ((EFI_D_VERBOSE, "BoardSubtype = %x, DtSubType = %x\n",BoardPlatformSubType(), DtPlatformSubtype));
@@ -549,7 +549,7 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 			*MatchVal |= SUBTYPE_MATCH;
 		} else if (DtPlatformSubtype) {
 			DEBUG ((EFI_D_VERBOSE, "subtype-id doesnot match\n"));
-			return FALSE;
+			return;
 		}
 	} else {
 		DEBUG ((EFI_D_VERBOSE, "qcom,board-id does not exist (or)(%d) is not a multiple of (%d)\n", LenBoardId,BOARD_ID_SIZE));
@@ -571,12 +571,11 @@ STATIC BOOLEAN ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 			*MatchVal |= PMIC_MATCH;
 		} else if (DtPmicTarget[PMIC_IDX0] || DtPmicTarget[PMIC_IDX1] || DtPmicTarget[PMIC_IDX2] || DtPmicTarget[PMIC_IDX3]) {
 			DEBUG ((EFI_D_VERBOSE, "Pmic version doesnot match\n"));
-			return FALSE;
+			return;
 		}
 	} else {
 		DEBUG ((EFI_D_VERBOSE, "qcom,pmic-id does not exit (or) is (%d) not a multiple of (%d)\n", LenPmicId, PMIC_ID_SIZE));
 	}
-	return TRUE;
 }
 
 VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)
@@ -585,7 +584,6 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 	VOID *Dtb = NULL;
 	struct fdt_header DtbHdr;
 	UINT32 LocalSocDtMatch = 0;
-	BOOLEAN Match = FALSE;
 	VOID* BestMatchDt = NULL;
 	UINT32 DtbSize = 0;
 
@@ -609,8 +607,8 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 				((uintptr_t)Dtb + DtbSize > (uintptr_t)KernelEnd))
 			break;
 
-		Match = ReadDtbFindMatch(Dtb, &LocalSocDtMatch);
-		if (Match) {
+		ReadDtbFindMatch(Dtb, &LocalSocDtMatch);
+		if (LocalSocDtMatch & SOC_MATCH) {
 			if (CheckAllBitsSet(LocalSocDtMatch)) {
 				DEBUG ((EFI_D_VERBOSE, "Exact DTB match found. DTBO search is not required\n"));
 				DtboNeed = FALSE;
@@ -626,7 +624,7 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 
 		}
 
-		DEBUG ((EFI_D_VERBOSE, "Match = %x Bestmatch = %x\n", Match, BestSocDtMatch));
+		DEBUG ((EFI_D_VERBOSE, "Bestmatch = %x\n", BestSocDtMatch));
 		Dtb += DtbSize;
 	}
 
@@ -646,7 +644,6 @@ VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer)
 	UINT32 LocalBoardDtMatch = 0;
 	VOID* BestMatchDt = NULL;
 	VOID *BoardDtb = NULL;
-	BOOLEAN Match = FALSE;
 	UINT32 DtboTableEntriesCount = 0;
 	UINT32 FirstDtboTableEntryOffset = 0;
 
@@ -678,8 +675,8 @@ VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer)
 			DEBUG ((EFI_D_ERROR, "No Valid Dtb\n"));
 			break;
 		}
-		Match = ReadDtbFindMatch(BoardDtb, &LocalBoardDtMatch);
-		if (Match) {
+		ReadDtbFindMatch(BoardDtb, &LocalBoardDtMatch);
+		if (LocalBoardDtMatch & VARIANT_MATCH) {
 			if (BestBoardDtMatch < LocalBoardDtMatch) {
 				BestBoardDtMatch = LocalBoardDtMatch;
 				BestMatchDt = BoardDtb;
