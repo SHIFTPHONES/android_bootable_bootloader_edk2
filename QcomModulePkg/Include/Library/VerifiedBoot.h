@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +31,24 @@
 
 #include <Uefi.h>
 
-enum { NO_AVB = 0, AVB_1, AVB_2 };
+enum
+{
+  NO_AVB = 0,
+  AVB_1,
+  AVB_2,
+  AVB_LE
+};
+
+#define VB_SHA256_SIZE  32
+#define LE_BOOTIMG_SIG_SIZE 256
+
+typedef enum {
+  VB_UNDEFINED_HASH = 0,
+  VB_SHA1,
+  VB_SHA256,
+  VB_UNSUPPORTED_HASH,
+  VB_RESERVED_HASH = 0x7fffffff /* force to 32 bits */
+} VB_HASH;
 
 #define GUARD(code)                                                            \
   do {                                                                         \
