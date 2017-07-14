@@ -870,6 +870,10 @@ HandleMetaImgFlash(
 	meta_header = (meta_header_t *) Image;
 	img_header_entry = (img_header_entry_t *) (Image + sizeof(meta_header_t));
 	images = meta_header->img_hdr_sz / sizeof(img_header_entry_t);
+	if (images > MAX_IMAGES_IN_METAIMG) {
+		DEBUG((EFI_D_ERROR, "Error: Number of images(%u)in meta_image are greater than expected\n", images));
+		return EFI_INVALID_PARAMETER;
+	}
 
 	if (CHECK_ADD64((UINT64)Image, Size)) {
 		DEBUG((EFI_D_ERROR, "Integer overflow detected in %d, %a\n", __LINE__, __FUNCTION__));
