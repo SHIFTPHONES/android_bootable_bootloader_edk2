@@ -202,4 +202,5 @@ BOOLEAN IsSuffixEmpty(Slot *CheckSlot);
 EFI_STATUS SetActiveSlot(Slot *NewSlot);
 BOOLEAN IsCurrentSlotBootable();
 EFI_STATUS HandleActiveSlotUnbootable();
+EFI_STATUS ClearUnbootable();
 #endif

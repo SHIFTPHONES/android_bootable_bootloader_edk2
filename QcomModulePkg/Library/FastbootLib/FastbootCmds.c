@@ -1735,6 +1735,11 @@ STATIC VOID CmdBoot(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	Info.NumLoadedImages = 1;
 	Info.MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 
+	Status = ClearUnbootable();
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "CmdBoot: ClearUnbootable failed"));
+		return;
+	}
 	Status = LoadImageAndAuth(&Info);
 	if (Status != EFI_SUCCESS) {
 		AsciiSPrint(Resp, sizeof(Resp), "Failed to load/authenticate boot image: %r", Status);
