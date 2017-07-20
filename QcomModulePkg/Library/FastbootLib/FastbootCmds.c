@@ -2157,7 +2157,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	FastbootPublishVar("max-download-size", MAX_DOWNLOAD_SIZE_STR);
 	AsciiSPrint(FullProduct, sizeof(FullProduct), "%a", PRODUCT_NAME);
 	FastbootPublishVar("product", FullProduct);
-	FastbootPublishVar("serial", StrSerialNum);
+	FastbootPublishVar("serialno", StrSerialNum);
 	FastbootPublishVar("secure", IsSecureBootEnabled()? "yes":"no");
 	if (MultiSlotBoot)
 	{
