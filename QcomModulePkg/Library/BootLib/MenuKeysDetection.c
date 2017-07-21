@@ -131,6 +131,11 @@ STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, INTN Reason)
 		WriteToPartition(&gEfiMiscPartitionGuid, FfbmPageBuffer);
 		RebootDevice(NORMAL_MODE);
 		break;
+	case QMMI:
+		AsciiSPrint(FfbmPageBuffer, sizeof(FfbmPageBuffer), "ffbm-02");
+		WriteToPartition(&gEfiMiscPartitionGuid, FfbmPageBuffer);
+		RebootDevice(NORMAL_MODE);
+		break;
 	}
 }
 
