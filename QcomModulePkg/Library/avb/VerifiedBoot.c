@@ -510,36 +510,40 @@ STATIC EFI_STATUS DisplayVerifiedBootScreen(BootInfo *Info)
 	DEBUG((EFI_D_VERBOSE, "Boot State is : %d\n", Info->BootState));
 	switch (Info->BootState)
         {
-	        case RED:
-		        Status = DisplayVerifiedBootMenu(DISPLAY_MENU_RED);
-                        if (Status != EFI_SUCCESS) {
-                                DEBUG((EFI_D_INFO, "Your device is corrupt. It can't be trusted and will not boot." \
-						"\nYour device will shutdown in 30s\n"));
-                        }
-                        MicroSecondDelay(30000000);
-		        ShutdownDevice();
-		        break;
-	        case YELLOW:
-		        Status = DisplayVerifiedBootMenu(DISPLAY_MENU_YELLOW);
-                        if (Status == EFI_SUCCESS) {
-			        WaitForExitKeysDetection();
-		        } else {
-			        DEBUG((EFI_D_INFO, "Your device has loaded a different operating system." \
-				           "\nWait for 5 seconds before proceeding\n"));
-			        MicroSecondDelay(5000000);
-		        }
-		        break;
-	        case ORANGE:
-		        Status = DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
-		        if (Status == EFI_SUCCESS) {
-			        WaitForExitKeysDetection();
-		        } else {
-			        DEBUG((EFI_D_INFO, "Device is unlocked, Skipping boot verification\n"));
+		case RED:
+			Status = DisplayVerifiedBootMenu(DISPLAY_MENU_RED);
+			if (Status != EFI_SUCCESS) {
+				DEBUG((EFI_D_INFO, "Your device is corrupt. It can't be trusted and will not boot." \
+					"\nYour device will shutdown in 30s\n"));
+			}
+			MicroSecondDelay(30000000);
+			ShutdownDevice();
+			break;
+		case YELLOW:
+			Status = DisplayVerifiedBootMenu(DISPLAY_MENU_YELLOW);
+			if (Status == EFI_SUCCESS) {
+				WaitForExitKeysDetection();
+			} else {
+				DEBUG((EFI_D_INFO, "Your device has loaded a different operating system." \
+					"\nWait for 5 seconds before proceeding\n"));
 				MicroSecondDelay(5000000);
-		        }
-		        break;
-	        default:
-		        break;
+			}
+			break;
+		case ORANGE:
+			if (FfbmStr[0] != '\0' && !TargetBuildVariantUser()) {
+				DEBUG((EFI_D_VERBOSE, "Device will boot into FFBM mode\n"));
+			} else {
+				Status = DisplayVerifiedBootMenu(DISPLAY_MENU_ORANGE);
+				if (Status == EFI_SUCCESS) {
+					WaitForExitKeysDetection();
+				} else {
+					DEBUG((EFI_D_INFO, "Device is unlocked, Skipping boot verification\n"));
+					MicroSecondDelay(5000000);
+				}
+			}
+			break;
+		default:
+			break;
 	}
 	return EFI_SUCCESS;
 }
