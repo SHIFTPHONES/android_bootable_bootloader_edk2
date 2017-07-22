@@ -155,10 +155,18 @@ extern struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 STATIC ANDROID_FASTBOOT_STATE mState = ExpectCmdState;
 /* When in ExpectDataState, the number of bytes of data to expect: */
 STATIC UINT64 mNumDataBytes;
+STATIC UINT64 mFlashNumDataBytes;
 /* .. and the number of bytes so far received this data phase */
 STATIC UINT64 mBytesReceivedSoFar;
 /*  and the buffer to save data into */
 STATIC UINT8 *mDataBuffer = NULL;
+/*  and the offset for usb to save data into */
+STATIC UINT8 *mFlashDataBuffer = NULL;
+STATIC UINT8 *mUsbDataBuffer = NULL;
+
+STATIC BOOLEAN IsFlashComplete = TRUE;
+STATIC EFI_EVENT CmdEvent;
+STATIC EFI_EVENT UsbTimerEvent;
 
 STATIC INT32 Lun = NO_LUN;
 STATIC BOOLEAN LunSet;
@@ -168,6 +176,12 @@ STATIC UINT32 IsAllowUnlock;
 
 STATIC EFI_STATUS FastbootCommandSetup(VOID *base, UINT32 size);
 STATIC VOID AcceptCmd (IN UINT64 Size,IN  CHAR8 *Data);
+STATIC VOID AcceptCmdHandler(IN EFI_EVENT Event, IN VOID *Context);
+
+typedef struct {
+	UINT64 Size;
+	VOID*  Data;
+} CmdInfo;
 
 /* Clean up memory for the getvar variables during exit */
 EFI_STATUS
@@ -1006,6 +1020,46 @@ VOID BlockIoCallback(IN EFI_EVENT Event,IN VOID *Context)
 {
 }
 
+STATIC VOID UsbTimerHandler(IN EFI_EVENT Event, IN VOID *Context)
+{
+	HandleUsbEvents();
+	if (FastbootFatal ())
+		DEBUG((EFI_D_ERROR, "Continue detected, Exiting App...\n"));
+}
+
+STATIC EFI_STATUS HandleUsbEventsInTimer()
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+
+	if (UsbTimerEvent)
+		return Status;
+
+	Status = gBS->CreateEvent (
+		EVT_TIMER | EVT_NOTIFY_SIGNAL,
+		TPL_CALLBACK,
+		UsbTimerHandler,
+		NULL,
+		&UsbTimerEvent
+	);
+
+	if (!EFI_ERROR (Status)) {
+		Status = gBS->SetTimer (UsbTimerEvent,
+			TimerPeriodic,
+			100000);
+	}
+
+	return Status;
+}
+
+STATIC VOID StopUsbTimer()
+{
+	if (UsbTimerEvent) {
+		gBS->SetTimer (UsbTimerEvent, TimerCancel, 0);
+		gBS->CloseEvent (UsbTimerEvent);
+		UsbTimerEvent = NULL;
+	}
+}
+
 #ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 BOOLEAN NamePropertyMatches(CHAR8* Name) {
 
@@ -1104,8 +1158,9 @@ STATIC VOID CmdFlash(
 	BOOLEAN BootPtnUpdated = FALSE;
 	UINT32 UfsBootLun = 0;
 	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
+	STATIC EFI_STATUS FlashResult = EFI_SUCCESS;
 
-	if (mDataBuffer == NULL)
+	if (mFlashDataBuffer == NULL)
 	{
 		// Doesn't look like we were sent any data
 		FastbootFail("No data to flash");
@@ -1168,7 +1223,7 @@ STATIC VOID CmdFlash(
 		DEBUG((EFI_D_INFO, "*************** Current partition Table Dump Start *******************\n"));
 		PartitionDump();
 		DEBUG((EFI_D_INFO, "*************** Current partition Table Dump End   *******************\n"));
-		Status = UpdatePartitionTable(data, sz, Lun, Ptable);
+		Status = UpdatePartitionTable(mFlashDataBuffer, mFlashNumDataBytes, Lun, Ptable);
 		/* Signal the Block IO to updae and reenumerate the parition table */
 		if (Status == EFI_SUCCESS)
 		{
@@ -1231,34 +1286,55 @@ STATIC VOID CmdFlash(
 			goto out;
 		}
 	}
-	sparse_header = (sparse_header_t *) mDataBuffer;
-	meta_header   = (meta_header_t *) mDataBuffer;
 
-	if (sparse_header->magic == SPARSE_HEADER_MAGIC)
-		Status = HandleSparseImgFlash(PartitionName, sizeof(PartitionName), mDataBuffer, mNumDataBytes);
-	else if (meta_header->magic == META_HEADER_MAGIC)
-		Status = HandleMetaImgFlash(PartitionName, sizeof(PartitionName), mDataBuffer, mNumDataBytes);
-	else
-		Status = HandleRawImgFlash(PartitionName, sizeof(PartitionName), mDataBuffer, mNumDataBytes);
+	Status = HandleUsbEventsInTimer();
+	if (EFI_ERROR (Status)) {
+		StopUsbTimer();
+		DEBUG ((EFI_D_ERROR, "Failed to handle usb event:  %r\n", Status));
+	} else {
+		/* Check last flash result */
+		if (FlashResult == EFI_NOT_FOUND) {
+			FastbootFail("No such partition.");
+			DEBUG((EFI_D_ERROR, " (%s) No such partition\n", PartitionName));
+			goto out;
+		} else if (EFI_ERROR(FlashResult)){
+			FastbootFail("Error flashing partition.");
+			DEBUG ((EFI_D_ERROR, "Couldn't flash image:  %r\n", FlashResult));
+			goto out;
+		}
 
-	if (Status == EFI_NOT_FOUND)
-	{
-		FastbootFail("No such partition.");
-		DEBUG((EFI_D_ERROR, " (%s) No such partition\n", PartitionName));
-		goto out;
-	}
-	else if (EFI_ERROR (Status))
-	{
-		FastbootFail("Error flashing partition.");
-		DEBUG ((EFI_D_ERROR, "Couldn't flash image:  %r\n", Status));
-		goto out;
-	}
-	else
-	{
-		DEBUG ((EFI_D_ERROR, "flash image status:  %r\n", Status));
+		/* Send okay for next data sending */
 		FastbootOkay("");
-		goto out;
 	}
+
+	sparse_header = (sparse_header_t *) mFlashDataBuffer;
+	meta_header   = (meta_header_t *) mFlashDataBuffer;
+
+	IsFlashComplete = FALSE;
+	if (sparse_header->magic == SPARSE_HEADER_MAGIC)
+		FlashResult = HandleSparseImgFlash(PartitionName, sizeof(PartitionName), mFlashDataBuffer, mFlashNumDataBytes);
+	else if (meta_header->magic == META_HEADER_MAGIC)
+		FlashResult = HandleMetaImgFlash(PartitionName, sizeof(PartitionName), mFlashDataBuffer, mFlashNumDataBytes);
+	else
+		FlashResult = HandleRawImgFlash(PartitionName, sizeof(PartitionName), mFlashDataBuffer, mFlashNumDataBytes);
+
+	IsFlashComplete = TRUE;
+	if (EFI_ERROR (Status)) {
+		if (FlashResult == EFI_NOT_FOUND) {
+			FastbootFail("No such partition.");
+			DEBUG((EFI_D_ERROR, " (%s) No such partition\n", PartitionName));
+			goto out;
+		} else if (EFI_ERROR(FlashResult)){
+			FastbootFail("Error flashing partition.");
+			DEBUG ((EFI_D_ERROR, "Couldn't flash image:  %r\n", FlashResult));
+			goto out;
+		} else {
+			DEBUG ((EFI_D_ERROR, "flash image status:  %r\n", FlashResult));
+			FastbootOkay("");
+			goto out;
+		}
+	}
+
 out:
 	LunSet = FALSE;
 }
@@ -1436,13 +1512,15 @@ STATIC VOID AcceptData (IN UINT64 Size, IN  VOID  *Data)
 	{
 		/* Download Finished */
 		DEBUG((EFI_D_INFO, "Download Finished\n"));
+		/* Stop usb timer after data transfer completed */
+		StopUsbTimer();
 		FastbootOkay("");
 		mState = ExpectCmdState;
 	}
 	else
 	{
-		GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize(), (mDataBuffer + mBytesReceivedSoFar));
-		DEBUG((EFI_D_VERBOSE, "AcceptData: Send %d: %a\n", GetXfrSize(), (mDataBuffer + mBytesReceivedSoFar)));
+		GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize(), (Data + mBytesReceivedSoFar));
+		DEBUG((EFI_D_VERBOSE, "AcceptData: Send %d: %a\n", GetXfrSize(), (Data + mBytesReceivedSoFar)));
 	}
 }
 
@@ -1509,6 +1587,8 @@ FastbootCmdsInit (VOID)
 	CHAR8                           *FastBootBuffer;
 
 	mDataBuffer = NULL;
+	mUsbDataBuffer = NULL;
+	mFlashDataBuffer = NULL;
   
 	DEBUG((EFI_D_INFO, "Fastboot: Initializing...\n"));
 
@@ -1534,7 +1614,7 @@ FastbootCmdsInit (VOID)
 	}
 
 	/* Allocate buffer used to store images passed by the download command */
-	Status = GetFastbootDeviceData().UsbDeviceProtocol->AllocateTransferBuffer(MAX_BUFFER_SIZE, (VOID**) &FastBootBuffer);
+	Status = GetFastbootDeviceData().UsbDeviceProtocol->AllocateTransferBuffer(MAX_BUFFER_SIZE * 2, (VOID**) &FastBootBuffer);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Not enough memory to Allocate Fastboot Buffer"));
@@ -1949,11 +2029,76 @@ STATIC VOID CmdOemDevinfo(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 	FastbootOkay("");
 }
 
+STATIC VOID ExchangeFlashAndUsbDataBuf ( VOID )
+{
+	VOID *mTmpbuff;
+
+	mTmpbuff = mUsbDataBuffer;
+	mUsbDataBuffer = mFlashDataBuffer;
+	mFlashDataBuffer = mTmpbuff;
+	mFlashNumDataBytes = mNumDataBytes;
+}
+
+STATIC EFI_STATUS
+AcceptCmdTimerInit(
+	IN  UINT64 Size,
+	IN  CHAR8 *Data
+	)
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	CmdInfo  *AcceptCmdInfo = NULL;
+
+	if (CmdEvent){
+		gBS->SetTimer (CmdEvent, TimerCancel, 0);
+		gBS->CloseEvent (CmdEvent);
+	}
+
+	AcceptCmdInfo = AllocateZeroPool(sizeof(CmdInfo));
+	if (!AcceptCmdInfo)
+		return EFI_OUT_OF_RESOURCES;
+
+	AcceptCmdInfo->Size = Size;
+	AcceptCmdInfo->Data = Data;
+
+	Status = gBS->CreateEvent (
+		EVT_TIMER | EVT_NOTIFY_SIGNAL,
+		TPL_CALLBACK,
+		AcceptCmdHandler,
+		AcceptCmdInfo,
+		&CmdEvent
+	);
+
+	if (!EFI_ERROR (Status)) {
+		Status = gBS->SetTimer(CmdEvent,
+			TimerRelative,
+			100000);
+	}
+
+	if (EFI_ERROR (Status))
+		FreePool(AcceptCmdInfo);
+
+	return Status;
+}
+
+STATIC VOID AcceptCmdHandler(IN EFI_EVENT Event, IN VOID *Context)
+{
+	CmdInfo *AcceptCmdInfo = Context;
+
+	if (CmdEvent) {
+		gBS->SetTimer(CmdEvent, TimerCancel, 0);
+		gBS->CloseEvent (CmdEvent);
+	}
+
+	AcceptCmd(AcceptCmdInfo->Size, AcceptCmdInfo->Data);
+	FreePool(AcceptCmdInfo);
+}
+
 STATIC VOID AcceptCmd(
 	IN  UINT64 Size,
 	IN  CHAR8 *Data
 	)
 {
+	EFI_STATUS Status = EFI_SUCCESS;
 	FASTBOOT_CMD *cmd;
 	UINT32  BatteryVoltage = 0;
 	STATIC BOOLEAN IsFirstEraseFlash;
@@ -1966,7 +2111,20 @@ STATIC VOID AcceptCmd(
 	if (Size > MAX_FASTBOOT_COMMAND_SIZE)
 		Size = MAX_FASTBOOT_COMMAND_SIZE;
 	Data[Size] = '\0';
+
+	/* Wait for flash finished before next command */
+	if (AsciiStrnCmp(Data, "download", AsciiStrLen("download"))){
+		StopUsbTimer();
+		if (!IsFlashComplete) {
+			Status = AcceptCmdTimerInit(Size, Data);
+			if (Status ==  EFI_SUCCESS)
+				return;
+		}
+	}
+
 	DEBUG((EFI_D_INFO, "Handling Cmd: %a\n", Data));
+	if (!AsciiStrnCmp(Data, "flash", AsciiStrLen("flash")) && IsFlashComplete)
+		ExchangeFlashAndUsbDataBuf();
 
 	if (FixedPcdGetBool(EnableBatteryVoltageCheck)) {
 		/* Check battery voltage before erase or flash image
@@ -1994,8 +2152,9 @@ STATIC VOID AcceptCmd(
 	{
 		if (AsciiStrnCmp(Data, cmd->prefix, cmd->prefix_len))
 			continue;
-		cmd->handle((CONST CHAR8*) Data + cmd->prefix_len, (VOID *) mDataBuffer, (UINT32)mBytesReceivedSoFar);
-			return;
+
+		cmd->handle((CONST CHAR8*) Data + cmd->prefix_len, (VOID *) mUsbDataBuffer, (UINT32)mBytesReceivedSoFar);
+		return;
 	}
 	DEBUG((EFI_D_ERROR, "\nFastboot Send Fail\n"));
 	FastbootFail("unknown command");
@@ -2103,6 +2262,9 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 	mDataBuffer = base;
 	mNumDataBytes = size;
+	mFlashNumDataBytes = size;
+	mUsbDataBuffer = base;
+	mFlashDataBuffer = base + MAX_BUFFER_SIZE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 
 	/* Find all Software Partitions in the User Partition */
@@ -2216,7 +2378,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 
 VOID *FastbootDloadBuffer()
 {
-	return (VOID *)mDataBuffer;
+	return (VOID *)mUsbDataBuffer;
 }
 
 ANDROID_FASTBOOT_STATE FastbootCurrentState()
