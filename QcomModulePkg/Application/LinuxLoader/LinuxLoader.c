@@ -43,6 +43,7 @@
 
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10
+#define DEFAULT_STACK_CHK_GUARD 0xc0c0c0c0
 
 STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
@@ -125,14 +126,14 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Initialize the device info failed: %r\n", Status));
-		return Status;
+		goto stack_guard_update_default;
 	}
 
 	Status = EnumeratePartitions();
 
 	if (EFI_ERROR (Status)) {
 		DEBUG ((EFI_D_ERROR, "LinuxLoader: Could not enumerate partitions: %r\n", Status));
-		return Status;
+		goto stack_guard_update_default;
 	}
 
 	UpdatePartitionEntries();
@@ -156,7 +157,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	else if (Status == EFI_DEVICE_ERROR)
 	{
 		DEBUG((EFI_D_ERROR, "Error reading key status: %r\n", Status));
-		return Status;
+		goto stack_guard_update_default;
 	}
 
 	// check for reboot mode
@@ -164,7 +165,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Failed to get Reboot reason: %r\n", Status));
-		return Status;
+		goto stack_guard_update_default;
 	}
 
 	switch (BootReason)
@@ -182,26 +183,26 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 			// write to device info
 			Status = EnableEnforcingMode(TRUE);
 			if (Status != EFI_SUCCESS)
-				return Status;
+				goto stack_guard_update_default;
 			break;
 		case DM_VERITY_LOGGING:
 			/* Disable MDTP if it's Enabled through Local Deactivation */
 			Status = MdtpDisable();
 			if(EFI_ERROR(Status) && Status != EFI_NOT_FOUND) {
 				DEBUG((EFI_D_ERROR, "MdtpDisable Returned error: %r\n", Status));
-				return Status;
+				goto stack_guard_update_default;
 			}
 			// write to device info
 			Status = EnableEnforcingMode(FALSE);
 			if (Status != EFI_SUCCESS)
-				return Status;
+				goto stack_guard_update_default;
 
 			break;
 		case DM_VERITY_KEYSCLEAR:
 			Status = ResetDeviceState();
 			if (Status != EFI_SUCCESS) {
 				DEBUG((EFI_D_ERROR, "VB Reset Device State error: %r\n", Status));
-				return Status;
+				goto stack_guard_update_default;
 			}
 			break;
 		default:
@@ -232,8 +233,11 @@ fastboot:
 	if (EFI_ERROR(Status))
 	{
 		DEBUG((EFI_D_ERROR, "Failed to Launch Fastboot App: %d\n", Status));
-		return Status;
+		goto stack_guard_update_default;
 	}
 
+stack_guard_update_default:
+	/*Update stack check guard with defualt value then return*/
+	 __stack_chk_guard = DEFAULT_STACK_CHK_GUARD;
 	return Status;
 }
