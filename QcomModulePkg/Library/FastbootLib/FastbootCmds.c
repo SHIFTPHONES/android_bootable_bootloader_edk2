@@ -166,7 +166,9 @@ STATIC UINT8 *mUsbDataBuffer = NULL;
 
 STATIC BOOLEAN IsFlashComplete = TRUE;
 STATIC EFI_EVENT CmdEvent;
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC EFI_EVENT UsbTimerEvent;
+#endif
 
 STATIC INT32 Lun = NO_LUN;
 STATIC BOOLEAN LunSet;
@@ -1020,6 +1022,7 @@ VOID BlockIoCallback(IN EFI_EVENT Event,IN VOID *Context)
 {
 }
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC VOID UsbTimerHandler(IN EFI_EVENT Event, IN VOID *Context)
 {
 	HandleUsbEvents();
@@ -1059,6 +1062,9 @@ STATIC VOID StopUsbTimer()
 		UsbTimerEvent = NULL;
 	}
 }
+#else
+STATIC VOID StopUsbTimer() {return;}
+#endif
 
 #ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 BOOLEAN NamePropertyMatches(CHAR8* Name) {
