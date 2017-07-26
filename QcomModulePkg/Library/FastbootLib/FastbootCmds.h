@@ -147,4 +147,6 @@ VOID *FastbootDloadBuffer();
 
 ANDROID_FASTBOOT_STATE FastbootCurrentState();
 
+EFI_STATUS UpdateDevInfo(CHAR16* Pname, CHAR8* ImgVersion);
+VOID GetDevInfo(DeviceInfo **DevinfoPtr);
 #endif

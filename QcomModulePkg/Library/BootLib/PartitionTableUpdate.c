@@ -285,6 +285,11 @@ VOID UpdatePartitionAttributes()
 			MaxPtnCount = GET_LWORD_FROM_BYTE(&GptHdr[PARTITION_COUNT_OFFSET]);
 			PtnEntrySz =  GET_LWORD_FROM_BYTE(&GptHdr[PENTRY_SIZE_OFFSET]);
 
+			if (((MaxPtnCount) * (PtnEntrySz)) >  MAX_PARTITION_ENTRIES_SZ) {
+				DEBUG((EFI_D_ERROR, "Invalid GPT header fields MaxPtnCount = %x, PtnEntrySz = %x\n", MaxPtnCount, PtnEntrySz));
+				return;
+			}
+
 			Status = gBS->CalculateCrc32(Ptn_Entries, ((MaxPtnCount) * (PtnEntrySz)),&CrcVal);
 			if (Status != EFI_SUCCESS) {
 				DEBUG((EFI_D_ERROR, "Error Calculating CRC32 on the Gpt header: %x\n", Status));
@@ -1239,6 +1244,27 @@ EFI_STATUS HandleActiveSlotUnbootable()
 	}
 
 	return EFI_LOAD_ERROR;
+}
+
+EFI_STATUS ClearUnbootable()
+{
+	EFI_STATUS Status = EFI_SUCCESS;
+	Slot ActiveSlot = {{0}};
+	struct PartitionEntry *BootEntry = NULL;
+
+	Status = GetActiveSlot(&ActiveSlot);
+	if(Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "ClearUnbootable: GetActiveSlot failed.\n"));
+		return Status;
+	}
+	BootEntry = GetBootPartitionEntry(&ActiveSlot);
+	if (BootEntry == NULL) {
+                DEBUG((EFI_D_ERROR, "ClearUnbootable: No boot partition entry for slot %s\n", ActiveSlot.Suffix));
+                return EFI_NOT_FOUND;
+        }
+	BootEntry->PartEntry.Attributes &= ~PART_ATT_UNBOOTABLE_VAL;
+	UpdatePartitionAttributes();
+	return EFI_SUCCESS;
 }
 
 STATIC EFI_STATUS ValidateSlotGuids(Slot *BootableSlot)
