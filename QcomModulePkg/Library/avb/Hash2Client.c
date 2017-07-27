@@ -104,6 +104,7 @@ uint8_t *avb_sha256_final(AvbSHA256Ctx *Ctx)
 		DEBUG((EFI_D_ERROR,
 		       "avb_sha256_final failed, Ctx->user_data is NULL\n"));
 		Status = EFI_INVALID_PARAMETER;
+		goto out;
 	}
 
 	GUARD_OUT(pEfiHash2Protocol->HashFinal(pEfiHash2Protocol, &Hash2Output));

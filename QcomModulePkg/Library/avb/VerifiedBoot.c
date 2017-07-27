@@ -267,7 +267,6 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	CHAR8 PnameAscii[MAX_GPT_NAME_SIZE] = {0};
 	CHAR8 *SlotSuffix = NULL;
 	BOOLEAN AllowVerificationError = IsUnlocked();
-	BOOLEAN VerityEnforcing = IsEnforcing();
 	CONST CHAR8 *RequestedPartitionAll[] = {"boot", "dtbo", NULL};
 	CONST CHAR8 *CONST *RequestedPartition = NULL;
 	UINTN NumRequestedPartition = 0;
@@ -322,7 +321,7 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 	}
 
 	if(FixedPcdGetBool(AllowEio)) {
-		VerityFlags = VerityEnforcing ?
+		VerityFlags = IsEnforcing() ?
 				AVB_HASHTREE_ERROR_MODE_RESTART :
 				AVB_HASHTREE_ERROR_MODE_EIO;
 	} else {

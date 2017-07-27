@@ -250,6 +250,7 @@ KeyMasterSetRotAndBootState(KMRotAndBootState *BootState)
 		avb_sha256_update(&BootStateCtx, (const uint8_t *)BootState->PublicKey,
 		                  BootState->PublicKeyLength);
 		BootStateDigest = (CHAR8 *)avb_sha256_final(&BootStateCtx);
+		break;
 	case ORANGE:
 		BootStateDigest = BootStateOrgangeDigest;
 		break;
