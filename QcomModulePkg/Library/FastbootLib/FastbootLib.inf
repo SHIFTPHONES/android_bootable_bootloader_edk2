@@ -41,6 +41,9 @@
 #  VALID_ARCHITECTURES           = ARM, AARCH64
 #
 
+[BuildOptions.AARCH64]
+  GCC:*_*_*_CC_FLAGS = --compile-and-analyze $(BUILD_REPORT_DIR) --analyzer-Werror
+
 [Sources]
   FastbootMain.c
   UsbDescriptors.c
