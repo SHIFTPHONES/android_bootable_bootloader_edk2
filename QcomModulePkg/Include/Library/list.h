@@ -75,12 +75,16 @@ static inline void list_add_tail(struct list_node *list, struct list_node *item)
 
 #define list_add_before(entry, new_entry) list_add_tail(entry, new_entry)
 
+#ifdef __clang_analyzer__
+static inline void list_delete(struct list_node *item) {return;}
+#else
 static inline void list_delete(struct list_node *item)
 {
 	item->next->prev = item->prev;
 	item->prev->next = item->next;
 	item->prev = item->next = 0;
 }
+#endif
 
 static inline struct list_node* list_remove_head(struct list_node *list)
 {
