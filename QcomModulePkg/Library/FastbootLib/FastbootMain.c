@@ -168,6 +168,11 @@ FastbootUsbDeviceStart(VOID)
 
   /* Start the usb device */
   Status = Fbd.UsbDeviceProtocol->StartEx(&DescSet);
+  if (EFI_ERROR(Status))
+  {
+     DEBUG((EFI_D_ERROR, "Error start the usb device, cannot enter fastboot mode\n"));
+     return EFI_NOT_STARTED;
+  }
 
   /* Allocate buffers required to receive the data from Host*/
   Status = Fbd.UsbDeviceProtocol->AllocateTransferBuffer(USB_BUFF_SIZE, &Fbd.gRxBuffer);
@@ -348,6 +353,11 @@ EFI_STATUS FastbootInitialize()
   while (1)
   {
     Status = HandleUsbEvents();
+    if (EFI_ERROR(Status))
+    {
+      DEBUG((EFI_D_ERROR, "Error, failed to handle USB event\n"));
+      break;
+    }
 
     if (FastbootFatal()) 
     {
