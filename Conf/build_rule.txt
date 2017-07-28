@@ -132,6 +132,7 @@
 
     <Command.GCC, Command.RVCT>
         # For RVCTCYGWIN CC_FLAGS must be first to work around pathing issues
+		$(if $(wildcard $(CHECK)) , "$(CHECK)" $(INC) ${src})
         "$(CC)" $(CC_FLAGS) -o ${dst} $(INC) ${src}
 
     <Command.XCODE>
