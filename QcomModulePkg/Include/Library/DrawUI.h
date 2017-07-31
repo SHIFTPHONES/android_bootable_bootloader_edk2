@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, 2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,7 +38,6 @@
 #define CHAR_NUM_PERROW     40
 #define MAX_MSG_SIZE        256
 #define MAX_RSP_SIZE        64
-#define OPTION_MAX          5
 
 typedef enum {
 	DISPLAY_MENU_YELLOW = 0,
@@ -79,7 +78,9 @@ typedef enum {
 	BACK,
 	CONTINUE,
 	FFBM,
+	QMMI,
 	NOACTION,
+	OPTION_ACTION_MAX,
 } OPTION_ITEM_ACTION;
 
 typedef enum {
@@ -102,7 +103,7 @@ typedef struct{
 
 typedef struct {
 	MENU_MSG_INFO   *MsgInfo;
-	UINT32          OptionItems[OPTION_MAX];
+	UINT32          OptionItems[OPTION_ACTION_MAX];
 	UINT32          OptionNum;
 	UINT32          OptionIndex;
 	UINT32          MenuType;
