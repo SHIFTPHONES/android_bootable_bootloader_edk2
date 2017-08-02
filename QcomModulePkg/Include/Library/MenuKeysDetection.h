@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,6 +28,8 @@
 
 #ifndef __PLATFORM_MENU_KEYS_DETECTION_H
 #define __PLATFORM_MENU_KEYS_DETECTION_H
+
+#define KEY_HOLD_TIME_MS  250
 
 EFI_STATUS EFIAPI MenuKeysDetectionInit(IN void *mMsgInfo);
 VOID ExitMenuKeysDetection();
