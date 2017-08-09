@@ -480,7 +480,7 @@ STATIC VOID ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 	INT32 LenPlatId;
 	INT32 LenPmicId;
 	INT32 MinPlatIdLen = PLAT_ID_SIZE;
-	UINT32 RootOffset = 0;
+	INT32 RootOffset = 0;
 	/*DT parameters*/
 	UINT32 DtPlatformId;
 	UINT32 DtVariantId;

@@ -484,7 +484,7 @@ STATIC BOOLEAN GetPartitionHasSlot(CHAR16* PartitionName, UINT32 PnameMaxSize, C
 	else {
 		/*Check for _a or _b slots, if available then copy to SlotSuffix Array*/
 		if (StrStr(PartitionName, (CONST CHAR16 *)L"_a") || StrStr(PartitionName, (CONST CHAR16 *)L"_b")) {
-			StrnCpyS(SlotSuffix, SlotSuffixMaxSize, (PartitionName + (StrLen(PartitionName) - 2)), MAX_SLOT_SUFFIX_SZ);
+			StrnCpyS(SlotSuffix, SlotSuffixMaxSize, (PartitionName + (StrLen(PartitionName) - 2)), 2);
 			HasSlot = TRUE;
 		}
 	}
@@ -2014,6 +2014,9 @@ STATIC VOID CmdOemOffModeCharger(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 			FastbootFail("Enter fastboot oem off-mode-charge 0/1");
 			return;
 		}
+	} else {
+			FastbootFail("Enter fastboot oem off-mode-charge 0/1");
+			return;
 	}
 
 	AsciiStrnCatS(Resp, sizeof(Resp), Arg, AsciiStrLen(Arg));
