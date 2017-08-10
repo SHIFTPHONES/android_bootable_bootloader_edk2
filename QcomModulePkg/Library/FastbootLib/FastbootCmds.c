@@ -972,6 +972,7 @@ STATIC VOID CmdDownload(
 	)
 {
 	CHAR8       Response[12] = "DATA";
+	UINT32      InitStrLen = sizeof("DATA");
 	CHAR16      OutputString[FASTBOOT_STRING_MAX_LENGTH];
 	CHAR8       *NumBytesString = (CHAR8 *)arg;
 
@@ -997,11 +998,11 @@ STATIC VOID CmdDownload(
 	}
 
 	UnicodeSPrint (OutputString, sizeof (OutputString), L"Downloading %d bytes\r\n", mNumDataBytes);
-	AsciiStrnCpyS(Response + 4, sizeof(Response), NumBytesString, sizeof(Response)-4);
-	gBS->CopyMem(GetFastbootDeviceData().gTxBuffer, Response, 12);
+	AsciiStrnCpyS(Response + InitStrLen, sizeof(Response), NumBytesString, sizeof(NumBytesString));
+	gBS->CopyMem(GetFastbootDeviceData().gTxBuffer, Response, sizeof(Response));
 	mState = ExpectDataState;
 	mBytesReceivedSoFar = 0;
-	GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_OUT, 12 , GetFastbootDeviceData().gTxBuffer);
+	GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_OUT, sizeof(Response) , GetFastbootDeviceData().gTxBuffer);
 	DEBUG((EFI_D_VERBOSE, "CmdDownload: Send 12 %a\n", GetFastbootDeviceData().gTxBuffer));
 }
 
