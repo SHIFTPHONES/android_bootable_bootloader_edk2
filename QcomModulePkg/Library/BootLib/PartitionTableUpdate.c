@@ -463,7 +463,6 @@ EnumeratePartitions ()
 	PartiSelectFilter HandleFilter;
 	UINT32 Attribs = 0;
 	UINT32 i;
-	INT32 Lun = NO_LUN;
 	//UFS LUN GUIDs
 	EFI_GUID LunGuids[] = {
 		gEfiUfsLU0Guid,
@@ -491,7 +490,6 @@ EnumeratePartitions ()
 	 * to have the partition selection implementation same acros
 	 */
 	if (Status == EFI_SUCCESS && Ptable[0].MaxHandles > 0) {
-		Lun = 0;
 		MaxLuns = 1;
 	}
 	/* If the media is not emmc then look for UFS */

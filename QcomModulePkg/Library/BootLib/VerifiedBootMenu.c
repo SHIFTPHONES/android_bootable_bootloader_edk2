@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -301,7 +301,6 @@ EFI_STATUS VerifiedBootMenuUpdateShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 	Status = DrawMenu(MsgStrInfo, &Height);
 	if (Status != EFI_SUCCESS)
 		goto Exit;
-	Location += Height;
 
 	OptionMenuInfo->Info.TimeoutTime = 60;
 	OptionMenuInfo->Info.MsgInfo->Action = POWEROFF;
@@ -388,7 +387,6 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, DISPLAY_
 		Status = DrawMenu(&mMenuMsgInfo[Type].Fingerprint, &Height);
 		if (Status != EFI_SUCCESS)
 			return Status;
-		Location += Height;
 	}
 
 	OptionMenuInfo->Info.MenuType = Type;

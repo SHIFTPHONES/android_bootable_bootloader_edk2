@@ -103,6 +103,8 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	CHAR8* CmdLine = NULL;
 	UINT64 BaseMemory = 0;
 	CHAR8 StrPartition[MAX_GPT_NAME_SIZE] = {'\0'};
+	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE] = {'\0'};
+	UINT32 PartitionNameLen;
 	BOOLEAN BootingWith32BitKernel = FALSE;
 	BOOLEAN MdtpActive = FALSE;
 	QCOM_MDTP_PROTOCOL *MdtpProtocol;
@@ -171,8 +173,6 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	SecondSize = ((boot_img_hdr*)(ImageBuffer))->second_size;
 	PageSize = ((boot_img_hdr*)(ImageBuffer))->page_size;
 	CmdLine = (CHAR8*)&(((boot_img_hdr*)(ImageBuffer))->cmdline[0]);
-	KernelSizeActual = ROUND_TO_PAGE(KernelSize, PageSize - 1);
-	RamdiskSizeActual = ROUND_TO_PAGE(RamdiskSize, PageSize - 1);
 
 	// Retrive Base Memory Address from Ram Partition Table
 	Status = BaseMem(&BaseMemory);
@@ -385,6 +385,13 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		}
 		gBS->CopyMem((CHAR8*)KernelLoadAddr, ImageBuffer + PageSize, KernelSizeActual);
 	}
+
+	UnicodeStrToAsciiStr(PartitionName, PartitionNameAscii);
+	PartitionNameLen = AsciiStrLen(PartitionNameAscii);
+	if (Info->MultiSlotBoot)
+		PartitionNameLen -= (MAX_SLOT_SUFFIX_SZ - 1);
+	AsciiStrnCpyS(StrPartition, MAX_GPT_NAME_SIZE, "/", AsciiStrLen("/"));
+	AsciiStrnCatS(StrPartition, MAX_GPT_NAME_SIZE, PartitionNameAscii, PartitionNameLen);
 
 	if (FixedPcdGetBool(EnableMdtpSupport)) {
 		Status = gBS->LocateProtocol(&gQcomMdtpProtocolGuid,

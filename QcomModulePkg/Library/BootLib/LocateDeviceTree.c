@@ -189,7 +189,6 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 				return FALSE;
 			}
 		}
-		i = 0;
 
 		/* Extract board data from DTB */
 		for(i = 0 ; i < board_data_count; i++) {
@@ -264,9 +263,7 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 			 * <Y ,A >;<Y, B>;<Y, C>;
 			 * <Z ,A >;<Z, B>;<Z, C>;
 			 */
-			i = 0;
 			k = 0;
-			n = 0;
 			for (i = 0; i < msm_data_count; i++) {
 				for (j = 0; j < board_data_count; j++) {
 					if (dtb_ver == DEV_TREE_VERSION_V3 && pmic_prop) {
@@ -422,6 +419,11 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	}
 	/* free queue's memory */
 	list_for_every_entry(&dt_entry_queue->node, dt_node_tmp1, dt_node, node) {
+		if (!dt_node_tmp1){
+			DEBUG((EFI_D_VERBOSE, "Current node is the end\n"));
+			break;
+		}
+
 		dt_node_tmp2 = (struct dt_entry_node *) dt_node_tmp1->node.prev;
 		dt_entry_list_delete(dt_node_tmp1);
 		dt_node_tmp1 = dt_node_tmp2;
