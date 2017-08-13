@@ -314,7 +314,6 @@ PartitionGetInfo (
   )
 {
 	EFI_STATUS Status;
-	BOOLEAN                  PartitionFound = FALSE;
 	EFI_PARTITION_ENTRY     *PartEntry;
 	UINT16                   i;
 	UINT32 j;
@@ -339,21 +338,15 @@ PartitionGetInfo (
 			}
 			if (!(StrCmp(PartitionName, PartEntry->PartitionName)))
 			{
-				PartitionFound = TRUE;
 				*BlockIo = Ptable[i].HandleInfoList[j].BlkIo;
 				*Handle = Ptable[i].HandleInfoList[j].Handle;
-				goto out;
+				return Status;
 			}
 		}
 	}
 
-	if (!PartitionFound)
-	{
-		DEBUG((EFI_D_ERROR, "Partition not found : %s\n", PartitionName));
-		return EFI_NOT_FOUND;
-	}
-out:
-	return Status;
+	DEBUG((EFI_D_ERROR, "Partition not found : %s\n", PartitionName));
+	return EFI_NOT_FOUND;
 }
 
 STATIC VOID FastbootPublishSlotVars() {
@@ -476,7 +469,7 @@ WriteToDisk (
 STATIC BOOLEAN GetPartitionHasSlot(CHAR16* PartitionName, UINT32 PnameMaxSize, CHAR16* SlotSuffix, UINT32 SlotSuffixMaxSize) {
 	INT32 Index = INVALID_PTN;
 	BOOLEAN HasSlot = FALSE;
-	Slot CurrentSlot = {{0}};
+	Slot CurrentSlot;
 
 	Index = GetPartitionIndex(PartitionName);
 	if (Index == INVALID_PTN) {
@@ -519,9 +512,6 @@ HandleSparseImgFlash(
 	EFI_STATUS Status;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	EFI_HANDLE *Handle = NULL;
-	CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
-	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
-	BOOLEAN HasSlot = FALSE;
 
 	if (CHECK_ADD64((UINT64)Image, sz)) {
 		DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and sz\n"));
@@ -529,12 +519,6 @@ HandleSparseImgFlash(
 	}
 
 	ImageEnd = (UINT64) Image + sz;
-
-	/* For multislot boot the partition may not support a/b slots.
-	 * Look for default partition, if it does not exist then try for a/b
-	 */
-	if (MultiSlotBoot)
-		HasSlot = GetPartitionHasSlot(PartitionName,  PartitionMaxSize, SlotSuffix, MAX_SLOT_SUFFIX_SZ);
 
 	Status = PartitionGetInfo(PartitionName, &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
@@ -928,6 +912,10 @@ HandleMetaImgFlash(
 		AsciiStrToUnicodeStr(img_header_entry[i].ptn_name, PartitionNameFromMeta);
 		Status = HandleRawImgFlash(PartitionNameFromMeta, sizeof(PartitionNameFromMeta),
 				(void *) Image + img_header_entry[i].start_offset, img_header_entry[i].size);
+		if (Status != EFI_SUCCESS) {
+			DEBUG((EFI_D_ERROR, "Meta Image Write Failure\n"));
+			return Status;
+		}
 	}
 
 	Status = UpdateDevInfo(PartitionName, meta_header->img_version);
@@ -1422,7 +1410,6 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 	UINT16 j = 0;
 	BOOLEAN SlotVarUpdateComplete = FALSE;
 	UINT32 SlotEnd = 0;
-	BOOLEAN SwitchSlot = FALSE;
 	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
 	Slot NewSlot = {{0}};
 	EFI_STATUS Status;
@@ -1453,8 +1440,6 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 		} else {
 			AsciiStrToUnicodeStr(InputSlot, InputSlotInUnicode);
 		}
-		if (StrnCmp(GetCurrentSlotSuffix().Suffix, InputSlotInUnicode, StrLen(InputSlotInUnicode)))
-			SwitchSlot = TRUE;
 
 		if ((AsciiStrLen(InputSlot) == MAX_SLOT_SUFFIX_SZ-2) || (AsciiStrLen(InputSlot) == MAX_SLOT_SUFFIX_SZ-1) ) {
 			SlotEnd = AsciiStrLen(InputSlot);
@@ -2236,7 +2221,7 @@ STATIC EFI_STATUS PublishGetVarPartitionInfo(
 	EFI_HANDLE *Handle = NULL;
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	CHAR16 PartitionNameUniCode[MAX_GPT_NAME_SIZE];
-	Slot CurrentSlot = {{0}};
+	Slot CurrentSlot;
 	CHAR8 CurrSlotAscii[MAX_SLOT_SUFFIX_SZ];
 
 	for (i = 0; i < num_parts; i++)

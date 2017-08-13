@@ -268,7 +268,6 @@ BuildDefaultDescriptors(
 {
   UINT8                        Index = 0;
   UINT8                        NumCfg = 0; 
-  UINT8                        NumCfgSS = 0;
   CHAR8                        Str_UUID[64];
   UINT32                       i;
   EFI_STATUS                   Status;
@@ -290,7 +289,6 @@ BuildDefaultDescriptors(
   *DevDesc = &DeviceDescriptor;
   *SSDevDesc = &SSDeviceDescriptor;
   NumCfg   = DeviceDescriptor.NumConfigurations;
-  NumCfgSS   = SSDeviceDescriptor.NumConfigurations;
 
   *Descriptors = AllocatePool(NumCfg * sizeof (struct _CfgDescTree *));
   if (*Descriptors == NULL)
