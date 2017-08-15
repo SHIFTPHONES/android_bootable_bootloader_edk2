@@ -40,6 +40,7 @@ STATIC struct BoardInfo platform_board_info;
 STATIC CONST CHAR8 *DeviceType[] = {
 	[EMMC]        = "EMMC",
 	[UFS]         = "UFS",
+	[NAND]        = "NAND",
 	[UNKNOWN]     = "Unknown",
 };
 
@@ -222,6 +223,7 @@ UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
 	PartiSelectFilter        HandleFilter;
 	extern EFI_GUID          gEfiEmmcUserPartitionGuid;
 	extern EFI_GUID          gEfiUfsLU0Guid;
+	extern EFI_GUID          gEfiNandUserPartitionGuid;
 	HandleInfo               *HandleInfoList = HanderInfo;
 	MemCardType              Type = UNKNOWN;
 
@@ -236,11 +238,21 @@ UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
 		MaxBlKIOHandles = MaxHandles;
 		HandleFilter.PartitionType = NULL;
 		HandleFilter.VolumeName = NULL;
-		HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
+		HandleFilter.RootDeviceType = &gEfiNandUserPartitionGuid;
 
 		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
-		if (Status == EFI_SUCCESS)
-			Type = UFS;
+		if (EFI_ERROR (Status) || MaxBlKIOHandles == 0) {
+			MaxBlKIOHandles = MaxHandles;
+			HandleFilter.PartitionType = NULL;
+			HandleFilter.VolumeName = NULL;
+			HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
+
+			Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
+			if (Status == EFI_SUCCESS)
+				Type = UFS;
+		} else {
+			Type = NAND;
+		}
 	} else {
 		Type = EMMC;
 	}
@@ -283,6 +295,7 @@ VOID GetPageSize(UINT32 *PageSize)
 			*PageSize = BOOT_IMG_EMMC_PAGE_SIZE;
 			break;
 		case UFS:
+		case NAND:
 			BlkIo = HandleInfoList[0].BlkIo;
 			*PageSize = BlkIo->Media->BlockSize;
 			break;

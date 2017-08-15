@@ -104,7 +104,7 @@
 	gEfiFileInfoGuid
 	gEfiGlobalVariableGuid
 	gEfiLogFSPartitionGuid
-	gEfiEmmcUserPartitionGuid
+	gEfiNandUserPartitionGuid
 	gEfiMiscPartitionGuid
 	gEfiUfsLU0Guid
 	gEfiUfsLU1Guid
