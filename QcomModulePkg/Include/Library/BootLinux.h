@@ -80,6 +80,7 @@
 #define MAX_NUMBER_OF_LOADED_IMAGES 32
 
 typedef VOID (*LINUX_KERNEL)(UINT64 ParametersBase, UINT64 Reserved0, UINT64 Reserved1, UINT64 Reserved2);
+typedef VOID (*LINUX_KERNEL32)(UINT32 Zero, UINT32 Arch, UINTN ParametersBase);
 
 typedef struct {
 	CHAR8 *Name;

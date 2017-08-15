@@ -78,6 +78,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	BOOLEAN AlarmBoot = FALSE;
 
 	LINUX_KERNEL LinuxKernel;
+	LINUX_KERNEL32 LinuxKernel32;
 	UINT32 DeviceTreeOffset = 0;
 	UINT32 RamdiskOffset = 0;
 	UINT32 SecondOffset = 0;
@@ -116,6 +117,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	VOID *FinalDtbHdr = NULL;
 	BOOLEAN DtboCheckNeeded = FALSE;
 	BOOLEAN DtboImgInvalid = FALSE;
+	BOOLEAN IsModeSwitch = FALSE;
 	VOID* DtboImgBuffer = NULL;
 
 	if (Info == NULL) {
@@ -262,10 +264,13 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		return EFI_BAD_BUFFER_SIZE;
 	}
 
+	DEBUG((EFI_D_VERBOSE, "Kernel Load Address: 0x%x\n", KernelLoadAddr));
 	DEBUG((EFI_D_VERBOSE, "Kernel Size Actual: 0x%x\n", KernelSizeActual));
 	DEBUG((EFI_D_VERBOSE, "Second Size Actual: 0x%x\n", SecondSizeActual));
+	DEBUG((EFI_D_VERBOSE, "Ramdisk Load Address: 0x%x\n", RamdiskLoadAddr));
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Size Actual: 0x%x\n", RamdiskSizeActual));
 	DEBUG((EFI_D_VERBOSE, "Ramdisk Offset: 0x%x\n", RamdiskOffset));
+	DEBUG((EFI_D_VERBOSE, "Device Tree Load Address: 0x%x\n", DeviceTreeLoadAddr));
 	DEBUG((EFI_D_VERBOSE, "Device TreeOffset: 0x%x\n", DeviceTreeOffset));
 
 	/* Populate board data required for dtb selection and command line */
@@ -426,10 +431,8 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	FreeBootLogoBltBuffer();
 	if (BootingWith32BitKernel) {
 		Status = gBS->LocateProtocol(&gQcomScmModeSwithProtocolGuid, NULL, (VOID**)&pQcomScmModeSwitchProtocol);
-		if(EFI_ERROR(Status)) {
-			DEBUG((EFI_D_ERROR,"ERROR: Unable to Locate Protocol handle for ScmModeSwicthProtocol Status=%r\n", Status));
-			return Status;
-		}
+		if(!EFI_ERROR(Status))
+			IsModeSwitch = TRUE;
 	}
 
 	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n", GetTimerCountms()));
@@ -451,9 +454,20 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	//
 	// Start the Linux Kernel
 	//
+
 	if (BootingWith32BitKernel) {
-		Status = SwitchTo32bitModeBooting((UINT64)KernelLoadAddr, (UINT64)DeviceTreeLoadAddr);
-		return Status;
+		if (IsModeSwitch) {
+			Status = SwitchTo32bitModeBooting((UINT64)KernelLoadAddr, (UINT64)DeviceTreeLoadAddr);
+			return Status;
+		}
+
+		// Booting into 32 bit kernel.
+		LinuxKernel32 = (LINUX_KERNEL32)(UINT64)KernelLoadAddr;
+		LinuxKernel32 (0, 0, (UINTN) DeviceTreeLoadAddr);
+
+		// Should never reach here. After life support is not available
+		DEBUG((EFI_D_ERROR,"After Life support not available\n"));
+		goto Exit;
 	}
 
 	LinuxKernel = (LINUX_KERNEL)(UINT64)KernelLoadAddr;
