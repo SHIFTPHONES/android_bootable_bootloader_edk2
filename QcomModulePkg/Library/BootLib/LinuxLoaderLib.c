@@ -590,7 +590,7 @@ EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len)
 	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 	Status = gRT->GetVariable(
-			L"BootDeviceBaseAddr",
+			(CHAR16 *)L"BootDeviceBaseAddr",
 			&gQcomTokenSpaceGuid,
 			NULL,
 			&DataSize,

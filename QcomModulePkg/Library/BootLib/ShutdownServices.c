@@ -104,13 +104,15 @@ VOID RebootDevice(UINT8 RebootReason)
 	struct ResetDataType ResetData;
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 
-	StrnCpyS(ResetData.DataBuffer, ARRAY_SIZE(ResetData.DataBuffer), STR_RESET_PARAM, ARRAY_SIZE(STR_RESET_PARAM) -1);
+	StrnCpyS(ResetData.DataBuffer, ARRAY_SIZE(ResetData.DataBuffer),
+		(CONST CHAR16 *)STR_RESET_PARAM, ARRAY_SIZE(STR_RESET_PARAM) -1);
 	ResetData.Bdata = RebootReason;
 	if (RebootReason == NORMAL_MODE)
 		Status = EFI_SUCCESS;
 
 	if (RebootReason == EMERGENCY_DLOAD)
-		gRT->ResetSystem(EfiResetPlatformSpecific, EFI_SUCCESS, StrSize(STR_RESET_PLAT_SPECIFIC_EDL), STR_RESET_PLAT_SPECIFIC_EDL);
+		gRT->ResetSystem(EfiResetPlatformSpecific, EFI_SUCCESS,
+			StrSize((CONST CHAR16 *)STR_RESET_PLAT_SPECIFIC_EDL), STR_RESET_PLAT_SPECIFIC_EDL);
 
 	gRT->ResetSystem (EfiResetCold, Status, sizeof(struct ResetDataType), (VOID *) &ResetData);
 }

@@ -130,7 +130,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 	VOID *SingleDtHdr = NULL;
 	VOID *NextDtHdr = NULL;
 
-	if (!StrnCmp(PartitionName, L"boot", StrLen(L"boot")))
+	if (!StrnCmp(PartitionName, (CONST CHAR16 *)L"boot", StrLen((CONST CHAR16 *)L"boot")))
 	{
 		Status = GetFfbmCommand(FfbmStr, FFBM_MODE_BUF_SIZE);
 		if (Status != EFI_SUCCESS) {

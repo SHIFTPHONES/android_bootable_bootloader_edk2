@@ -102,7 +102,7 @@ STATIC EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 	UINT32 CONST SplashMemPropSize = NUM_SPLASHMEM_PROP_ELEM * sizeof(UINT32);
 
 	Status = gRT->GetVariable(
-			L"DisplaySplashBufferInfo",
+			(CHAR16 *)L"DisplaySplashBufferInfo",
 			&gQcomTokenSpaceGuid,
 			NULL,
 			&splashBufSize,

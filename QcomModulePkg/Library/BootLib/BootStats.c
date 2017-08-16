@@ -48,7 +48,7 @@ void BootStatsSetTimeStamp(BS_ENTRY BootStatId)
 
 	if (!SharedImemAddress) {
 		Status = gRT->GetVariable(
-				L"Shared_IMEM_Base",
+				(CHAR16 *)L"Shared_IMEM_Base",
 				&gQcomTokenSpaceGuid,
 				NULL,
 				&DataSize,
@@ -64,7 +64,7 @@ void BootStatsSetTimeStamp(BS_ENTRY BootStatId)
 	DataSize = sizeof(MpmTimerBase);
 	if (!MpmTimerBase) {
 		Status = gRT->GetVariable(
-				L"MPM2_SLP_CNTR_ADDR",
+				(CHAR16 *)L"MPM2_SLP_CNTR_ADDR",
 				&gQcomTokenSpaceGuid,
 				NULL,
 				&DataSize,

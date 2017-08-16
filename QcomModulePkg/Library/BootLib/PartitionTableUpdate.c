@@ -50,7 +50,7 @@ STATIC EFI_STATUS GetActiveSlot(Slot *ActiveSlot);
 Slot GetCurrentSlotSuffix(VOID)
 {
 	Slot CurrentSlot = {{0}};
-	BOOLEAN IsMultiSlot = PartitionHasMultiSlot(L"boot");
+	BOOLEAN IsMultiSlot = PartitionHasMultiSlot((CONST CHAR16 *)L"boot");
 
 	if (IsMultiSlot == FALSE) {
 		return CurrentSlot;
@@ -373,7 +373,7 @@ STATIC EFI_STATUS GetMultiSlotPartsList(VOID) {
 
 			/*Need to compare till "boot_"a hence skip last Char from StrLen value*/
 			if (!StrnCmp(PtnEntries[j].PartEntry.PartitionName, SearchString, Len-1) &&
-				(StrStr(SearchString, L"_a") || (StrStr(SearchString, L"_b")))) {
+				(StrStr(SearchString, (CONST CHAR16 *)L"_a") || (StrStr(SearchString, (CONST CHAR16 *)L"_b")))) {
 				TempNode = AllocatePool(sizeof(struct BootPartsLinkedList));
 				if (TempNode) {
 					/*Skip _a/_b from partition name*/
@@ -407,10 +407,10 @@ STATIC VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
 	/* Create the partition name string for active and non active slots*/
-	if (!StrnCmp(SetActive, L"_a", StrLen(L"_a")))
-		StrnCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, L"_b", StrLen(L"_b"));
+	if (!StrnCmp(SetActive, (CONST CHAR16 *)L"_a", StrLen((CONST CHAR16 *)L"_a")))
+		StrnCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, (CONST CHAR16 *)L"_b", StrLen((CONST CHAR16 *)L"_b"));
 	else
-		StrnCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, L"_a", StrLen(L"_a"));
+		StrnCpyS(SetInactive, MAX_SLOT_SUFFIX_SZ, (CONST CHAR16 *)L"_a", StrLen((CONST CHAR16 *)L"_a"));
 
 	if (!HeadNode) {
 		Status = GetMultiSlotPartsList();
@@ -446,11 +446,11 @@ STATIC VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
 		UfsGetSetBootLun(&UfsBootLun, UfsGet);
 		// Special case for XBL is to change the bootlun instead of swapping the guid
-		if (UfsBootLun == 0x1 && !StrnCmp(SetActive, L"_b", StrLen(L"_b"))) {
+		if (UfsBootLun == 0x1 && !StrnCmp(SetActive, (CONST CHAR16 *)L"_b", StrLen((CONST CHAR16 *)L"_b"))) {
 			DEBUG((EFI_D_INFO, "Switching the boot lun from 1 to 2\n"));
 			UfsBootLun = 0x2;
 		}
-		else if (UfsBootLun == 0x2 && !StrnCmp(SetActive, L"_a", StrLen(L"_a"))) {
+		else if (UfsBootLun == 0x2 && !StrnCmp(SetActive, (CONST CHAR16 *)L"_a", StrLen((CONST CHAR16 *)L"_a"))) {
 			DEBUG((EFI_D_INFO, "Switching the boot lun from 2 to 1\n"));
 			UfsBootLun = 0x1;
 		}
@@ -956,10 +956,10 @@ STATIC struct PartitionEntry *GetBootPartitionEntry(Slot *BootSlot)
 {
 	INT32 Index = INVALID_PTN;
 
-	if (StrnCmp(L"_a", BootSlot->Suffix, StrLen(BootSlot->Suffix)) == 0) {
-		Index = GetPartitionIndex(L"boot_a");
-	} else if (StrnCmp(L"_b", BootSlot->Suffix, StrLen(BootSlot->Suffix)) == 0) {
-		Index = GetPartitionIndex(L"boot_b");
+	if (StrnCmp((CONST CHAR16 *)L"_a", BootSlot->Suffix, StrLen(BootSlot->Suffix)) == 0) {
+		Index = GetPartitionIndex((CHAR16 *)L"boot_a");
+	} else if (StrnCmp((CONST CHAR16 *)L"_b", BootSlot->Suffix, StrLen(BootSlot->Suffix)) == 0) {
+		Index = GetPartitionIndex((CHAR16 *)L"boot_b");
 	} else {
 		DEBUG((EFI_D_ERROR, "GetBootPartitionEntry: No boot partition "
 		                    "entry for slot %s\n",
@@ -1310,8 +1310,8 @@ STATIC EFI_STATUS ValidateSlotGuids(Slot *BootableSlot)
 	GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
 	if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
 		GUARD(UfsGetSetBootLun(&UfsBootLun, TRUE));
-		if (UfsBootLun == 0x1 && !StrCmp(BootableSlot->Suffix, L"_a")) {
-		} else if (UfsBootLun == 0x2 && !StrCmp(BootableSlot->Suffix, L"_b")) {
+		if (UfsBootLun == 0x1 && !StrCmp(BootableSlot->Suffix, (CONST CHAR16 *)L"_a")) {
+		} else if (UfsBootLun == 0x2 && !StrCmp(BootableSlot->Suffix, (CONST CHAR16 *)L"_b")) {
 		} else {
 			DEBUG((EFI_D_ERROR, "Boot lun: %x and BootableSlot: %s "
 			                    "do not match\n",
