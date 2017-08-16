@@ -39,7 +39,9 @@
 #include <Library/UpdateDeviceTree.h>
 #include <Protocol/EFIVerifiedBoot.h>
 #include <Library/VerifiedBoot.h>
+#include <Library/VerifiedBootMenu.h>
 
+#if VERIFIED_BOOT || VERIFIED_BOOT_2
 #define FINGERPRINT_LINE_LEN 16
 #define FINGERPRINT_FORMATED_LINE_LEN  FINGERPRINT_LINE_LEN + 5
 #define VERIFIED_BOOT_OPTION_NUM  5
@@ -437,3 +439,4 @@ EFI_STATUS DisplayVerifiedBootMenu(DISPLAY_MENU_TYPE Type)
 
 	return Status;
 }
+#endif
