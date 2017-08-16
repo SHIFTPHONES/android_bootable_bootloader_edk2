@@ -453,6 +453,7 @@ void PopulateMultislotMetadata()
 	return;
 }
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 /* Helper function to write data to disk */
 STATIC EFI_STATUS
 WriteToDisk ( 
@@ -489,6 +490,7 @@ STATIC BOOLEAN GetPartitionHasSlot(CHAR16* PartitionName, UINT32 PnameMaxSize, C
 }
 
 /* Handle Sparse Image Flashing */
+STATIC
 EFI_STATUS
 HandleSparseImgFlash(
 	IN CHAR16  *PartitionName,
@@ -800,6 +802,7 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 }
 
 /* Raw Image flashing */
+STATIC
 EFI_STATUS
 HandleRawImgFlash(
 	IN CHAR16  *PartitionName,
@@ -849,6 +852,7 @@ HandleRawImgFlash(
 }
 
 /* Meta Image flashing */
+STATIC
 EFI_STATUS
 HandleMetaImgFlash(
 	IN CHAR16  *PartitionName,
@@ -925,7 +929,6 @@ HandleMetaImgFlash(
 	return Status;
 }
 
-#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 /* Erase partition */
 STATIC EFI_STATUS
 FastbootErasePartition(
@@ -1005,12 +1008,12 @@ STATIC VOID CmdDownload(
 	DEBUG((EFI_D_VERBOSE, "CmdDownload: Send 12 %a\n", GetFastbootDeviceData().gTxBuffer));
 }
 
+#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 /*  Function needed for event notification callback */
-VOID BlockIoCallback(IN EFI_EVENT Event,IN VOID *Context)
+STATIC VOID BlockIoCallback(IN EFI_EVENT Event,IN VOID *Context)
 {
 }
 
-#ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC VOID UsbTimerHandler(IN EFI_EVENT Event, IN VOID *Context)
 {
 	HandleUsbEvents();
