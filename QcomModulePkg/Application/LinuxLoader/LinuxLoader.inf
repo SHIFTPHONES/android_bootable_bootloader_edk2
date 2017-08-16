@@ -26,6 +26,10 @@
 [BuildOptions.AARCH64]
 	GCC:*_*_*_CC_FLAGS = -DZ_SOLO
 
+[BuildOptions]
+	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_UNDEFINED)
+	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_ALIGNMENT)
+
 [Packages]
 	ArmPkg/ArmPkg.dec
 	StdLib/StdLib.dec
@@ -55,6 +59,7 @@
 	StackCanary
 	EfiFileLib
 	FastbootLib
+	UbsanLib
 
 [Guids]
 	gEfiFileInfoGuid

@@ -46,6 +46,10 @@
   UsbDescriptors.c
   FastbootCmds.c
 
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_UNDEFINED)
+  GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_ALIGNMENT)
+
 [Packages]
   EmbeddedPkg/EmbeddedPkg.dec
   MdePkg/MdePkg.dec
@@ -60,6 +64,7 @@
   StackCanary
   DebugLib
   UefiHiiServicesLib
+  UbsanLib
 
 [Protocols]
   gEfiSimpleTextInProtocolGuid

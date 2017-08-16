@@ -136,4 +136,5 @@
 			StackCanary|QcomModulePkg/Library/StackCanary/StackCanary.inf
 			FastbootLib|QcomModulePkg/Library/FastbootLib/FastbootLib.inf
 			AvbLib|QcomModulePkg/Library/avb/AvbLib.inf
+			UbsanLib|QcomModulePkg/Library/UbsanLib/UbsanLib.inf
 	}
