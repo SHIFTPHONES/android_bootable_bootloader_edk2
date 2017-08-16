@@ -68,19 +68,19 @@ struct verified_boot_state_name
 	CHAR8 *name;
 };
 
-BOOLEAN IsUnlocked();
-BOOLEAN IsUnlockCritical();
-BOOLEAN IsEnforcing();
-BOOLEAN IsChargingScreenEnable();
+BOOLEAN IsUnlocked(VOID);
+BOOLEAN IsUnlockCritical(VOID);
+BOOLEAN IsEnforcing(VOID);
+BOOLEAN IsChargingScreenEnable(VOID);
 VOID GetBootloaderVersion(CHAR8* BootloaderVersion, UINT32 Len);
 VOID GetRadioVersion(CHAR8* RadioVersion, UINT32 Len);
 EFI_STATUS EnableChargingScreen(BOOLEAN IsEnabled);
 EFI_STATUS EnableEnforcingMode(BOOLEAN IsEnabled);
 EFI_STATUS SetDeviceUnlockValue(UINT32 Type, BOOLEAN State);
-EFI_STATUS DeviceInfoInit();
+EFI_STATUS DeviceInfoInit(VOID);
 EFI_STATUS ReadRollbackIndex(UINT32 Loc, UINT64 *RollbackIndex);
 EFI_STATUS WriteRollbackIndex(UINT32 Loc, UINT64 RollbackIndex);
 EFI_STATUS StoreUserKey(CHAR8 *UserKey, UINT32 UserKeySize);
 EFI_STATUS GetUserKey(CHAR8 **UserKey, UINT32 *UserKeySize);
-EFI_STATUS EraseUserKey();
+EFI_STATUS EraseUserKey(VOID);
 #endif

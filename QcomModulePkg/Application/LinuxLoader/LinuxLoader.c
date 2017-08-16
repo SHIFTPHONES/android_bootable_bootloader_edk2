@@ -40,6 +40,8 @@
 #include <Library/StackCanary.h>
 #include <Library/DeviceInfo.h>
 #include <FastbootLib/FastbootMain.h>
+#include <Library/ShutdownServices.h>
+#include "AutoGen.h"
 
 #define MAX_APP_STR_LEN      64
 #define MAX_NUM_FS           10

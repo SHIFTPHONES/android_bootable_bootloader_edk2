@@ -34,6 +34,8 @@
 #include <Library/Board.h>
 #include <VerifiedBoot.h>
 #include <Library/BootLinux.h>
+#include "AutoGen.h"
+
 STATIC BOOLEAN FlashingGpt;
 STATIC BOOLEAN ParseSecondaryGpt;
 struct StoragePartInfo Ptable[MAX_LUNS];
@@ -45,7 +47,7 @@ STATIC BOOLEAN FirstBoot;
 STATIC struct BootPartsLinkedList *HeadNode;
 STATIC EFI_STATUS GetActiveSlot(Slot *ActiveSlot);
 
-Slot GetCurrentSlotSuffix()
+Slot GetCurrentSlotSuffix(VOID)
 {
 	Slot CurrentSlot = {{0}};
 	BOOLEAN IsMultiSlot = PartitionHasMultiSlot(L"boot");
@@ -58,7 +60,7 @@ Slot GetCurrentSlotSuffix()
 	return CurrentSlot;
 }
 
-UINT32 GetMaxLuns() {
+UINT32 GetMaxLuns(VOID) {
 	return MaxLuns;
 }
 
@@ -87,7 +89,7 @@ INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun)
 	return INVALID_PTN;
 }
 
-VOID UpdatePartitionEntries()
+VOID UpdatePartitionEntries(VOID)
 {
 	UINT32 i;
 	UINT32 j;
@@ -145,8 +147,8 @@ STATIC EFI_STATUS GetStorageHandle(INT32 Lun, HandleInfo *BlockIoHandle, UINT32 
 	};
 
 	Attribs |= BLK_IO_SEL_SELECT_ROOT_DEVICE_ONLY;
-	HandleFilter.PartitionType = 0;
-	HandleFilter.VolumeName = 0;
+	HandleFilter.PartitionType = NULL;
+	HandleFilter.VolumeName = NULL;
 
 	if (Lun == NO_LUN) {
 		HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
@@ -167,7 +169,7 @@ STATIC EFI_STATUS GetStorageHandle(INT32 Lun, HandleInfo *BlockIoHandle, UINT32 
 	return Status;
 }
 
-VOID UpdatePartitionAttributes()
+VOID UpdatePartitionAttributes(VOID)
 {
 	UINT32 BlkSz;
 	UINT8 *GptHdr = NULL;
@@ -326,7 +328,7 @@ VOID UpdatePartitionAttributes()
 	}
 }
 
-VOID MarkPtnActive(CHAR16 *ActiveSlot)
+STATIC VOID MarkPtnActive(CHAR16 *ActiveSlot)
 {
 	UINT32 i;
 	for (i = 0; i < PartitionCount; i++) {
@@ -352,7 +354,7 @@ STATIC VOID SwapPtnGuid(EFI_PARTITION_ENTRY *p1, EFI_PARTITION_ENTRY *p2)
 	gBS->CopyMem((VOID *)&p2->PartitionTypeGUID, (VOID *)&Temp, sizeof(EFI_GUID));
 }
 
-STATIC EFI_STATUS GetMultiSlotPartsList() {
+STATIC EFI_STATUS GetMultiSlotPartsList(VOID) {
 	UINT32 i = 0;
 	UINT32 j = 0;
 	UINT32 Len = 0;
@@ -389,7 +391,7 @@ STATIC EFI_STATUS GetMultiSlotPartsList() {
 	return EFI_SUCCESS;
 }
 
-VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
+STATIC VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 {
 	UINT32 i;
 	struct PartitionEntry *PtnCurrent = NULL;
@@ -457,7 +459,7 @@ VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 }
 
 EFI_STATUS
-EnumeratePartitions ()
+EnumeratePartitions (VOID)
 {
 	EFI_STATUS Status;
 	PartiSelectFilter HandleFilter;
@@ -481,8 +483,8 @@ EnumeratePartitions ()
 	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
 
 	Ptable[0].MaxHandles = ARRAY_SIZE(Ptable[0].HandleInfoList);
-	HandleFilter.PartitionType = 0;
-	HandleFilter.VolumeName = 0;
+	HandleFilter.PartitionType = NULL;
+	HandleFilter.VolumeName = NULL;
 	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
 
 	Status = GetBlkIOHandles(Attribs, &HandleFilter, &Ptable[0].HandleInfoList[0], &Ptable[0].MaxHandles);
@@ -498,8 +500,8 @@ EnumeratePartitions ()
 		 * Based on the information read update the MaxLuns to reflect the max supported luns */
 		for (i = 0 ; i < MAX_LUNS; i++) {
 			Ptable[i].MaxHandles = ARRAY_SIZE(Ptable[i].HandleInfoList);
-			HandleFilter.PartitionType = 0;
-			HandleFilter.VolumeName = 0;
+			HandleFilter.PartitionType = NULL;
+			HandleFilter.VolumeName = NULL;
 			HandleFilter.RootDeviceType = &LunGuids[i];
 
 			Status = GetBlkIOHandles(Attribs, &HandleFilter, &Ptable[i].HandleInfoList[0], &Ptable[i].MaxHandles);
@@ -542,7 +544,7 @@ BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname)
 	return FALSE;
 }
 
-VOID FindPtnActiveSlot()
+VOID FindPtnActiveSlot(VOID)
 {
 	Slot ActiveSlot = {{0}};
 
@@ -975,7 +977,7 @@ STATIC struct PartitionEntry *GetBootPartitionEntry(Slot *BootSlot)
 	return &PtnEntries[Index];
 }
 
-BOOLEAN IsCurrentSlotBootable()
+BOOLEAN IsCurrentSlotBootable(VOID)
 {
 	Slot CurrentSlot = {{0}};
 	struct PartitionEntry *BootPartition = NULL;
@@ -1178,7 +1180,7 @@ EFI_STATUS SetActiveSlot(Slot *NewSlot)
 	return EFI_SUCCESS;
 }
 
-EFI_STATUS HandleActiveSlotUnbootable()
+EFI_STATUS HandleActiveSlotUnbootable(VOID)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	struct PartitionEntry *BootEntry = NULL;
@@ -1244,7 +1246,7 @@ EFI_STATUS HandleActiveSlotUnbootable()
 	return EFI_LOAD_ERROR;
 }
 
-EFI_STATUS ClearUnbootable()
+EFI_STATUS ClearUnbootable(VOID)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	Slot ActiveSlot = {{0}};

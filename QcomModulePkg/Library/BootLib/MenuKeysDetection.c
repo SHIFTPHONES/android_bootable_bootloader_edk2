@@ -39,6 +39,7 @@
 #include <Library/Recovery.h>
 #include <Library/KeyPad.h>
 #include <Library/DeviceInfo.h>
+#include "AutoGen.h"
 
 #include <Protocol/EFIVerifiedBoot.h>
 
@@ -59,7 +60,7 @@ typedef struct {
 } PAGES_ACTION;
 
 /* Exit the key's detection */
-VOID ExitMenuKeysDetection()
+VOID ExitMenuKeysDetection(VOID)
 {
 	if (FixedPcdGetBool(EnableDisplayMenu)) {
 		/* Close the timer and event */
@@ -83,7 +84,7 @@ VOID ExitMenuKeysDetection()
  * or the user chooses to exit keys' detection.
  * Clear the screen and show the penguin on the screen
  */
-VOID WaitForExitKeysDetection()
+VOID WaitForExitKeysDetection(VOID)
 {
 	/* Waiting for exit menu keys detection if there is no any usr action
 	* otherwise it will do the action base on the keys detection event
@@ -362,7 +363,7 @@ STATIC BOOLEAN IsKeyPressed(UINT32 KeyType)
   @retval EFI_SUCCESS   The entry point is executed successfully.
   @retval other         Some error occurs when executing this entry point.
  **/
-VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
+STATIC VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 {
 	UINT32 TimerDiff;
 	OPTION_MENU_INFO  *MenuInfo = Context;

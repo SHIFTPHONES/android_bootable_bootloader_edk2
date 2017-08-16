@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -63,7 +63,7 @@ STATIC EFI_GRAPHICS_OUTPUT_BLT_PIXEL mColors[] = {
 	[BGR_SILVER]  = {0xc0, 0xc0, 0xc0, 0x00},
 };
 
-STATIC UINT32 GetResolutionWidth()
+STATIC UINT32 GetResolutionWidth(VOID)
 {
 	STATIC UINT32 Width;
 	EFI_HANDLE    ConsoleHandle = (EFI_HANDLE)NULL;
@@ -96,7 +96,7 @@ STATIC UINT32 GetResolutionWidth()
 	return Width;
 }
 
-STATIC UINT32 GetResolutionHeight()
+STATIC UINT32 GetResolutionHeight(VOID)
 {
 	STATIC UINT32 Height;
 	EFI_HANDLE    ConsoleHandle = (EFI_HANDLE)NULL;
@@ -129,7 +129,7 @@ STATIC UINT32 GetResolutionHeight()
 	return Height;
 }
 
-EFI_STATUS BackUpBootLogoBltBuffer()
+EFI_STATUS BackUpBootLogoBltBuffer(VOID)
 {
 	EFI_STATUS Status;
 	UINT32     Width;
@@ -182,7 +182,7 @@ EFI_STATUS BackUpBootLogoBltBuffer()
 }
 
 // This function would restore the boot logo if the display on the screen is changed.
-EFI_STATUS RestoreBootLogoBitBuffer()
+EFI_STATUS RestoreBootLogoBitBuffer(VOID)
 {
 	EFI_STATUS Status;
 	UINT32     Width;
@@ -221,7 +221,7 @@ EFI_STATUS RestoreBootLogoBitBuffer()
 	return Status;
 }
 
-VOID FreeBootLogoBltBuffer()
+VOID FreeBootLogoBltBuffer(VOID)
 {
 	if(LogoBlt)
 		FreePool (LogoBlt);
@@ -229,7 +229,7 @@ VOID FreeBootLogoBltBuffer()
 
 
 /* Get Max font count per row */
-STATIC UINT32 GetMaxFontCount()
+STATIC UINT32 GetMaxFontCount(VOID)
 {
 	EFI_STATUS Status;
 	UINT32 FontBaseWidth = EFI_GLYPH_WIDTH;
@@ -511,7 +511,7 @@ EFI_STATUS UpdateMsgBackground(MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor)
 		MenuMsgInfo->Attribute,
 		MenuMsgInfo->Location,
 		MenuMsgInfo->Action);
-	DrawMenu(target_msg_info, 0);
+	DrawMenu(target_msg_info, NULL);
 
 	if (target_msg_info) {
 		FreePool(target_msg_info);
@@ -520,7 +520,7 @@ EFI_STATUS UpdateMsgBackground(MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor)
 	return EFI_SUCCESS;
 }
 
-VOID DrawMenuInit() {
+VOID DrawMenuInit(VOID) {
 	EFI_STATUS Status = EFI_SUCCESS;
 
 	/* Backup the boot logo blt buffer before the screen gets changed */

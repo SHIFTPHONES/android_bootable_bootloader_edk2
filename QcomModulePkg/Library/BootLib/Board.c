@@ -31,6 +31,7 @@
 #include <Protocol/EFIPlatformInfoTypes.h>
 #include <Library/UpdateDeviceTree.h>
 #include <Library/BootImage.h>
+#include "AutoGen.h"
 
 #include <LinuxLoaderLib.h>
 
@@ -226,15 +227,15 @@ UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
 
 	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
 
-	HandleFilter.PartitionType = 0;
-	HandleFilter.VolumeName = 0;
+	HandleFilter.PartitionType = NULL;
+	HandleFilter.VolumeName = NULL;
 	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
 
 	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
 	if (EFI_ERROR (Status) || MaxBlKIOHandles == 0) {
 		MaxBlKIOHandles = MaxHandles;
-		HandleFilter.PartitionType = 0;
-		HandleFilter.VolumeName = 0;
+		HandleFilter.PartitionType = NULL;
+		HandleFilter.VolumeName = NULL;
 		HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
 
 		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
@@ -339,7 +340,7 @@ UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex)
 	return target;
 }
 
-EFI_STATUS BoardInit()
+EFI_STATUS BoardInit(VOID)
 {
 	EFI_STATUS Status;
 	Status = GetChipInfo(&platform_board_info);
@@ -363,8 +364,8 @@ EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet)
 
 	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
 	MaxHandles = ARRAY_SIZE(HandleInfoList);
-	HandleFilter.PartitionType = 0;
-	HandleFilter.VolumeName = 0;
+	HandleFilter.PartitionType = NULL;
+	HandleFilter.VolumeName = NULL;
 	HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
 
 	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
@@ -440,42 +441,42 @@ EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 }
 
 /* Helper APIs for device tree selection */
-UINT32 BoardPlatformRawChipId()
+UINT32 BoardPlatformRawChipId(VOID)
 {
 	return platform_board_info.RawChipId;
 }
 
-EFIChipInfoVersionType BoardPlatformChipVersion()
+EFIChipInfoVersionType BoardPlatformChipVersion(VOID)
 {
 	return platform_board_info.ChipVersion;
 }
 
-EFIChipInfoFoundryIdType BoardPlatformFoundryId()
+EFIChipInfoFoundryIdType BoardPlatformFoundryId(VOID)
 {
 	return platform_board_info.FoundryId;
 }
 
-CHAR8* BoardPlatformChipBaseBand()
+CHAR8* BoardPlatformChipBaseBand(VOID)
 {
 	return platform_board_info.ChipBaseBand;
 }
 
-EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType()
+EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType(VOID)
 {
 	return platform_board_info.PlatformInfo.platform;
 }
 
-UINT32 BoardPlatformVersion()
+UINT32 BoardPlatformVersion(VOID)
 {
 	return platform_board_info.PlatformInfo.version;
 }
 
-UINT32 BoardPlatformSubType()
+UINT32 BoardPlatformSubType(VOID)
 {
 	return platform_board_info.PlatformInfo.subtype;
 }
 
-UINT32 BoardTargetId()
+UINT32 BoardTargetId(VOID)
 {
 	UINT32 Target;
 

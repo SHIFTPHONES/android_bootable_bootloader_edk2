@@ -128,6 +128,7 @@ VOID FastbootRegister(CONST CHAR8 *prefix,
  */
 VOID FastbootOkay(CONST CHAR8 *result);
 VOID FastbootFail(CONST CHAR8 *reason);
+VOID FastbootInfo(CONST CHAR8 *Info);
 
 /* Initializes the Fastboot App */
 EFI_STATUS
@@ -140,12 +141,12 @@ FastbootCmdsUnInit( VOID );
 /* Called when a message/download data passed to the app */
 VOID DataReady (IN UINT64 Size, IN VOID *Data);
 
-BOOLEAN FastbootFatal();
-VOID PartitionDump();
+BOOLEAN FastbootFatal(VOID);
+VOID PartitionDump(VOID);
 
-VOID *FastbootDloadBuffer();
+VOID *FastbootDloadBuffer(VOID);
 
-ANDROID_FASTBOOT_STATE FastbootCurrentState();
+ANDROID_FASTBOOT_STATE FastbootCurrentState(VOID);
 
 EFI_STATUS UpdateDevInfo(CHAR16* Pname, CHAR8* ImgVersion);
 VOID GetDevInfo(DeviceInfo **DevinfoPtr);

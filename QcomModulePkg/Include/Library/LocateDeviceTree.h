@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -41,6 +41,7 @@
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/BootLinux.h>
+#include <Library/VerifiedBoot.h>
 
 #define DEV_TREE_SUCCESS           0
 #define DEV_TREE_MAGIC             0x54444351 /* "QCDT" */
@@ -206,8 +207,8 @@ struct DtboTableEntry {
 
 VOID *DeviceTreeAppended(void *kernel, UINT32 kernel_size, UINT32 dtb_offset, void *tags);
 VOID *GetSocDtb(void *kernel, UINT32 kernel_size, UINT32 dtb_offset, void *tags);
-BOOLEAN GetDtboNeeded();
-VOID* GetBoardDtb();
+BOOLEAN GetDtboNeeded(VOID);
+VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer);
 VOID PopulateBoardParams();
 
 int DeviceTreeValidate (UINT8* DeviceTreeBuff, UINT32 PageSize, UINT32* DeviceTreeSize);
