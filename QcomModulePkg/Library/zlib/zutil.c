@@ -6,7 +6,6 @@
 /* @(#) $Id$ */
 
 #include "zutil.h"
-#include <Library/MemoryAllocationLib.h>
 #ifndef Z_SOLO
 /* Comment because LK does not contain gzguts.h */
 // #  include "gzguts.h"
@@ -310,7 +309,7 @@ voidpf ZLIB_INTERNAL zcalloc (opaque, items, size)
     unsigned size;
 {
     if (opaque) items += size - size; /* make compiler happy */
-    return sizeof(uInt) > 2 ? (voidpf)AllocatePool(items * size) :
+    return sizeof(uInt) > 2 ? (voidpf)malloc(items * size) :
                               (voidpf)calloc(items, size);
 }
 
@@ -318,7 +317,7 @@ void ZLIB_INTERNAL zcfree (opaque, ptr)
     voidpf opaque;
     voidpf ptr;
 {
-    FreePool(ptr);
+    free(ptr);
     if (opaque) return; /* make compiler happy */
 }
 
