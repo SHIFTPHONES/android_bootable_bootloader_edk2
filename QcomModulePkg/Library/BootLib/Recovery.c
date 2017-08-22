@@ -109,8 +109,7 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 	if (!AsciiStrnCmp(Msg->command, "boot-recovery", AsciiStrLen("boot-recovery")))
 		*BootIntoRecovery = TRUE;
 
-	if (Msg)
-		FreePool(Msg);
+  FreePool (Msg);
 	return Status;
 }
 

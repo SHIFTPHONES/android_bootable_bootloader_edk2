@@ -84,13 +84,16 @@ VOID ExitMenuKeysDetection(VOID)
  * or the user chooses to exit keys' detection.
  * Clear the screen and show the penguin on the screen
  */
-VOID WaitForExitKeysDetection(VOID)
+VOID WaitForExitKeysDetection (VOID)
 {
-	/* Waiting for exit menu keys detection if there is no any usr action
-	* otherwise it will do the action base on the keys detection event
-	*/
-	while (CallbackKeyDetection)
-		MicroSecondDelay(10000);
+  if (FixedPcdGetBool (EnableDisplayMenu)) {
+    /* Waiting for exit menu keys detection if there is no any usr action
+    * otherwise it will do the action base on the keys detection event
+    */
+    while (CallbackKeyDetection) {
+      MicroSecondDelay (10000);
+    }
+  }
 }
 
 STATIC VOID UpdateDeviceStatus(OPTION_MENU_INFO *MsgInfo, INTN Reason)

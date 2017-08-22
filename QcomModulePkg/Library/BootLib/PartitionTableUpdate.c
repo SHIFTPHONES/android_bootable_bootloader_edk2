@@ -1420,10 +1420,10 @@ BOOLEAN LoadAndValidateDtboImg(BootInfo *Info, VOID** DtboImgBuffer)
 		DEBUG((EFI_D_ERROR, "BootLinux: GetImage failed!"));
 		return FALSE;
 	}
-	if (!DtboImgBuffer) {
-		DEBUG((EFI_D_ERROR, "DtboImgBuffer is NULL"));
-		return FALSE;
-	}
+  if (!*DtboImgBuffer) {
+    DEBUG ((EFI_D_ERROR, "DtboImgBuffer is NULL"));
+    return FALSE;
+  }
 
 	DtboTableHdr = *DtboImgBuffer;
 	if (fdt32_to_cpu(DtboTableHdr->Magic) != DTBO_TABLE_MAGIC) {

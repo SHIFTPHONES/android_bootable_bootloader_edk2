@@ -147,30 +147,34 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		DEBUG((EFI_D_ERROR, "BootLinux: GetBootImage failed!\n"));
 		goto Exit;
 	}
-	/* Find if MDTP is enabled and Active */
-        if (FixedPcdGetBool(EnableMdtpSupport)) {
-		Status = IsMdtpActive(&MdtpActive);
-		if (EFI_ERROR(Status)) {
-			DEBUG((EFI_D_ERROR, "Failed to get activation state for MDTP, Status=%r. Considering MDTP as active and continuing \n", Status));
-			if (Status != EFI_NOT_FOUND)
-				MdtpActive = TRUE;
-		}
-        }
+  /* Find if MDTP is enabled and Active */
+  if (FixedPcdGetBool (EnableMdtpSupport)) {
+    Status = IsMdtpActive (&MdtpActive);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((EFI_D_ERROR, "Failed to get activation state for MDTP, "
+                           "Status=%r. Considering MDTP as active and "
+                           "continuing \n",
+              Status));
+      if (Status != EFI_NOT_FOUND) {
+        MdtpActive = TRUE;
+      }
+    }
 
-	if(MdtpActive) {
-		/* If MDTP is Active and Dm-Verity Mode is not Enforcing, Block */
-		if(!IsEnforcing()) {
-			DEBUG((EFI_D_ERROR, "ERROR: MDTP is active and verity mode is not enforcing \n"));
-			goto Exit;
-		}
-		/* If MDTP is Active and Device is in unlocked State, Block */
-		if(IsUnlocked()) {
-			DEBUG((EFI_D_ERROR,"ERROR: MDTP is active and DEVICE is unlocked \n"));
-			goto Exit;
-		}
-	}
-
-
+    if (MdtpActive) {
+      /* If MDTP is Active and Dm-Verity Mode is not Enforcing, Block */
+      if (!IsEnforcing ()) {
+        DEBUG ((EFI_D_ERROR,
+              "ERROR: MDTP is active and verity mode is not enforcing \n"));
+        return EFI_NOT_STARTED;
+      }
+      /* If MDTP is Active and Device is in unlocked State, Block */
+      if (IsUnlocked ()) {
+        DEBUG ((EFI_D_ERROR,
+              "ERROR: MDTP is active and DEVICE is unlocked \n"));
+        return EFI_NOT_STARTED;
+      }
+    }
+  }
 
 	KernelSize = ((boot_img_hdr*)(ImageBuffer))->kernel_size;
 	RamdiskSize = ((boot_img_hdr*)(ImageBuffer))->ramdisk_size;
@@ -201,19 +205,19 @@ EFI_STATUS BootLinux (BootInfo *Info)
 			return EFI_BAD_BUFFER_SIZE;
 		}
 
-		DEBUG((EFI_D_INFO, "Decompressing kernel image start: %u ms\n", GetTimerCountms()));
-		Status = decompress(
-				(unsigned char *)(ImageBuffer + PageSize), //Read blob using BlockIo
-				KernelSize,                                 //Blob size
-				(unsigned char *)KernelLoadAddr,                             //Load address, allocated
-				(UINT32)out_avai_len,                               //Allocated Size
-				&DtbOffset, &out_len);
-
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Decompressing kernel image failed!!! Status=%r\n", Status));
-			return Status;
-		}
+  DEBUG ((EFI_D_INFO, "Decompressing kernel image start: %u ms\n",
+          GetTimerCountms ()));
+  if (decompress (
+            (UINT8 *)(ImageBuffer + PageSize), // Read blob using BlockIo
+            KernelSize,                        // Blob size
+            (UINT8 *)KernelLoadAddr,           // Load address, allocated
+            (UINT32)out_avai_len,              // Allocated Size
+            &DtbOffset,
+            &out_len))
+  {
+    DEBUG ((EFI_D_ERROR, "Decompressing kernel image failed!!!\n"));
+    return RETURN_OUT_OF_RESOURCES;
+  }
 
 		DEBUG((EFI_D_INFO, "Decompressing kernel image done: %u ms\n", GetTimerCountms()));
 		Kptr = (struct kernel64_hdr*)KernelLoadAddr;
@@ -453,12 +457,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		goto Exit;
 	}
 
-	Status = PreparePlatformHardware ();
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR,"ERROR: Prepare Hardware Failed. Status:%r\n", Status));
-		goto Exit;
-	}
+  PreparePlatformHardware ();
 
 	BootStatsSetTimeStamp(BS_KERNEL_ENTRY);
 	//

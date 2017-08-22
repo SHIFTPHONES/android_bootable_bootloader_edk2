@@ -50,7 +50,8 @@ EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartit
 	EFI_RAMPARTITION_PROTOCOL *pRamPartProtocol = NULL;
 
 	Status = gBS->LocateProtocol(&gEfiRamPartitionProtocolGuid, NULL, (VOID**)&pRamPartProtocol);
-	if (EFI_ERROR(Status) || (&pRamPartProtocol == NULL))
+  if (EFI_ERROR (Status) ||
+      (pRamPartProtocol == NULL))
 	{
 		DEBUG((EFI_D_ERROR, "Locate EFI_RAMPARTITION_Protocol failed, Status =  (0x%x)\r\n", Status));
 		return EFI_NOT_FOUND;
@@ -271,11 +272,7 @@ VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len)
 	UINT32      Type;
 
 	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
-
-	if (Type < ARRAY_SIZE(DeviceType))
-		AsciiSPrint(StrDeviceType, Len, "%a", DeviceType[Type]);
-	else
-		AsciiSPrint(StrDeviceType, Len, "%a", DeviceType[UNKNOWN]);
+  AsciiSPrint (StrDeviceType, Len, "%a", DeviceType[Type]);
 }
 
 /**
