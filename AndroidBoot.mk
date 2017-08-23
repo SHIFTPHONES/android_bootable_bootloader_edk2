@@ -1,6 +1,8 @@
 #Android makefile to build bootloader as a part of Android Build
-
-CLANG_BIN := $(ANDROID_BUILD_TOP)/$(LLVM_PREBUILTS_PATH)/
+CLANG_BIN := $(ANDROID_BUILD_TOP)/$(SDCLANG_PATH)/
+ifneq ($(wildcard $(SDCLANG_PATH_2)),)
+	CLANG_BIN := $(ANDROID_BUILD_TOP)/$(SDCLANG_PATH_2)/
+endif
 
 ifeq ($(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SUPPORTS_VERITY),true)
 	VERIFIED_BOOT := VERIFIED_BOOT=1
