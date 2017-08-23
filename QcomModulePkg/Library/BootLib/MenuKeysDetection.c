@@ -305,54 +305,18 @@ STATIC PAGES_ACTION MenuPagesAction[] = {
 	},
 };
 
-STATIC BOOLEAN CheckKeyStatus(UINT32 KeyType)
+/* Start key detection timer
+ * The timer be signaled once after 50ms from the current time
+ */
+STATIC VOID StartKeyDetectTimer()
 {
 	EFI_STATUS Status;
-	UINT32 KeyPressed;
 
-	Status = GetKeyPress(&KeyPressed);
-	if (Status == EFI_SUCCESS)
-	{
-		if (KeyPressed == KeyType)
-			return TRUE;
-	} else if (Status == EFI_DEVICE_ERROR) {
-		DEBUG((EFI_D_ERROR, "Error reading key status: %r\n", Status));
+	Status = gBS->SetTimer(CallbackKeyDetection, TimerRelative, 500000);
+	if (Status != EFI_SUCCESS) {
+		DEBUG((EFI_D_ERROR, "ERROR: Failed to set keys detection Timer: %r\n", Status));
+		ExitMenuKeysDetection();
 	}
-
-	return FALSE;
-}
-
-STATIC BOOLEAN IsKeyPressed(UINT32 KeyType)
-{
-	UINT32 count = 0;
-	EFI_STATUS Status = EFI_SUCCESS;
-	BOOLEAN Result = FALSE;
-	BOOLEAN IsCanceledTimer = FALSE;
-
-	if (CheckKeyStatus(KeyType)) {
-		/*if key is pressed, wait for 1s to see if it is released*/
-		while(count++ < 10 && CheckKeyStatus(KeyType)) {
-			/* Stop timer if the key is be holding */
-			if (!IsCanceledTimer) {
-				Status = gBS->SetTimer(CallbackKeyDetection, TimerCancel, 0);
-				if (Status == EFI_SUCCESS)
-					IsCanceledTimer = TRUE;
-			}
-
-			MicroSecondDelay(100000);
-		}
-
-		Result = TRUE;
-	}
-
-	if (IsCanceledTimer) {
-		Status = gBS->SetTimer(CallbackKeyDetection, TimerPeriodic, 500000);
-		if (Status != EFI_SUCCESS) {
-			DEBUG((EFI_D_ERROR, "ERROR: Failed to set keys detection Timer: %r\n", Status));
-			ExitMenuKeysDetection();
-		}
-	}
-	return Result;
 }
 
 /**
@@ -365,7 +329,11 @@ STATIC BOOLEAN IsKeyPressed(UINT32 KeyType)
 VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 {
 	UINT32 TimerDiff;
+	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO  *MenuInfo = Context;
+	UINT32 CurrentKey = SCAN_NULL;
+	STATIC UINT32 LastKey = SCAN_NULL;
+	STATIC UINT32 KeyPressStartTime;
 
 	if (MenuInfo->Info.TimeoutTime > 0) {
 		TimerDiff = GetTimerCountms() - StartTimer;
@@ -380,16 +348,51 @@ VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 		}
 	}
 
-	if (IsKeyPressed(SCAN_UP) &&
-	   (MenuPagesAction[MenuInfo->Info.MenuType].Up_Action_Func != NULL))
-		MenuPagesAction[MenuInfo->Info.MenuType].Up_Action_Func(MenuInfo);
-	else if (IsKeyPressed(SCAN_DOWN) &&
-		(MenuPagesAction[MenuInfo->Info.MenuType].Down_Action_Func != NULL))
-		MenuPagesAction[MenuInfo->Info.MenuType].Down_Action_Func(MenuInfo);
-	else if (IsKeyPressed(SCAN_SUSPEND) &&
-		(MenuPagesAction[MenuInfo->Info.MenuType].Enter_Action_Func != NULL))
-		MenuPagesAction[MenuInfo->Info.MenuType].Enter_Action_Func(MenuInfo);
+	Status = GetKeyPress(&CurrentKey);
+	if (Status != EFI_SUCCESS && Status != EFI_NOT_READY) {
+		DEBUG((EFI_D_ERROR, "Error reading key status: %r\n", Status));
+		goto Exit;
+	}
 
+	/* Initialize the key press start time when the key is pressed or released */
+	if (LastKey != CurrentKey)
+		KeyPressStartTime = GetTimerCountms();
+
+	/* Check whether there is user key action that needed to do.
+	 * There is key pressed currently. SCAN_NULL means there is no keystroke
+	 * data available. Treat SCAN_NULL as a special key.
+	 * If there is any key pressed above KEY_HOLD_TIME_MS time. Do action
+	 * If the current key is SCAN_NULL, it means the key is released. if the last
+	 * key is not NULL then do action or do nothing.
+	 */
+	TimerDiff = GetTimerCountms() - KeyPressStartTime;
+	if (TimerDiff > KEY_HOLD_TIME_MS || CurrentKey == SCAN_NULL) {
+		switch (LastKey) {
+			case SCAN_UP:
+				if (MenuPagesAction[MenuInfo->Info.MenuType].Up_Action_Func != NULL)
+					MenuPagesAction[MenuInfo->Info.MenuType].Up_Action_Func(MenuInfo);
+				break;
+			case SCAN_DOWN:
+				if (MenuPagesAction[MenuInfo->Info.MenuType].Down_Action_Func != NULL)
+					MenuPagesAction[MenuInfo->Info.MenuType].Down_Action_Func(MenuInfo);
+				break;
+			case SCAN_SUSPEND:
+				if (MenuPagesAction[MenuInfo->Info.MenuType].Enter_Action_Func != NULL)
+					MenuPagesAction[MenuInfo->Info.MenuType].Enter_Action_Func(MenuInfo);
+				break;
+			default:
+				break;
+		}
+		KeyPressStartTime = GetTimerCountms();
+	}
+
+	LastKey = CurrentKey;
+	StartKeyDetectTimer();
+	return;
+
+Exit:
+	ExitMenuKeysDetection();
+	return;
 }
 
 /**
@@ -422,12 +425,8 @@ EFI_STATUS EFIAPI MenuKeysDetectionInit(IN VOID *mMenuInfo)
 		);
 		DEBUG((EFI_D_VERBOSE, "Create keys detection event: %r\n", Status));
 
-		if (!EFI_ERROR (Status)) {
-			Status = gBS->SetTimer(CallbackKeyDetection,
-				TimerPeriodic,
-				500000);
-			DEBUG((EFI_D_VERBOSE, "Set keys detection Timer: %r\n", Status));
-		}
+		if (!EFI_ERROR (Status) && CallbackKeyDetection)
+			StartKeyDetectTimer();
 	}
 	return Status;
 }
