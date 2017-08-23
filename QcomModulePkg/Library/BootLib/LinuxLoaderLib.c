@@ -258,45 +258,6 @@ VOID ToLower(CHAR8 *Str)
 	}
 }
 
-EFI_STATUS GetPartitionSize(UINT32 *ImageSize, EFI_GUID *PartitionType)
-{
-	EFI_STATUS                   Status;
-	EFI_BLOCK_IO_PROTOCOL       *BlkIo;
-	PartiSelectFilter            HandleFilter;
-	HandleInfo                   HandleInfoList[1];
-	STATIC UINT32                MaxHandles;
-	STATIC UINT32                BlkIOAttrib = 0;
-
-	BlkIOAttrib = BLK_IO_SEL_PARTITIONED_MBR;
-	BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_GPT;
-	BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
-	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID;
-
-	HandleFilter.RootDeviceType = NULL;
-	HandleFilter.PartitionType = PartitionType;
-	HandleFilter.VolumeName = 0;
-
-	MaxHandles = sizeof(HandleInfoList)/sizeof(*HandleInfoList);
-
-	Status = GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
-
-	if(Status == EFI_SUCCESS) {
-		if(MaxHandles == 0)
-			return EFI_NO_MEDIA;
-
-		if(MaxHandles != 1) {
-			//Unable to deterministically load from single partition
-			DEBUG(( EFI_D_INFO, "ExecImgFromVolume(): multiple partitions found.\r\n"));
-			return EFI_LOAD_ERROR;
-		}
-	}
-
-	BlkIo = HandleInfoList[0].BlkIo;
-	*ImageSize = (UINT32)(BlkIo->Media->LastBlock + 1) * BlkIo->Media->BlockSize;
-	DEBUG ((DEBUG_ERROR, "Image partition size: %d Bytes\n", *ImageSize));
-	return EFI_SUCCESS;
-}
-
 /* Load image from partition to buffer */
 EFI_STATUS LoadImageFromPartition(VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname)
 {
