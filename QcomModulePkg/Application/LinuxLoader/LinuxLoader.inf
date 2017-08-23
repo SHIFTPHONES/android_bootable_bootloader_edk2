@@ -24,7 +24,7 @@
 	LinuxLoader.c
 
 [BuildOptions.AARCH64]
-	GCC:*_*_*_CC_FLAGS = -DZ_SOLO
+	GCC:*_*_*_CC_FLAGS = -DZ_SOLO --compile-and-analyze $(BUILD_REPORT_DIR) --analyzer-Werror
 
 [BuildOptions]
 	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_UNDEFINED)
