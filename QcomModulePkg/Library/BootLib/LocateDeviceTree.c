@@ -41,7 +41,7 @@ STATIC UINT32 BestSocDtMatch;
 STATIC UINT32 BestBoardDtMatch;
 STATIC BOOLEAN DtboNeed = TRUE;
 
-BOOLEAN GetDtboNeeded ()
+BOOLEAN GetDtboNeeded (VOID)
 {
 	return DtboNeed;
 }

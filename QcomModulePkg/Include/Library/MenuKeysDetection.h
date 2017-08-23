@@ -32,6 +32,6 @@
 #define KEY_HOLD_TIME_MS  250
 
 EFI_STATUS EFIAPI MenuKeysDetectionInit(IN void *mMsgInfo);
-VOID ExitMenuKeysDetection();
-VOID WaitForExitKeysDetection();
+VOID ExitMenuKeysDetection(VOID);
+VOID WaitForExitKeysDetection(VOID);
 #endif /* __PLATFORM_MENU_KEYS_DETECTION_H */

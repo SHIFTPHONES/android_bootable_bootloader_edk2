@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -64,22 +64,22 @@ UINT32 BoardPmicModel(UINT32 PmicDeviceIndex);
 
 UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex);
 
-EFI_STATUS BoardInit();
+EFI_STATUS BoardInit(VOID);
 
 EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len);
-UINT32 BoardPlatformRawChipId();
-CHAR8* BoardPlatformChipBaseBand();
-EFIChipInfoVersionType BoardPlatformChipVersion();
-EFIChipInfoFoundryIdType BoardPlatformFoundryId();
-EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType();
-UINT32 BoardPlatformVersion();
-UINT32 BoardPlatformSubType();
-UINT32 BoardTargetId();
+UINT32 BoardPlatformRawChipId(VOID);
+CHAR8* BoardPlatformChipBaseBand(VOID);
+EFIChipInfoVersionType BoardPlatformChipVersion(VOID);
+EFIChipInfoFoundryIdType BoardPlatformFoundryId(VOID);
+EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType(VOID);
+UINT32 BoardPlatformVersion(VOID);
+UINT32 BoardPlatformSubType(VOID);
+UINT32 BoardTargetId(VOID);
 VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len);
 VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len);
 EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet);
 UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles);
-UINT32 BoardPlatformRawChipId();
+UINT32 BoardPlatformRawChipId(VOID);
 EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartitions);
 VOID GetPageSize(UINT32 *PageSize);
 #endif

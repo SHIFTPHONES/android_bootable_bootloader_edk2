@@ -28,6 +28,7 @@
 
 #include <Library/LinuxLoaderLib.h>
 #include "Recovery.h"
+#include "AutoGen.h"
 
 STATIC EFI_STATUS ReadFromPartition(EFI_GUID *Ptype, VOID **Msg)
 {
@@ -44,7 +45,7 @@ STATIC EFI_STATUS ReadFromPartition(EFI_GUID *Ptype, VOID **Msg)
 
 	HandleFilter.RootDeviceType = NULL;
 	HandleFilter.PartitionType = Ptype;
-	HandleFilter.VolumeName = 0;
+	HandleFilter.VolumeName = NULL;
 
 	MaxHandles = ARRAY_SIZE(HandleInfoList);
 

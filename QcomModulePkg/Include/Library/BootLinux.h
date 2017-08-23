@@ -107,8 +107,8 @@ EFI_STATUS BootLinux(BootInfo *Info);
 EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize);
 EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
-BOOLEAN TargetBuildVariantUser();
+BOOLEAN TargetBuildVariantUser(VOID);
 EFI_STATUS GetImage(CONST BootInfo *Info, VOID**ImageBuffer, UINTN *ImageSize, CHAR8 *ImageName);
 BOOLEAN LoadAndValidateDtboImg(BootInfo *Info, VOID** DtboImgBuffer);
-BOOLEAN IsBootDevImage();
+BOOLEAN IsBootDevImage(VOID);
 #endif

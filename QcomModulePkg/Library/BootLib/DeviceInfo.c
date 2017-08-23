@@ -32,26 +32,27 @@
 #include <Library/StackCanary.h>
 #include <FastbootLib/FastbootCmds.h>
 #include <Library/BoardCustom.h>
+#include "AutoGen.h"
 
-DeviceInfo DevInfo;
+STATIC DeviceInfo DevInfo;
 STATIC BOOLEAN FirstReadDevInfo = TRUE;
 
-BOOLEAN IsUnlocked()
+BOOLEAN IsUnlocked(VOID)
 {
 	return DevInfo.is_unlocked;
 }
 
-BOOLEAN IsUnlockCritical()
+BOOLEAN IsUnlockCritical(VOID)
 {
 	return DevInfo.is_unlock_critical;
 }
 
-BOOLEAN IsEnforcing()
+BOOLEAN IsEnforcing(VOID)
 {
 	return DevInfo.verity_mode;
 }
 
-BOOLEAN IsChargingScreenEnable()
+BOOLEAN IsChargingScreenEnable(VOID)
 {
 	return DevInfo.is_charger_screen_enabled;
 }
@@ -168,8 +169,9 @@ EFI_STATUS SetDeviceUnlockValue(UINT32 Type, BOOLEAN State)
 	}
 
 	gBS->SetMem((VOID *)&Msg, sizeof(Msg), 0);
-	AsciiStrnCpyS(Msg.recovery, sizeof(Msg.recovery), RECOVERY_WIPE_DATA, AsciiStrLen(RECOVERY_WIPE_DATA));
-	WriteToPartition(&gEfiMiscPartitionGuid, &Msg);
+	Status = AsciiStrnCpyS(Msg.recovery, sizeof(Msg.recovery), RECOVERY_WIPE_DATA, AsciiStrLen(RECOVERY_WIPE_DATA));
+	if (Status == EFI_SUCCESS)
+		WriteToPartition(&gEfiMiscPartitionGuid, &Msg);
 
 	return Status;
 }
@@ -195,7 +197,7 @@ EFI_STATUS UpdateDevInfo(CHAR16 *Pname, CHAR8 *ImgVersion)
 	return Status;
 }
 
-EFI_STATUS DeviceInfoInit()
+EFI_STATUS DeviceInfoInit(VOID)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 
@@ -312,7 +314,7 @@ EFI_STATUS StoreUserKey(CHAR8 *UserKey, UINT32 UserKeySize)
 	return Status;
 }
 
-EFI_STATUS EraseUserKey()
+EFI_STATUS EraseUserKey(VOID)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 

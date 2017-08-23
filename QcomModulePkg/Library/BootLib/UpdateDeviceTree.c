@@ -34,6 +34,7 @@
 #include <Library/UpdateDeviceTree.h>
 #include "UpdateDeviceTree.h"
 #include <Protocol/EFIRng.h>
+#include "AutoGen.h"
 
 #define DTB_PAD_SIZE          2048
 #define NUM_SPLASHMEM_PROP_ELEM   4
@@ -45,7 +46,7 @@ STATIC struct FstabNode FstabTable =
 STATIC struct DisplaySplashBufferInfo splashBuf;
 STATIC UINTN splashBufSize = sizeof(splashBuf);
 
-VOID PrintSplashMemInfo(CONST CHAR8 *data, INT32 datalen)
+STATIC VOID PrintSplashMemInfo(CONST CHAR8 *data, INT32 datalen)
 {
 	UINT32 i, val[NUM_SPLASHMEM_PROP_ELEM] = {0};
 
@@ -90,7 +91,7 @@ STATIC EFI_STATUS GetKaslrSeed(UINT64 *KaslrSeed)
 }
 
 
-EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
+STATIC EFI_STATUS UpdateSplashMemInfo(VOID *fdt)
 {
 	EFI_STATUS Status;
 	CONST struct fdt_property *Prop = NULL;
@@ -217,7 +218,7 @@ UINT32 fdt_check_header_ext(VOID *fdt)
 	return 0;
 }
 
-EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
+STATIC EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 {
 	EFI_STATUS Status = EFI_NOT_FOUND;
 	INT32 ret = 0;
@@ -252,7 +253,7 @@ EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 
 /* Supporting function of UpdateDeviceTree()
  * Function first gets the RAM partition table, then passes the pointer to AddMemMap() */
-EFI_STATUS target_dev_tree_mem(VOID *fdt, UINT32 memory_node_offset)
+STATIC EFI_STATUS target_dev_tree_mem(VOID *fdt, UINT32 memory_node_offset)
 {
 	EFI_STATUS Status;
 

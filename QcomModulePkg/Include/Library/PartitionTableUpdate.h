@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -182,6 +182,7 @@ struct PartitionEntry
 	EFI_PARTITION_ENTRY PartEntry;
 	UINT32 lun;
 };
+extern struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 
 struct BootPartsLinkedList {
 	CHAR16 PartName[BOOT_PART_SIZE];
@@ -193,14 +194,14 @@ UINT32 GetPartitionLunFromIndex(UINT32);
 INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun);
 INT32 GetPartitionIndex(CHAR16* PartitionName);
 BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname);
-EFI_STATUS EnumeratePartitions ();
-VOID UpdatePartitionEntries();
-VOID UpdatePartitionAttributes();
-VOID FindPtnActiveSlot();
+EFI_STATUS EnumeratePartitions (VOID);
+VOID UpdatePartitionEntries(VOID);
+VOID UpdatePartitionAttributes(VOID);
+VOID FindPtnActiveSlot(VOID);
 EFI_STATUS FindBootableSlot(Slot *BootableSlot);
 BOOLEAN IsSuffixEmpty(Slot *CheckSlot);
 EFI_STATUS SetActiveSlot(Slot *NewSlot);
-BOOLEAN IsCurrentSlotBootable();
-EFI_STATUS HandleActiveSlotUnbootable();
-EFI_STATUS ClearUnbootable();
+BOOLEAN IsCurrentSlotBootable(VOID);
+EFI_STATUS HandleActiveSlotUnbootable(VOID);
+EFI_STATUS ClearUnbootable(VOID);
 #endif

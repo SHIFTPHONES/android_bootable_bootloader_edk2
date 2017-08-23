@@ -43,6 +43,7 @@
 #include <Protocol/EFIChargerEx.h>
 #include <DeviceInfo.h>
 #include <LinuxLoaderLib.h>
+#include "AutoGen.h"
 
 STATIC CONST CHAR8 *BootDeviceCmdLine = " androidboot.bootdevice=";
 STATIC CONST CHAR8 *UsbSerialCmdLine = " androidboot.serialno=";
@@ -63,8 +64,8 @@ STATIC UINT32 AuthorizeKernelImage = 0;
 
 /* Display command line related structures */
 #define MAX_DISPLAY_CMD_LINE 256
-CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
-UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
+STATIC CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
+STATIC UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
 
 /*Function that returns whether the kernel is signed
  *Currently assumed to be signed*/
@@ -241,7 +242,7 @@ BOOLEAN TargetBatterySocOk(UINT32 *BatteryVoltage)
 	}
 }
 
-VOID GetDisplayCmdline()
+STATIC VOID GetDisplayCmdline( VOID )
 {
 	EFI_STATUS Status;
 

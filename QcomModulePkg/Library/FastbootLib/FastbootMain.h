@@ -51,8 +51,8 @@ typedef struct FasbootDevice
   VOID                            *gTxBuffer;
 } FastbootDeviceData;
 
-FastbootDeviceData GetFastbootDeviceData();
-EFI_STATUS HandleUsbEvents();
+FastbootDeviceData GetFastbootDeviceData(VOID);
+EFI_STATUS HandleUsbEvents(VOID);
 EFI_STATUS FastbootUsbDeviceStop( VOID );
-EFI_STATUS FastbootInitialize();
+EFI_STATUS FastbootInitialize(VOID);
 #endif

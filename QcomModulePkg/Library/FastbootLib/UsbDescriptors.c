@@ -200,6 +200,7 @@ STATIC CONFIG_DESCRITPROS TotalConfigDescriptor = {
   },
 };
 
+STATIC
 CONST
 UINT8
 Str0Descriptor[4] = {
@@ -207,6 +208,7 @@ Str0Descriptor[4] = {
   0x09,0x04 // Langid : US_EN.
 };
 
+STATIC
 CONST
 UINT8
 StrManufacturerDescriptor[14] = {
@@ -219,9 +221,11 @@ StrManufacturerDescriptor[14] = {
   'e',0,
 };
 
+STATIC
 UINT8
 StrSerialDescriptor[MAX_DESC_LEN] ;
 
+STATIC
 CONST
 UINT8
 StrInterfaceDescriptor[18] = {
@@ -236,7 +240,7 @@ StrInterfaceDescriptor[18] = {
   't',0,
 };
 
-
+STATIC
 CONST
 UINT8
 StrProductDescriptor[16] = {

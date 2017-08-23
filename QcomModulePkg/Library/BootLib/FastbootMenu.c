@@ -39,6 +39,7 @@
 #include <Library/UpdateDeviceTree.h>
 #include <Library/BoardCustom.h>
 #include <Protocol/EFIVerifiedBoot.h>
+#include "AutoGen.h"
 
 STATIC OPTION_MENU_INFO gMenuInfo;
 
@@ -233,7 +234,7 @@ STATIC EFI_STATUS FastbootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 }
 
 /* Draw the fastboot menu and start to detect the key's status */
-VOID DisplayFastbootMenu()
+VOID DisplayFastbootMenu(VOID)
 {
 	EFI_STATUS Status;
 	OPTION_MENU_INFO *OptionMenuInfo;

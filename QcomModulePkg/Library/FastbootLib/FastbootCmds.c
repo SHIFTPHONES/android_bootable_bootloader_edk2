@@ -80,8 +80,9 @@
 #include "BootLinux.h"
 #include "LinuxLoaderLib.h"
 #include "BootStats.h"
+#include "AutoGen.h"
 
-struct GetVarPartitionInfo part_info[] =
+STATIC struct GetVarPartitionInfo part_info[] =
 {
 	{ "system"  , "partition-size:", "partition-type:", "", "ext4" },
 	{ "userdata", "partition-size:", "partition-type:", "", "ext4" },
@@ -112,14 +113,14 @@ STATIC CONST CHAR16 *CriticalPartitions[] = {
 #endif
 
 STATIC FASTBOOT_VAR *Varlist;
-BOOLEAN         Finished = FALSE;
-CHAR8           StrSerialNum[MAX_RSP_SIZE];
-CHAR8           FullProduct[MAX_RSP_SIZE];
-CHAR8           StrVariant[MAX_RSP_SIZE];
-CHAR8           StrBatteryVoltage[MAX_RSP_SIZE];
-CHAR8           StrBatterySocOk[MAX_RSP_SIZE];
-CHAR8           ChargeScreenEnable[MAX_RSP_SIZE];
-CHAR8           OffModeCharge[MAX_RSP_SIZE];
+STATIC BOOLEAN         Finished = FALSE;
+STATIC CHAR8           StrSerialNum[MAX_RSP_SIZE];
+STATIC CHAR8           FullProduct[MAX_RSP_SIZE];
+STATIC CHAR8           StrVariant[MAX_RSP_SIZE];
+STATIC CHAR8           StrBatteryVoltage[MAX_RSP_SIZE];
+STATIC CHAR8           StrBatterySocOk[MAX_RSP_SIZE];
+STATIC CHAR8           ChargeScreenEnable[MAX_RSP_SIZE];
+STATIC CHAR8           OffModeCharge[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
 	CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -186,8 +187,8 @@ typedef struct {
 } CmdInfo;
 
 /* Clean up memory for the getvar variables during exit */
-EFI_STATUS
-FastbootUnInit()
+STATIC EFI_STATUS
+FastbootUnInit(VOID)
 {
 	FASTBOOT_VAR *Var;
 	FASTBOOT_VAR *VarPrev = NULL;
@@ -209,7 +210,7 @@ FastbootUnInit()
 /* Publish a variable readable by the built-in getvar command
  * These Variables must not be temporary, shallow copies are used.
  */
-EFI_STATUS
+STATIC EFI_STATUS
 FastbootPublishVar (
   IN  CONST CHAR8   *Name,
   IN  CONST CHAR8   *Value
@@ -252,7 +253,7 @@ STATIC VOID FastbootAck (
 	CONST CHAR8 *Reason
 	)
 {
-	if (Reason == 0)
+	if (Reason == NULL)
 		Reason = "";
 
 	AsciiSPrint(GetFastbootDeviceData().gTxBuffer, MAX_RSP_SIZE, "%a%a", code,Reason);
@@ -275,7 +276,7 @@ VOID FastbootOkay(IN CONST CHAR8 *info)
 	FastbootAck("OKAY", info);
 }
 
-VOID PartitionDump ()
+VOID PartitionDump (VOID)
 {
 	EFI_STATUS Status;
 	EFI_PARTITION_ENTRY     *PartEntry;
@@ -306,6 +307,7 @@ VOID PartitionDump ()
 	}
 }
 
+STATIC
 EFI_STATUS
 PartitionGetInfo (
   IN CHAR16  *PartitionName,
@@ -349,7 +351,7 @@ PartitionGetInfo (
 	return EFI_NOT_FOUND;
 }
 
-STATIC VOID FastbootPublishSlotVars() {
+STATIC VOID FastbootPublishSlotVars(VOID) {
 	UINT32 i;
 	UINT32 j;
 	CHAR8 *Suffix = NULL;
@@ -403,7 +405,7 @@ STATIC VOID FastbootPublishSlotVars() {
  *populates has-slot, slot-successful,slot-unbootable and
  *slot-retry-count attributes of the boot slots.
  */
-void PopulateMultislotMetadata()
+STATIC VOID PopulateMultislotMetadata(VOID)
 {
 	UINT32 i;
 	UINT32 j;
@@ -1046,7 +1048,7 @@ STATIC EFI_STATUS HandleUsbEventsInTimer()
 	return Status;
 }
 
-STATIC VOID StopUsbTimer()
+STATIC VOID StopUsbTimer(VOID)
 {
 	if (UsbTimerEvent) {
 		gBS->SetTimer (UsbTimerEvent, TimerCancel, 0);
@@ -1055,7 +1057,7 @@ STATIC VOID StopUsbTimer()
 	}
 }
 #else
-STATIC VOID StopUsbTimer() {return;}
+STATIC VOID StopUsbTimer(VOID) {return;}
 #endif
 
 #ifdef ENABLE_UPDATE_PARTITIONS_CMDS
@@ -1071,7 +1073,7 @@ BOOLEAN NamePropertyMatches(CHAR8* Name) {
 		!AsciiStrnCmp(Name, "partition-size:system", AsciiStrLen("partition-size:system")));
 }
 
-STATIC VOID ClearFastbootVarsofAB() {
+STATIC VOID ClearFastbootVarsofAB(VOID) {
 	FASTBOOT_VAR *CurrentList = NULL;
 	FASTBOOT_VAR *PrevList = NULL;
 	FASTBOOT_VAR *NextList = NULL;
@@ -1513,7 +1515,7 @@ Out:
  * It's need to delay to send okay until flashing finished for
  * next command.
  */
-STATIC EFI_STATUS FastbootOkayDelay()
+STATIC EFI_STATUS FastbootOkayDelay(VOID)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 	EFI_EVENT FlashCompleteEvent = NULL;
@@ -1600,7 +1602,7 @@ STATIC VOID FatalErrorNotify(
 }
 
 /* Fatal error during fastboot */
-BOOLEAN FastbootFatal()
+BOOLEAN FastbootFatal(VOID)
 {
 	return Finished;
 }
@@ -1734,7 +1736,7 @@ STATIC VOID CmdContinue(
 	BootLinux(&Info);
 }
 
-STATIC VOID UpdateGetVarVariable()
+STATIC VOID UpdateGetVarVariable(VOID)
 {
 	BOOLEAN    BatterySocOk = FALSE;
 	UINT32     BatteryVoltage = 0;
@@ -1746,7 +1748,7 @@ STATIC VOID UpdateGetVarVariable()
 	AsciiSPrint(OffModeCharge, sizeof(OffModeCharge), "%d", IsChargingScreenEnable());
 }
 
-STATIC VOID WaitForTransferComplete()
+STATIC VOID WaitForTransferComplete(VOID)
 {
 	USB_DEVICE_EVENT                Msg;
 	USB_DEVICE_EVENT_DATA           Payload;
@@ -1766,7 +1768,7 @@ STATIC VOID WaitForTransferComplete()
 	}
 }
 
-STATIC VOID CmdGetVarAll()
+STATIC VOID CmdGetVarAll(VOID)
 {
 	FASTBOOT_VAR *Var;
 	CHAR8 GetVarAll[MAX_RSP_SIZE];
@@ -2431,12 +2433,12 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	return EFI_SUCCESS;
 }
 
-VOID *FastbootDloadBuffer()
+VOID *FastbootDloadBuffer(VOID)
 {
 	return (VOID *)mUsbDataBuffer;
 }
 
-ANDROID_FASTBOOT_STATE FastbootCurrentState()
+ANDROID_FASTBOOT_STATE FastbootCurrentState(VOID)
 {
 	return mState;
 }

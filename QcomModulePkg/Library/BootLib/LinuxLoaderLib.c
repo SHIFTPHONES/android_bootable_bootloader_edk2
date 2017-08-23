@@ -28,6 +28,8 @@
 
 #include "LinuxLoaderLib.h"
 #include <Library/BootLinux.h>
+#include "AutoGen.h"
+
 /* Volume Label size 11 chars, round off to 16 */
 #define VOLUME_LABEL_SIZE      16
 
@@ -44,7 +46,7 @@
    we can set FileInfo-size = SIZE_OF_EFI_FILE_INFO + 256*/
 #define FILE_INFO_SIZE (SIZE_OF_EFI_FILE_INFO + 256)
 
-UINT32 TimerFreq, FactormS;
+STATIC UINT32 TimerFreq, FactormS;
 /**
   Returns a list of BlkIo handles based on required criteria
 SelectionAttrib : Bitmask representing the conditions that need
@@ -82,7 +84,7 @@ GetBlkIOHandles (
 	UINT32                              BlkIoCnt = 0;
 	EFI_PARTITION_ENTRY *PartEntry;
 
-	if ((MaxBlkIopCnt == 0) || (HandleInfoPtr == 0))
+	if ((MaxBlkIopCnt == NULL) || (HandleInfoPtr == NULL))
 		return EFI_INVALID_PARAMETER;
 
 	/* Adjust some defaults first */
@@ -132,7 +134,7 @@ GetBlkIOHandles (
 		}
 
 		/* Clear the pointer, we can get it if the filter is set */
-		PartitionOut = 0;
+		PartitionOut = NULL;
 
 		/* Check if partition related criteria satisfies */
 		if ((SelectionAttrib & FILTERS_NEEDING_DEVICEPATH) != 0)
@@ -156,7 +158,7 @@ GetBlkIOHandles (
 			if ((SelectionAttrib & (BLK_IO_SEL_SELECT_ROOT_DEVICE_ONLY  |
 							BLK_IO_SEL_MATCH_ROOT_DEVICE)) != 0)
 			{
-				if (!FilterData || FilterData->RootDeviceType == 0)
+				if (!FilterData || FilterData->RootDeviceType == NULL)
 					return EFI_INVALID_PARAMETER;
 
 				/* If this is not the root device that we are looking for, ignore this
@@ -203,7 +205,7 @@ GetBlkIOHandles (
 				if ((SelectionAttrib & BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID) != 0)
 				{
 					GUID *PartiType;
-					if (!FilterData || FilterData->PartitionType == 0)
+					if (!FilterData || FilterData->PartitionType == NULL)
 						return EFI_INVALID_PARAMETER;
 
 					Status = gBS->HandleProtocol (BlkIoHandles[i],
@@ -275,7 +277,7 @@ EFI_STATUS LoadImageFromPartition(VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *
 
 	HandleFilter.RootDeviceType = NULL;
 	HandleFilter.PartitionLabel = Pname;
-	HandleFilter.VolumeName = 0;
+	HandleFilter.VolumeName = NULL;
 
 	DEBUG ((DEBUG_INFO, "Loading Image Start : %u ms\n", GetTimerCountms()));
 
@@ -469,7 +471,7 @@ EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg)
 
 	HandleFilter.RootDeviceType = NULL;
 	HandleFilter.PartitionType = Ptype;
-	HandleFilter.VolumeName = 0;
+	HandleFilter.VolumeName = NULL;
 
 	MaxHandles = ARRAY_SIZE(HandleInfoList);
 	Status = GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
@@ -497,7 +499,7 @@ EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg)
 	return Status;
 }
 
-BOOLEAN IsSecureBootEnabled()
+BOOLEAN IsSecureBootEnabled(VOID)
 {
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
@@ -522,7 +524,7 @@ BOOLEAN IsSecureBootEnabled()
 }
 
 EFI_STATUS
-ResetDeviceState()
+ResetDeviceState(VOID)
 {
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;

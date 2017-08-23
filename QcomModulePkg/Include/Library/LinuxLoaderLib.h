@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -155,8 +155,8 @@ GetBlkIOHandles (
 VOID ToLower(CHAR8 *Str);
 UINT32 GetTimerCountms (VOID);
 EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
-BOOLEAN IsSecureBootEnabled();
-EFI_STATUS ResetDeviceState();
+BOOLEAN IsSecureBootEnabled(VOID);
+EFI_STATUS ResetDeviceState(VOID);
 EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
 EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len);
 

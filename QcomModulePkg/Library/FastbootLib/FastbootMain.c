@@ -98,17 +98,17 @@ struct {
   }
 };
 
-FastbootDeviceData GetFastbootDeviceData()
+FastbootDeviceData GetFastbootDeviceData(VOID)
 {
 	return Fbd;
 }
 
 /* Dummy function needed for event notification callback */
-VOID DummyNotify (IN EFI_EVENT Event,IN VOID *Context)
+STATIC VOID DummyNotify (IN EFI_EVENT Event,IN VOID *Context)
 {
 }
 
-EFI_STATUS
+STATIC EFI_STATUS
 FastbootUsbDeviceStart(VOID)
 {
   EFI_STATUS                    Status;
@@ -219,7 +219,7 @@ FastbootUsbDeviceStop( VOID )
 }
 
 /* Process bulk transfer out come for Rx */
-EFI_STATUS
+STATIC EFI_STATUS
 ProcessBulkXfrCompleteRx(
   IN  USB_DEVICE_TRANSFER_OUTCOME *Uto
 )
@@ -250,7 +250,7 @@ ProcessBulkXfrCompleteRx(
 }
 
 /* Process bulk transfer out come for Tx */
-EFI_STATUS
+STATIC EFI_STATUS
 ProcessBulkXfrCompleteTx(
   IN  USB_DEVICE_TRANSFER_OUTCOME *Uto
 )
@@ -282,7 +282,7 @@ ProcessBulkXfrCompleteTx(
 }
 
 /* Handle USB events, this will keep looking for events from USB protocol */
-EFI_STATUS HandleUsbEvents()
+EFI_STATUS HandleUsbEvents(VOID)
 {
   EFI_STATUS                      Status     = EFI_SUCCESS;
   USB_DEVICE_EVENT                Msg;
@@ -330,7 +330,7 @@ EFI_STATUS HandleUsbEvents()
 }
 
 /* Initialize and start fastboot */
-EFI_STATUS FastbootInitialize()
+EFI_STATUS FastbootInitialize(VOID)
 {
   EFI_STATUS                      Status     = EFI_SUCCESS;
 

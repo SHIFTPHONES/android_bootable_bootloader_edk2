@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,6 +30,6 @@
 #ifndef _FASTBOOTMENU_H_
 #define _FASTBOOTMENU_H_
 
-VOID DisplayFastbootMenu();
+VOID DisplayFastbootMenu(VOID);
 EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation);
 #endif

@@ -37,6 +37,7 @@
 #include <Library/DeviceInfo.h>
 #include <Protocol/EFIMdtp.h>
 #include <libufdt_sysdeps.h>
+#include <Library/ShutdownServices.h>
 
 #include "BootLinux.h"
 #include "BootStats.h"
@@ -44,7 +45,7 @@
 #include "UpdateDeviceTree.h"
 #include "libfdt.h"
 #include <ufdt_overlay.h>
-
+#include "AutoGen.h"
 
 STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
 STATIC BOOLEAN BootDevImage;
@@ -667,18 +668,18 @@ EFI_STATUS GetImage(CONST BootInfo *Info, VOID **ImageBuffer, UINTN *ImageSize,
 
 /* Return Build variant */
 #ifdef USER_BUILD_VARIANT
-BOOLEAN TargetBuildVariantUser()
+BOOLEAN TargetBuildVariantUser(VOID)
 {
 	return TRUE;
 }
 #else
-BOOLEAN TargetBuildVariantUser()
+BOOLEAN TargetBuildVariantUser(VOID)
 {
 	return FALSE;
 }
 #endif
 
-BOOLEAN IsBootDevImage()
+BOOLEAN IsBootDevImage(VOID)
 {
 	return BootDevImage;
 }

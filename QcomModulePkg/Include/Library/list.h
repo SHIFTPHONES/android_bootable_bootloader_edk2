@@ -23,6 +23,7 @@
 #ifndef __LIST_H
 #define __LIST_H
 
+#include <ProcessorBind.h>
 #include "LocateDeviceTree.h"
 
 #define offsetof(type, member)  __builtin_offsetof (type, member)
