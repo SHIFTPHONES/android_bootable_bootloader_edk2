@@ -6,6 +6,7 @@ endif
 export $(BOOTLOADER_OUT)
 
 BUILDDIR=$(shell pwd)
+export WRAPPER := $(BUILDDIR)/clang-wrapper.py
 
 ifeq ($(ANDROID_BUILD_TOP),)
 export CLANG35_AARCH64_PREFIX := $(CLANG_PREFIX)
