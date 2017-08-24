@@ -180,7 +180,7 @@ EFI_STATUS UpdateDevInfo(CHAR16 *Pname, CHAR8 *ImgVersion)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
 
-	if (!StrCmp((const CHAR16*)Pname, L"bootloader")) {
+	if (!StrCmp((CONST CHAR16*)Pname, (CONST CHAR16 *)L"bootloader")) {
 		AsciiStrnCpyS(DevInfo.bootloader_version, MAX_VERSION_LEN, PRODUCT_NAME, AsciiStrLen(PRODUCT_NAME));
 		AsciiStrnCatS(DevInfo.bootloader_version, MAX_VERSION_LEN, "-", AsciiStrLen("-"));
 		AsciiStrnCatS(DevInfo.bootloader_version, MAX_VERSION_LEN, ImgVersion, AsciiStrLen(ImgVersion));

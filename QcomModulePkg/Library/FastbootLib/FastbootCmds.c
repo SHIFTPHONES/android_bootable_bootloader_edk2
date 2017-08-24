@@ -395,8 +395,8 @@ STATIC VOID FastbootPublishSlotVars(VOID) {
 		SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
 	}
 	FastbootPublishVar("current-slot", CurrentSlotFB);
-	FastbootPublishVar("has-slot:system",PartitionHasMultiSlot(L"system") ? "yes" : "no");
-	FastbootPublishVar("has-slot:modem",PartitionHasMultiSlot(L"modem") ? "yes" : "no");
+	FastbootPublishVar("has-slot:system",PartitionHasMultiSlot((CONST CHAR16 *)L"system") ? "yes" : "no");
+	FastbootPublishVar("has-slot:modem",PartitionHasMultiSlot((CONST CHAR16 *)L"modem") ? "yes" : "no");
 	return;
 }
 
@@ -483,7 +483,7 @@ STATIC BOOLEAN GetPartitionHasSlot(CHAR16* PartitionName, UINT32 PnameMaxSize, C
 	}
 	else {
 		/*Check for _a or _b slots, if available then copy to SlotSuffix Array*/
-		if (StrStr(PartitionName, L"_a") || StrStr(PartitionName, L"_b")) {
+		if (StrStr(PartitionName, (CONST CHAR16 *)L"_a") || StrStr(PartitionName, (CONST CHAR16 *)L"_b")) {
 			StrnCpyS(SlotSuffix, SlotSuffixMaxSize, (PartitionName + (StrLen(PartitionName) - 2)), MAX_SLOT_SUFFIX_SZ);
 			HasSlot = TRUE;
 		}
@@ -776,7 +776,7 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 	CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ];
 	UnicodeStrToAsciiStr(SlotSuffix, SlotSuffixAscii);
 
-	StrnCpyS(PartName, StrLen(L"boot") + 1, L"boot", StrLen(L"boot"));
+	StrnCpyS(PartName, StrLen((CONST CHAR16 *)L"boot") + 1, (CONST CHAR16 *)L"boot", StrLen((CONST CHAR16 *)L"boot"));
 	StrnCatS(PartName, MAX_GPT_NAME_SIZE - 1, SlotSuffix, StrLen(SlotSuffix));
 
 	Index = GetPartitionIndex(PartName);
@@ -818,7 +818,7 @@ HandleRawImgFlash(
 	UINT64                   PartitionSize;
 	EFI_HANDLE *Handle = NULL;
 	CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
-	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot((CONST CHAR16 *)L"boot");
 	BOOLEAN HasSlot = FALSE;
 
 	/* For multislot boot the partition may not support a/b slots.
@@ -848,7 +848,7 @@ HandleRawImgFlash(
 		return EFI_VOLUME_FULL;
 	}
 	Status = BlockIo->WriteBlocks(BlockIo, BlockIo->Media->MediaId, 0, ROUND_TO_PAGE(Size, BlockIo->Media->BlockSize - 1), Image);
-	if (MultiSlotBoot && HasSlot && !(StrnCmp(PartitionName, L"boot", StrLen(L"boot"))))
+	if (MultiSlotBoot && HasSlot && !(StrnCmp(PartitionName, (CONST CHAR16 *)L"boot", StrLen((CONST CHAR16 *)L"boot"))))
 		FastbootUpdateAttr(SlotSuffix);
 	return Status;
 }
@@ -1002,7 +1002,7 @@ STATIC VOID CmdDownload(
 		return;
 	}
 
-	UnicodeSPrint (OutputString, sizeof (OutputString), L"Downloading %d bytes\r\n", mNumDataBytes);
+	UnicodeSPrint (OutputString, sizeof (OutputString), (CONST CHAR16 *)L"Downloading %d bytes\r\n", mNumDataBytes);
 	AsciiStrnCpyS(Response + InitStrLen, sizeof(Response), NumBytesString, sizeof(NumBytesString));
 	gBS->CopyMem(GetFastbootDeviceData().gTxBuffer, Response, sizeof(Response));
 	mState = ExpectDataState;
@@ -1718,7 +1718,7 @@ STATIC VOID CmdContinue(
 	CHAR8 Resp[MAX_RSP_SIZE];
 	BootInfo Info = {0};
 
-	Info.MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	Info.MultiSlotBoot = PartitionHasMultiSlot((CONST CHAR16 *)L"boot");
 	Status = LoadImageAndAuth(&Info);
 	if (Status != EFI_SUCCESS) {
 		AsciiSPrint(Resp, sizeof(Resp), "Failed to load image from partition: %r", Status);
@@ -2037,7 +2037,7 @@ STATIC VOID CmdOemSelectDisplayPanel(CONST CHAR8 *arg, VOID *data, UINT32 sz)
 
 	/* Update the environment variable with the selected panel */
 	Status = gRT->SetVariable(
-			L"DisplayPanelOverride",
+			(CHAR16 *)L"DisplayPanelOverride",
 			&gQcomTokenSpaceGuid,
 			EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
 			AsciiStrLen(arg),
@@ -2274,7 +2274,7 @@ STATIC EFI_STATUS ReadAllowUnlockValue(UINT32 *IsAllowUnlock)
 	EFI_HANDLE *Handle = NULL;
 	UINT8 *Buffer;
 
-	Status = PartitionGetInfo(L"frp", &BlockIo, &Handle);
+	Status = PartitionGetInfo((CHAR16 *)L"frp", &BlockIo, &Handle);
 	if (Status != EFI_SUCCESS)
 		return Status;
 
@@ -2322,7 +2322,7 @@ STATIC EFI_STATUS FastbootCommandSetup(
 	mFlashNumDataBytes = size;
 	mUsbDataBuffer = base;
 	mFlashDataBuffer = base + MAX_BUFFER_SIZE;
-	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	BOOLEAN MultiSlotBoot = PartitionHasMultiSlot((CONST CHAR16*)L"boot");
 
 	/* Find all Software Partitions in the User Partition */
 	UINT32 i;

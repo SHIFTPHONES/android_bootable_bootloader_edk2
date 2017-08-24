@@ -247,7 +247,7 @@ STATIC VOID GetDisplayCmdline( VOID )
 	EFI_STATUS Status;
 
 	Status = gRT->GetVariable(
-			L"DisplayPanelConfiguration",
+			(CHAR16 *)L"DisplayPanelConfiguration",
 			&gQcomTokenSpaceGuid,
 			NULL,
 			&DisplayCmdLineLen,
@@ -275,7 +275,8 @@ UINT32 GetSystemPath(CHAR8 **SysPath)
 		return 0;
 	}
 
-	StrnCpyS(PartitionName, StrLen(L"system") + 1, L"system", StrLen(L"system"));
+	StrnCpyS(PartitionName, StrLen((CONST CHAR16 *)L"system") + 1,
+		(CONST CHAR16 *)L"system", StrLen((CONST CHAR16 *)L"system"));
 	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE - 1, CurSlot.Suffix, StrLen(CurSlot.Suffix));
 
 	Index = GetPartitionIndex(PartitionName);
@@ -402,7 +403,7 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 	if (MdtpActive)
 		CmdLineLen += AsciiStrLen(MdtpActiveFlag);
 
-	MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	MultiSlotBoot = PartitionHasMultiSlot((CONST CHAR16 *)L"boot");
 	if(MultiSlotBoot) {
 		CmdLineLen += AsciiStrLen(AndroidSlotSuffix) + 2;
 

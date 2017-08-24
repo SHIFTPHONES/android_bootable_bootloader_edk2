@@ -140,7 +140,7 @@ EFI_STATUS EFIAPI LinuxLoaderEntry(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABL
 
 	UpdatePartitionEntries();
 	/*Check for multislot boot support*/
-	MultiSlotBoot = PartitionHasMultiSlot(L"boot");
+	MultiSlotBoot = PartitionHasMultiSlot((CONST CHAR16 *)L"boot");
 	if(MultiSlotBoot) {
 		DEBUG((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
 		FindPtnActiveSlot();

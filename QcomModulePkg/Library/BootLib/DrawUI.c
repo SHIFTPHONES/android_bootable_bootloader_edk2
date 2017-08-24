@@ -42,13 +42,13 @@ STATIC EFI_GRAPHICS_OUTPUT_PROTOCOL  *GraphicsOutputProtocol;
 STATIC EFI_GRAPHICS_OUTPUT_BLT_PIXEL *LogoBlt;
 
 STATIC CHAR16 *mFactorName[] = {
-	[2] = SYSFONT_2x,
-	[3] = SYSFONT_3x,
-	[4] = SYSFONT_4x,
-	[5] = SYSFONT_5x,
-	[6] = SYSFONT_6x,
-	[7] = SYSFONT_7x,
-	[8] = SYSFONT_8x,
+	[2] = (CHAR16 *)SYSFONT_2x,
+	[3] = (CHAR16 *)SYSFONT_3x,
+	[4] = (CHAR16 *)SYSFONT_4x,
+	[5] = (CHAR16 *)SYSFONT_5x,
+	[6] = (CHAR16 *)SYSFONT_6x,
+	[7] = (CHAR16 *)SYSFONT_7x,
+	[8] = (CHAR16 *)SYSFONT_8x,
 };
 
 STATIC EFI_GRAPHICS_OUTPUT_BLT_PIXEL mColors[] = {
@@ -271,7 +271,7 @@ STATIC CHAR16 *GetFontFactorName(UINT32 ScaleFactorType)
 	if (ScaleFactor <= (ARRAY_SIZE(mFactorName) -1)) {
 		return mFactorName[ScaleFactor];
 	} else {
-		return SYSFONT_3x;
+		return (CHAR16 *)SYSFONT_3x;
 	}
 }
 
