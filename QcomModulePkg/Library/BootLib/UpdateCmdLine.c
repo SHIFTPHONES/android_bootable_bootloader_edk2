@@ -50,7 +50,6 @@ STATIC CONST CHAR8 *UsbSerialCmdLine = " androidboot.serialno=";
 STATIC CONST CHAR8 *AndroidBootMode = " androidboot.mode=";
 STATIC CONST CHAR8 *LogLevel         = " quite";
 STATIC CONST CHAR8 *BatteryChgPause = " androidboot.mode=charger";
-STATIC CONST CHAR8 *AuthorizedKernel = " androidboot.authorized_kernel=true";
 STATIC CONST CHAR8 *MdtpActiveFlag = " mdtp";
 STATIC CONST CHAR8 *AlarmBootCmdLine = " androidboot.alarmboot=true";
 
@@ -59,20 +58,10 @@ STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
 STATIC CHAR8 *MultiSlotCmdSuffix = " rootwait ro init=/init";
 STATIC CHAR8 *SkipRamFs = " skip_initramfs";
 
-/* Assuming unauthorized kernel image by default */
-STATIC UINT32 AuthorizeKernelImage = 0;
-
 /* Display command line related structures */
 #define MAX_DISPLAY_CMD_LINE 256
 STATIC CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
 STATIC UINTN DisplayCmdLineLen = sizeof(DisplayCmdLine);
-
-/*Function that returns whether the kernel is signed
- *Currently assumed to be signed*/
-STATIC BOOLEAN TargetUseSignedKernel(VOID)
-{
-	return TRUE;
-}
 
 STATIC EFI_STATUS TargetPauseForBatteryCharge(BOOLEAN *BatteryStatus)
 {
@@ -388,10 +377,6 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 		CmdLineLen += AsciiStrLen(AlarmBootCmdLine);
 	}
 
-	if(TargetUseSignedKernel() && AuthorizeKernelImage) {
-		CmdLineLen += AsciiStrLen(AuthorizedKernel);
-	}
-
 	if (NULL == BoardPlatformChipBaseBand()) {
 		DEBUG((EFI_D_ERROR, "Invalid BaseBand String\n"));
 		return EFI_NOT_FOUND;
@@ -487,11 +472,6 @@ EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
 			STR_COPY(Dst,Src);
 		}
 
-		if(TargetUseSignedKernel() && AuthorizeKernelImage) {
-			Src = AuthorizedKernel;
-			if (HaveCmdLine) --Dst;
-			STR_COPY(Dst,Src);
-		}
 
 		Src = BOOT_BASE_BAND;
 		if (HaveCmdLine) --Dst;
