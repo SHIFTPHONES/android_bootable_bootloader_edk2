@@ -42,6 +42,9 @@
 [BuildOptions.AARCH64]
 	GCC:*_*_*_CC_FLAGS = -fno-stack-protector --compile-and-analyze $(BUILD_REPORT_DIR) --analyzer-Werror
 
+[BuildOptions.ARM]
+	GCC:*_*_*_CC_FLAGS = -fno-stack-protector
+
 [Packages]
 	MdePkg/MdePkg.dec
 	EmbeddedPkg/EmbeddedPkg.dec
