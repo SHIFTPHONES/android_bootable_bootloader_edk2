@@ -1153,6 +1153,7 @@ STATIC VOID CmdFlash(
 	UINT32 UfsBootLun = 0;
 	CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
 
+	ExchangeFlashAndUsbDataBuf();
 	if (mFlashDataBuffer == NULL)
 	{
 		// Doesn't look like we were sent any data
@@ -1203,7 +1204,6 @@ STATIC VOID CmdFlash(
 		LunSet = TRUE;
 	}
 
-	ExchangeFlashAndUsbDataBuf();
 	if (!StrnCmp(PartitionName, L"partition", StrLen(L"partition"))) {
 		GetRootDeviceType(BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
 		if (!AsciiStrnCmp(BootDeviceType, "UFS", AsciiStrLen("UFS"))) {
@@ -1281,6 +1281,7 @@ STATIC VOID CmdFlash(
 		}
 	}
 
+	IsFlashComplete = FALSE;
 	Status = HandleUsbEventsInTimer();
 	if (EFI_ERROR (Status)) {
 		StopUsbTimer();
@@ -1293,7 +1294,6 @@ STATIC VOID CmdFlash(
 	sparse_header = (sparse_header_t *) mFlashDataBuffer;
 	meta_header   = (meta_header_t *) mFlashDataBuffer;
 
-	IsFlashComplete = FALSE;
 	if (sparse_header->magic == SPARSE_HEADER_MAGIC)
 		FlashResult = HandleSparseImgFlash(PartitionName, sizeof(PartitionName), mFlashDataBuffer, mFlashNumDataBytes);
 	else if (meta_header->magic == META_HEADER_MAGIC)
