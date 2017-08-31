@@ -592,6 +592,11 @@ HandleSparseImgFlash(
 
 	/* Read and skip over chunk header */
 	chunk_header = (chunk_header_t *) Image;
+
+	if (CHECK_ADD64((UINT64)Image, sizeof(chunk_header_t))) {
+		DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and chunk header\n"));
+		return EFI_INVALID_PARAMETER;
+	}
 	Image += sizeof(chunk_header_t);
 
 	if (ImageEnd < (UINT64) Image)
@@ -627,6 +632,11 @@ HandleSparseImgFlash(
 			if ((UINT64)chunk_header->total_sz != ((UINT64)sparse_header->chunk_hdr_sz + chunk_data_sz))
 			{
 				FastbootFail("Bogus chunk size for chunk type Raw");
+				return EFI_INVALID_PARAMETER;
+			}
+
+			if (CHECK_ADD64((UINT64)Image, chunk_data_sz)) {
+				DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and chunk data sz\n"));
 				return EFI_INVALID_PARAMETER;
 			}
 
@@ -667,6 +677,11 @@ HandleSparseImgFlash(
 			{
 				FastbootFail("Malloc failed for: CHUNK_TYPE_FILL");
 				return EFI_OUT_OF_RESOURCES;
+			}
+
+			if (CHECK_ADD64((UINT64)Image, sizeof(UINT32))) {
+				DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and uint32\n"));
+				return EFI_INVALID_PARAMETER;
 			}
 
 			if (ImageEnd < (UINT64)Image + sizeof(UINT32))
@@ -729,11 +744,12 @@ HandleSparseImgFlash(
 			}
 
 			total_blocks += chunk_header->chunk_sz;
-			if ((UINT64) Image > MAX_UINT32 - chunk_data_sz)
-			{
-				FastbootFail("Buffer overflow occured");
+
+			if (CHECK_ADD64((UINT64)Image, chunk_data_sz)) {
+				DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and chunk data sz\n"));
 				return EFI_INVALID_PARAMETER;
 			}
+
 			Image += (UINT32) chunk_data_sz;
 			if (ImageEnd <  (UINT64)Image)
 			{
@@ -830,7 +846,18 @@ HandleRawImgFlash(
 		DEBUG((EFI_D_ERROR, "EFI handle for %a is corrupted\n",PartitionName));
 		return EFI_VOLUME_CORRUPTED;
 	}
-	// Check image will fit on device
+
+	if (CHECK_ADD64(BlockIo->Media->LastBlock, 1)) {
+		DEBUG((EFI_D_ERROR, "Integer overflow while adding LastBlock and 1\n"));
+		return EFI_INVALID_PARAMETER;
+	}
+
+	if ((MAX_UINT64 / (BlockIo->Media->LastBlock + 1))  < (UINT64)BlockIo->Media->BlockSize) {
+		DEBUG((EFI_D_ERROR, "Integer overflow while multiplying LastBlock and BlockSize"));
+		return EFI_BAD_BUFFER_SIZE;
+	}
+
+	/* Check image will fit on device */
 	PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
 	if (PartitionSize < Size)
 	{
