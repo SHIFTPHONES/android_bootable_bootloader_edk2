@@ -52,58 +52,6 @@
 /* Return True if integer overflow will occur */
 #define CHECK_ADD64(a, b) ((MAX_UINT64 - b < a) ? TRUE : FALSE)
 
-enum property_type
-{
-	DEVICE_TYPE = 1,
-	STATUS_TYPE,
-};
-
-/* Sub node name, property pair */
-struct SubNodeList
-{
-	CONST CHAR8 *SubNode;    /* Subnode name */
-	CONST CHAR8 *Property;   /* Property name */
-	UINT32 SubBinVersion;   /* version to maintain backward compatibility */
-	UINT32 SubBinValue;   /* SubBinning defect value */
-};
-
-/* Look up table for partial goods */
-struct PartialGoods
-{
-	UINT32 Val; /* Value for the defect */
-	CONST CHAR8 *ParentNode; /* Parent Node name*/
-	struct SubNodeList SubNode[DTB_MAX_SUBNODE]; /* Sub node name list*/
-};
-
-static struct PartialGoods MsmCobaltTable[] =
-{
-	{0x1, "/cpus", {{"cpu@100", "device_type", 1, 0x1},
-	                {"cpu@101", "device_type", 1, 0x2},
-	                {"cpu@102", "device_type", 1, 0x4},
-	                {"cpu@103", "device_type", 1, 0x8},}},
-	/* If CPU4 is disabled, disable memlat_cpu4 dt property */
-	{0x1, "/soc", {{"qcom,memlat-cpu4", "status", 2, 0x1},}},
-	{0x2, "/soc",  {{"qcom,kgsl-3d0", "status", 1, 0x10},
-	                {"qcom,vidc", "status", 1, 0x20},
-	                {"qcom,msm-cam", "status", 2, 0x20},
-	                {"qcom,csiphy", "status", 2, 0x20},
-	                {"qcom,csid", "status", 2, 0x20},
-	                {"qcom,cam_smmu", "status", 2, 0x20},
-	                {"qcom,fd", "status", 2, 0x20},
-	                {"qcom,cpp", "status", 2, 0x20},
-	                {"qcom,ispif", "status", 2, 0x20},
-	                {"qcom,vfe0", "status", 2, 0x20},
-	                {"qcom,vfe1", "status", 2, 0x20},
-	                {"qcom,cci", "status", 2, 0x20},
-	                {"qcom,jpeg", "status", 2, 0x20},
-			{"qcom,camera-flash", "status", 2, 0x20},
-	                {"qcom,mdss_mdp", "status", 2, 0x40},
-	                {"qcom,mdss_dsi_pll", "status", 2, 0x40},
-	                {"qcom,mdss_dp_pll", "status",  2, 0x40},
-	                {"qcom,msm-adsp-loader", "status", 1, 0x80},}},
-	{0x4, "/soc",   {{"qcom,mss", "status", 1, 0x0},}},
-};
-
 /* Look up table for fstab node */
 struct FstabNode
 {
