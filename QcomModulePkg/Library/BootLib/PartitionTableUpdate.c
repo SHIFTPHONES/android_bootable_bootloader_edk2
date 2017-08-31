@@ -485,12 +485,23 @@ EnumeratePartitions (VOID)
 	Ptable[0].MaxHandles = ARRAY_SIZE(Ptable[0].HandleInfoList);
 	HandleFilter.PartitionType = NULL;
 	HandleFilter.VolumeName = NULL;
+	HandleFilter.RootDeviceType = &gEfiNandUserPartitionGuid;
+
+	Status = GetBlkIOHandles(Attribs, &HandleFilter, &Ptable[0].HandleInfoList[0], &Ptable[0].MaxHandles);
+	/* For Emmc/NAND devices the Lun concept does not exist, we will always one lun and the lun number is '0'
+	 * to have the partition selection implementation same acros
+	 */
+	if (Status == EFI_SUCCESS && Ptable[0].MaxHandles > 0) {
+		MaxLuns = 1;
+		return Status;
+	}
+
+	Ptable[0].MaxHandles = ARRAY_SIZE(Ptable[0].HandleInfoList);
+	HandleFilter.PartitionType = NULL;
+	HandleFilter.VolumeName = NULL;
 	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
 
 	Status = GetBlkIOHandles(Attribs, &HandleFilter, &Ptable[0].HandleInfoList[0], &Ptable[0].MaxHandles);
-	/* For Emmc devices the Lun concept does not exist, we will always one lun and the lun number is '0'
-	 * to have the partition selection implementation same acros
-	 */
 	if (Status == EFI_SUCCESS && Ptable[0].MaxHandles > 0) {
 		MaxLuns = 1;
 	}

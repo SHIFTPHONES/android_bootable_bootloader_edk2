@@ -47,7 +47,8 @@ typedef enum
 {
 	EMMC = 0,
 	UFS  = 1,
-	UNKNOWN = 2,
+	NAND = 2,
+	UNKNOWN,
 } MemCardType;
 
 struct BoardInfo {
