@@ -193,11 +193,11 @@ FastbootUnInit(VOID)
 	FASTBOOT_VAR *Var;
 	FASTBOOT_VAR *VarPrev = NULL;
 
-	for (Var = Varlist; Var->next; Var = Var->next)
+	for (Var = Varlist; Var && Var->next; Var = Var->next)
 	{
 		if(VarPrev)
 			FreePool(VarPrev);
-	VarPrev = Var;
+		VarPrev = Var;
 	}
 	if(Var)
 	{
@@ -1449,7 +1449,7 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 
 		if ((AsciiStrLen(InputSlot) == MAX_SLOT_SUFFIX_SZ-2) || (AsciiStrLen(InputSlot) == MAX_SLOT_SUFFIX_SZ-1) ) {
 			SlotEnd = AsciiStrLen(InputSlot);
-			if((InputSlot[SlotEnd] != 0) || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
+			if((InputSlot[SlotEnd] != '\0') || !AsciiStrStr(SlotSuffixArray, InputSlot)) {
 				DEBUG((EFI_D_ERROR,"%a Invalid InputSlot Suffix\n",InputSlot));
 				FastbootFail("Invalid Slot Suffix");
 				return;
