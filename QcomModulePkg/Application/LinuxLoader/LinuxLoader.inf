@@ -24,15 +24,12 @@
 	LinuxLoader.c
 
 [BuildOptions.AARCH64]
-	GCC:*_*_*_CC_FLAGS = -DZ_SOLO --compile-and-analyze $(BUILD_REPORT_DIR) --analyzer-Werror
-
-[BuildOptions]
+	GCC:*_*_*_CC_FLAGS = --compile-and-analyze $(BUILD_REPORT_DIR) --analyzer-Werror
 	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_UNDEFINED)
 	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_ALIGNMENT)
 
 [Packages]
 	ArmPkg/ArmPkg.dec
-	StdLib/StdLib.dec
 	MdePkg/MdePkg.dec
 	EmbeddedPkg/EmbeddedPkg.dec
 	ArmPlatformPkg/ArmPlatformPkg.dec
@@ -64,7 +61,6 @@
 [Guids]
 	gEfiFileInfoGuid
 	gArmMpCoreInfoGuid
-	gArmGlobalVariableGuid
 	gEfiSdRemovableGuid
 	gEfiFileSystemInfoGuid
 	gEfiPartitionTypeGuid
