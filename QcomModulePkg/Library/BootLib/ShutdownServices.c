@@ -101,7 +101,7 @@ EFI_STATUS PreparePlatformHardware (VOID)
 
 VOID RebootDevice(UINT8 RebootReason)
 {
-	struct ResetDataType ResetData;
+	ResetDataType ResetData;
 	EFI_STATUS Status = EFI_INVALID_PARAMETER;
 
 	StrnCpyS(ResetData.DataBuffer, ARRAY_SIZE(ResetData.DataBuffer),
@@ -114,7 +114,7 @@ VOID RebootDevice(UINT8 RebootReason)
 		gRT->ResetSystem(EfiResetPlatformSpecific, EFI_SUCCESS,
 			StrSize((CONST CHAR16 *)STR_RESET_PLAT_SPECIFIC_EDL), STR_RESET_PLAT_SPECIFIC_EDL);
 
-	gRT->ResetSystem (EfiResetCold, Status, sizeof(struct ResetDataType), (VOID *) &ResetData);
+	gRT->ResetSystem (EfiResetCold, Status, sizeof(ResetDataType), (VOID *) &ResetData);
 }
 
 VOID ShutdownDevice(VOID)
