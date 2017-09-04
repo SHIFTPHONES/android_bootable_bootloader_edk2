@@ -151,6 +151,7 @@ STATIC CHAR8 CurrentSlotFB[MAX_SLOT_SUFFIX_SZ];
  * When PopulateMultiSlotInfo called while flashing each Lun
  */
 STATIC BOOLEAN InitialPopulate = FALSE;
+STATIC UINT32 SlotCount;
 extern struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 
 STATIC ANDROID_FASTBOOT_STATE mState = ExpectCmdState;
@@ -356,7 +357,7 @@ STATIC VOID FastbootPublishSlotVars(VOID) {
 
 	GetPartitionCount(&PartitionCount);
 	/*Scan through partition entries, populate the attributes*/
-	for (i = 0,j = 0;i < PartitionCount; i++) {
+	for (i = 0,j = 0;i < PartitionCount && j < SlotCount; i++) {
 		UnicodeStrToAsciiStr(PtnEntries[i].PartEntry.PartitionName, PartitionNameAscii);
 
 		if(!(AsciiStrnCmp(PartitionNameAscii,"boot",AsciiStrLen("boot")))) {
@@ -403,7 +404,6 @@ STATIC VOID PopulateMultislotMetadata(VOID)
 {
 	UINT32 i;
 	UINT32 j;
-	UINT32 SlotCount =0;
 	UINT32 PartitionCount =0;
 	CHAR8 *Suffix = NULL;
 	CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE];
@@ -438,7 +438,7 @@ STATIC VOID PopulateMultislotMetadata(VOID)
 		InitialPopulate = TRUE;
 	} else {
 		/*While updating gpt from fastboot dont need to populate all the variables as above*/
-		for (i = 0; i < MAX_SLOTS; i++) {
+		for (i = 0; i < SlotCount; i++) {
 			AsciiStrnCpyS(BootSlotInfo[i].SlotSuccessfulVal, sizeof(BootSlotInfo[i].SlotSuccessfulVal), "no", AsciiStrLen("no"));
 			AsciiStrnCpyS(BootSlotInfo[i].SlotUnbootableVal, sizeof(BootSlotInfo[i].SlotUnbootableVal), "no", AsciiStrLen("no"));
 			AsciiSPrint(BootSlotInfo[i].SlotRetryCountVal,sizeof(BootSlotInfo[j].SlotRetryCountVal),"%d",MAX_RETRY_COUNT);
@@ -784,7 +784,7 @@ STATIC VOID FastbootUpdateAttr(CONST CHAR16 *SlotSuffix)
 				(PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL);
 
 	UpdatePartitionAttributes();
-	for (j = 0; j < MAX_SLOTS; j++)
+	for (j = 0; j < SlotCount; j++)
 	{
 		if(AsciiStrStr(SlotSuffixAscii, BootSlotInfo[j].SlotSuffix))
 		{
