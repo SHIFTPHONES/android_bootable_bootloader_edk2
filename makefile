@@ -14,8 +14,8 @@ export CLANG35_AARCH64_PREFIX := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aa
 export CLANG35_AARCH64_GCC_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-$(TARGET_GCC_VERSION)
 endif
 export CLANG35_BIN := $(CLANG_BIN)
-export CLANG35_ARM_PREFIX := $(CLANG_BIN)/tools/bin
-export CLANG_ARM_LINK_PATH := $(CLANG_LINK_PATH)
+export CLANG35_ARM_PREFIX := $(CLANG_BIN)../tools/bin/arm-
+export CLANG35_ARM_LINK_PREFIX := $(CLANG_LINK_PATH)/arm-linux-gnueabihf-
 
 export BUILD_REPORT_DIR := $(BOOTLOADER_OUT)/build_report
 ANDROID_PRODUCT_OUT := $(BOOTLOADER_OUT)/Build
