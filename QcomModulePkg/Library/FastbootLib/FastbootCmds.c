@@ -386,9 +386,10 @@ STATIC VOID FastbootPublishSlotVars(VOID) {
 	}
 	FastbootPublishVar("has-slot:boot","yes");
 	UnicodeStrToAsciiStr(GetCurrentSlotSuffix().Suffix,CurrentSlotFB);
-	if (AsciiStrStr(CurrentSlotFB, "_")) {
-		SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
-	}
+
+	/* Here CurrentSlotFB will only have value of "_a" or "_b".*/
+	SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
+
 	FastbootPublishVar("current-slot", CurrentSlotFB);
 	FastbootPublishVar("has-slot:system",PartitionHasMultiSlot((CONST CHAR16 *)L"system") ? "yes" : "no");
 	FastbootPublishVar("has-slot:modem",PartitionHasMultiSlot((CONST CHAR16 *)L"modem") ? "yes" : "no");
@@ -1496,9 +1497,9 @@ VOID CmdSetActive(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 
 	// Updating fbvar `current-slot'
 	UnicodeStrToAsciiStr(GetCurrentSlotSuffix().Suffix,CurrentSlotFB);
-	if (AsciiStrStr(CurrentSlotFB, "_")) {
-		SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
-	}
+
+	/* Here CurrentSlotFB will only have value of "_a" or "_b".*/
+	SKIP_FIRSTCHAR_IN_SLOT_SUFFIX(CurrentSlotFB);
 
 	do {
 		if (AsciiStrStr(BootSlotInfo[j].SlotSuffix, InputSlot)) {
