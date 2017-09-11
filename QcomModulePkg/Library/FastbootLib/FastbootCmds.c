@@ -509,6 +509,20 @@ HandleSparseImgFlash(
 	EFI_STATUS Status;
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	EFI_HANDLE *Handle = NULL;
+    BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+    BOOLEAN HasSlot = FALSE;
+    CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+
+    /* For multislot boot the partition may not support a/b slots.
+     * Look for default partition, if it does not exist then try for a/b
+     */
+    if (MultiSlotBoot) {
+        HasSlot =  GetPartitionHasSlot (PartitionName, PartitionMaxSize,
+                                        SlotSuffix, MAX_SLOT_SUFFIX_SZ);
+        if (HasSlot) {
+            DEBUG ((EFI_D_VERBOSE, "Partition %a has slot", PartitionName));
+        }
+    }
 
 	if (CHECK_ADD64((UINT64)Image, sz)) {
 		DEBUG((EFI_D_ERROR, "Integer overflow while adding Image and sz\n"));
