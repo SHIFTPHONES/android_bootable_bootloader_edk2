@@ -56,6 +56,7 @@
 
 ## Macro
 #   $(WORKSPACE)        Workspace directory
+#   $(WRAPPER)          Optional wrapper script to call CC
 #   $(OUTPUT_DIR)       Directory for intermediate files for building a module
 #   $(DEBUG_DIR)        Directory for files used to debug a module
 #   $(BUILD_DIR)        All files for building a platform will be put in this directory
@@ -133,7 +134,7 @@
     <Command.GCC, Command.RVCT>
         # For RVCTCYGWIN CC_FLAGS must be first to work around pathing issues
 		$(if $(wildcard $(CHECK)) , "$(CHECK)" $(INC) ${src})
-        "$(CC)" $(CC_FLAGS) -o ${dst} $(INC) ${src}
+        $(WRAPPER) "$(CC)" $(CC_FLAGS) -o ${dst} $(INC) ${src}
 
     <Command.XCODE>
         "$(CC)" $(CC_FLAGS) -o ${dst} $(INC) ${src}
