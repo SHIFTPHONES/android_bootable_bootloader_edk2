@@ -79,7 +79,6 @@ UINT32 BoardTargetId(VOID);
 VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len);
 VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len);
 EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet);
-UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles);
 UINT32 BoardPlatformRawChipId(VOID);
 EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartitions);
 VOID GetPageSize(UINT32 *PageSize);
