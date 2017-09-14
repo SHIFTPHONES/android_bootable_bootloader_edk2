@@ -461,6 +461,7 @@ EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg)
 	HandleInfo HandleInfoList[1];
 	UINT32 MaxHandles;
 	UINT32 BlkIOAttrib = 0;
+  CHAR8 *MsgBuffer = NULL;
 
 	if (Msg == NULL)
 		return EFI_INVALID_PARAMETER;
@@ -491,12 +492,23 @@ EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg)
 
 	BlkIo = HandleInfoList[0].BlkIo;
 
-	Status = BlkIo->WriteBlocks(BlkIo, BlkIo->Media->MediaId, 0, BlkIo->Media->BlockSize, Msg);
+  if (AsciiStrLen ((CONST CHAR8 *)Msg) >= BlkIo->Media->BlockSize) {
+    return EFI_OUT_OF_RESOURCES;
+  }
 
-	if(Status != EFI_SUCCESS)
-		return Status;
+  MsgBuffer = AllocateZeroPool (BlkIo->Media->BlockSize);
+  if (MsgBuffer == NULL) {
+    DEBUG ((EFI_D_ERROR, "Failed to allocate zero pool for MsgBuffer\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
 
-	return Status;
+  gBS->CopyMem (MsgBuffer, Msg, AsciiStrLen ((CONST CHAR8 *)Msg));
+  Status = BlkIo->WriteBlocks (BlkIo, BlkIo->Media->MediaId, 0,
+                               BlkIo->Media->BlockSize,
+                               MsgBuffer);
+
+  FreePool (MsgBuffer);
+  return Status;
 }
 
 BOOLEAN IsSecureBootEnabled(VOID)
