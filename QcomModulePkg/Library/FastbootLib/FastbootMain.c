@@ -270,7 +270,7 @@ ProcessBulkXfrCompleteTx(
 
     case UsbDeviceTransferStatusCancelled:
       DEBUG((EFI_D_ERROR, "Bulk in xfr aborted"));
-      Status = EFI_DEVICE_ERROR;
+  Status = EFI_ABORTED;
       break;
 
     default: // Other statuses should not occur
@@ -351,7 +351,8 @@ EFI_STATUS FastbootInitialize(VOID)
   while (1)
   {
     Status = HandleUsbEvents();
-    if (EFI_ERROR(Status))
+    if (EFI_ERROR (Status) &&
+        (Status != EFI_ABORTED))
     {
       DEBUG((EFI_D_ERROR, "Error, failed to handle USB event\n"));
       break;
