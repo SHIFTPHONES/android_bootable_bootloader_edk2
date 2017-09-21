@@ -518,10 +518,15 @@ VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len)
 		return;
 	}
 
-	Status = pChipInfoProtocol->GetChipIdString(pChipInfoProtocol, StrHwPlatform, EFICHIPINFO_MAX_ID_LENGTH);
+	Status = pChipInfoProtocol->GetChipIdString(pChipInfoProtocol, StrHwPlatform,
+		EFICHIPINFO_MAX_ID_LENGTH > Len ? Len : EFICHIPINFO_MAX_ID_LENGTH);
 	if (EFI_ERROR(Status)) {
 		DEBUG((EFI_D_ERROR, "Failed to Get the ChipIdString\n"));
 		return;
 	}
-	StrHwPlatform[ChipIdValidLen-1] = '\0';
+
+	if (Len < ChipIdValidLen)
+		StrHwPlatform[Len - 1] = '\0';
+	else
+		StrHwPlatform[ChipIdValidLen - 1] = '\0';
 }
