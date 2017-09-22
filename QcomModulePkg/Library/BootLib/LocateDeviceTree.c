@@ -461,8 +461,7 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	  BoardPmicTarget(0), BoardPmicTarget(1),
 	  BoardPmicTarget(2), BoardPmicTarget(3)));*/
 out:
-	if (dt_entry_queue)
-		FreePool(dt_entry_queue);
+  FreePool (dt_entry_queue);
 	return NULL;
 }
 
@@ -698,7 +697,7 @@ VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer)
 /* Returns 0 if the device tree is valid. */
 int DeviceTreeValidate (UINT8* DeviceTreeBuff, UINT32 PageSize, UINT32* DeviceTreeSize)
 {
-	int dt_entry_size;
+  UINT32 dt_entry_size;
 	UINT64 hdr_size;
 	struct dt_table*             table;
 	if (DeviceTreeSize)
@@ -1009,43 +1008,37 @@ STATIC struct dt_entry *platform_dt_match_best(struct dt_entry_node *dt_list)
 {
 	struct dt_entry_node *dt_node_tmp1 = NULL;
 
-	/* check Foundry id
-	 * the foundry id must exact match board founddry id, this is compatibility check,
-	 * if couldn't find the exact match from DTB, will exact match 0x0.
-	 */
-	if (!platform_dt_absolute_compat_match(dt_list, DTB_FOUNDRY))
-		return NULL;
+  /* check Foundry id
+  * the foundry id must exact match board founddry id, this is compatibility
+  * check, if couldn't find the exact match from DTB, will exact match 0x0.
+  */
+  platform_dt_absolute_compat_match (dt_list, DTB_FOUNDRY);
 
-	/* check PMIC model
-	 * the PMIC model must exact match board PMIC model, this is compatibility check,
-	 * if couldn't find the exact match from DTB, will exact match 0x0.
-	 */
-	if (!platform_dt_absolute_compat_match(dt_list, DTB_PMIC_MODEL))
-		return NULL;
+  /* check PMIC model
+  * the PMIC model must exact match board PMIC model, this is compatibility
+  * check, if couldn't find the exact match from DTB, will exact match 0x0.
+  */
+  platform_dt_absolute_compat_match (dt_list, DTB_PMIC_MODEL);
 
-	/* check soc version
-	 * the suitable soc version must less than or equal to board soc version
-	 */
-	if (!update_dtb_entry_node(dt_list, DTB_SOC))
-		return NULL;
+  /* check soc version
+  * the suitable soc version must less than or equal to board soc version
+  */
+  update_dtb_entry_node (dt_list, DTB_SOC);
 
-	/*check major and minor version
-	 * the suitable major&minor version must less than or equal to board major&minor version
-	 */
-	if (!update_dtb_entry_node(dt_list, DTB_MAJOR_MINOR))
-		return NULL;
+  /*check major and minor version
+  * the suitable major&minor version must less than or equal to board
+  * major&minor version
+  */
+  update_dtb_entry_node (dt_list, DTB_MAJOR_MINOR);
 
-	/*check pmic info
-	 * the suitable pmic major&minor info must less than or equal to board pmic major&minor version
-	 */
-	if (!update_dtb_entry_node(dt_list, DTB_PMIC0))
-		return NULL;
-	if (!update_dtb_entry_node(dt_list, DTB_PMIC1))
-		return NULL;
-	if (!update_dtb_entry_node(dt_list, DTB_PMIC2))
-		return NULL;
-	if (!update_dtb_entry_node(dt_list, DTB_PMIC3))
-		return NULL;
+  /*check pmic info
+  * the suitable pmic major&minor info must less than or equal to board pmic
+  * major&minor version
+  */
+  update_dtb_entry_node (dt_list, DTB_PMIC0);
+  update_dtb_entry_node (dt_list, DTB_PMIC1);
+  update_dtb_entry_node (dt_list, DTB_PMIC2);
+  update_dtb_entry_node (dt_list, DTB_PMIC3);
 
 	list_for_every_entry(&dt_list->node, dt_node_tmp1, dt_node, node) {
 		if (!dt_node_tmp1) {

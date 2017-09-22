@@ -404,11 +404,6 @@ EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 
 	ManipulateMenuMsg(TargetMenu);
 	AsciiStrToUnicodeStr(TargetMenu->Msg, FontMessage);
-	if (FontMessage == NULL) {
-		DEBUG((EFI_D_ERROR, "Failed to get font message.\n"));
-		Status = EFI_OUT_OF_RESOURCES;
-		goto Exit;
-	}
 
 	Status = gHiiFont->StringToImage(
 		gHiiFont,
@@ -513,10 +508,9 @@ EFI_STATUS UpdateMsgBackground(MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor)
 		MenuMsgInfo->Action);
 	DrawMenu(target_msg_info, NULL);
 
-	if (target_msg_info) {
-		FreePool(target_msg_info);
-		target_msg_info = NULL;
-	}
+  FreePool (target_msg_info);
+  target_msg_info = NULL;
+
 	return EFI_SUCCESS;
 }
 

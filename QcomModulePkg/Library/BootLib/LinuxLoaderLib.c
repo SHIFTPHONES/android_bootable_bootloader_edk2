@@ -371,8 +371,7 @@ LaunchApp (
 
     Status = gBS->LoadImage (FALSE, gImageHandle, DevicePath, Buffer, BufferSize, &ImageHandle);
 
-    if (Buffer != NULL)
-      FreePool (Buffer);
+  FreePool (Buffer);
   }
 
   EfiClose (File);

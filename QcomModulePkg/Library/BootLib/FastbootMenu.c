@@ -124,11 +124,9 @@ EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation)
 		goto Exit;
 	Location += Height;
 
-	Exit:
-	if (FastbootLineInfo) {
-		FreePool(FastbootLineInfo);
-		FastbootLineInfo = NULL;
-	}
+Exit:
+  FreePool (FastbootLineInfo);
+  FastbootLineInfo = NULL;
 
 	if (pLocation != NULL)
 		*pLocation = Location;
