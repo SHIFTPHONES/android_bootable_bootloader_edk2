@@ -37,8 +37,6 @@
 STATIC int platform_dt_absolute_match(struct dt_entry *cur_dt_entry, struct dt_entry_node *dt_list);
 STATIC struct dt_entry *platform_dt_match_best(struct dt_entry_node *dt_list);
 
-STATIC UINT32 BestSocDtMatch;
-STATIC UINT32 BestBoardDtMatch;
 STATIC BOOLEAN DtboNeed = TRUE;
 
 BOOLEAN GetDtboNeeded (VOID)
@@ -470,7 +468,26 @@ STATIC BOOLEAN CheckAllBitsSet(UINT32 DtMatchVal)
 	return (DtMatchVal & ALL_BITS_SET) == (ALL_BITS_SET);
 }
 
-STATIC VOID ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
+/* Dt selection table for quick reference
+  | SNO | Dt Property   | CDT Property    | Exact | Best | Default |
+  |-----+---------------+-----------------+-------+------+---------+
+  |     | qcom, msm-id  |                 |       |      |         |
+  |     |               | PlatformId      | Y     | N    | N       |
+  |     |               | SocRev          | N     | Y    | N       |
+  |     |               | FoundryId       | Y     | N    | 0       |
+  |     | qcom,board-id |                 |       |      |         |
+  |     |               | VariantId       | Y     | N    | N       |
+  |     |               | VariantMajor    | N     | Y    | N       |
+  |     |               | VariantMinor    | N     | Y    | N       |
+  |     |               | PlatformSubtype | Y     | N    | 0       |
+  |     | qcom,pmic-id  |                 |       |      |         |
+  |     |               | PmicModelId     | Y     | N    | 0       |
+  |     |               | PmicMetalRev    | N     | Y    | N       |
+  |     |               | PmicLayerRev    | N     | Y    | N       |
+  |     |               | PmicVariantRev  | N     | Y    | N       |
+*/
+STATIC VOID ReadDtbFindMatch (DtInfo* CurDtbInfo, DtInfo* BestDtbInfo,
+                                     UINT32 ExactMatch)
 {
 	const char *PlatProp = NULL;
 	const char *BoardProp = NULL;
@@ -480,16 +497,11 @@ STATIC VOID ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 	INT32 LenPmicId;
 	INT32 MinPlatIdLen = PLAT_ID_SIZE;
 	INT32 RootOffset = 0;
-	/*DT parameters*/
-	UINT32 DtPlatformId;
-	UINT32 DtVariantId;
-	UINT32 DtPlatformSubtype;
-	UINT32 DtSocRev;
-	UINT32 DtPmicTarget[MAX_PMIC_IDX];
-	UINT32 DtFoundryId;
+        VOID *Dtb = CurDtbInfo->Dtb;
+        UINT32 Idx;
 
 	/*Ensure MatchVal to 0 initially*/
-	*MatchVal = 0;
+        CurDtbInfo->DtMatchVal = 0;
 	RootOffset = fdt_path_offset(Dtb, "/");
 	if (RootOffset < 0) {
 		DEBUG ((EFI_D_ERROR, "Unable to locate root node\n"));
@@ -500,83 +512,225 @@ STATIC VOID ReadDtbFindMatch(VOID* Dtb, UINT32* MatchVal)
 	PlatProp = (const char *)fdt_getprop(Dtb, RootOffset, "qcom,msm-id", &LenPlatId);
 	if (PlatProp && (LenPlatId > 0) && (!(LenPlatId % MinPlatIdLen))) {
 		/*Compare msm-id of the dtb vs Board*/
-		DtPlatformId = fdt32_to_cpu(((struct plat_id *)PlatProp)->platform_id);
-		DEBUG ((EFI_D_VERBOSE, "Boardsocid = %x, Dtsocid = %x\n", (BoardPlatformRawChipId() & 0xffff),(DtPlatformId & 0xffff)));
-		if ((BoardPlatformRawChipId() & 0xffff) == (DtPlatformId & 0xffff)) {
-			*MatchVal |= SOC_MATCH;
+                CurDtbInfo->DtPlatformId = fdt32_to_cpu (((struct plat_id *)
+                                       PlatProp)->platform_id);
+                DEBUG ((EFI_D_VERBOSE, "Boardsocid = %x, Dtsocid = %x\n",
+                                       (BoardPlatformRawChipId () & SOC_MASK),
+                                       (CurDtbInfo->DtPlatformId & SOC_MASK)));
+                if ((BoardPlatformRawChipId () & SOC_MASK) ==
+                                       (CurDtbInfo->DtPlatformId & SOC_MASK)) {
+                        CurDtbInfo->DtMatchVal |= BIT (SOC_MATCH);
 		} else {
 			DEBUG ((EFI_D_VERBOSE, "qcom,msm-id doesnot match\n"));
-			return;
+                  /* If it's neither exact nor default match don't select dtb */
+                        CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
+                        goto cleanup;
 		}
 		/*Compare soc rev of the dtb vs Board*/
-		DtSocRev = fdt32_to_cpu(((struct plat_id *)PlatProp)->soc_rev);
-		DEBUG ((EFI_D_VERBOSE, "BoardSocRev = %x, DtSocRev =%x\n", BoardPlatformChipVersion(), DtSocRev));
-		if (DtSocRev == BoardPlatformChipVersion()) {
-			*MatchVal |= VERSION_MATCH;
-		} else if (DtSocRev) {
-			DEBUG ((EFI_D_VERBOSE, "soc version doesnot match\n"));
-			return;
-		}
+                CurDtbInfo->DtSocRev = fdt32_to_cpu (((struct plat_id *)
+                                       PlatProp)->soc_rev);
+                DEBUG ((EFI_D_VERBOSE, "BoardSocRev = %x, DtSocRev =%x\n",
+                         BoardPlatformChipVersion (), CurDtbInfo->DtSocRev));
+                if (CurDtbInfo->DtSocRev == BoardPlatformChipVersion ()) {
+                        CurDtbInfo->DtMatchVal |= BIT (VERSION_EXACT_MATCH);
+                } else if (CurDtbInfo->DtSocRev < BoardPlatformChipVersion ()) {
+                        CurDtbInfo->DtMatchVal |= BIT (VERSION_BEST_MATCH);
+                } else if (CurDtbInfo->DtSocRev) {
+                        DEBUG ((EFI_D_VERBOSE, "soc version doesnot match\n"));
+                }
 		/*Compare Foundry Id of the dtb vs Board*/
-		DtFoundryId = fdt32_to_cpu(((struct plat_id *)PlatProp)->platform_id) & 0x00ff0000;
-		DEBUG ((EFI_D_VERBOSE, "BoardFoundry = %x, DtFoundry = %x\n", (BoardPlatformFoundryId() << PLATFORM_FOUNDRY_SHIFT), DtFoundryId));
-		if (DtFoundryId == (BoardPlatformFoundryId() << PLATFORM_FOUNDRY_SHIFT)) {
-			*MatchVal |= FOUNDRYID_MATCH;
-		} else {
-			DEBUG ((EFI_D_VERBOSE, "soc foundry doesnot match\n"));
-		}
-	} else {
-		DEBUG ((EFI_D_VERBOSE, "qcom, msm-id does not exist (or) is (%d) not a multiple of (%d)\n", LenPlatId, MinPlatIdLen));
-	}
+                CurDtbInfo->DtFoundryId = fdt32_to_cpu (((struct plat_id *)
+                                      PlatProp)->platform_id) & FOUNDRY_ID_MASK;
+                DEBUG ((EFI_D_VERBOSE, "BoardFoundry = %x, DtFoundry = %x\n",
+                         (BoardPlatformFoundryId () << PLATFORM_FOUNDRY_SHIFT),
+                         CurDtbInfo->DtFoundryId));
+                if (CurDtbInfo->DtFoundryId == (BoardPlatformFoundryId () <<
+                                                      PLATFORM_FOUNDRY_SHIFT)) {
+                        CurDtbInfo->DtMatchVal |= BIT (FOUNDRYID_EXACT_MATCH);
+                } else if (CurDtbInfo->DtFoundryId == 0) {
+                        CurDtbInfo->DtMatchVal |= BIT (FOUNDRYID_DEFAULT_MATCH);
+                } else {
+                        DEBUG ((EFI_D_VERBOSE, "soc foundry doesnot match\n"));
+                  /* If it's neither exact nor default match don't select dtb */
+                        CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
+                        goto cleanup;
+                }
+        } else {
+                DEBUG ((EFI_D_VERBOSE, "qcom, msm-id does not exist (or) is"
+                    " (%d) not a multiple of (%d)\n", LenPlatId, MinPlatIdLen));
+        }
 
-	/*Get the properties like variant id, subtype from Dtb then compare the dtb vs Board*/
-	BoardProp = (const char *)fdt_getprop(Dtb, RootOffset, "qcom,board-id", &LenBoardId);
+        /* Get the properties like variant id, subtype from Dtb then compare the
+         * dtb vs Board*/
+        BoardProp = (CONST CHAR8 *)fdt_getprop (Dtb, RootOffset, "qcom,board-id"
+                                          , &LenBoardId);
 	if (BoardProp && (LenBoardId > 0) && (!(LenBoardId % BOARD_ID_SIZE))) {
-		DtVariantId = fdt32_to_cpu(((struct board_id *)BoardProp)->variant_id);
-		DtPlatformSubtype = fdt32_to_cpu(((struct board_id *)BoardProp)->platform_subtype);
-		if (DtPlatformSubtype == 0)
-			DtPlatformSubtype = fdt32_to_cpu(((struct board_id *)BoardProp)->variant_id) >> 0x18;
-
-		DEBUG ((EFI_D_VERBOSE, "BoardVariant = %x, DtVariant = %x\n", BoardPlatformType(), DtVariantId));
-		if (DtVariantId == BoardPlatformType()) {
-			*MatchVal |= VARIANT_MATCH;
-		} else if (DtVariantId) {
-			DEBUG ((EFI_D_VERBOSE, "qcom,board-id doesnot match\n"));
-			return;
+                CurDtbInfo->DtVariantId = fdt32_to_cpu (((struct board_id *)
+                                          BoardProp)->variant_id);
+                CurDtbInfo->DtPlatformSubtype = fdt32_to_cpu
+                             (((struct board_id *)BoardProp)->platform_subtype);
+                if (CurDtbInfo->DtPlatformSubtype == 0) {
+                        CurDtbInfo->DtPlatformSubtype = fdt32_to_cpu
+                             (((struct board_id *)BoardProp)-> variant_id) >>
+                             PLATFORM_SUBTYPE_SHIFT_ID;
 		}
 
-		DEBUG ((EFI_D_VERBOSE, "BoardSubtype = %x, DtSubType = %x\n",BoardPlatformSubType(), DtPlatformSubtype));
-		if (DtPlatformSubtype == BoardPlatformSubType()) {
-			*MatchVal |= SUBTYPE_MATCH;
-		} else if (DtPlatformSubtype) {
-			DEBUG ((EFI_D_VERBOSE, "subtype-id doesnot match\n"));
-			return;
-		}
-	} else {
-		DEBUG ((EFI_D_VERBOSE, "qcom,board-id does not exist (or)(%d) is not a multiple of (%d)\n", LenBoardId,BOARD_ID_SIZE));
-	}
+                DEBUG ((EFI_D_VERBOSE, "BoardVariant = %x, DtVariant = %x\n",
+                             BoardPlatformType (), CurDtbInfo->DtVariantId));
+                CurDtbInfo->DtVariantMajor = CurDtbInfo->DtVariantId &
+                                                             VARIANT_MAJOR_MASK;
+                CurDtbInfo->DtVariantMinor = CurDtbInfo->DtVariantId &
+                                                             VARIANT_MINOR_MASK;
+                CurDtbInfo->DtVariantId = CurDtbInfo->DtVariantId &
+                                                             VARIANT_MASK;
 
-	/*Get the pmic property from Dtb then compare the dtb vs Board*/
-        PmicProp = (const char *)fdt_getprop(Dtb, RootOffset, "qcom,pmic-id", &LenPmicId);
-	if (PmicProp && (LenPmicId > 0) && (!(LenPmicId % PMIC_ID_SIZE))) {
-		DtPmicTarget[PMIC_IDX0]= fdt32_to_cpu(((struct pmic_id *)PmicProp)->pmic_version[PMIC_IDX0]);
-		DtPmicTarget[PMIC_IDX1]= fdt32_to_cpu(((struct pmic_id *)PmicProp)->pmic_version[PMIC_IDX1]);
-		DtPmicTarget[PMIC_IDX2]= fdt32_to_cpu(((struct pmic_id *)PmicProp)->pmic_version[PMIC_IDX2]);
-		DtPmicTarget[PMIC_IDX3]= fdt32_to_cpu(((struct pmic_id *)PmicProp)->pmic_version[PMIC_IDX3]);
+                if (CurDtbInfo->DtVariantId == BoardPlatformType ()) {
+                        CurDtbInfo->DtMatchVal |= BIT (VARIANT_MATCH);
+                } else if (CurDtbInfo->DtVariantId) {
+                        DEBUG ((EFI_D_VERBOSE, "qcom,board-id does not"
+                                               " match\n"));
+                  /* If it's neither exact nor default match don't select dtb */
+                        CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
+                        goto cleanup;
+                }
 
-		DEBUG ((EFI_D_VERBOSE, "BoardPmicids = %x/%x/%x/%x DtPmicids = %x/%x/%x/%x\n", BoardPmicTarget(0), BoardPmicTarget(1),BoardPmicTarget(2),BoardPmicTarget(4), DtPmicTarget[0], DtPmicTarget[1], DtPmicTarget[2], DtPmicTarget[3]));
-		if ((DtPmicTarget[PMIC_IDX0] == BoardPmicTarget(PMIC_IDX0))
-				&& (DtPmicTarget[PMIC_IDX1] == BoardPmicTarget(PMIC_IDX1))
-				&& (DtPmicTarget[PMIC_IDX2] == BoardPmicTarget(PMIC_IDX2))
-				&& (DtPmicTarget[PMIC_IDX3] == BoardPmicTarget(PMIC_IDX3))) {
-			*MatchVal |= PMIC_MATCH;
-		} else if (DtPmicTarget[PMIC_IDX0] || DtPmicTarget[PMIC_IDX1] || DtPmicTarget[PMIC_IDX2] || DtPmicTarget[PMIC_IDX3]) {
-			DEBUG ((EFI_D_VERBOSE, "Pmic version doesnot match\n"));
-			return;
-		}
-	} else {
-		DEBUG ((EFI_D_VERBOSE, "qcom,pmic-id does not exit (or) is (%d) not a multiple of (%d)\n", LenPmicId, PMIC_ID_SIZE));
-	}
+                if (CurDtbInfo->DtVariantMajor == (BoardTargetId () &
+                                                 VARIANT_MAJOR_MASK)) {
+                        CurDtbInfo->DtMatchVal |=
+                                                BIT (VARIANT_MAJOR_EXACT_MATCH);
+                } else if (CurDtbInfo->DtVariantMajor < (BoardTargetId () &
+                                                VARIANT_MAJOR_MASK)) {
+                        CurDtbInfo->DtMatchVal |=
+                                                BIT (VARIANT_MAJOR_BEST_MATCH);
+                } else if (CurDtbInfo->DtVariantMajor) {
+                        DEBUG ((EFI_D_VERBOSE, "qcom,board-id major version "
+                                                 "does not match\n"));
+                }
+
+                if (CurDtbInfo->DtVariantMinor == (BoardTargetId () &
+                                                 VARIANT_MINOR_MASK)) {
+                        CurDtbInfo->DtMatchVal |=
+                                                BIT (VARIANT_MINOR_EXACT_MATCH);
+                } else if (CurDtbInfo->DtVariantMinor < (BoardTargetId () &
+                                                VARIANT_MINOR_MASK)) {
+                        CurDtbInfo->DtMatchVal |=
+                                                BIT (VARIANT_MINOR_BEST_MATCH);
+                } else if (CurDtbInfo->DtVariantMinor) {
+                        DEBUG ((EFI_D_VERBOSE, "qcom,board-id minor version "
+                                                  "does not match\n"));
+                }
+
+                DEBUG ((EFI_D_VERBOSE, "BoardSubtype = %x, DtSubType = %x\n",
+                       BoardPlatformSubType (), CurDtbInfo->DtPlatformSubtype));
+                if (CurDtbInfo->DtPlatformSubtype == BoardPlatformSubType ()) {
+                        CurDtbInfo->DtMatchVal |= BIT (SUBTYPE_EXACT_MATCH);
+                } else if (CurDtbInfo->DtPlatformSubtype == 0) {
+                        CurDtbInfo->DtMatchVal |= BIT (SUBTYPE_DEFAULT_MATCH);
+                } else if (CurDtbInfo->DtPlatformSubtype) {
+                        DEBUG ((EFI_D_VERBOSE, "subtype-id doesnot match\n"));
+                  /* If it's neither exact nor default match don't select dtb */
+                        CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
+                        goto cleanup;
+               }
+        } else {
+               DEBUG ((EFI_D_VERBOSE, "qcom,board-id does not exist (or) (%d) "
+                     "is not a multiple of (%d)\n", LenBoardId, BOARD_ID_SIZE));
+        }
+
+        /*Get the pmic property from Dtb then compare the dtb vs Board*/
+        PmicProp = (CONST CHAR8 *)fdt_getprop (Dtb, RootOffset, "qcom,pmic-id",
+                                           &LenPmicId);
+        if ((PmicProp) &&
+                         (LenPmicId > 0) &&
+                                          (!(LenPmicId % PMIC_ID_SIZE))) {
+                for (Idx = 0; Idx < MAX_PMIC_IDX; Idx++) {
+                        CurDtbInfo->DtPmicModel[Idx]= fdt32_to_cpu
+                                       (((struct pmic_id *)PmicProp)->
+                                       pmic_version[Idx]);
+                        DEBUG ((EFI_D_VERBOSE, "BoardPmicid = %x DtPmicid = %x"
+                                       "\n", BoardPmicTarget (Idx),
+                                        CurDtbInfo->DtPmicModel[Idx]));
+                        CurDtbInfo->DtPmicRev[Idx] =
+                                        CurDtbInfo->DtPmicModel[Idx] &
+                                        PMIC_REV_MASK;
+                        CurDtbInfo->DtPmicModel[Idx] =
+                                        CurDtbInfo->DtPmicModel[Idx] &
+                                        PMIC_MODEL_MASK;
+
+                        if (CurDtbInfo->DtPmicModel[Idx] ==
+                                                   BoardPmicModel (Idx)) {
+                                CurDtbInfo->DtMatchVal |=
+                                        BIT ((PMIC_MATCH_EXACT_MODEL_IDX0 +
+                                        Idx * PMIC_SHIFT_IDX));
+                        } else if (CurDtbInfo->DtPmicModel[Idx] == 0) {
+                                CurDtbInfo->DtMatchVal |=
+                                        BIT ((PMIC_MATCH_DEFAULT_MODEL_IDX0 +
+                                        Idx * PMIC_SHIFT_IDX));
+                        } else {
+                                DEBUG ((EFI_D_VERBOSE, "Pmic model does not "
+                                        "match\n"));
+                                /* If it's neither exact nor default match don't
+                                *  select dtb */
+                                CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
+                                goto cleanup;
+                        }
+
+                        if (CurDtbInfo->DtPmicRev[Idx] == (BoardPmicTarget (Idx)
+                                        & PMIC_REV_MASK))
+                                CurDtbInfo->DtMatchVal |=
+                                        BIT ((PMIC_MATCH_EXACT_REV_IDX0 +
+                                        Idx * PMIC_SHIFT_IDX));
+                        else if (CurDtbInfo->DtPmicRev[Idx] <
+                                        (BoardPmicTarget (Idx) & PMIC_REV_MASK))
+                                CurDtbInfo->DtMatchVal |=
+                                        BIT ((PMIC_MATCH_BEST_REV_IDX0 + Idx *
+                                        PMIC_SHIFT_IDX));
+                        else {
+                                DEBUG ((EFI_D_VERBOSE, "Pmic version does not "
+                                        "match\n"));
+                        }
+                }
+        } else {
+                DEBUG ((EFI_D_VERBOSE, "qcom,pmic-id does not exit (or) is (%d)"
+                       " not a multiple of (%d)\n", LenPmicId, PMIC_ID_SIZE));
+        }
+
+cleanup:
+        if (CurDtbInfo->DtMatchVal & BIT (ExactMatch)) {
+                if (BestDtbInfo->DtMatchVal < CurDtbInfo->DtMatchVal) {
+                        gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                    sizeof (struct DtInfo));
+                } else if (BestDtbInfo->DtMatchVal == CurDtbInfo->DtMatchVal) {
+                        if (BestDtbInfo->DtSocRev < CurDtbInfo->DtSocRev) {
+                                gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                    sizeof (struct DtInfo));
+                        } else if (BestDtbInfo->DtVariantMajor <
+                                                   CurDtbInfo->DtVariantMajor) {
+                                gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                   sizeof (struct DtInfo));
+                        } else if (BestDtbInfo->DtVariantMinor <
+                                                   CurDtbInfo->DtVariantMinor) {
+                                gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                   sizeof (struct DtInfo));
+                        } else if (BestDtbInfo->DtPmicRev[0] <
+                                                   CurDtbInfo->DtPmicRev[0]) {
+                                gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                   sizeof (struct DtInfo));
+                        } else if (BestDtbInfo->DtPmicRev[1] <
+                                                   CurDtbInfo->DtPmicRev[1]) {
+                                gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                   sizeof (struct DtInfo));
+                        } else if (BestDtbInfo->DtPmicRev[2] <
+                                                   CurDtbInfo->DtPmicRev[2]) {
+                                gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                   sizeof (struct DtInfo));
+                        } else if (BestDtbInfo->DtPmicRev[3] <
+                                                   CurDtbInfo->DtPmicRev[3]) {
+                                gBS->CopyMem (BestDtbInfo, CurDtbInfo,
+                                                   sizeof (struct DtInfo));
+                        }
+                }
+        }
 }
 
 VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)
@@ -584,10 +738,9 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 	uintptr_t KernelEnd = (uintptr_t)Kernel + KernelSize;
 	VOID *Dtb = NULL;
 	struct fdt_header DtbHdr;
-	UINT32 LocalSocDtMatch = 0;
-	VOID* BestMatchDt = NULL;
 	UINT32 DtbSize = 0;
-
+        DtInfo CurDtbInfo = {0};
+        DtInfo BestDtbInfo = {0};
 	if (!DtbOffset){
 		DEBUG((EFI_D_ERROR, "DTB offset is NULL\n"));
 		return NULL;
@@ -608,33 +761,35 @@ VOID* GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoa
 				((uintptr_t)Dtb + DtbSize > (uintptr_t)KernelEnd))
 			break;
 
-		ReadDtbFindMatch(Dtb, &LocalSocDtMatch);
-		if (LocalSocDtMatch & SOC_MATCH) {
-			if (CheckAllBitsSet(LocalSocDtMatch)) {
-				DEBUG ((EFI_D_VERBOSE, "Exact DTB match found. DTBO search is not required\n"));
-				DtboNeed = FALSE;
-			}
+                CurDtbInfo.Dtb = Dtb;
+                ReadDtbFindMatch (&CurDtbInfo, &BestDtbInfo, SOC_MATCH);
+                if (CurDtbInfo.DtMatchVal) {
+                        if (CurDtbInfo.DtMatchVal & BIT (SOC_MATCH)) {
+                                if (CheckAllBitsSet (CurDtbInfo.DtMatchVal)) {
+                                        DEBUG ((EFI_D_VERBOSE, "Exact DTB match"
+                                        " found. DTBO search is not "
+                                        "required\n"));
+                                        DtboNeed = FALSE;
+                                }
+                        }
+                } else {
+                        if (!GetRticDtb (Dtb)) {
+                               DEBUG ((EFI_D_VERBOSE, "Error while DTB parsing"
+                                       " RTIC prop continue with next DTB\n"));
+                        }
+               }
 
-			if (BestSocDtMatch < LocalSocDtMatch) {
-				BestSocDtMatch = LocalSocDtMatch;
-				BestMatchDt = Dtb;
-			}
-		} else {
-			if (!GetRticDtb(Dtb))
-				DEBUG((EFI_D_VERBOSE, "Error while DTB parsing RTIC prop continue with next DTB\n"));
-
-		}
-
-		DEBUG ((EFI_D_VERBOSE, "Bestmatch = %x\n", BestSocDtMatch));
+                DEBUG ((EFI_D_VERBOSE, "Bestmatch = %x\n",
+                                        BestDtbInfo.DtMatchVal));
 		Dtb += DtbSize;
 	}
 
-	if (!BestMatchDt) {
+        if (!BestDtbInfo.Dtb) {
 		DEBUG ((EFI_D_ERROR, "No match found for Soc Dtb type\n"));
 		return NULL;
 	}
 
-	return BestMatchDt;
+        return BestDtbInfo.Dtb;
 }
 
 VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer)
@@ -642,11 +797,11 @@ VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer)
 	struct DtboTableHdr* DtboTableHdr = DtboImgBuffer;
 	struct DtboTableEntry *DtboTableEntry = NULL;
 	UINT32 DtboCount = 0;
-	UINT32 LocalBoardDtMatch = 0;
-	VOID* BestMatchDt = NULL;
 	VOID *BoardDtb = NULL;
 	UINT32 DtboTableEntriesCount = 0;
 	UINT32 FirstDtboTableEntryOffset = 0;
+        DtInfo CurDtbInfo = {0};
+        DtInfo BestDtbInfo = {0};
 
 	if (!DtboImgBuffer) {
 		DEBUG((EFI_D_ERROR, "Dtbo Img buffer is NULL\n"));
@@ -676,22 +831,20 @@ VOID* GetBoardDtb (BootInfo *Info, VOID* DtboImgBuffer)
 			DEBUG ((EFI_D_ERROR, "No Valid Dtb\n"));
 			break;
 		}
-		ReadDtbFindMatch(BoardDtb, &LocalBoardDtMatch);
-		if (LocalBoardDtMatch & VARIANT_MATCH) {
-			if (BestBoardDtMatch < LocalBoardDtMatch) {
-				BestBoardDtMatch = LocalBoardDtMatch;
-				BestMatchDt = BoardDtb;
-			}
-		}
-		DEBUG ((EFI_D_VERBOSE, "Dtbo count = %u LocalBoardDtMatch =%x\n",DtboCount, LocalBoardDtMatch));
+
+                CurDtbInfo.Dtb = BoardDtb;
+                ReadDtbFindMatch (&CurDtbInfo, &BestDtbInfo, VARIANT_MATCH);
+                DEBUG ((EFI_D_VERBOSE, "Dtbo count = %u LocalBoardDtMatch = %x"
+                        "\n", DtboCount, CurDtbInfo.DtMatchVal));
 		DtboTableEntry++;
 	}
 
-	if (!BestMatchDt) {
+        if (!BestDtbInfo.Dtb) {
 		DEBUG ((EFI_D_ERROR, "Unable to find the Board Dtb\n"));
                 return NULL;
 	}
-	return BestMatchDt;
+
+        return BestDtbInfo.Dtb;
 }
 
 /* Returns 0 if the device tree is valid. */
