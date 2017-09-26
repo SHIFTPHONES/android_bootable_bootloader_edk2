@@ -253,14 +253,24 @@ STATIC UINT32 GetMaxFontCount(VOID)
  **/
 STATIC UINT32 GetFontScaleFactor(UINT32 ScaleFactorType)
 {
-	UINT32 scalefactor = GetMaxFontCount()/CHAR_NUM_PERROW;
+    UINT32 NumPerRow = 0;
+    UINT32 ScaleFactor = 0;
 
-	if (scalefactor < 2)
-		scalefactor = 2;
-	else if (scalefactor > ((ARRAY_SIZE(mFactorName) - 1)/MAX_FACTORTYPE))
-		scalefactor = (ARRAY_SIZE(mFactorName) - 1)/MAX_FACTORTYPE;
+    if (GetResolutionWidth () < GetResolutionHeight ()) {
+        NumPerRow = CHAR_NUM_PERROW_POR;
+    } else {
+        NumPerRow = CHAR_NUM_PERROW_HOR;
+    }
+    ScaleFactor = GetMaxFontCount () / NumPerRow;
 
-	return scalefactor*ScaleFactorType;
+    if (ScaleFactor < 2) {
+        ScaleFactor = 2;
+    } else if (ScaleFactor >
+                ((ARRAY_SIZE (mFactorName) - 1) / MAX_FACTORTYPE)) {
+        ScaleFactor = (ARRAY_SIZE (mFactorName) - 1) / MAX_FACTORTYPE;
+    }
+
+    return ScaleFactor * ScaleFactorType;
 }
 
 /* Get factor name base on the scale factor type */
@@ -381,7 +391,8 @@ EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 	}
 
 	if (TargetMenu->Location >= Height) {
-		DEBUG((EFI_D_ERROR, "The Y-axis of the message is larger than the Y-max of the screen\n"));
+        DEBUG ((EFI_D_ERROR, "Error: Check the CHAR_NUM_PERROW: Y-axis(%d)" \
+            " is larger than Y-max(%d)\n", TargetMenu->Location, Height));
 		Status = EFI_ABORTED;
 		goto Exit;
 	}

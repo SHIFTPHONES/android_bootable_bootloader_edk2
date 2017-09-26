@@ -32,10 +32,22 @@
 
 #include <Uefi.h>
 
-/* The defined number of characters in a row for the
- * smallest ScaleFactorType, by default value is 40
+/* 45 characters per line for portrait orientation
+ * "720 (W) 1280(H)" : "sysfont2x" -- 720 /(8*2) = 45
+ * "1080(W) 1920(H)" : "sysfont3x" -- 1080/(8*3) = 45
+ * "1440(W) 2560(H)" : "sysfont4x" -- 1440/(8*4) = 45
+ * "2160(W) 3840(H)" : "sysfont6x" -- 2160/(8*6) = 45
  */
-#define CHAR_NUM_PERROW     40
+#define CHAR_NUM_PERROW_POR  45
+
+/* 80 characters per line for horizontal orientation
+ * "720 (H) 1280(W)" : "sysfont2x" -- 1280/(8*2) = 80
+ * "1080(H) 1920(W)" : "sysfont3x" -- 1920/(8*3) = 80
+ * "1440(H) 2560(W)" : "sysfont4x" -- 2560/(8*4) = 80
+ * "2160(H) 3840(W)" : "sysfont6x" -- 3840/(8*6) = 80
+ */
+#define CHAR_NUM_PERROW_HOR  80
+
 #define MAX_MSG_SIZE        256
 #define MAX_RSP_SIZE        64
 
