@@ -73,7 +73,12 @@ INT32 dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
 
 INT32 dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
 
-EFI_STATUS UpdateDeviceTree(VOID* fdt, CONST CHAR8* cmdline, VOID* ramdisk,	UINT32 ramdisk_size);
+EFI_STATUS UpdateDeviceTree (VOID* DeviceTreeLoadAddr,
+    CONST CHAR8* CmdLine,
+    VOID* RamDiskLoadAddr,
+    UINT32 RamDiskSize,
+    BOOLEAN BootingWith32BitKernel);
+
 EFI_STATUS UpdateFstabNode(VOID *fdt);
 
 UINT32 fdt_check_header_ext(VOID *fdt);

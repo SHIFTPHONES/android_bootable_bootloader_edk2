@@ -364,7 +364,11 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		post_overlay_free();
 	}
 
-	Status = UpdateDeviceTree((VOID*)DeviceTreeLoadAddr , FinalCmdLine, (VOID *)RamdiskLoadAddr, RamdiskSize);
+    Status = UpdateDeviceTree ((VOID*)DeviceTreeLoadAddr,
+                               FinalCmdLine,
+                               (VOID *)RamdiskLoadAddr,
+                               RamdiskSize,
+                               BootingWith32BitKernel);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Device Tree update failed Status:%r\n", Status));
