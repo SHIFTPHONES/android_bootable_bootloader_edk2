@@ -67,6 +67,8 @@ EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartit
 		if (EFI_ERROR (Status) || (*NumPartitions < 1) )
 		{
 			DEBUG((EFI_D_ERROR, "Failed to get RAM partitions"));
+            FreePool (*RamPartitions);
+            *RamPartitions = NULL;
 			return EFI_NOT_FOUND;
 		}
 	} else {

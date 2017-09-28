@@ -305,6 +305,8 @@ BuildDefaultDescriptors(
   if (*SSDescriptors == NULL)
   {
     DEBUG ((EFI_D_ERROR, "Error Allocating memory for SS config descriptors\n"));
+    FreePool (*Descriptors);
+    *Descriptors = NULL;
     return;
   }
   for (Index = 0; Index < NumCfg; Index++)

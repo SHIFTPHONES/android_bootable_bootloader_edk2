@@ -196,13 +196,16 @@ FastbootUnInit(VOID)
 
 	for (Var = Varlist; Var && Var->next; Var = Var->next)
 	{
-		if(VarPrev)
-			FreePool(VarPrev);
+        if (VarPrev) {
+            FreePool (VarPrev);
+            VarPrev = NULL;
+        }
 		VarPrev = Var;
 	}
 	if(Var)
 	{
-		FreePool(Var);
+        FreePool (Var);
+        Var = NULL;
 	}
 
 	return EFI_SUCCESS;
@@ -693,7 +696,8 @@ HandleSparseImgFlash(
 			{
                 DEBUG ((EFI_D_ERROR,
                    "Buffer overread occured due to invalid sparse header\n"));
-				FreePool(fill_buf);
+                FreePool (fill_buf);
+                fill_buf = NULL;
 				return EFI_INVALID_PARAMETER;
 			}
 
@@ -710,7 +714,8 @@ HandleSparseImgFlash(
                     DEBUG ((EFI_D_ERROR,
                         "Chunk data size for fill type " \
                         "exceeds partition size\n"));
-					FreePool(fill_buf);
+                    FreePool (fill_buf);
+                    fill_buf = NULL;
 					return EFI_VOLUME_FULL;
 				}
 
@@ -727,7 +732,8 @@ HandleSparseImgFlash(
 				total_blocks++;
 			}
 
-			FreePool(fill_buf);
+            FreePool (fill_buf);
+            fill_buf = NULL;
 			break;
 
 		case CHUNK_TYPE_DONT_CARE:
@@ -1131,7 +1137,8 @@ STATIC VOID ClearFastbootVarsofAB(VOID) {
 		else
 			PrevList->next = CurrentList->next;
 
-		FreePool(CurrentList);
+        FreePool (CurrentList);
+        CurrentList = NULL;
 	}
 }
 
@@ -2239,8 +2246,10 @@ AcceptCmdTimerInit(
 			100000);
 	}
 
-	if (EFI_ERROR (Status))
-		FreePool(AcceptCmdInfo);
+    if (EFI_ERROR (Status)) {
+        FreePool (AcceptCmdInfo);
+        AcceptCmdInfo = NULL;
+    }
 
 	return Status;
 }
@@ -2255,7 +2264,8 @@ STATIC VOID AcceptCmdHandler(IN EFI_EVENT Event, IN VOID *Context)
 	}
 
 	AcceptCmd(AcceptCmdInfo->Size, AcceptCmdInfo->Data);
-	FreePool(AcceptCmdInfo);
+    FreePool (AcceptCmdInfo);
+    AcceptCmdInfo = NULL;
 }
 
 STATIC VOID AcceptCmd(

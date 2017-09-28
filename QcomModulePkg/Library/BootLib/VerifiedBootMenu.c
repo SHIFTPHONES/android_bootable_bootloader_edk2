@@ -308,8 +308,10 @@ EFI_STATUS VerifiedBootMenuUpdateShowScreen(OPTION_MENU_INFO *OptionMenuInfo)
 	OptionMenuInfo->Info.MsgInfo->Action = POWEROFF;
 
 Exit:
-	if (MsgStrInfo)
-		FreePool(MsgStrInfo);
+    if (MsgStrInfo) {
+        FreePool (MsgStrInfo);
+        MsgStrInfo = NULL;
+    }
 
 	return Status;
 
@@ -379,7 +381,8 @@ EFI_STATUS VerifiedBootMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, DISPLAY_
 			GetDisplayOutPut(mMenuMsgInfo[Type].Fingerprint.Msg,
 					 MAX_MSG_SIZE, DisplayStr,
 					 DisplayStrLen);
-      FreePool (DisplayStr);
+            FreePool (DisplayStr);
+            DisplayStr = NULL;
 		}else {
 			AsciiSPrint(mMenuMsgInfo[Type].Fingerprint.Msg,
 				MAX_MSG_SIZE, "ID: %a\n", "unsupported");
