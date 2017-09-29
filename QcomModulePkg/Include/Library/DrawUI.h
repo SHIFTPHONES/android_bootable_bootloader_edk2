@@ -120,7 +120,7 @@ VOID SetMenuMsgInfo(MENU_MSG_INFO *MenuMsgInfo, CHAR8* Msg, UINT32 ScaleFactorTy
 EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *Height);
 EFI_STATUS UpdateMsgBackground(MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor);
 EFI_STATUS BackUpBootLogoBltBuffer(VOID);
-EFI_STATUS RestoreBootLogoBitBuffer(VOID);
+VOID RestoreBootLogoBitBuffer (VOID);
 VOID FreeBootLogoBltBuffer(VOID);
 VOID DrawMenuInit(VOID);
 #endif

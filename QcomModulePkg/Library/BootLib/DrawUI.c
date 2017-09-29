@@ -182,27 +182,28 @@ EFI_STATUS BackUpBootLogoBltBuffer(VOID)
 }
 
 // This function would restore the boot logo if the display on the screen is changed.
-EFI_STATUS RestoreBootLogoBitBuffer(VOID)
+VOID RestoreBootLogoBitBuffer (VOID)
 {
 	EFI_STATUS Status;
 	UINT32     Width;
 	UINT32     Height;
 
 	/* Return directly if the boot logo bit buffer is null */
-	if (!LogoBlt)
-		return EFI_UNSUPPORTED;
+    if (!LogoBlt) {
+        return;
+    }
 
 	Width = GetResolutionWidth();
 	Height = GetResolutionHeight();
 	if (!Width || !Height) {
 		DEBUG((EFI_D_ERROR, "Failed to get width or height\n"));
-		return EFI_UNSUPPORTED;
+        return;
 	}
 
 	/* Ensure the Height * Width doesn't overflow */
 	if (Height > DivU64x64Remainder ((UINTN) ~0, Width, NULL)) {
 		DEBUG((EFI_D_ERROR, "Height * Width overflow\n"));
-		return EFI_UNSUPPORTED;
+        return;
 	}
 
 	Status = GraphicsOutputProtocol->Blt (
@@ -218,7 +219,10 @@ EFI_STATUS RestoreBootLogoBitBuffer(VOID)
 		Width * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL)
 		);
 
-	return Status;
+    if (Status != EFI_SUCCESS) {
+        FreePool (LogoBlt);
+        LogoBlt = NULL;
+    }
 }
 
 VOID FreeBootLogoBltBuffer(VOID)
@@ -237,7 +241,7 @@ STATIC UINT32 GetMaxFontCount(VOID)
 	EFI_IMAGE_OUTPUT *Blt = NULL;
 
 	Status = gHiiFont->GetGlyph(gHiiFont, 'a', NULL, &Blt, NULL);
-	if (!EFI_ERROR (Status) && (Status != EFI_WARN_UNKNOWN_GLYPH)) {
+    if (!EFI_ERROR (Status)) {
 		if (Blt)
 			FontBaseWidth = Blt->Width;
 	}
@@ -311,7 +315,7 @@ STATIC VOID StrAlignRight(CHAR8* Msg, CHAR8* FilledChar, UINT32 ScaleFactorType)
 	if (Max_x/factor > AsciiStrLen(Msg)) {
 		diff = Max_x/factor - AsciiStrLen(Msg);
 		for (i = 0; i < diff; i++) {
-			AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, FilledChar, Max_x/factor);
+            AsciiStrnCatS (StrSourceTemp, MAX_MSG_SIZE, FilledChar, 1);
 		}
 		AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, Msg, Max_x/factor);
 		gBS->CopyMem(Msg, StrSourceTemp, AsciiStrSize(StrSourceTemp));
@@ -329,7 +333,7 @@ STATIC VOID StrAlignLeft(CHAR8* Msg, UINT32 MaxMsgSize, CHAR8* FilledChar, UINT3
 	if (Max_x/factor > AsciiStrLen(Msg)) {
 		diff = Max_x/factor - AsciiStrLen(Msg);
 		for (i = 0; i < diff; i++) {
-			AsciiStrnCatS(StrSourceTemp, MAX_MSG_SIZE, FilledChar, Max_x/factor);
+            AsciiStrnCatS (StrSourceTemp, MAX_MSG_SIZE, FilledChar, 1);
 		}
 		AsciiStrnCatS(Msg, MaxMsgSize, StrSourceTemp, Max_x/factor);
 	}
