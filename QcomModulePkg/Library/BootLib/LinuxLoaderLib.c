@@ -95,18 +95,27 @@ GetBlkIOHandles (
 		SelectionAttrib |= (BLK_IO_SEL_PARTITIONED_GPT | BLK_IO_SEL_PARTITIONED_MBR);
 
 	/* If we need Filesystem handle then search based on that its narrower search than BlkIo */
-	if (SelectionAttrib & (BLK_IO_SEL_SELECT_MOUNTED_FILESYSTEM | BLK_IO_SEL_SELECT_BY_VOLUME_NAME))
-		gBS->LocateHandleBuffer (ByProtocol,
-				&gEfiSimpleFileSystemProtocolGuid,
-				NULL,
-				&BlkIoHandleCount,
-				&BlkIoHandles);
-	else
-		gBS->LocateHandleBuffer (ByProtocol,
-				&gEfiBlockIoProtocolGuid,
-				NULL,
-				&BlkIoHandleCount,
-				&BlkIoHandles);
+    if (SelectionAttrib &
+            (BLK_IO_SEL_SELECT_MOUNTED_FILESYSTEM |
+            BLK_IO_SEL_SELECT_BY_VOLUME_NAME)) {
+        Status = gBS->LocateHandleBuffer (ByProtocol,
+                    &gEfiSimpleFileSystemProtocolGuid,
+                    NULL,
+                    &BlkIoHandleCount,
+                    &BlkIoHandles);
+    } else {
+        Status = gBS->LocateHandleBuffer (ByProtocol,
+                    &gEfiBlockIoProtocolGuid,
+                    NULL,
+                    &BlkIoHandleCount,
+                    &BlkIoHandles);
+    }
+
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+            "Unable to get Filesystem Handle buffer %r\n", Status));
+        return Status;
+    }
 
 	/* Loop through to search for the ones we are interested in. */
 	for (i = 0; i < BlkIoHandleCount; i++){
