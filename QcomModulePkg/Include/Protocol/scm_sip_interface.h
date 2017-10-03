@@ -3264,6 +3264,64 @@
 @{ */
 
 /**
+    List of software fuses supported by the QSEE.
+ */
+typedef enum
+{
+  TZ_HLOS_IMG_TAMPER_FUSE       = 0, /**< Used during boot to determine
+                                        if the HLOS image has successfully
+                                        been authenticated. */
+  TZ_WINSECAPP_LOADED_FUSE      = 1, /**< Used by the WinSec application to
+                                        prevent reloading. */
+  TZ_UEFISECAPP_LOADED_FUSE     = 2, /**< Used by UefiSecApp to prevent
+                                        reloading. */
+  TZ_OEM_FUSE_1                 = 3, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_2                 = 4, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_3                 = 5, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_4                 = 6, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_5                 = 7, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_6                 = 8, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_7                 = 9, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_8                 = 10, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_9                 = 11, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_10                = 12, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_11                = 13, /**< Reserved fuse bit for OEMs. */
+
+  TZ_OEM_FUSE_12                = 14, /**< Reserved fuse bit for OEMs. */
+
+  TZ_MDTP_RECOVERY_MS_FUSE      = 15, /**< Used by MDTP to prevent
+                                         access to Bootloader APIs. */
+  TZ_MDTP_HLOS_MS_FUSE          = 16, /**< Used by MDTP to prevent access
+                                         to Bootloader & Recovery APIs. */
+  TZ_QCOM_RESERVED_FUSE_1       = 17, /**< Reserved fuse bit for QCOM. */
+
+  TZ_QCOM_RESERVED_FUSE_2       = 18, /**< Reserved fuse bit for QCOM. */
+
+  TZ_QCOM_RESERVED_FUSE_3       = 19, /**< Reserved fuse bit for QCOM. */
+
+  TZ_QCOM_RESERVED_FUSE_4       = 20, /**< Reserved fuse bit for QCOM. */
+
+  TZ_QCOM_RESERVED_FUSE_5       = 21, /**< Reserved fuse bit for QCOM. */
+
+  TZ_HLOS_BL_MILESTONE_FUSE     = 22, /**< Used to notify the bootloader
+                                         milestone call.*/
+  TZ_HLOS_TAMPER_NOTIFY_FUSE    = 23, /**< Used to notify TZ that HLOS
+                                         has been tampered.*/
+  TZ_NUM_SW_FUSES               = 24  /**< Number of supported software fuses.
+                                         @newpage */
+} tz_sw_fuse_t;
+
+/**
    Common system call response header used in all system calls that
    have responses.
  */
