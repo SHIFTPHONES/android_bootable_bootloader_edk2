@@ -58,7 +58,9 @@ static struct PartialGoods PartialGoodsCpuType1[] = {
 	{0x80, "/cpus", {"cpu@108", "device_type", "cpu", "nak"}},
 };
 
-static struct PartialGoods *PartialGoodsCpuType[] = {PartialGoodsCpuType0, PartialGoodsCpuType1};
+STATIC struct PartialGoods *PartialGoodsCpuType[MAX_CPU_CLUSTER] = {
+    PartialGoodsCpuType0, PartialGoodsCpuType1
+};
 
 /* Look up table for multimedia partial goods */
 static struct PartialGoods PartialGoodsMmType[] = {
@@ -139,8 +141,8 @@ STATIC VOID FindNodeAndUpdateProperty(VOID *fdt, UINT32 TableSz, struct PartialG
 
 		}
 
-		/* Replace the property value based on the property */
-		if (AsciiStrnCmp(SNode->PropertyStr, Prop->data, AsciiStrLen(SNode->PropertyStr))) {
+        /* Replace the property value based on the property */
+        if (AsciiStrnCmp (SNode->PropertyStr, Prop->data, Prop->len)) {
 			DEBUG((EFI_D_VERBOSE, "Property string mismatch (%a) with (%a)\n", SNode->PropertyStr, Prop->data));
 			continue;
 
@@ -189,6 +191,7 @@ STATIC EFI_STATUS ReadMMPartialGoods(EFI_CHIPINFO_PROTOCOL *pChipInfoProtocol, U
 	EFI_STATUS Status = EFI_SUCCESS;
 	UINT32 DefectVal;
 
+    *Value = 0;
 	for(i = 1; i < EFICHIPINFO_NUM_PARTS; i++){
 		/* Ensure to reset the Value before checking for defect Part*/
 		DefectVal = 0;
