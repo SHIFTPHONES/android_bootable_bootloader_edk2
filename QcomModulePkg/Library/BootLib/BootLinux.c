@@ -205,7 +205,7 @@ EFI_STATUS BootLinux (BootInfo *Info)
 			return EFI_BAD_BUFFER_SIZE;
 		}
 
-  DEBUG ((EFI_D_INFO, "Decompressing kernel image start: %u ms\n",
+  DEBUG ((EFI_D_INFO, "Decompressing kernel image start: %lu ms\n",
           GetTimerCountms ()));
   if (decompress (
             (UINT8 *)(ImageBuffer + PageSize), // Read blob using BlockIo
@@ -219,7 +219,8 @@ EFI_STATUS BootLinux (BootInfo *Info)
     return RETURN_OUT_OF_RESOURCES;
   }
 
-		DEBUG((EFI_D_INFO, "Decompressing kernel image done: %u ms\n", GetTimerCountms()));
+        DEBUG ((EFI_D_INFO, "Decompressing kernel image done: %lu ms\n",
+            GetTimerCountms ()));
 		Kptr = (struct kernel64_hdr*)KernelLoadAddr;
 	} else {
 		if (CHECK_ADD64((UINT64)ImageBuffer, PageSize)) {
@@ -453,7 +454,8 @@ EFI_STATUS BootLinux (BootInfo *Info)
 			IsModeSwitch = TRUE;
 	}
 
-	DEBUG((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %u ms\n", GetTimerCountms()));
+    DEBUG ((EFI_D_INFO, "\nShutting Down UEFI Boot Services: %lu ms\n",
+        GetTimerCountms ()));
 	/*Shut down UEFI boot services*/
 	Status = ShutdownUefiBootServices ();
 	if(EFI_ERROR(Status)) {
