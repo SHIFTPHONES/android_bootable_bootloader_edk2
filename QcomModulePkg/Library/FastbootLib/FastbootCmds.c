@@ -1674,7 +1674,7 @@ STATIC VOID AcceptData (IN UINT64 Size, IN  VOID  *Data)
 	else
 	{
 		GetFastbootDeviceData().UsbDeviceProtocol->Send(ENDPOINT_IN, GetXfrSize(), (Data + mBytesReceivedSoFar));
-		DEBUG((EFI_D_VERBOSE, "AcceptData: Send %d: %a\n", GetXfrSize(), (Data + mBytesReceivedSoFar)));
+                DEBUG ((EFI_D_VERBOSE, "AcceptData: Send %d\n", GetXfrSize ()));
 	}
 }
 
