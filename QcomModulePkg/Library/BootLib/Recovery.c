@@ -30,7 +30,8 @@
 #include "Recovery.h"
 #include "AutoGen.h"
 
-STATIC EFI_STATUS ReadFromPartition(EFI_GUID *Ptype, VOID **Msg)
+STATIC EFI_STATUS ReadFromPartition (EFI_GUID *Ptype,
+                                    VOID **Msg, UINT32 Size)
 {
 	EFI_STATUS Status;
 	EFI_BLOCK_IO_PROTOCOL *BlkIo = NULL;
@@ -66,6 +67,10 @@ STATIC EFI_STATUS ReadFromPartition(EFI_GUID *Ptype, VOID **Msg)
 
 	BlkIo = HandleInfoList[0].BlkIo;
 
+    if (Size >= BlkIo->Media->BlockSize) {
+        return EFI_OUT_OF_RESOURCES;
+    }
+
 	*Msg = AllocatePool(BlkIo->Media->BlockSize);
 	if (!(*Msg))
 	{
@@ -90,7 +95,8 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 	EFI_STATUS Status;
 	struct RecoveryMessage *Msg = NULL;
 
-	Status = ReadFromPartition(&gEfiMiscPartitionGuid, (VOID**)&Msg);
+    Status = ReadFromPartition (&gEfiMiscPartitionGuid,
+                            (VOID**)&Msg, sizeof (struct RecoveryMessage));
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error Reading from misc partition: %r\n", Status));
@@ -119,7 +125,8 @@ EFI_STATUS GetFfbmCommand(CHAR8 *FfbmString, UINT32 Sz)
 	CHAR8 *FfbmData = NULL;
 	EFI_STATUS Status;
 
-	Status = ReadFromPartition(&gEfiMiscPartitionGuid, (VOID**)&FfbmData);
+    Status = ReadFromPartition (&gEfiMiscPartitionGuid,
+                            (VOID**)&FfbmData, Sz);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Error Reading FFBM info from misc: %r\n", Status));
