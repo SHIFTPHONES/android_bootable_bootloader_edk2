@@ -84,17 +84,6 @@ BOOLEAN VerifiedBootEnbled()
 	return (GetAVBVersion() > NO_AVB);
 }
 
-STATIC CHAR8 DtboImageName[] = "dtbo";
-STATIC EFI_STATUS TempLoadDtboImage(AvbOps *Ops, VOID **DtboImage, UINTN *DtboSize)
-{
-	/* Hardcoded reading from dtbo_a partition
-	   And reading 8192KB size as mentioned in partition.xml */
-	*DtboSize = 8192 * 1024;
-	*DtboImage = AllocatePool(*DtboSize);
-	Ops->read_from_partition(Ops, "dtbo_a", 0, *DtboSize, *DtboImage, DtboSize);
-	return EFI_SUCCESS;
-}
-
 STATIC EFI_STATUS AppendVBCmdLine(BootInfo *Info, CONST CHAR8 *Src)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
@@ -380,28 +369,14 @@ STATIC EFI_STATUS LoadImageAndAuthVB2(BootInfo *Info)
 		}
 	}
 
-	if (Info->NumLoadedImages < (ARRAY_SIZE(RequestedPartitionAll) - 1)) {
-		VOID *DtboImage = NULL;
-		UINTN DtboSize = 0;
-
-		DEBUG((EFI_D_ERROR,
-		       "ERROR: AvbSlotVerify slot data error: num of "
-		       "loaded partitions %d, requested %d\n",
-		       Info->NumLoadedImages, ARRAY_SIZE(RequestedPartitionAll) - 1));
-		/* Temporary workaround load dtbo image here, probably dtbo is not
-		   included in vbmeta */
-		Status = TempLoadDtboImage(Ops, &DtboImage, &DtboSize);
-		if (Status == EFI_SUCCESS) {
-			Info->Images[Info->NumLoadedImages].Name = DtboImageName;
-			Info->Images[Info->NumLoadedImages].ImageBuffer = DtboImage;
-			Info->Images[Info->NumLoadedImages].ImageSize = DtboSize;
-			Info->NumLoadedImages++;
-		} else {
-			DEBUG((EFI_D_ERROR, "LoadDtboImage failed!"));
-			Status = EFI_LOAD_ERROR;
-			goto out;
-		}
-	}
+  if (Info->NumLoadedImages < (ARRAY_SIZE (RequestedPartitionAll) - 1)) {
+    DEBUG ((EFI_D_ERROR,
+          "ERROR: AvbSlotVerify slot data error: num of "
+          "loaded partitions %d, requested %d\n",
+          Info->NumLoadedImages, ARRAY_SIZE (RequestedPartitionAll) - 1));
+    Status = EFI_LOAD_ERROR;
+    goto out;
+  }
 
 	DEBUG((EFI_D_VERBOSE, "Total loaded partition %d\n", Info->NumLoadedImages));
 
