@@ -937,6 +937,8 @@ HandleMetaImgFlash(
 
 	for (i = 0; i < images; i++)
 	{
+            PnameTerminated = FALSE;
+
 		if (img_header_entry[i].ptn_name == NULL || img_header_entry[i].start_offset == 0 || img_header_entry[i].size == 0)
 			break;
 
