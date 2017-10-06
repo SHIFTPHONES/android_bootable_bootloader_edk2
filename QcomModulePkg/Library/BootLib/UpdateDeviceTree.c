@@ -218,7 +218,9 @@ UINT32 fdt_check_header_ext(VOID *fdt)
 	return 0;
 }
 
-STATIC EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
+STATIC
+EFI_STATUS
+AddMemMap (VOID *fdt, UINT32 MemNodeOffset, BOOLEAN BootWith32Bit)
 {
 	EFI_STATUS Status = EFI_NOT_FOUND;
 	INT32 ret = 0;
@@ -237,15 +239,30 @@ STATIC EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 	}
 
 	DEBUG ((EFI_D_INFO, "RAM Partitions\r\n"));
-	for (i = 0; i < NumPartitions; i++)
-	{
-		DEBUG((EFI_D_INFO, "Adding Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
-		ret = dev_tree_add_mem_infoV64(fdt, memory_node_offset, RamPartitions[i].Base, RamPartitions[i].AvailableLength);
-		if (ret)
-		{
-			DEBUG((EFI_D_ERROR, "Failed to add Base: 0x%016lx Available Length: 0x%016lx \r\n", RamPartitions[i].Base, RamPartitions[i].AvailableLength));
-		}
-	}
+    for (i = 0; i < NumPartitions; i++)	{
+        DEBUG ((EFI_D_INFO, "Add Base: 0x%016lx Available Length: 0x%016lx \n",
+                        RamPartitions[i].Base,
+                        RamPartitions[i].AvailableLength));
+
+        if (BootWith32Bit) {
+            ret = dev_tree_add_mem_info (fdt,
+                                         MemNodeOffset,
+                                         RamPartitions[i].Base,
+                                         RamPartitions[i].AvailableLength);
+        } else {
+            ret = dev_tree_add_mem_infoV64 (fdt,
+                                            MemNodeOffset,
+                                            RamPartitions[i].Base,
+                                            RamPartitions[i].AvailableLength);
+        }
+
+        if (ret) {
+            DEBUG ((EFI_D_ERROR, "Add Base: 0x%016lx Length: 0x%016lx Fail\n",
+                                       RamPartitions[i].Base,
+                                       RamPartitions[i].AvailableLength));
+        }
+    }
+
 	FreePool(RamPartitions);
 
 	return EFI_SUCCESS;
@@ -253,12 +270,16 @@ STATIC EFI_STATUS AddMemMap(VOID *fdt, UINT32 memory_node_offset)
 
 /* Supporting function of UpdateDeviceTree()
  * Function first gets the RAM partition table, then passes the pointer to AddMemMap() */
-STATIC EFI_STATUS target_dev_tree_mem(VOID *fdt, UINT32 memory_node_offset)
+STATIC
+EFI_STATUS
+target_dev_tree_mem (VOID *fdt,
+                     UINT32 MemNodeOffset,
+                     BOOLEAN BootWith32Bit)
 {
 	EFI_STATUS Status;
 
 	/* Get Available memory from partition table */
-	Status = AddMemMap(fdt, memory_node_offset);
+    Status = AddMemMap (fdt, MemNodeOffset, BootWith32Bit);
 	if (EFI_ERROR(Status))
 		DEBUG ((EFI_D_ERROR, "Invalid memory configuration, check memory partition table: %r\n", Status));
 
@@ -332,7 +353,12 @@ INT32 dev_tree_add_mem_infoV64(VOID *fdt, UINT32 offset, UINT64 addr, UINT64 siz
 }
 
 /* Top level function that updates the device tree. */
-EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT32 ramdisk_size)
+EFI_STATUS
+UpdateDeviceTree (VOID *fdt,
+                  CONST CHAR8 *cmdline,
+                  VOID *ramdisk,
+                  UINT32 RamDiskSize,
+                  BOOLEAN BootWith32Bit)
 {
 	INT32 ret = 0;
 	UINT32 offset;
@@ -371,7 +397,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 	}
 
 	offset = ret;
-	Status= target_dev_tree_mem(fdt, offset);
+    Status = target_dev_tree_mem (fdt, offset, BootWith32Bit);
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG ((EFI_D_ERROR, "ERROR: Cannot update memory node\n"));
@@ -414,8 +440,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 		DEBUG ((EFI_D_INFO, "ERROR: Cannot generate Kaslr Seed - %r\n", Status));
 	}
 
-	if(ramdisk_size)
-	{
+	if (RamDiskSize) {
 		/* Adding the initrd-start to the chosen node */
 		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-start", (UINT64) ramdisk);
 		if (ret)
@@ -425,7 +450,7 @@ EFI_STATUS UpdateDeviceTree(VOID *fdt, CONST CHAR8 *cmdline, VOID *ramdisk, UINT
 		}
 
 		/* Adding the initrd-end to the chosen node */
-		ret = fdt_setprop_u64(fdt, offset, "linux,initrd-end", ((UINT64)ramdisk + ramdisk_size));
+		ret = fdt_setprop_u64 (fdt, offset, "linux,initrd-end", ((UINT64)ramdisk + RamDiskSize));
 		if (ret)
 		{
 			DEBUG ((EFI_D_ERROR, "ERROR: Cannot update chosen node [linux,initrd-end] - 0x%x\n", ret));
