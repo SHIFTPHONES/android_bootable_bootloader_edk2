@@ -154,7 +154,7 @@ GetBlkIOHandles (
 
 VOID ToLower(CHAR8 *Str);
 UINT32 GetTimerCountms (VOID);
-EFI_STATUS WriteToPartition(EFI_GUID *Ptype, VOID *Msg);
+EFI_STATUS WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize);
 BOOLEAN IsSecureBootEnabled(VOID);
 EFI_STATUS ResetDeviceState(VOID);
 EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
