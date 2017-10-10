@@ -50,8 +50,19 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "avb_util.h"
-
 #include <stdarg.h>
+#include "BootLinux.h"
+#include <Protocol/EFIScm.h>
+#include <Protocol/scm_sip_interface.h>
+
+#define SECBOOT_FUSE 0
+#define SHK_FUSE 1
+#define DEBUG_DISABLED_FUSE 2
+#define ANTI_ROLLBACK_FUSE 3
+#define FEC_ENABLED_FUSE 4
+#define RPMB_ENABLED_FUSE 5
+#define DEBUG_RE_ENABLED_FUSE 6
+#define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
 
 uint32_t avb_be32toh(uint32_t in) {
   uint8_t* d = (uint8_t*)&in;
@@ -426,4 +437,204 @@ const char* avb_basename(const char* str) {
     }
   }
   return str;
+}
+
+/**
+  Read security state.
+  @retval  Status  Secure state or error code in case of failure.
+**/
+UINT32 ReadSecurityState ()
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  QCOM_SCM_PROTOCOL *pQcomScmProtocol = NULL;
+  UINT64 Parameters[SCM_MAX_NUM_PARAMETERS] = {0};
+  UINT64 Results[SCM_MAX_NUM_RESULTS] = {0};
+  tz_get_secure_state_rsp_t *SysCallRsp = (tz_get_secure_state_rsp_t *)Results;
+  UINT32 SecurityStateReturn = 0x0;
+
+  // Locate QCOM_SCM_PROTOCOL.
+  Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL,
+                               (VOID **)&pQcomScmProtocol);
+  if (Status != EFI_SUCCESS ||
+     (pQcomScmProtocol == NULL)) {
+    DEBUG ((EFI_D_ERROR, "ReadSecurityState: Locate SCM Status: (0x%x)\r\n",
+           Status));
+    Status = ERROR_SECURITY_STATE;
+    return Status;
+  }
+  // Make ScmSipSysCall
+  Status = pQcomScmProtocol->ScmSipSysCall (
+      pQcomScmProtocol, TZ_INFO_GET_SECURE_STATE,
+      TZ_INFO_GET_SECURE_STATE_PARAM_ID, Parameters, Results);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "ReadSecurityState: ScmSipSysCall Status: (0x%x)\r\n",
+           Status));
+    Status = ERROR_SECURITY_STATE;
+    return Status;
+  }
+
+  if (SysCallRsp->common_rsp.status != 1) {
+    DEBUG ((EFI_D_WARN,
+          "ReadSecurityState: ScmSysCall failed: Status = (0x%x)\r\n",
+           SysCallRsp->common_rsp.status));
+    Status = ERROR_SECURITY_STATE;
+    return Status;
+  }
+  // Parse the return value and assign
+  SecurityStateReturn = SysCallRsp->status_0;
+  return SecurityStateReturn;
+}
+
+/**
+  Determine whether the devcie is secure or not.
+  @param[out]  *is_secure  indicates whether the device is secure or not
+  @retval  status  Indicates whether reading the security state was successful
+**/
+
+EFI_STATUS IsSecureDevice (bool *is_secure)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  if (is_secure == NULL) {
+    DEBUG ((EFI_D_ERROR, "Invalid parameter is_secure\n"));
+    Status = EFI_INVALID_PARAMETER;
+    return Status;
+  }
+  UINT32 SecureState = ReadSecurityState ();
+  if (SecureState == ERROR_SECURITY_STATE) {
+    DEBUG ((EFI_D_ERROR, "ReadSecurityState failed!\n"));
+    Status = EFI_LOAD_ERROR;
+    return Status;
+  }
+  *is_secure = false;
+  /* Check for secure device: Bit#0 = 0,
+     Bit#1 = 0 Bit#2 = 0 , Bit#5 = 0 , Bit#6 = 1 */
+  if (!CHECK_BIT (SecureState, SECBOOT_FUSE) &&
+      !CHECK_BIT (SecureState, SHK_FUSE) &&
+      !CHECK_BIT (SecureState, DEBUG_DISABLED_FUSE) &&
+      !CHECK_BIT (SecureState, RPMB_ENABLED_FUSE) &&
+      CHECK_BIT (SecureState, DEBUG_RE_ENABLED_FUSE)) {
+    *is_secure = true;
+  }
+  return Status;
+}
+
+EFI_STATUS SetFuse (uint32_t FuseId)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  QCOM_SCM_PROTOCOL *test_scm_protocol = 0;
+  uint64_t Param[SCM_MAX_NUM_PARAMETERS] = {0};
+  uint64_t Results[SCM_MAX_NUM_RESULTS] = {0};
+
+  Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL,
+                                (VOID **)&test_scm_protocol);
+  if (Status != EFI_SUCCESS ||
+      test_scm_protocol == NULL) {
+    DEBUG ((EFI_D_ERROR, "LocateProtocol failed for SetFuse!\n"));
+    Status = EFI_LOAD_ERROR;
+    return Status;
+  }
+
+  Param[0] = FuseId;
+
+  Status = test_scm_protocol->ScmSipSysCall (
+      test_scm_protocol, TZ_BLOW_SW_FUSE_ID,
+      TZ_BLOW_SW_FUSE_ID_PARAM_ID, Param, Results);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "ScmSipSysCall failed for SetFuse!\n"));
+    return Status;
+  }
+  return Status;
+}
+
+EFI_STATUS GetFuse (uint32_t FuseId, bool *get_fuse_id)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  QCOM_SCM_PROTOCOL *test_scm_protocol = 0;
+  uint64_t Param[SCM_MAX_NUM_PARAMETERS] = {0};
+  uint64_t Results[SCM_MAX_NUM_RESULTS] = {0};
+
+  if (get_fuse_id == NULL) {
+    return Status;
+  }
+  Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL,
+                                (VOID **)&test_scm_protocol);
+  if (Status != EFI_SUCCESS ||
+      test_scm_protocol == NULL) {
+    DEBUG ((EFI_D_ERROR, "LocateProtocol failed for GetFuse!\n"));
+    Status = EFI_LOAD_ERROR;
+    return Status;
+  }
+
+  Param[0] = FuseId;
+
+  Status = test_scm_protocol->ScmSipSysCall (
+      test_scm_protocol, TZ_IS_SW_FUSE_BLOWN_ID,
+      TZ_IS_SW_FUSE_BLOWN_ID_PARAM_ID, Param, Results);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "ScmSipSysCall failed for GetFuse!\n"));
+    return Status;
+  }
+  /*Results[0] is Status, Results[1] is output value*/
+  if (Results[1] == 1) {
+    *get_fuse_id = true;
+  } else {
+    *get_fuse_id = false;
+  }
+  return Status;
+}
+
+bool AllowSetFuse (uint32_t Version)
+{
+  /*if((major > 4) || (major == 4 && minor > 0))*/
+  if ((((Version >> 22) & 0x3FF) > 4) ||
+     (((Version >> 22) & 0x3FF) == 4 &&
+      ((Version >> 12) & 0x3FF) > 0)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+EFI_STATUS ScmGetFeatureVersion (uint32_t FeatureId, uint32_t *Version)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  QCOM_SCM_PROTOCOL *test_scm_protocol = 0;
+  uint64_t Parameters[SCM_MAX_NUM_PARAMETERS] = {0};
+  uint64_t Results[SCM_MAX_NUM_RESULTS] = {0};
+  tz_feature_version_req_t *SysCallReq = (tz_feature_version_req_t *)Parameters;
+  tz_feature_version_rsp_t *SysCallRsp = (tz_feature_version_rsp_t *)Results;
+
+  if (Version == NULL) {
+    DEBUG ((EFI_D_ERROR, "Invalid parameter Version\n"));
+    Status = EFI_INVALID_PARAMETER;
+    return Status;
+  }
+
+  Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL,
+                                (VOID **)&test_scm_protocol);
+  if (Status != EFI_SUCCESS ||
+      !test_scm_protocol) {
+    DEBUG ((EFI_D_ERROR, "LocateProtocol failed for ScmGetFeatureVersion!\n"));
+    return Status;
+  }
+
+  SysCallReq->feature_id = FeatureId;
+
+  Status = test_scm_protocol->ScmSipSysCall (
+      test_scm_protocol, TZ_INFO_GET_FEATURE_VERSION_ID,
+      TZ_INFO_GET_FEATURE_VERSION_ID_PARAM_ID, Parameters, Results);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "ScmSipSysCall failed for ScmGetFeatureVersion!\n"));
+    return Status;
+  }
+  if (SysCallRsp->common_rsp.status != 1) {
+    Status = EFI_DEVICE_ERROR;
+    DEBUG ((EFI_D_ERROR,
+            "TZ_INFO_GET_FEATURE_VERSION_ID failed, Status = (0x%x)\r\n",
+            SysCallRsp->common_rsp.status));
+    return Status;
+  }
+
+  *Version = SysCallRsp->version;
+  return Status;
 }

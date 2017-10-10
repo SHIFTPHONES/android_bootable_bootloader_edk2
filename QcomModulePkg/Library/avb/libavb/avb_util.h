@@ -30,6 +30,7 @@
 #define AVB_UTIL_H_
 
 #include "avb_sysdeps.h"
+#include "VerifiedBoot.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +38,7 @@ extern "C" {
 
 #define AVB_STRINGIFY(x) #x
 #define AVB_TO_STRING(x) AVB_STRINGIFY(x)
+#define ERROR_SECURITY_STATE 0xFFFFFFFF
 
 #ifdef AVB_ENABLE_DEBUG
 /* Aborts the program if |expr| is false.
@@ -269,6 +271,18 @@ uint32_t avb_crc32(const uint8_t* buf, size_t buf_size);
  * separators, returns |str|.
  */
 const char* avb_basename(const char* str);
+
+UINT32 ReadSecurityState ();
+
+EFI_STATUS IsSecureDevice (bool *is_secure);
+
+EFI_STATUS SetFuse (uint32_t FuseId);
+
+EFI_STATUS GetFuse (uint32_t FuseId, bool *get_fuse_id);
+
+bool AllowSetFuse (uint32_t Version);
+
+EFI_STATUS ScmGetFeatureVersion (uint32_t FeatureId, uint32_t *Version);
 
 #ifdef __cplusplus
 }
