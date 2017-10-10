@@ -271,8 +271,8 @@ BuildDefaultDescriptors(
   OUT VOID                  **SSDescriptors)
 {
   UINT8                        Index = 0;
-  UINT8                        NumCfg = 0; 
-  CHAR8                        Str_UUID[64];
+  UINT8                        NumCfg = 0;
+  CHAR8                        Str_UUID[UUID_STR_LEN];
   UINT32                       i;
   EFI_STATUS                   Status;
 
@@ -281,6 +281,24 @@ BuildDefaultDescriptors(
   {
     DEBUG((EFI_D_ERROR, "Error Finding board serial num: %x\n", Status));
     return;
+  }
+
+  /* Full UUID descriptor should be length 74, now it only
+   * works up to 62.
+   * The array members of StrSerialDescriptor is:
+   * sizeof(StrSerialDescriptor), USB_DESC_TYPE_STRING,
+   * '9', 0,
+   * 'a', 0,
+   * '1', 0,
+   * '8', 0,
+   * '9', 0,
+   * '9', 0,
+   * '1', 0,
+   */
+  if (((AsciiStrLen (Str_UUID) - 1) * 2 + 3) > (MAX_DESC_LEN - 1)) {
+     DEBUG ((EFI_D_ERROR,
+         "Error the array index out of bounds\n"));
+     return;
   }
 
   StrSerialDescriptor[0] = AsciiStrLen(Str_UUID) * 2 + 2;
