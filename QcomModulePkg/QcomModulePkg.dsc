@@ -107,6 +107,9 @@
   !else
       GCC:*_*_*_CC_FLAGS = -DUSER_BUILD_VARIANT
   !endif
+  !if $(ENABLE_LE_VARIANT) == 1
+      GCC:*_*_*_CC_FLAGS = -DENABLE_LE_VARIANT
+  !endif
 
 [PcdsFixedAtBuild.common]
 
