@@ -258,15 +258,16 @@ UINT32 GetSystemPath(CHAR8 **SysPath)
 	CHAR8 LunCharMapping[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 	CHAR8 RootDevStr[BOOT_DEV_NAME_SIZE_MAX];
 
-	*SysPath = AllocatePool(sizeof(char) * MAX_PATH_SIZE);
+    *SysPath = AllocateZeroPool (sizeof (CHAR8) * MAX_PATH_SIZE);
 	if (!*SysPath) {
 		DEBUG((EFI_D_ERROR, "Failed to allocated memory for System path query\n"));
 		return 0;
 	}
 
-	StrnCpyS(PartitionName, StrLen((CONST CHAR16 *)L"system") + 1,
-		(CONST CHAR16 *)L"system", StrLen((CONST CHAR16 *)L"system"));
-	StrnCatS(PartitionName, MAX_GPT_NAME_SIZE - 1, CurSlot.Suffix, StrLen(CurSlot.Suffix));
+    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
+            StrLen ((CONST CHAR16 *)L"system"));
+    StrnCatS (PartitionName, MAX_GPT_NAME_SIZE, CurSlot.Suffix,
+            StrLen (CurSlot.Suffix));
 
 	Index = GetPartitionIndex(PartitionName);
 	if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
