@@ -81,8 +81,10 @@ INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun)
 
 	for (n = 0; n < PartitionCount; n++) {
 		if (Lun == PtnEntries[n].lun) {
-			if (!StrCmp(Pname, PtnEntries[n].PartEntry.PartitionName))
-				return RelativeIndex;
+            if (!StrnCmp (Pname, PtnEntries[n].PartEntry.PartitionName,
+                       ARRAY_SIZE (PtnEntries[n].PartEntry.PartitionName))) {
+                return RelativeIndex;
+            }
 			RelativeIndex++;
 		}
 	}
@@ -122,8 +124,10 @@ INT32 GetPartitionIndex(CHAR16 *Pname)
 	INT32 i;
 
 	for (i = 0; i < PartitionCount; i++) {
-		if (!StrCmp(PtnEntries[i].PartEntry.PartitionName, Pname))
-			return i;
+        if (!StrnCmp (PtnEntries[i].PartEntry.PartitionName, Pname,
+                    ARRAY_SIZE (PtnEntries[i].PartEntry.PartitionName))) {
+            return i;
+        }
 	}
 
 	return INVALID_PTN;
@@ -287,7 +291,8 @@ VOID UpdatePartitionAttributes(VOID)
 			MaxPtnCount = GET_LWORD_FROM_BYTE(&GptHdr[PARTITION_COUNT_OFFSET]);
 			PtnEntrySz =  GET_LWORD_FROM_BYTE(&GptHdr[PENTRY_SIZE_OFFSET]);
 
-			if (((MaxPtnCount) * (PtnEntrySz)) >  MAX_PARTITION_ENTRIES_SZ) {
+            if (((UINT64)(MaxPtnCount) * PtnEntrySz) >
+                MAX_PARTITION_ENTRIES_SZ ) {
 				DEBUG((EFI_D_ERROR, "Invalid GPT header fields MaxPtnCount = %x, PtnEntrySz = %x\n", MaxPtnCount, PtnEntrySz));
 				return;
 			}
@@ -421,11 +426,18 @@ STATIC VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 	}
 
 	for (TempNode = HeadNode; TempNode; TempNode = TempNode->Next) {
-		StrnCpyS(CurSlot, StrLen(TempNode->PartName) + 1,  TempNode->PartName, StrLen(TempNode->PartName));
-		StrnCatS(CurSlot, BOOT_PART_SIZE - 1, SetInactive, StrLen(SetInactive));
+        gBS->SetMem (CurSlot, BOOT_PART_SIZE, 0);
+        gBS->SetMem (NewSlot, BOOT_PART_SIZE, 0);
 
-		StrnCpyS(NewSlot, StrLen(TempNode->PartName) + 1, TempNode->PartName, StrLen(TempNode->PartName));
-		StrnCatS(NewSlot, BOOT_PART_SIZE - 1, SetActive, StrLen(SetActive));
+        StrnCpyS (CurSlot, BOOT_PART_SIZE, TempNode->PartName,
+                StrLen (TempNode->PartName));
+        StrnCatS (CurSlot, BOOT_PART_SIZE, SetInactive,
+                StrLen (SetInactive));
+
+        StrnCpyS (NewSlot, BOOT_PART_SIZE, TempNode->PartName,
+                StrLen (TempNode->PartName));
+        StrnCatS (NewSlot, BOOT_PART_SIZE, SetActive,
+                StrLen ( SetActive));
 
 		/* Find the pointer to partition table entry for active and non-active slots*/
 		for (i = 0; i < PartitionCount; i++) {
@@ -437,8 +449,6 @@ STATIC VOID SwitchPtnSlots(CONST CHAR16 *SetActive)
 		}
 		/* Swap the guids for the slots */
 		SwapPtnGuid(&PtnCurrent->PartEntry, &PtnNew->PartEntry);
-		gBS->SetMem(CurSlot, BOOT_PART_SIZE, 0);
-		gBS->SetMem(NewSlot, BOOT_PART_SIZE, 0);
 		PtnCurrent = PtnNew = NULL;
 	}
 
@@ -565,8 +575,7 @@ VOID FindPtnActiveSlot(VOID)
 
 STATIC UINT32 PartitionVerifyMbrSignature(UINT32 Sz, UINT8 *Gpt)
 {
-	if ((MBR_SIGNATURE + 1) > Sz)
-	{
+    if ((MBR_SIGNATURE + 1) >= Sz) {
 		DEBUG((EFI_D_ERROR, "Gpt Image size is invalid\n"));
 		return FAILURE;
 	}
@@ -585,8 +594,7 @@ STATIC UINT32 MbrGetPartitionType(UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
 {
 	UINT32 PtypeOffset = MBR_PARTITION_RECORD + OS_TYPE;
 
-	if (Sz < (PtypeOffset + sizeof(*Ptype)))
-	{
+    if (Sz <= PtypeOffset) {
 		DEBUG((EFI_D_ERROR, "Input gpt image does not have gpt partition record data\n"));
 		return FAILURE;
 	}
