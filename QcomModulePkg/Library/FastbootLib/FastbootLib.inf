@@ -79,6 +79,7 @@
   gEfiUsbfnIoProtocolGuid
   gEfiMemCardInfoProtocolGuid
   gEfiEraseBlockProtocolGuid
+  gEfiUbiFlasherProtocolGuid
 
 [Guids]
   gEfiUfsLU0Guid

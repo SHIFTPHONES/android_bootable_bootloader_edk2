@@ -71,6 +71,7 @@ found at
 #include <Protocol/BlockIo.h>
 #include <Protocol/DiskIo.h>
 #include <Protocol/EFIUsbDevice.h>
+#include <Protocol/EFIUbiFlasher.h>
 #include <Protocol/SimpleTextIn.h>
 #include <Protocol/SimpleTextOut.h>
 
@@ -169,6 +170,12 @@ STATIC VOID
 AcceptCmd (IN UINT64 Size, IN CHAR8 *Data);
 STATIC VOID
 AcceptCmdHandler (IN EFI_EVENT Event, IN VOID *Context);
+
+#define UBI_HEADER_MAGIC "UBI#"
+#define UBI_NUM_IMAGES 1
+typedef struct UbiHeader {
+  CHAR8 HdrMagic[4];
+} UbiHeader_t;
 
 typedef struct {
   UINT64 Size;
@@ -918,6 +925,88 @@ HandleRawImgFlash (IN CHAR16 *PartitionName,
   return Status;
 }
 
+/* UBI Image flashing */
+STATIC
+EFI_STATUS
+HandleUbiImgFlash (
+  IN CHAR16  *PartitionName,
+  IN UINT32 PartitionMaxSize,
+  IN VOID   *Image,
+  IN UINT64   Size)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
+  UINT32 UbiPageSize;
+  UINT32 UbiBlockSize;
+  EFI_UBI_FLASHER_PROTOCOL *Ubi;
+  UBI_FLASHER_HANDLE UbiFlasherHandle;
+  EFI_HANDLE *Handle = NULL;
+  CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
+  BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+  BOOLEAN HasSlot = FALSE;
+  CHAR8 PartitionNameAscii[MAX_GPT_NAME_SIZE] = {'\0'};
+  UINT64 PartitionSize = 0;
+
+  /* For multislot boot the partition may not support a/b slots.
+   * Look for default partition, if it does not exist then try for a/b
+   */
+  if (MultiSlotBoot) {
+    HasSlot =  GetPartitionHasSlot (PartitionName,
+                                    PartitionMaxSize,
+                                    SlotSuffix,
+                                    MAX_SLOT_SUFFIX_SZ);
+    DEBUG ((EFI_D_VERBOSE, "Partition has slot=%d\n", HasSlot));
+  }
+
+  Status = PartitionGetInfo (PartitionName, &BlockIo, &Handle);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Unable to get Parition Info\n"));
+    return Status;
+  }
+
+  /* Check if Image fits into partition */
+  PartitionSize =
+        ((BlockIo->Media->LastBlock + 1) * (UINT64)BlockIo->Media->BlockSize);
+
+  if (Size > PartitionSize) {
+    DEBUG ((EFI_D_ERROR, "Input Size is invalid\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Status = gBS->LocateProtocol (&gEfiUbiFlasherProtocolGuid,
+                                NULL,
+                                (VOID **) &Ubi);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "UBI Image flashing not supported.\n"));
+    return Status;
+  }
+
+  UnicodeStrToAsciiStr (PartitionName, PartitionNameAscii);
+  Status = Ubi->UbiFlasherOpen (PartitionNameAscii,
+                                &UbiFlasherHandle,
+                                &UbiPageSize,
+                                &UbiBlockSize);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Unable to open UBI Protocol.\n"));
+    return Status;
+  }
+
+  /* UBI_NUM_IMAGES can replace with number of sparse images being flashed. */
+  Status = Ubi->UbiFlasherWrite (UbiFlasherHandle, UBI_NUM_IMAGES, Image, Size);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Unable to open UBI Protocol.\n"));
+    return Status;
+  }
+
+  Status = Ubi->UbiFlasherClose (UbiFlasherHandle);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Unable to close UBI Protocol.\n"));
+    return Status;
+  }
+
+  return Status;
+}
+
 /* Meta Image flashing */
 STATIC
 EFI_STATUS
@@ -1255,6 +1344,7 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   EFI_STATUS Status = EFI_SUCCESS;
   sparse_header_t *sparse_header;
   meta_header_t *meta_header;
+  UbiHeader_t *UbiHeader;
   CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
   CHAR16 *Token = NULL;
   LunSet = FALSE;
@@ -1408,6 +1498,7 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
 
   sparse_header = (sparse_header_t *)mFlashDataBuffer;
   meta_header = (meta_header_t *)mFlashDataBuffer;
+  UbiHeader = (UbiHeader_t *)mFlashDataBuffer;
 
   /* Send okay for next data sending */
   if (sparse_header->magic == SPARSE_HEADER_MAGIC) {
@@ -1445,6 +1536,11 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     IsFlashComplete = TRUE;
     StopUsbTimer ();
 
+  } else if (!AsciiStrnCmp (UbiHeader->HdrMagic, UBI_HEADER_MAGIC, 4)) {
+    FlashResult = HandleUbiImgFlash (PartitionName,
+                                     sizeof (PartitionName),
+                                     mFlashDataBuffer,
+                                     mFlashNumDataBytes);
   } else if (meta_header->magic == META_HEADER_MAGIC) {
 
     FlashResult = HandleMetaImgFlash (PartitionName, sizeof (PartitionName),
