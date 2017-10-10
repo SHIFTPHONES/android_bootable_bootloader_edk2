@@ -294,13 +294,26 @@ GetSystemPath (CHAR8 **SysPath)
     return 0;
   }
 
-  if (!AsciiStrCmp ("EMMC", RootDevStr))
+  if (!AsciiStrCmp ("EMMC", RootDevStr)) {
     AsciiSPrint (*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", Index);
-  else
+  } else if (!AsciiStrCmp ("NAND", RootDevStr)) {
+    /* NAND is being treated as GPT partition, hence reduce the index by 1 as
+     * PartitionIndex (0) should be ignored for correct mapping of partition.
+     */
+    AsciiSPrint (*SysPath,
+          MAX_PATH_SIZE,
+          " rootfstype=ubifs rootflags=bulk_read root=ubi0:rootfs ubi.mtd=%d",
+          (Index - 1));
+  } else if (!AsciiStrCmp ("UFS", RootDevStr)) {
     AsciiSPrint (*SysPath, MAX_PATH_SIZE, " root=/dev/sd%c%d",
                  LunCharMapping[Lun],
                  GetPartitionIdxInLun (PartitionName, Lun));
-
+  } else {
+    DEBUG ((EFI_D_ERROR, "Unknown Device type\n"));
+    FreePool (*SysPath);
+    *SysPath = NULL;
+    return 0;
+  }
   DEBUG ((EFI_D_VERBOSE, "System Path - %a \n", *SysPath));
 
   return AsciiStrLen (*SysPath);
@@ -356,8 +369,6 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     CmdLineLen += AsciiStrLen (VBCmdLine);
   }
 
-  CmdLineLen += AsciiStrLen (BootDeviceCmdLine);
-
   BootDevBuf = AllocatePool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
   if (BootDevBuf == NULL) {
     DEBUG ((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
@@ -369,10 +380,10 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     DEBUG ((EFI_D_ERROR, "Failed to get Boot Device: %r\n", Status));
     FreePool (BootDevBuf);
     BootDevBuf = NULL;
-    return Status;
+  } else {
+    CmdLineLen += AsciiStrLen (BootDeviceCmdLine);
+    CmdLineLen += AsciiStrLen (BootDevBuf);
   }
-
-  CmdLineLen += AsciiStrLen (BootDevBuf);
 
   CmdLineLen += AsciiStrLen (UsbSerialCmdLine);
   CmdLineLen += AsciiStrLen (StrSerialNum);
@@ -458,17 +469,19 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     STR_COPY (Dst, Src);
   }
 
-  Src = BootDeviceCmdLine;
-  if (HaveCmdLine) {
-    --Dst;
-  }
-  STR_COPY (Dst, Src);
+  if (BootDevBuf) {
+    Src = BootDeviceCmdLine;
+    if (HaveCmdLine) {
+      --Dst;
+    }
+    STR_COPY (Dst, Src);
 
-  Src = BootDevBuf;
-  --Dst;
-  STR_COPY (Dst, Src);
-  FreePool (BootDevBuf);
-  BootDevBuf = NULL;
+    Src = BootDevBuf;
+    --Dst;
+    STR_COPY (Dst, Src);
+    FreePool (BootDevBuf);
+    BootDevBuf = NULL;
+  }
 
   Src = UsbSerialCmdLine;
   --Dst;

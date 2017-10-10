@@ -44,7 +44,7 @@
 #define BOOT_BASE_BAND " androidboot.baseband="
 #define BATT_MIN_VOLT 3200
 
-#define MAX_PATH_SIZE 64
+#define MAX_PATH_SIZE 72
 #define SERIAL_NUM_SIZE 64
 
 EFI_STATUS
