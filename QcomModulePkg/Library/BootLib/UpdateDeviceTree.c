@@ -481,6 +481,9 @@ EFI_STATUS UpdateFstabNode(VOID *fdt)
 	CHAR8 *ReplaceStr = NULL;
 	CHAR8 *NextStr = NULL;
 	struct FstabNode Table = FstabTable;
+        UINT32 DevNodeBootDevLen = 0;
+        UINT32 Index = 0;
+        UINT32 PaddingEnd = 0;
 
 	/* Find the parent node */
 	ParentOffset = fdt_path_offset(fdt, Table.ParentNode);
@@ -522,13 +525,25 @@ EFI_STATUS UpdateFstabNode(VOID *fdt)
 			}
 			ReplaceStr += AsciiStrLen(Table.DevicePathId);
 			NextStr = AsciiStrStr((ReplaceStr + 1), "/");
-			if ((NextStr - ReplaceStr) != AsciiStrLen(BootDevBuf)) {
-				DEBUG((EFI_D_VERBOSE, "String length mismatch b/w DT and Bootdevice strings or property is not proper to update.\n"));
-				continue;
-			}
+    DevNodeBootDevLen = NextStr - ReplaceStr;
+    if (DevNodeBootDevLen >= AsciiStrLen (BootDevBuf)) {
+        gBS->CopyMem (ReplaceStr, BootDevBuf, AsciiStrLen (BootDevBuf));
+        PaddingEnd = DevNodeBootDevLen - AsciiStrLen (BootDevBuf);
+        /* Update the property with new value */
+        if (PaddingEnd) {
+            gBS->CopyMem (ReplaceStr + AsciiStrLen (BootDevBuf), NextStr,
+                                              AsciiStrLen (NextStr));
+            for (Index = 0; Index < PaddingEnd; Index++) {
+                ReplaceStr[AsciiStrLen (BootDevBuf) + AsciiStrLen (NextStr)
+                                                    + Index] = ' ';
+            }
+        }
+    } else {
+        DEBUG ((EFI_D_ERROR, "String length mismatch b/w DT Bootdevice string"
+                      " (%d) and expected Bootdevice strings (%d)\n",
+                      DevNodeBootDevLen, AsciiStrLen (BootDevBuf)));
+    }
 
-			/* Update the property with new value */
-			gBS->CopyMem(ReplaceStr, BootDevBuf, AsciiStrLen(BootDevBuf));
 		}
 	}
 
