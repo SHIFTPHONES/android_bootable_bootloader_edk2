@@ -189,8 +189,8 @@ STATIC VOID GetDisplayOutPut(CHAR8 *Target, UINTN TargetLen, CHAR8 *Source,
 	/* First line starts with 4 characters of "ID: ",
 	   other lines start with 4 spaces to make the length of each line 21
 	*/
-	CONST CHAR8 ID[4] = "ID: ";
-	CONST CHAR8 StartlineSpace[4] = "    ";
+    CONST CHAR8 Id[] = "ID: ";
+    CONST CHAR8 StartlineSpace[] = "    ";
 
 	/* Each line contains 21 characters (4 spaces in the beginning),
 	16 characters from fingerprint, one character for endline */
@@ -199,7 +199,7 @@ STATIC VOID GetDisplayOutPut(CHAR8 *Target, UINTN TargetLen, CHAR8 *Source,
 
 	/* each line contains 4 spaces at the beginning and one endline
 	   character at the end */
-	FinalLen = (sizeof(ID) + 1) * (NumberOfLines) + SourceLen;
+    FinalLen = (AsciiStrLen (Id) + 1) * (NumberOfLines) + SourceLen;
 
 	/* if final size is bigger that display output size,
 	   reduce the numbe of lines,
@@ -212,11 +212,13 @@ STATIC VOID GetDisplayOutPut(CHAR8 *Target, UINTN TargetLen, CHAR8 *Source,
 
 	for (LineNum= 0; LineNum < NumberOfLines; LineNum++) {
 		if (LineNum == 0) {
-			gBS->CopyMem(Target + TargetIndex, (VOID *)ID, sizeof(ID));
+            gBS->CopyMem (Target + TargetIndex, (VOID *)Id,
+                        AsciiStrLen (Id));
 		} else {
-			gBS->CopyMem(Target + TargetIndex, (VOID *)StartlineSpace, sizeof(StartlineSpace));
+            gBS->CopyMem (Target + TargetIndex, (VOID *)StartlineSpace,
+                        AsciiStrLen (StartlineSpace));
 		}
-		TargetIndex = TargetIndex + sizeof(ID);
+        TargetIndex = TargetIndex + AsciiStrLen (Id);
 		if ((SourceLen - SourceIndex) >= FINGERPRINT_LINE_LEN) {
 			gBS->CopyMem(Target + TargetIndex,
 				Source + SourceIndex, FINGERPRINT_LINE_LEN);
