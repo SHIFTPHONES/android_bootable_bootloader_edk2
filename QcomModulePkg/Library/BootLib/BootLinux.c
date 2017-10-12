@@ -783,6 +783,18 @@ BOOLEAN TargetBuildVariantUser (VOID)
 }
 #endif
 
+VOID
+ResetBootDevImage (VOID)
+{
+  BootDevImage = FALSE;
+}
+
+VOID
+SetBootDevImage (VOID)
+{
+  BootDevImage = TRUE;
+}
+
 BOOLEAN IsBootDevImage (VOID)
 {
   return BootDevImage;

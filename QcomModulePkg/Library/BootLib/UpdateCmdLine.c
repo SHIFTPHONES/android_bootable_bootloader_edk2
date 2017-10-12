@@ -520,7 +520,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     STR_COPY (Dst, Src);
   }
 
-  if (MultiSlotBoot && !IsBootDevImage ()) {
+  if (MultiSlotBoot) {
     /* Slot suffix */
     Src = AndroidSlotSuffix;
     --Dst;

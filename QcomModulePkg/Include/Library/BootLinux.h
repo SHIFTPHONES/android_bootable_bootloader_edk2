@@ -126,5 +126,7 @@ GetImage (CONST BootInfo *Info,
           CHAR8 *ImageName);
 BOOLEAN
 LoadAndValidateDtboImg (BootInfo *Info, VOID **DtboImgBuffer);
+VOID SetBootDevImage (VOID);
+VOID ResetBootDevImage (VOID);
 BOOLEAN IsBootDevImage (VOID);
 #endif

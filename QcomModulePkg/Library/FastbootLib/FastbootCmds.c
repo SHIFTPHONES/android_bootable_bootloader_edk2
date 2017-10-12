@@ -2022,6 +2022,7 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   }
 
   hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
+  SetBootDevImage ();
 
   // Setup page size information for nv storage
   GetPageSize (&ImageHdrSize);
@@ -2030,16 +2031,16 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   if (Status != EFI_SUCCESS) {
     AsciiSPrint (Resp, sizeof (Resp), "Invalid Boot image Header: %r", Status);
     FastbootFail (Resp);
-    return;
+    goto out;
   }
 
   if (ImageSizeActual > Size) {
     FastbootFail ("BootImage is Incomplete");
-    return;
+    goto out;
   }
   if ((MAX_DOWNLOAD_SIZE - (ImageSizeActual - SigActual)) < PageSize) {
     FastbootFail ("BootImage: Size os greater than boot image buffer can hold");
-    return;
+    goto out;
   }
 
   Info.Images[0].ImageBuffer = Data;
@@ -2052,7 +2053,7 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
     Status = ClearUnbootable ();
     if (Status != EFI_SUCCESS) {
       FastbootFail ("CmdBoot: ClearUnbootable failed");
-      return;
+      goto out;
     }
   }
   Status = LoadImageAndAuth (&Info);
@@ -2060,7 +2061,7 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
     AsciiSPrint (Resp, sizeof (Resp),
                  "Failed to load/authenticate boot image: %r", Status);
     FastbootFail (Resp);
-    return;
+    goto out;
   }
 
   /* Exit keys' detection firstly */
@@ -2069,6 +2070,10 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   FastbootOkay ("");
   FastbootUsbDeviceStop ();
   BootLinux (&Info);
+
+out:
+  ResetBootDevImage ();
+  return;
 }
 #endif
 

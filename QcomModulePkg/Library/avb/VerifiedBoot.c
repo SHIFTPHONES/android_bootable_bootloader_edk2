@@ -134,6 +134,10 @@ VBCommonInit (BootInfo *Info)
   return Status;
 }
 
+/*
+ * Ensure Info->Pname is already updated before this function is called.
+ * If Command line already has "root=", return TRUE, else FALSE.
+ */
 STATIC EFI_STATUS
 VBAllocateCmdLine (BootInfo *Info)
 {
@@ -152,6 +156,24 @@ VBAllocateCmdLine (BootInfo *Info)
 
   return Status;
 }
+
+STATIC
+BOOLEAN
+IsRootCmdLineUpdated (BootInfo *Info)
+{
+  CHAR8* ImageCmdLine = NULL;
+
+  ImageCmdLine =
+    (CHAR8*) & (((boot_img_hdr*) (Info->Images[0].ImageBuffer))->cmdline[0]);
+
+  ImageCmdLine[BOOT_ARGS_SIZE - 1] = '\0';
+  if (AsciiStrStr (ImageCmdLine, "root=")) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
 
 STATIC EFI_STATUS
 LoadImageNoAuth (BootInfo *Info)
@@ -186,7 +208,7 @@ LoadImageNoAuthWrapper (BootInfo *Info)
   GUARD (VBAllocateCmdLine (Info));
   GUARD (LoadImageNoAuth (Info));
 
-  if (!IsBootDevImage ()) {
+  if (!IsRootCmdLineUpdated (Info)) {
     SystemPathLen = GetSystemPath (&SystemPath);
     if (SystemPathLen == 0 || SystemPath == NULL) {
       DEBUG ((EFI_D_ERROR, "GetSystemPath failed!\n"));
@@ -248,7 +270,7 @@ LoadImageAndAuthVB1 (BootInfo *Info)
     return Status;
   }
 
-  if (!IsBootDevImage ()) {
+  if (!IsRootCmdLineUpdated (Info)) {
     SystemPathLen = GetSystemPath (&SystemPath);
     if (SystemPathLen == 0 || SystemPath == NULL) {
       DEBUG ((EFI_D_ERROR, "GetSystemPath failed!\n"));
