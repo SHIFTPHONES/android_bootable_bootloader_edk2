@@ -191,8 +191,9 @@ UINT32 fdt_check_header_ext(VOID *fdt)
 	UINT32 sum;
 	fdt_start = (UINT64) fdt;
 
-	if(fdt_start + fdt_totalsize(fdt) < fdt_start)
-		return FDT_ERR_BADOFFSET;
+    if (fdt_start + fdt_totalsize (fdt) <= fdt_start) {
+        return FDT_ERR_BADOFFSET;
+    }
 	fdt_end = fdt_start + fdt_totalsize(fdt);
 
 	if (!(sum = ADD_OF(fdt_off_dt_struct(fdt), fdt_size_dt_struct(fdt)))) {
