@@ -53,6 +53,11 @@ EFI_STATUS ShutdownUefiBootServices (VOID)
 
 			Pages = EFI_SIZE_TO_PAGES (MemoryMapSize) + 1;
 			MemoryMap = AllocatePages (Pages);
+            if (!MemoryMap) {
+                DEBUG ((EFI_D_ERROR,
+                    "Failed to allocate pages for memory map\n"));
+                return EFI_OUT_OF_RESOURCES;
+            }
 
 			//
 			// Get System MemoryMap
