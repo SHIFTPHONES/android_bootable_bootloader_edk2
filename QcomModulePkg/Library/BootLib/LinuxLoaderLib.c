@@ -530,7 +530,7 @@ BOOLEAN IsSecureBootEnabled(VOID)
 	if (Status != EFI_SUCCESS)
 	{
 		DEBUG((EFI_D_ERROR, "Unable to locate VB protocol: %r\n", Status));
-		return Status;
+        return FALSE;
 	}
 
 	Status = VbIntf->VBIsDeviceSecure(VbIntf, &IsSecure);
