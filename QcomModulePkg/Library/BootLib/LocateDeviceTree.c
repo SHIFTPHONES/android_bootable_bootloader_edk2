@@ -63,6 +63,8 @@ static struct dt_entry_node *dt_entry_list_init(VOID)
 		AllocatePool(sizeof(struct dt_entry));
 	if (!dt_node_member->dt_entry_m) {
 		DEBUG((EFI_D_ERROR, "Failed to allocate memory for dt_node_member->dt_entry_m\n"));
+        FreePool (dt_node_member);
+        dt_node_member = NULL;
 		return NULL;
 	}
 
@@ -79,8 +81,10 @@ static VOID dt_entry_list_delete(struct dt_entry_node *dt_node_member)
 {
 	if (list_in_list(&dt_node_member->node)) {
 		list_delete(&dt_node_member->node);
-		FreePool(dt_node_member->dt_entry_m);
-		FreePool(dt_node_member);
+        FreePool (dt_node_member->dt_entry_m);
+        dt_node_member->dt_entry_m = NULL;
+        FreePool (dt_node_member);
+        dt_node_member = NULL;
 	}
 }
 
@@ -107,7 +111,7 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 	UINT32 msm_data_count;
 	UINT32 board_data_count;
 	UINT32 pmic_data_count;
-
+    BOOLEAN Result = FALSE;
 
 	root_offset = fdt_path_offset(dtb, "/");
 	if (root_offset < 0)
@@ -133,7 +137,7 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 		if ((len_pmic_id % PMIC_ID_SIZE) || (len_board_id % BOARD_ID_SIZE))
 		{
 			DEBUG ((EFI_D_ERROR, "qcom,pmic-id (%d) or qcom,board-id(%d) in device tree is not a multiple of (%d %d)\n", len_pmic_id, len_board_id, PMIC_ID_SIZE, BOARD_ID_SIZE));
-			return FALSE;
+            goto Exit;
 		}
 		dtb_ver = DEV_TREE_VERSION_V3;
 		min_plat_id_len = PLAT_ID_SIZE;
@@ -141,7 +145,7 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 		if (len_board_id % BOARD_ID_SIZE)
 		{
 			DEBUG ((EFI_D_ERROR, "qcom,pmic-id (%d) in device tree is not a multiple of (%d)\n", len_board_id, BOARD_ID_SIZE));
-			return FALSE;
+            goto Exit;
 		}
 		dtb_ver = DEV_TREE_VERSION_V2;
 		min_plat_id_len = PLAT_ID_SIZE;
@@ -154,11 +158,11 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 	plat_prop = (const char *)fdt_getprop(dtb, root_offset, "qcom,msm-id", &len_plat_id);
 	if (!plat_prop || len_plat_id <= 0) {
 		DEBUG ((EFI_D_VERBOSE, "qcom,msm-id entry not found\n"));
-		return FALSE;
+        goto Exit;
 	} else if (len_plat_id % min_plat_id_len) {
 		DEBUG ((EFI_D_ERROR, "qcom, msm-id in device tree is (%d) not a multiple of (%d)\n",
 					len_plat_id, min_plat_id_len));
-		return FALSE;
+        goto Exit;
 	}
 	if (dtb_ver == DEV_TREE_VERSION_V2 || dtb_ver == DEV_TREE_VERSION_V3) {
 		board_data_count = (len_board_id / BOARD_ID_SIZE);
@@ -172,19 +176,19 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 		board_data = (struct board_id *) AllocatePool(sizeof(struct board_id) * (len_board_id / BOARD_ID_SIZE));
 		if (!board_data) {
 			DEBUG((EFI_D_ERROR, "Failed to allocate memory for board_data\n"));
-			return FALSE;
+            goto Exit;
 		}
 
 		platform_data = (struct plat_id *) AllocatePool(sizeof(struct plat_id) * (len_plat_id / PLAT_ID_SIZE));
 		if (!platform_data) {
 			DEBUG((EFI_D_ERROR, "Failed to allocate memory for platform_data\n"));
-			return FALSE;
+            goto Exit;
 		}
 		if (dtb_ver == DEV_TREE_VERSION_V3) {
 			pmic_data = (struct pmic_id *) AllocatePool(sizeof(struct pmic_id) * (len_pmic_id / PMIC_ID_SIZE));
 			if (!pmic_data) {
 				DEBUG((EFI_D_ERROR, "Failed to allocate memory for pmic_data\n"));
-				return FALSE;
+                goto Exit;
 			}
 		}
 
@@ -240,19 +244,13 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 						msm_data_count * board_data_count * pmic_data_count) ||
 					(((uint64_t)msm_data_count * (uint64_t)board_data_count) != msm_data_count * board_data_count)) {
 
-				FreePool(board_data);
-				FreePool(platform_data);
-				if (pmic_data)
-					FreePool(pmic_data);
-				if (model)
-					FreePool(model);
-				return FALSE;
+                goto Exit;
 			}
 
 			dt_entry_array = (struct dt_entry*) AllocatePool(sizeof(struct dt_entry) * num_entries);
 			if (!dt_entry_array) {
 				DEBUG((EFI_D_ERROR, "Failed to allocate memory for dt_entry_array\n"));
-				return FALSE;
+                goto Exit;
 			}
 
 			/* If we have '<X>; <Y>; <Z>' as platform data & '<A>; <B>; <C>' as board data.
@@ -318,16 +316,32 @@ static BOOLEAN DeviceTreeCompatible(VOID *dtb, UINT32 dtb_size, struct dt_entry_
 								BoardPlatformSubType()));
 				}
 			}
+            Result = TRUE;
+        }
 
-			FreePool(board_data);
-			FreePool(platform_data);
-			if (pmic_data)
-				FreePool(pmic_data);
-			FreePool(dt_entry_array);
-		}
-	if (model)
-		FreePool(model);
-	return TRUE;
+Exit:
+    if (board_data) {
+        FreePool (board_data);
+        board_data = NULL;
+    }
+    if (platform_data) {
+        FreePool (platform_data);
+        platform_data = NULL;
+    }
+    if (pmic_data) {
+        FreePool (pmic_data);
+        pmic_data = NULL;
+    }
+    if (dt_entry_array) {
+        FreePool (dt_entry_array);
+        dt_entry_array = NULL;
+    }
+    if (model) {
+        FreePool (model);
+        model = NULL;
+    }
+
+    return Result;
 }
 
 /*
@@ -432,7 +446,8 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 		if (Status != EFI_SUCCESS)
 		{
 			DEBUG((EFI_D_ERROR,"Unable to find Base memory for DDR %r\n", Status));
-			FreePool(dt_entry_queue);
+            FreePool (dt_entry_queue);
+            dt_entry_queue = NULL;
 			goto out;
 		}
 
@@ -448,6 +463,9 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 		gBS->CopyMem(tags, bestmatch_tag, bestmatch_tag_size);
 		/* clear out the old DTB magic so kernel doesn't find it */
 		*((UINT32 *)(kernel + dtb_offset)) = 0;
+        FreePool (dt_entry_queue);
+        dt_entry_queue = NULL;
+
 		return tags;
 	}
 
@@ -459,7 +477,8 @@ VOID *DeviceTreeAppended(VOID *kernel, UINT32 kernel_size, UINT32 dtb_offset, VO
 	  BoardPmicTarget(0), BoardPmicTarget(1),
 	  BoardPmicTarget(2), BoardPmicTarget(3)));*/
 out:
-  FreePool (dt_entry_queue);
+    FreePool (dt_entry_queue);
+    dt_entry_queue = NULL;
 	return NULL;
 }
 

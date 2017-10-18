@@ -82,8 +82,8 @@ STATIC EFI_STATUS ReadFromPartition (EFI_GUID *Ptype,
 
 	if(Status != EFI_SUCCESS)
 	{
-		FreePool(*Msg);
-		Msg = NULL;
+        FreePool (*Msg);
+        *Msg = NULL;
 		return Status;
 	}
 
@@ -115,7 +115,9 @@ EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
 	if (!AsciiStrnCmp(Msg->command, "boot-recovery", AsciiStrLen("boot-recovery")))
 		*BootIntoRecovery = TRUE;
 
-  FreePool (Msg);
+    FreePool (Msg);
+    Msg = NULL;
+
 	return Status;
 }
 
@@ -139,6 +141,8 @@ EFI_STATUS GetFfbmCommand(CHAR8 *FfbmString, UINT32 Sz)
 	else
 		Status = EFI_NOT_FOUND;
 
-	FreePool(FfbmData);
+    FreePool (FfbmData);
+    FfbmData = NULL;
+
 	return Status;
 }

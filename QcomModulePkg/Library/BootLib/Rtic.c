@@ -120,6 +120,8 @@ BOOLEAN GetRticDtb(VOID *Dtb)
 	Status = BaseMem(&BaseMemory);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Base memory not found!!! Status:%r\n", Status));
+        FreePool (MpData);
+        MpData = NULL;
 		return FALSE;
 	}
 
@@ -140,6 +142,8 @@ BOOLEAN GetRticDtb(VOID *Dtb)
 
 	TxMpdatatoQhee(KernelLoadAddr, MpDataAddr, LenMpData);
 
-	FreePool(MpData);
+    FreePool (MpData);
+    MpData = NULL;
+
 	return TRUE;
 }

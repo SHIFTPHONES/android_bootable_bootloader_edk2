@@ -264,7 +264,8 @@ AddMemMap (VOID *fdt, UINT32 MemNodeOffset, BOOLEAN BootWith32Bit)
         }
     }
 
-	FreePool(RamPartitions);
+    FreePool (RamPartitions);
+    RamPartitions = NULL;
 
 	return EFI_SUCCESS;
 }
@@ -506,7 +507,8 @@ EFI_STATUS UpdateFstabNode(VOID *fdt)
 	Status = GetBootDevice(BootDevBuf, BOOT_DEV_MAX_LEN);
 	if (Status != EFI_SUCCESS) {
 		DEBUG((EFI_D_ERROR, "Failed to get Boot Device: %r\n", Status));
-		FreePool(BootDevBuf);
+        FreePool (BootDevBuf);
+        BootDevBuf = NULL;
 		return Status;
 	}
 
@@ -550,6 +552,7 @@ EFI_STATUS UpdateFstabNode(VOID *fdt)
 		}
 	}
 
-	FreePool(BootDevBuf);
+    FreePool (BootDevBuf);
+    BootDevBuf = NULL;
 	return Status;
 }
