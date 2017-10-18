@@ -1908,24 +1908,44 @@ STATIC VOID CmdGetVarAll(VOID)
 
 STATIC VOID CmdGetVar(CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
-	FASTBOOT_VAR *Var;
+  FASTBOOT_VAR *Var;
+  Slot CurrentSlot;
+  CHAR16 PartNameUniStr[MAX_GPT_NAME_SIZE];
+  CHAR8 *Token = AsciiStrStr (Arg, "partition-");
+  CHAR8 CurrentSlotAsc[MAX_SLOT_SUFFIX_SZ];
 
-	UpdateGetVarVariable();
-	if (!(AsciiStrCmp("all", Arg)))
-	{
-		CmdGetVarAll();
-		return;
-	}
-	for (Var = Varlist; Var; Var = Var->next)
-	{
-		if (!AsciiStrCmp(Var->name, Arg))
-		{
-			FastbootOkay(Var->value);
-			return;
-		}
-	}
- 
-	FastbootFail("GetVar Variable Not found");
+  UpdateGetVarVariable ();
+
+  if (! (AsciiStrCmp ("all", Arg))) {
+    CmdGetVarAll ();
+    return;
+  }
+
+  if (Token) {
+    Token = AsciiStrStr (Arg, ":");
+    if (Token) {
+      Token = Token + AsciiStrLen (":");
+      AsciiStrToUnicodeStr (Token, PartNameUniStr);
+
+      if (PartitionHasMultiSlot (PartNameUniStr)) {
+        CurrentSlot = GetCurrentSlotSuffix ();
+        UnicodeStrToAsciiStr (CurrentSlot.Suffix, CurrentSlotAsc);
+        AsciiStrnCat ((CHAR8*) Arg,
+                      CurrentSlotAsc,
+                      AsciiStrLen (CurrentSlotAsc));
+      }
+    }
+  }
+
+  for (Var = Varlist; Var; Var = Var->next)
+  {
+    if (!AsciiStrCmp (Var->name, Arg)) {
+      FastbootOkay (Var->value);
+      return;
+    }
+  }
+
+  FastbootFail ("GetVar Variable Not found");
 }
 
 #ifdef ENABLE_BOOT_CMD
