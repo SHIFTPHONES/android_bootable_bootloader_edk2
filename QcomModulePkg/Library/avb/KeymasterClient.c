@@ -309,8 +309,9 @@ KeyMasterSetRotAndBootState(KMRotAndBootState *BootState)
   }
 
   /* Provide boot tamper state to TZ */
-  if (((Status = IsSecureDevice(&secure_device)) == EFI_SUCCESS)
-    && (BootState->Color != GREEN)) {
+  if (((Status = IsSecureDevice (&secure_device)) == EFI_SUCCESS) &&
+        secure_device &&
+        (BootState->Color != GREEN)) {
 
     Status = ScmGetFeatureVersion(TZ_FVER_QSEE, &version);
     if (Status != EFI_SUCCESS) {
