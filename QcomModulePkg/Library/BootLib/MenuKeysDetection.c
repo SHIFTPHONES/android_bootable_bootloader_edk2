@@ -43,7 +43,7 @@
 
 #include <Protocol/EFIVerifiedBoot.h>
 
-STATIC UINT32 StartTimer;
+STATIC UINT64 StartTimer;
 STATIC EFI_EVENT CallbackKeyDetection;
 
 typedef VOID (*Keys_Action_Func)(OPTION_MENU_INFO *gMsgInfo);
@@ -334,12 +334,12 @@ STATIC VOID StartKeyDetectTimer()
  **/
 STATIC VOID EFIAPI MenuKeysHandler(IN EFI_EVENT Event, IN VOID *Context)
 {
-	UINT32 TimerDiff;
+    UINT64 TimerDiff;
 	EFI_STATUS Status = EFI_SUCCESS;
 	OPTION_MENU_INFO  *MenuInfo = Context;
 	UINT32 CurrentKey = SCAN_NULL;
 	STATIC UINT32 LastKey = SCAN_NULL;
-	STATIC UINT32 KeyPressStartTime;
+    STATIC UINT64 KeyPressStartTime;
 
 	if (MenuInfo->Info.TimeoutTime > 0) {
 		TimerDiff = GetTimerCountms() - StartTimer;
