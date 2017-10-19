@@ -219,25 +219,37 @@ EFI_STATUS BootLinux (BootInfo *Info)
     return RETURN_OUT_OF_RESOURCES;
   }
 
+        if (out_len <= sizeof (struct kernel64_hdr*)) {
+            DEBUG ((EFI_D_ERROR,
+              "Decompress kernel size is smaller than image header size\n"));
+            return RETURN_OUT_OF_RESOURCES;
+        }
+
         DEBUG ((EFI_D_INFO, "Decompressing kernel image done: %lu ms\n",
             GetTimerCountms ()));
+
 		Kptr = (struct kernel64_hdr*)KernelLoadAddr;
 	} else {
-		if (CHECK_ADD64((UINT64)ImageBuffer, PageSize)) {
-			DEBUG((EFI_D_ERROR, "Integer Overflow: in Kernel header fields addition\n"));
-			return EFI_BAD_BUFFER_SIZE;
-		}
-		Kptr = ImageBuffer + PageSize;
-	}
-	if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
-		BootingWith32BitKernel = TRUE;
-		KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(KernelLoadAddress32));
-		if (CHECK_ADD64((UINT64)Kptr, DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR)) {
-			DEBUG((EFI_D_ERROR, "Integer Overflow: in DTB offset addition\n"));
-			return EFI_BAD_BUFFER_SIZE;
-		}
-		gBS->CopyMem((VOID*)&DtbOffset, ((VOID*)Kptr + DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR), sizeof(DtbOffset));
-	}
+        Kptr = ImageBuffer + PageSize;
+
+        /* Uncompress kernel - zImage*/
+        if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
+            KernelLoadAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | \
+                            PcdGet32 (KernelLoadAddress32));
+            if (KernelSize <= DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR) {
+                DEBUG ((EFI_D_ERROR,
+                    "Dtb offset location goes beyond the kernel size\n"));
+                return EFI_BAD_BUFFER_SIZE;
+            }
+            gBS->CopyMem ((VOID*)&DtbOffset,
+                    ((VOID*)Kptr + DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR),
+                    sizeof (DtbOffset));
+        }
+    }
+
+    if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
+        BootingWith32BitKernel = TRUE;
+    }
 
 	/*Finds out the location of device tree image and ramdisk image within the boot image
 	 *Kernel, Ramdisk and Second sizes all rounded to page
@@ -308,20 +320,34 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		void *dtb;
 		dtb = DeviceTreeAppended((void *) (ImageBuffer + PageSize), KernelSize, DtbOffset, (void *)DeviceTreeLoadAddr);
 		if (!dtb) {
-			if (CHECK_ADD64((UINT64)(ImageBuffer + PageSize), DtbOffset)) {
-				DEBUG((EFI_D_ERROR, "Integer Overflow: in DTB offset addition\n"));
-				return EFI_BAD_BUFFER_SIZE;
-			}
+            if (DtbOffset >= KernelSize) {
+                DEBUG ((EFI_D_ERROR,
+                    "Dtb offset goes beyond the kernel size\n"));
+                return EFI_BAD_BUFFER_SIZE;
+            }
 			SingleDtHdr = (ImageBuffer + PageSize + DtbOffset);
 
 			if (!fdt_check_header(SingleDtHdr)) {
+                if ((KernelSize - DtbOffset) < fdt_totalsize (SingleDtHdr)) {
+                    DEBUG ((EFI_D_ERROR,
+                        "Dtb offset goes beyond the kernel size\n"));
+                    return EFI_BAD_BUFFER_SIZE;
+                }
+
 				NextDtHdr = (void *)((uintptr_t)SingleDtHdr + fdt_totalsize(SingleDtHdr));
 				if (!fdt_check_header(NextDtHdr)) {
 					DEBUG((EFI_D_VERBOSE, "Not the single appended DTB\n"));
 					return EFI_NOT_FOUND;
 				}
 
-				DEBUG((EFI_D_VERBOSE, "Single appended DTB found\n"));
+                DEBUG ((EFI_D_VERBOSE, "Single appended DTB found\n"));
+                if (CHECK_ADD64 (DeviceTreeLoadAddr,
+                              fdt_totalsize (SingleDtHdr))) {
+                    DEBUG ((EFI_D_ERROR,
+                       "Integer Overflow: in single dtb header addition\n"));
+                    return EFI_BAD_BUFFER_SIZE;
+                }
+
 				gBS->CopyMem((VOID*)DeviceTreeLoadAddr, SingleDtHdr, fdt_totalsize(SingleDtHdr));
 			} else {
 				DEBUG((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
@@ -365,6 +391,19 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		post_overlay_free();
 	}
 
+    RamdiskEndAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | \
+                    PcdGet32 (RamdiskEndAddress));
+    if (RamdiskEndAddr - RamdiskLoadAddr < RamdiskSize) {
+        DEBUG ((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
+        return EFI_BAD_BUFFER_SIZE;
+    }
+
+    if (CHECK_ADD64 ((UINT64)ImageBuffer, RamdiskOffset)) {
+        DEBUG ((EFI_D_ERROR, "Integer Oveflow: ImageBuffer=%u, " \
+            "RamdiskOffset=%u\n", ImageBuffer, RamdiskOffset));
+            return EFI_BAD_BUFFER_SIZE;
+    }
+
     Status = UpdateDeviceTree ((VOID*)DeviceTreeLoadAddr,
                                FinalCmdLine,
                                (VOID *)RamdiskLoadAddr,
@@ -376,18 +415,6 @@ EFI_STATUS BootLinux (BootInfo *Info)
 		return Status;
 	}
 
-	RamdiskEndAddr = (EFI_PHYSICAL_ADDRESS)(BaseMemory | PcdGet32(RamdiskEndAddress));
-	if (RamdiskEndAddr - RamdiskLoadAddr < RamdiskSize){
-		DEBUG((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
-		return EFI_BAD_BUFFER_SIZE;
-	}
-
-	if (CHECK_ADD64((UINT64)ImageBuffer, RamdiskOffset))
-	{
-		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImageBuffer=%u, RamdiskOffset=%u\n",
-			ImageBuffer, RamdiskOffset));
-		return EFI_BAD_BUFFER_SIZE;
-	}
 	gBS->CopyMem ((CHAR8*)RamdiskLoadAddr, ImageBuffer + RamdiskOffset, RamdiskSize);
 
 	if (BootingWith32BitKernel) {
@@ -624,6 +651,12 @@ EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual
 	// Setup page size information for nv storage
 	GetPageSize(&ImageHdrSize);
 
+    if (!ADD_OF (ImageHdrSize, ALIGNMENT_MASK_4KB - 1)) {
+        DEBUG ((EFI_D_ERROR,
+            "Integer Oveflow: in ALIGNMENT_MASK_4KB addition\n"));
+        return EFI_BAD_BUFFER_SIZE;
+    }
+
 	ImageHdrBuffer = AllocatePages(ALIGN_PAGES(ImageHdrSize, ALIGNMENT_MASK_4KB));
 	if (!ImageHdrBuffer)
 	{
@@ -653,6 +686,12 @@ EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual
 		DEBUG((EFI_D_ERROR, "Integer Oveflow: ImgSize=%u\n", tempImgSize));
 		return EFI_BAD_BUFFER_SIZE;
 	}
+
+    if (!ADD_OF (ImageSize, ALIGNMENT_MASK_4KB - 1)) {
+        DEBUG ((EFI_D_ERROR,
+            "Integer Oveflow: in ALIGNMENT_MASK_4KB addition\n"));
+        return EFI_BAD_BUFFER_SIZE;
+    }
 
 	*ImageBuffer = AllocatePages(ALIGN_PAGES(ImageSize, ALIGNMENT_MASK_4KB));
 	if (!*ImageBuffer)
