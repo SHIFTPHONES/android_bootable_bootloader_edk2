@@ -42,6 +42,7 @@ STATIC EFI_GRAPHICS_OUTPUT_PROTOCOL  *GraphicsOutputProtocol;
 STATIC EFI_GRAPHICS_OUTPUT_BLT_PIXEL *LogoBlt;
 
 STATIC CHAR16 *mFactorName[] = {
+    [1] = (CHAR16 *)L"",
 	[2] = (CHAR16 *)SYSFONT_2x,
 	[3] = (CHAR16 *)SYSFONT_3x,
 	[4] = (CHAR16 *)SYSFONT_4x,
@@ -274,7 +275,7 @@ STATIC UINT32 GetFontScaleFactor(UINT32 ScaleFactorType)
     ScaleFactor = GetMaxFontCount () / NumPerRow;
 
     if (ScaleFactor < 2) {
-        ScaleFactor = 2;
+        ScaleFactor = 1;
     } else if (ScaleFactor >
                 ((ARRAY_SIZE (mFactorName) - 1) / MAX_FACTORTYPE)) {
         ScaleFactor = (ARRAY_SIZE (mFactorName) - 1) / MAX_FACTORTYPE;
