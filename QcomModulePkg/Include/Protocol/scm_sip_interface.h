@@ -3303,15 +3303,15 @@ typedef enum
                                          access to Bootloader APIs. */
   TZ_MDTP_HLOS_MS_FUSE          = 16, /**< Used by MDTP to prevent access
                                          to Bootloader & Recovery APIs. */
-  TZ_QCOM_RESERVED_FUSE_1       = 17, /**< Reserved fuse bit for QCOM. */
+  TZ_QTI_RESERVED_FUSE_1        = 17, /**< Reserved fuse bit for QTI. */
 
-  TZ_QCOM_RESERVED_FUSE_2       = 18, /**< Reserved fuse bit for QCOM. */
+  TZ_QTI_RESERVED_FUSE_2        = 18, /**< Reserved fuse bit for QTI. */
 
-  TZ_QCOM_RESERVED_FUSE_3       = 19, /**< Reserved fuse bit for QCOM. */
+  TZ_QTI_RESERVED_FUSE_3        = 19, /**< Reserved fuse bit for QTI. */
 
-  TZ_QCOM_RESERVED_FUSE_4       = 20, /**< Reserved fuse bit for QCOM. */
+  TZ_QTI_RESERVED_FUSE_4        = 20, /**< Reserved fuse bit for QTI. */
 
-  TZ_QCOM_RESERVED_FUSE_5       = 21, /**< Reserved fuse bit for QCOM. */
+  TZ_QTI_RESERVED_FUSE_5        = 21, /**< Reserved fuse bit for QTI. */
 
   TZ_HLOS_BL_MILESTONE_FUSE     = 22, /**< Used to notify the bootloader
                                          milestone call.*/
