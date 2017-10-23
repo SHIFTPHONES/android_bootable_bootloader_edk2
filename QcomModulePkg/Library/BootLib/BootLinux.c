@@ -146,10 +146,18 @@ BootLinux (BootInfo *Info)
     }
   }
 
-  Status = GetImage (Info, &ImageBuffer, &ImageSize, "boot");
-  if (Status != EFI_SUCCESS || ImageBuffer == NULL || ImageSize <= 0) {
-    DEBUG ((EFI_D_ERROR, "BootLinux: GetBootImage failed!\n"));
-    goto Exit;
+  Status = GetImage (Info,
+                     &ImageBuffer,
+                     &ImageSize,
+                     (!Info->MultiSlotBoot &&
+                      Recovery)? "recovery" : "boot");
+  if (Status != EFI_SUCCESS ||
+      ImageBuffer == NULL ||
+      ImageSize <= 0) {
+    DEBUG ((EFI_D_ERROR, "BootLinux: Get%aImage failed!\n",
+            (!Info->MultiSlotBoot &&
+             Recovery)? "Recovery" : "Boot"));
+    return EFI_NOT_STARTED;
   }
   /* Find if MDTP is enabled and Active */
   if (FixedPcdGetBool (EnableMdtpSupport)) {
