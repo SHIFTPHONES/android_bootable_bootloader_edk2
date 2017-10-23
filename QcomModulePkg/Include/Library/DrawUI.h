@@ -41,6 +41,7 @@
 #define CHAR_NUM_PERROW_POR  45
 
 /* 80 characters per line for horizontal orientation
+ * "480 (H) 640 (W)" : ""       -- 640 / (8 * 1) = 80
  * "720 (H) 1280(W)" : "sysfont2x" -- 1280/(8*2) = 80
  * "1080(H) 1920(W)" : "sysfont3x" -- 1920/(8*3) = 80
  * "1440(H) 2560(W)" : "sysfont4x" -- 2560/(8*4) = 80
