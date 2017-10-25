@@ -29,23 +29,23 @@
 #ifndef __UPDATEDEVICETREE_H__
 #define __UPDATEDEVICETREE_H__
 
-#include <Uefi.h>
 #include "libfdt.h"
-#include <Library/MemoryAllocationLib.h>
-#include <Library/UefiLib.h>
-#include <Library/DebugLib.h>
-#include <Protocol/EFIRamPartition.h>
-#include <Protocol/EFILimits.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiRuntimeServicesTableLib.h>
-#include <Library/LinuxLoaderLib.h>
 #include <Library/Board.h>
+#include <Library/DebugLib.h>
+#include <Library/LinuxLoaderLib.h>
+#include <Library/MemoryAllocationLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
+#include <Protocol/EFILimits.h>
+#include <Protocol/EFIRamPartition.h>
+#include <Uefi.h>
 
-#define DTB_MAX_SUBNODE                128
+#define DTB_MAX_SUBNODE 128
 
-#define MSMCOBALT_PGOOD_FUSE		0x78013C
-#define MSMCOBALT_PGOOD_SUBBIN_FUSE	0x780324
-#define DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR   0x2C
+#define MSMCOBALT_PGOOD_FUSE 0x78013C
+#define MSMCOBALT_PGOOD_SUBBIN_FUSE 0x780324
+#define DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR 0x2C
 
 #define PARTIAL_GOOD_GOLD_DISABLE 0x1
 
@@ -53,33 +53,37 @@
 #define CHECK_ADD64(a, b) ((MAX_UINT64 - b < a) ? TRUE : FALSE)
 
 /* Look up table for fstab node */
-struct FstabNode
-{
-	CONST CHAR8 *ParentNode; /* Parent Node name */
-	CONST CHAR8 *Property; /* Property Name */
-	CONST CHAR8 *DevicePathId;
+struct FstabNode {
+  CONST CHAR8 *ParentNode; /* Parent Node name */
+  CONST CHAR8 *Property;   /* Property Name */
+  CONST CHAR8 *DevicePathId;
 };
 
 struct DisplaySplashBufferInfo {
-	/* Version number used to track changes to the structure */
-	UINT32 uVersion;
-	/* Physical address of the frame buffer */
-	UINT32 uFrameAddr;
-	/* Frame buffer size */
-	UINT32 uFrameSize;
+  /* Version number used to track changes to the structure */
+  UINT32 uVersion;
+  /* Physical address of the frame buffer */
+  UINT32 uFrameAddr;
+  /* Frame buffer size */
+  UINT32 uFrameSize;
 };
 
-INT32 dev_tree_add_mem_info(VOID* fdt, UINT32 offset, UINT32 addr, UINT32 size);
+INT32
+dev_tree_add_mem_info (VOID *fdt, UINT32 offset, UINT32 addr, UINT32 size);
 
-INT32 dev_tree_add_mem_infoV64(VOID* fdt, UINT32 offset, UINT64 addr, UINT64 size);
+INT32
+dev_tree_add_mem_infoV64 (VOID *fdt, UINT32 offset, UINT64 addr, UINT64 size);
 
-EFI_STATUS UpdateDeviceTree (VOID* DeviceTreeLoadAddr,
-    CONST CHAR8* CmdLine,
-    VOID* RamDiskLoadAddr,
-    UINT32 RamDiskSize,
-    BOOLEAN BootingWith32BitKernel);
+EFI_STATUS
+UpdateDeviceTree (VOID *DeviceTreeLoadAddr,
+                  CONST CHAR8 *CmdLine,
+                  VOID *RamDiskLoadAddr,
+                  UINT32 RamDiskSize,
+                  BOOLEAN BootingWith32BitKernel);
 
-EFI_STATUS UpdateFstabNode(VOID *fdt);
+EFI_STATUS
+UpdateFstabNode (VOID *fdt);
 
-UINT32 fdt_check_header_ext(VOID *fdt);
+UINT32
+fdt_check_header_ext (VOID *fdt);
 #endif

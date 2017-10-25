@@ -39,32 +39,30 @@
 #define BOOT_IMG_MAX_PAGE_SIZE 4096
 #define KERNEL64_HDR_MAGIC 0x644D5241 /* ARM64 */
 
-
 /*Struct def for boot image header*/
-typedef struct boot_img_hdr
-{
-	CHAR8 magic[BOOT_MAGIC_SIZE];
+typedef struct boot_img_hdr {
+  CHAR8 magic[BOOT_MAGIC_SIZE];
 
-	UINT32 kernel_size;  /* size in bytes */
-	UINT32 kernel_addr;  /* physical load addr */
+  UINT32 kernel_size; /* size in bytes */
+  UINT32 kernel_addr; /* physical load addr */
 
-	UINT32 ramdisk_size; /* size in bytes */
-	UINT32 ramdisk_addr; /* physical load addr */
+  UINT32 ramdisk_size; /* size in bytes */
+  UINT32 ramdisk_addr; /* physical load addr */
 
-	UINT32 second_size;  /* size in bytes */
-	UINT32 second_addr;  /* physical load addr */
+  UINT32 second_size; /* size in bytes */
+  UINT32 second_addr; /* physical load addr */
 
-	UINT32 tags_addr;    /* physical addr for kernel tags */
-	UINT32 page_size;    /* flash page size we assume */
-	UINT32 dt_size;      /* device_tree in bytes */
-	UINT32 os_version;   /* version << 11 | patch_level */
+  UINT32 tags_addr;  /* physical addr for kernel tags */
+  UINT32 page_size;  /* flash page size we assume */
+  UINT32 dt_size;    /* device_tree in bytes */
+  UINT32 os_version; /* version << 11 | patch_level */
 
-	UINT8 name[BOOT_NAME_SIZE]; /* asciiz product name */
+  UINT8 name[BOOT_NAME_SIZE]; /* asciiz product name */
 
-	UINT8 cmdline[BOOT_ARGS_SIZE];
+  UINT8 cmdline[BOOT_ARGS_SIZE];
 
-	UINT32 id[8]; /* timestamp / checksum / sha1 / etc */
-}boot_img_hdr;
+  UINT32 id[8]; /* timestamp / checksum / sha1 / etc */
+} boot_img_hdr;
 
 /*
  * ** +-----------------+
@@ -95,18 +93,17 @@ typedef struct boot_img_hdr
  * **    else: jump to kernel_addr
  * */
 
-struct kernel64_hdr
-{
-	UINT32 insn;
-	UINT32 res1;
-	UINT64 text_offset;
-	UINT64 res2;
-	UINT64 res3;
-	UINT64 res4;
-	UINT64 res5;
-	UINT64 res6;
-	UINT32 magic_64;
-	UINT32 res7;
+struct kernel64_hdr {
+  UINT32 insn;
+  UINT32 res1;
+  UINT64 text_offset;
+  UINT64 res2;
+  UINT64 res3;
+  UINT64 res4;
+  UINT64 res5;
+  UINT64 res6;
+  UINT32 magic_64;
+  UINT32 res7;
 };
 
 #endif

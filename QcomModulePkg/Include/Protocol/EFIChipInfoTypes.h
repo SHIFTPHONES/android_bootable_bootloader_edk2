@@ -38,45 +38,42 @@
 #define EFICHIPINFO_MAX_CPU_CLUSTERS 4
 /** @endcond */
 
-/** @addtogroup efi_chipInfo_data_types 
+/** @addtogroup efi_chipInfo_data_types
 @{ */
 
 /** Chip identification. */
 /* Any new IDs must be added to the end. */
-typedef enum
-{
+typedef enum {
   /** @cond */
-  EFICHIPINFO_ID_UNKNOWN    = 0,  /**< Unknown chip. */
-  EFICHIPINFO_ID_MSM8998  = 292,
-  EFICHIPINFO_ID_APQ8098  = 319,
-  EFICHIPINFO_ID_SDM845      = 321,
+  EFICHIPINFO_ID_UNKNOWN = 0, /**< Unknown chip. */
+  EFICHIPINFO_ID_MSM8998 = 292,
+  EFICHIPINFO_ID_APQ8098 = 319,
+  EFICHIPINFO_ID_SDM845 = 321,
 
-  EFICHIPINFO_NUM_IDS        = 341,
-  EFICHIPINFO_ID_32BITS      = 0x7FFFFFF
-/** @endcond */
+  EFICHIPINFO_NUM_IDS = 341,
+  EFICHIPINFO_ID_32BITS = 0x7FFFFFF
+  /** @endcond */
 } EFIChipInfoIdType;
 
-/** Chip family. This is the family type of the chip on which the software is 
+/** Chip family. This is the family type of the chip on which the software is
   running. Each family may include multiple chip IDs.
 */
-typedef enum
-{
+typedef enum {
   /** @cond */
-  EFICHIPINFO_FAMILY_UNKNOWN    = 0,  /**< Unknown family. */
-  EFICHIPINFO_FAMILY_MSM8998  = 67,
-  EFICHIPINFO_FAMILY_SDM845     = 79,
+  EFICHIPINFO_FAMILY_UNKNOWN = 0, /**< Unknown family. */
+  EFICHIPINFO_FAMILY_MSM8998 = 67,
+  EFICHIPINFO_FAMILY_SDM845 = 79,
 
-/** @cond */
-  EFICHIPINFO_NUM_FAMILIES      = 88,
-  EFICHIPINFO_FAMILY_32BITS     = 0x7FFFFFF
-/** @endcond */
+  /** @cond */
+  EFICHIPINFO_NUM_FAMILIES = 88,
+  EFICHIPINFO_FAMILY_32BITS = 0x7FFFFFF
+  /** @endcond */
 } EFIChipInfoFamilyType;
 
 /**
  * Defective parts supported by the GetDefectivePart API
  */
-typedef enum
-{
+typedef enum {
   EFICHIPINFO_PART_UNKNOWN,
   EFICHIPINFO_PART_GPU,
   EFICHIPINFO_PART_VIDEO,
@@ -88,6 +85,4 @@ typedef enum
   EFICHIPINFO_PART_32BITS = 0x7FFFFFFF
 } EFIChipInfoPartType;
 
-
 #endif /* __EFICHIPINFOTYPES_H__ */
-

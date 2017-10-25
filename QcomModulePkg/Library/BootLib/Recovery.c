@@ -26,123 +26,123 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <Library/LinuxLoaderLib.h>
 #include "Recovery.h"
 #include "AutoGen.h"
+#include <Library/LinuxLoaderLib.h>
 
-STATIC EFI_STATUS ReadFromPartition (EFI_GUID *Ptype,
-                                    VOID **Msg, UINT32 Size)
+STATIC EFI_STATUS
+ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
 {
-	EFI_STATUS Status;
-	EFI_BLOCK_IO_PROTOCOL *BlkIo = NULL;
-	PartiSelectFilter HandleFilter;
-	HandleInfo HandleInfoList[1];
-	UINT32 MaxHandles;
-	UINT32 BlkIOAttrib = 0;
+  EFI_STATUS Status;
+  EFI_BLOCK_IO_PROTOCOL *BlkIo = NULL;
+  PartiSelectFilter HandleFilter;
+  HandleInfo HandleInfoList[1];
+  UINT32 MaxHandles;
+  UINT32 BlkIOAttrib = 0;
 
-	BlkIOAttrib = BLK_IO_SEL_PARTITIONED_GPT;
-	BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
-	BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID;
+  BlkIOAttrib = BLK_IO_SEL_PARTITIONED_GPT;
+  BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
+  BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID;
 
-	HandleFilter.RootDeviceType = NULL;
-	HandleFilter.PartitionType = Ptype;
-	HandleFilter.VolumeName = NULL;
+  HandleFilter.RootDeviceType = NULL;
+  HandleFilter.PartitionType = Ptype;
+  HandleFilter.VolumeName = NULL;
 
-	MaxHandles = ARRAY_SIZE(HandleInfoList);
+  MaxHandles = ARRAY_SIZE (HandleInfoList);
 
-	Status = GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
+  Status =
+      GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
 
-	if(Status == EFI_SUCCESS)
-	{
-		if(MaxHandles == 0)
-			return EFI_NO_MEDIA;
+  if (Status == EFI_SUCCESS) {
+    if (MaxHandles == 0)
+      return EFI_NO_MEDIA;
 
-		if(MaxHandles != 1)
-		{
-			//Unable to deterministically load from single partition
-			DEBUG((EFI_D_INFO, "%s: multiple partitions found.\r\n", __func__));
-			return EFI_LOAD_ERROR;
-		}
-	}
-
-	BlkIo = HandleInfoList[0].BlkIo;
-
-    if (Size >= BlkIo->Media->BlockSize) {
-        return EFI_OUT_OF_RESOURCES;
+    if (MaxHandles != 1) {
+      // Unable to deterministically load from single partition
+      DEBUG ((EFI_D_INFO, "%s: multiple partitions found.\r\n", __func__));
+      return EFI_LOAD_ERROR;
     }
+  }
 
-	*Msg = AllocatePool(BlkIo->Media->BlockSize);
-	if (!(*Msg))
-	{
-		DEBUG((EFI_D_ERROR, "Error allocating memory for reading from Partition\n"));
-		return EFI_OUT_OF_RESOURCES;
-	}
+  BlkIo = HandleInfoList[0].BlkIo;
 
-	Status = BlkIo->ReadBlocks(BlkIo, BlkIo->Media->MediaId, 0, BlkIo->Media->BlockSize, *Msg);
+  if (Size >= BlkIo->Media->BlockSize) {
+    return EFI_OUT_OF_RESOURCES;
+  }
 
-	if(Status != EFI_SUCCESS)
-	{
-        FreePool (*Msg);
-        *Msg = NULL;
-		return Status;
-	}
+  *Msg = AllocatePool (BlkIo->Media->BlockSize);
+  if (!(*Msg)) {
+    DEBUG (
+        (EFI_D_ERROR, "Error allocating memory for reading from Partition\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
 
-	return Status;
+  Status = BlkIo->ReadBlocks (BlkIo, BlkIo->Media->MediaId, 0,
+                              BlkIo->Media->BlockSize, *Msg);
+
+  if (Status != EFI_SUCCESS) {
+    FreePool (*Msg);
+    *Msg = NULL;
+    return Status;
+  }
+
+  return Status;
 }
 
-EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery)
+EFI_STATUS
+RecoveryInit (BOOLEAN *BootIntoRecovery)
 {
-	EFI_STATUS Status;
-	struct RecoveryMessage *Msg = NULL;
+  EFI_STATUS Status;
+  struct RecoveryMessage *Msg = NULL;
 
-    Status = ReadFromPartition (&gEfiMiscPartitionGuid,
-                            (VOID**)&Msg, sizeof (struct RecoveryMessage));
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Error Reading from misc partition: %r\n", Status));
-		return Status;
-	}
+  Status = ReadFromPartition (&gEfiMiscPartitionGuid, (VOID **)&Msg,
+                              sizeof (struct RecoveryMessage));
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error Reading from misc partition: %r\n", Status));
+    return Status;
+  }
 
-	if (!Msg) {
-		DEBUG((EFI_D_ERROR, "Error in loading Msg from misc partition\n"));
-		return EFI_INVALID_PARAMETER;
-	}
-	// Ensure NULL termination
-	Msg->command[sizeof(Msg->command)-1] = '\0';
-	if (Msg->command[0] != 0 && Msg->command[0] != 255)
-		DEBUG((EFI_D_INFO,"Recovery command: %d %a\n", sizeof(Msg->command), Msg->command));
+  if (!Msg) {
+    DEBUG ((EFI_D_ERROR, "Error in loading Msg from misc partition\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+  // Ensure NULL termination
+  Msg->command[sizeof (Msg->command) - 1] = '\0';
+  if (Msg->command[0] != 0 && Msg->command[0] != 255)
+    DEBUG ((EFI_D_INFO, "Recovery command: %d %a\n", sizeof (Msg->command),
+            Msg->command));
 
-	if (!AsciiStrnCmp(Msg->command, "boot-recovery", AsciiStrLen("boot-recovery")))
-		*BootIntoRecovery = TRUE;
+  if (!AsciiStrnCmp (Msg->command, "boot-recovery",
+                     AsciiStrLen ("boot-recovery")))
+    *BootIntoRecovery = TRUE;
 
-    FreePool (Msg);
-    Msg = NULL;
+  FreePool (Msg);
+  Msg = NULL;
 
-	return Status;
+  return Status;
 }
 
-EFI_STATUS GetFfbmCommand(CHAR8 *FfbmString, UINT32 Sz)
+EFI_STATUS
+GetFfbmCommand (CHAR8 *FfbmString, UINT32 Sz)
 {
-	CONST CHAR8 *FfbmCmd = "ffbm-";
-	CHAR8 *FfbmData = NULL;
-	EFI_STATUS Status;
+  CONST CHAR8 *FfbmCmd = "ffbm-";
+  CHAR8 *FfbmData = NULL;
+  EFI_STATUS Status;
 
-    Status = ReadFromPartition (&gEfiMiscPartitionGuid,
-                            (VOID**)&FfbmData, Sz);
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Error Reading FFBM info from misc: %r\n", Status));
-		return Status;
-	}
+  Status = ReadFromPartition (&gEfiMiscPartitionGuid, (VOID **)&FfbmData, Sz);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error Reading FFBM info from misc: %r\n", Status));
+    return Status;
+  }
 
-	FfbmData[Sz - 1] = '\0';
-	if (!AsciiStrnCmp(FfbmData, FfbmCmd, AsciiStrLen(FfbmCmd)))
-		AsciiStrnCpy(FfbmString, FfbmData, Sz);
-	else
-		Status = EFI_NOT_FOUND;
+  FfbmData[Sz - 1] = '\0';
+  if (!AsciiStrnCmp (FfbmData, FfbmCmd, AsciiStrLen (FfbmCmd)))
+    AsciiStrnCpy (FfbmString, FfbmData, Sz);
+  else
+    Status = EFI_NOT_FOUND;
 
-    FreePool (FfbmData);
-    FfbmData = NULL;
+  FreePool (FfbmData);
+  FfbmData = NULL;
 
-	return Status;
+  return Status;
 }

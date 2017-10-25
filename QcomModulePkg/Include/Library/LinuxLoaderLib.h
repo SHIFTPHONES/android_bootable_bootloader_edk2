@@ -31,72 +31,77 @@
 
 #include <Uefi.h>
 
+#include "DeviceInfo.h"
+#include <Guid/FileInfo.h>
+#include <Guid/FileSystemInfo.h>
+#include <Guid/Gpt.h>
 #include <Library/BaseLib.h>
-#include <Library/IoLib.h>
-#include <Library/PcdLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiRuntimeServicesTableLib.h>
-#include <Library/UefiLib.h>
-#include <Library/DebugLib.h>
 #include <Library/BaseMemoryLib.h>
-#include <Library/MemoryAllocationLib.h>
+#include <Library/CacheMaintenanceLib.h>
+#include <Library/DebugLib.h>
 #include <Library/DevicePathLib.h>
 #include <Library/EfiFileLib.h>
-#include <Library/TimerLib.h>
+#include <Library/IoLib.h>
+#include <Library/MemoryAllocationLib.h>
+#include <Library/PcdLib.h>
 #include <Library/PrintLib.h>
-#include <Library/CacheMaintenanceLib.h>
+#include <Library/TimerLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 #include <PiDxe.h>
 #include <Protocol/BlockIo.h>
-#include <Protocol/SimpleFileSystem.h>
 #include <Protocol/DevicePath.h>
-#include <Protocol/SerialIo.h>
-#include <Protocol/FirmwareVolume2.h>
-#include <Protocol/LoadedImage.h>
-#include <Protocol/EFIVerifiedBoot.h>
 #include <Protocol/EFIEraseBlock.h>
 #include <Protocol/EFIMdtp.h>
-#include <Guid/FileSystemInfo.h>
-#include <Guid/FileInfo.h>
-#include <Guid/Gpt.h>
-#include "DeviceInfo.h"
+#include <Protocol/EFIVerifiedBoot.h>
+#include <Protocol/FirmwareVolume2.h>
+#include <Protocol/LoadedImage.h>
+#include <Protocol/SerialIo.h>
+#include <Protocol/SimpleFileSystem.h>
 /**
   gQcomTokenSpaceGuid GUID definition.
  */
-#define QCOM_TOKEN_SPACE_GUID \
-        { 0x882f8c2b, 0x9646, 0x435f, { 0x8d, 0xe5, 0xf2, 0x08, 0xff, 0x80, 0xc1, 0xbd } }
+#define QCOM_TOKEN_SPACE_GUID                                                  \
+  {                                                                            \
+    0x882f8c2b, 0x9646, 0x435f,                                                \
+    {                                                                          \
+      0x8d, 0xe5, 0xf2, 0x08, 0xff, 0x80, 0xc1, 0xbd                           \
+    }                                                                          \
+  }
 
 /* Selection attributes for selecting the BlkIo handles */
-#define   BLK_IO_SEL_MEDIA_TYPE_REMOVABLE          0x0001
-#define   BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE      0x0002
-#define   BLK_IO_SEL_PARTITIONED_GPT               0x0004
-#define   BLK_IO_SEL_PARTITIONED_MBR               0x0008
-#define   BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID     0x0010
-#define   BLK_IO_SEL_SELECT_MOUNTED_FILESYSTEM     0x0020
-#define   BLK_IO_SEL_SELECT_BY_VOLUME_NAME         0x0040
+#define BLK_IO_SEL_MEDIA_TYPE_REMOVABLE 0x0001
+#define BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE 0x0002
+#define BLK_IO_SEL_PARTITIONED_GPT 0x0004
+#define BLK_IO_SEL_PARTITIONED_MBR 0x0008
+#define BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID 0x0010
+#define BLK_IO_SEL_SELECT_MOUNTED_FILESYSTEM 0x0020
+#define BLK_IO_SEL_SELECT_BY_VOLUME_NAME 0x0040
 
 /* Select only the root device handle indicated. Doesn't return
  * any partitions within.
  * Currently this filter applies only for eMMC device, not the external
  * device connected via USB */
-#define   BLK_IO_SEL_SELECT_ROOT_DEVICE_ONLY       0x0080
+#define BLK_IO_SEL_SELECT_ROOT_DEVICE_ONLY 0x0080
 /* Select the handle that's on the indicated root device.
  * Currently this filter applies only for eMMC device, not the external
  * device connected via USB */
-#define   BLK_IO_SEL_MATCH_ROOT_DEVICE             0x0100
+#define BLK_IO_SEL_MATCH_ROOT_DEVICE 0x0100
 
 /* Select through partition name*/
-#define   BLK_IO_SEL_MATCH_PARTITION_LABEL         0x0200
+#define BLK_IO_SEL_MATCH_PARTITION_LABEL 0x0200
 
 /* Do case insensetive string comparisons */
-#define   BLK_IO_SEL_STRING_CASE_INSENSITIVE       0x0400
+#define BLK_IO_SEL_STRING_CASE_INSENSITIVE 0x0400
 
 /* Partitioning scheme types for selecting the BlkIo handles */
-#define PARTITIONED_TYPE_MBR    0x01
-#define PARTITIONED_TYPE_GPT    0x02
+#define PARTITIONED_TYPE_MBR 0x01
+#define PARTITIONED_TYPE_GPT 0x02
 
-#define ZERO	0
-#define ARRAY_SIZE(a)                  sizeof(a)/sizeof(*a)
-#define MAX_HANDLE_INFO_LIST     128
+#define ZERO 0
+#define ARRAY_SIZE(a) sizeof (a) / sizeof (*a)
+#define MAX_HANDLE_INFO_LIST 128
 
 /* Macro to avoid integer overflow */
 #define ADD_OF(a, b) (MAX_UINT32 - b > a) ? (a + b) : ZERO
@@ -106,29 +111,33 @@
 
 /* Any data specific to additional attributes can be added here. */
 typedef struct {
-	EFI_GUID      *RootDeviceType;  /* GUID Selecting the root device type */
-	EFI_GUID      *PartitionType;   /* Partition Type to match */
-	CHAR8         *VolumeName;        /* Mounted filesystem volume name to match */
-	CHAR16        *PartitionLabel;    /* Partition label to match */
+  EFI_GUID *RootDeviceType; /* GUID Selecting the root device type */
+  EFI_GUID *PartitionType;  /* Partition Type to match */
+  CHAR8 *VolumeName;        /* Mounted filesystem volume name to match */
+  CHAR16 *PartitionLabel;   /* Partition label to match */
 } PartiSelectFilter;
 
 /* Output data providing more information about the device handle */
 typedef struct {
-	/* Handle that has BlkIO protocol installed, returned for all type of filters */
-	EFI_HANDLE                     *Handle;
+  /* Handle that has BlkIO protocol installed, returned for all type of filters
+   */
+  EFI_HANDLE *Handle;
 
-	/* Block IO protocol interface is returned for all type of filters */
-	EFI_BLOCK_IO_PROTOCOL          *BlkIo;
+  /* Block IO protocol interface is returned for all type of filters */
+  EFI_BLOCK_IO_PROTOCOL *BlkIo;
 
-	/* This HDD dev path is returned only if Matching Partition type is requested
-	 * It should be noted that the contents of this memory should NOT be changed */
-	const HARDDRIVE_DEVICE_PATH    *PartitionInfo;
+  /* This HDD dev path is returned only if Matching Partition type is requested
+   * It should be noted that the contents of this memory should NOT be changed
+   */
+  const HARDDRIVE_DEVICE_PATH *PartitionInfo;
 } HandleInfo;
 
 /* Load image from partition to buffer */
-EFI_STATUS LoadImageFromPartition(VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname);
+EFI_STATUS
+LoadImageFromPartition (VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname);
 
-EFI_STATUS ReadWriteDeviceInfo(vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz);
+EFI_STATUS
+ReadWriteDeviceInfo (vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz);
 /**
   Returns a list of BlkIo handles based on required criteria
   SelectionAttrib : Bitmask representing the conditions that need
@@ -138,31 +147,34 @@ EFI_STATUS ReadWriteDeviceInfo(vb_device_state_op_t Mode, void *DevInfo, UINT32 
                     needs extended data for certain type flags. For example
                     Partition type and/or Volume name can be specified.
   HandleInfoPtr   : Pointer Handle info where the information can be returned
-  MaxBlkIopCnt    : On input, max number of handles the buffer can hold, 
+  MaxBlkIopCnt    : On input, max number of handles the buffer can hold,
                     On output, the number of handles returned.
 
   @retval EFI_SUCCESS if the operation was successful
  */
 EFI_STATUS
 EFIAPI
-GetBlkIOHandles (
-                  IN      UINT32                   SelectionAttrib,
-                  IN      PartiSelectFilter        *FilterData,
-                  OUT     HandleInfo               *HandleInfoPtr,
-                  IN OUT  UINT32*                  MaxBlkIopCnt
-                 );
+GetBlkIOHandles (IN UINT32 SelectionAttrib,
+                 IN PartiSelectFilter *FilterData,
+                 OUT HandleInfo *HandleInfoPtr,
+                 IN OUT UINT32 *MaxBlkIopCnt);
 
-VOID ToLower(CHAR8 *Str);
+VOID
+ToLower (CHAR8 *Str);
 UINT64 GetTimerCountms (VOID);
-EFI_STATUS WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize);
-BOOLEAN IsSecureBootEnabled(VOID);
-EFI_STATUS ResetDeviceState(VOID);
-EFI_STATUS ErasePartition(EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
-EFI_STATUS GetBootDevice(CHAR8 *BootDevBuf, UINT32 Len);
+EFI_STATUS
+WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize);
+BOOLEAN IsSecureBootEnabled (VOID);
+EFI_STATUS ResetDeviceState (VOID);
+EFI_STATUS
+ErasePartition (EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle);
+EFI_STATUS
+GetBootDevice (CHAR8 *BootDevBuf, UINT32 Len);
 
 /* Returns whether MDTP is active or not,
  * or whether it should be considered active for
  * bootloader flows. */
-EFI_STATUS IsMdtpActive(BOOLEAN *IsActive);
+EFI_STATUS
+IsMdtpActive (BOOLEAN *IsActive);
 
 #endif

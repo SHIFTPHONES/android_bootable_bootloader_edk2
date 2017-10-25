@@ -26,7 +26,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #ifndef __EFIMDTP_H__
 #define __EFIMDTP_H__
 
@@ -34,8 +33,8 @@
   INCLUDE FILES
 ===========================================================================*/
 
-#include <Uefi.h>
 #include <Protocol/EFIVerifiedBoot.h>
+#include <Uefi.h>
 
 /*===========================================================================
   MACRO DECLARATIONS
@@ -44,12 +43,17 @@
   Protocol version.
 */
 #define QCOM_MDTP_PROTOCOL_REVISION 0x0000000000010001
-#define MAX_PARTITION_NAME_LEN      100
+#define MAX_PARTITION_NAME_LEN 100
 
 /*  Protocol GUID definition */
 /** @ingroup efi_mdtp_protocol */
-#define EFI_MDTP_PROTOCOL_GUID \
-  { 0x71746E63, 0x65F9, 0x41EC, { 0xAC, 0x08, 0xCD, 0xD1, 0xF2, 0xD0, 0x22, 0x98 } }
+#define EFI_MDTP_PROTOCOL_GUID                                                 \
+  {                                                                            \
+    0x71746E63, 0x65F9, 0x41EC,                                                \
+    {                                                                          \
+      0xAC, 0x08, 0xCD, 0xD1, 0xF2, 0xD0, 0x22, 0x98                           \
+    }                                                                          \
+  }
 
 /*===========================================================================
   EXTERNAL VARIABLES
@@ -61,29 +65,28 @@ extern EFI_GUID gQcomMdtpProtocolGuid;
   TYPE DEFINITIONS
 ===========================================================================*/
 
-
 /** @cond */
 /* Protocol declaration.  */
 typedef struct _QCOM_MDTP_PROTOCOL QCOM_MDTP_PROTOCOL;
 /** @endcond */
 
 typedef struct {
-  BOOLEAN                         VbEnabled;
-  CHAR8                           PartitionName[MAX_PARTITION_NAME_LEN];
-  VOID                            *ImageBuffer;
-  UINT32                          ImageSize;
-  boot_state_t                    BootState;
-  device_info_vb_t                DevInfo;
+  BOOLEAN VbEnabled;
+  CHAR8 PartitionName[MAX_PARTITION_NAME_LEN];
+  VOID *ImageBuffer;
+  UINT32 ImageSize;
+  boot_state_t BootState;
+  device_info_vb_t DevInfo;
 } MDTP_VB_EXTERNAL_PARTITION;
 
 typedef BOOLEAN MDTP_ISV_PIN;
 
 typedef enum {
-  MDTP_STATE_DISABLED,         /* MDTP is disabled on the device. */
-  MDTP_STATE_INACTIVE,         /* MDTP is not activated on the device. */
-  MDTP_STATE_ACTIVE,           /* MDTP is activated on the device. */
-  MDTP_STATE_TAMPERED,         /* MDTP is tampered on the device. */
-  MDTP_STATE_INVALID,          /* MDTP is invalid on the device. */
+  MDTP_STATE_DISABLED, /* MDTP is disabled on the device. */
+  MDTP_STATE_INACTIVE, /* MDTP is not activated on the device. */
+  MDTP_STATE_ACTIVE,   /* MDTP is activated on the device. */
+  MDTP_STATE_TAMPERED, /* MDTP is tampered on the device. */
+  MDTP_STATE_INVALID,  /* MDTP is invalid on the device. */
   MDTP_STATE_SIZE = 0x7FFFFFFF
 } MDTP_SYSTEM_STATE;
 
@@ -102,13 +105,9 @@ typedef enum {
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_MDTP_GET_STATE )
-(
-	IN  QCOM_MDTP_PROTOCOL  *This,
-	OUT MDTP_SYSTEM_STATE   *MdtpState
-);
+typedef EFI_STATUS (EFIAPI *QCOM_MDTP_GET_STATE) (
+    IN QCOM_MDTP_PROTOCOL *This,
+    OUT MDTP_SYSTEM_STATE *MdtpState);
 
 /**
 * Set MDTP BootState.
@@ -120,13 +119,9 @@ EFI_STATUS
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_MDTP_SET_BOOT_STATE )
-(
-	IN QCOM_MDTP_PROTOCOL           *This,
-	IN MDTP_VB_EXTERNAL_PARTITION   *ExternalPartition
-);
+typedef EFI_STATUS (EFIAPI *QCOM_MDTP_SET_BOOT_STATE) (
+    IN QCOM_MDTP_PROTOCOL *This,
+    IN MDTP_VB_EXTERNAL_PARTITION *ExternalPartition);
 
 /**
 * Run MDTP Local Deactivation, displaying Recovery UI
@@ -139,13 +134,8 @@ EFI_STATUS
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_MDTP_DEACTIVATE )
-(
-        IN  QCOM_MDTP_PROTOCOL  *This,
-        OUT MDTP_ISV_PIN        MasterPIN
-);
+typedef EFI_STATUS (EFIAPI *QCOM_MDTP_DEACTIVATE) (IN QCOM_MDTP_PROTOCOL *This,
+                                                   OUT MDTP_ISV_PIN MasterPIN);
 
 /*===========================================================================
   PROTOCOL INTERFACE
@@ -158,10 +148,10 @@ EFI_STATUS
   @inputprotoparams
 */
 struct _QCOM_MDTP_PROTOCOL {
-	UINT64                    Revision;
-        QCOM_MDTP_GET_STATE       MdtpGetState;
-        QCOM_MDTP_SET_BOOT_STATE  MdtpBootState;
-        QCOM_MDTP_DEACTIVATE      MdtpDeactivate;
+  UINT64 Revision;
+  QCOM_MDTP_GET_STATE MdtpGetState;
+  QCOM_MDTP_SET_BOOT_STATE MdtpBootState;
+  QCOM_MDTP_DEACTIVATE MdtpDeactivate;
 };
 
 #endif /* __EFIMDTP_H__ */

@@ -52,8 +52,7 @@ extern EFI_GUID gQcomScmModeSwithProtocolGuid;
 ===========================================================================*/
 typedef struct _EFI_HLOS_BOOT_ARGS EFI_HLOS_BOOT_ARGS;
 
-struct _EFI_HLOS_BOOT_ARGS
-{
+struct _EFI_HLOS_BOOT_ARGS {
   UINT64 el1_x0;
   UINT64 el1_x1;
   UINT64 el1_x2;
@@ -78,11 +77,8 @@ struct _EFI_HLOS_BOOT_ARGS
   Error values  -- In case of failure; Does not return upon succes \n
 */
 
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_SWITCH_TO_32BIT_MODE)(
-  IN  EFI_HLOS_BOOT_ARGS     HlosBootInfo
-);
+typedef EFI_STATUS (EFIAPI *QCOM_SWITCH_TO_32BIT_MODE) (
+    IN EFI_HLOS_BOOT_ARGS HlosBootInfo);
 
 /*===========================================================================
   PROTOCOL INTERFACE
@@ -95,9 +91,7 @@ EFI_STATUS
   @inputprotoparams{scm_proto_params.tex}
 */
 typedef struct _QCOM_SCM_MODE_SWITCH_PROTOCOL {
-  QCOM_SWITCH_TO_32BIT_MODE        SwitchTo32bitMode;
+  QCOM_SWITCH_TO_32BIT_MODE SwitchTo32bitMode;
 } QCOM_SCM_MODE_SWITCH_PROTOCOL;
 
 #endif /* __EFISCM_H__ */
-
-

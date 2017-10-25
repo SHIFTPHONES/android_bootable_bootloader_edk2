@@ -26,15 +26,16 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #ifndef _UNLOCKMENU_H_
 #define _UNLOCKMENU_H_
 
 typedef struct {
-	INTN UnlockType;
-	BOOLEAN UnlockValue;
+  INTN UnlockType;
+  BOOLEAN UnlockValue;
 } UNLOCK_INFO;
 
-VOID ResetDeviceUnlockStatus(INTN Type);
-EFI_STATUS DisplayUnlockMenu(INTN Type, BOOLEAN Value);
+VOID
+ResetDeviceUnlockStatus (INTN Type);
+EFI_STATUS
+DisplayUnlockMenu (INTN Type, BOOLEAN Value);
 #endif

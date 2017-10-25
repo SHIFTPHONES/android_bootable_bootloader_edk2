@@ -30,31 +30,30 @@
 #ifndef __PARTITION_TABLE_H__
 #define __PARTITION_TABLE_H__
 
-#include <Uefi.h>
-#include <Library/UefiLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiRuntimeServicesTableLib.h>
-#include <Protocol/EFIUsbDevice.h>
 #include <Library/DebugLib.h>
 #include <Library/LinuxLoaderLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
+#include <Protocol/EFIUsbDevice.h>
+#include <Uefi.h>
 
-enum ReturnVal
-{
-	SUCCESS = 0,
-	FAILURE,
+enum ReturnVal {
+  SUCCESS = 0,
+  FAILURE,
 };
 
-#define MAX_HANDLEINF_LST_SIZE                   128
+#define MAX_HANDLEINF_LST_SIZE 128
 
-#define PARTITION_TYPE_MBR                       0
-#define PARTITION_TYPE_GPT                       1
-#define PARTITION_TYPE_GPT_BACKUP                2
-#define GPT_PROTECTIVE                           0xEE
-#define MBR_PARTITION_RECORD                     446
-#define OS_TYPE                                  4
-#define MBR_SIGNATURE                            510
-#define MBR_SIGNATURE_BYTE_0                     0x55
-#define MBR_SIGNATURE_BYTE_1                     0xAA
+#define PARTITION_TYPE_MBR 0
+#define PARTITION_TYPE_GPT 1
+#define PARTITION_TYPE_GPT_BACKUP 2
+#define GPT_PROTECTIVE 0xEE
+#define MBR_PARTITION_RECORD 446
+#define OS_TYPE 4
+#define MBR_SIGNATURE 510
+#define MBR_SIGNATURE_BYTE_0 0x55
+#define MBR_SIGNATURE_BYTE_1 0xAA
 
 /* GPT Signature should be 0x5452415020494645 */
 #define GPT_SIGNATURE_1 0x54524150
@@ -65,22 +64,22 @@ enum ReturnVal
 #define MAX_GPT_NAME_SIZE 36
 
 /* GPT Offsets */
-#define HEADER_SIZE_OFFSET        12
-#define HEADER_CRC_OFFSET         16
-#define PRIMARY_HEADER_OFFSET     24
-#define BACKUP_HEADER_OFFSET      32
-#define FIRST_USABLE_LBA_OFFSET   40
-#define LAST_USABLE_LBA_OFFSET    48
-#define PARTITION_ENTRIES_OFFSET  72
-#define PARTITION_COUNT_OFFSET    80
-#define PENTRY_SIZE_OFFSET        84
-#define PARTITION_CRC_OFFSET      88
-#define PARTITION_ENTRY_LAST_LBA  40
-#define PARTITION_TYPE_GUID_SIZE   4
+#define HEADER_SIZE_OFFSET 12
+#define HEADER_CRC_OFFSET 16
+#define PRIMARY_HEADER_OFFSET 24
+#define BACKUP_HEADER_OFFSET 32
+#define FIRST_USABLE_LBA_OFFSET 40
+#define LAST_USABLE_LBA_OFFSET 48
+#define PARTITION_ENTRIES_OFFSET 72
+#define PARTITION_COUNT_OFFSET 80
+#define PENTRY_SIZE_OFFSET 84
+#define PARTITION_CRC_OFFSET 88
+#define PARTITION_ENTRY_LAST_LBA 40
+#define PARTITION_TYPE_GUID_SIZE 4
 #define UNIQUE_PARTITION_GUID_SIZE 16
 
-#define PARTITION_ENTRY_SIZE      128
-#define PART_ATT_READONLY_OFFSET   60
+#define PARTITION_ENTRY_SIZE 128
+#define PART_ATT_READONLY_OFFSET 60
 /*
 The attributes like Priority, Active bit,
 Max retry count, Success bit and Unabootable bits will be
@@ -88,11 +87,11 @@ stored in attributes filed of the each partition in partition
 table in the respective position mentioned below.
 */
 /* Partition Attribute fields*/
-#define PART_ATT_PRIORITY_BIT      48
-#define PART_ATT_ACTIVE_BIT        50
+#define PART_ATT_PRIORITY_BIT 48
+#define PART_ATT_ACTIVE_BIT 50
 #define PART_ATT_MAX_RETRY_CNT_BIT 51
-#define PART_ATT_SUCCESS_BIT       54
-#define PART_ATT_UNBOOTABLE_BIT    55
+#define PART_ATT_SUCCESS_BIT 54
+#define PART_ATT_UNBOOTABLE_BIT 55
 
 #define PART_ATT_PRIORITY_VAL ((UINT64)0x3 << PART_ATT_PRIORITY_BIT)
 #define PART_ATT_ACTIVE_VAL ((UINT64)0x1 << PART_ATT_ACTIVE_BIT)
@@ -102,106 +101,113 @@ table in the respective position mentioned below.
 #define MAX_PRIORITY 3
 #define MAX_RETRY_COUNT 7
 #define MAX_NUM_PARTITIONS 128
-#define MIN_PARTITION_ARRAY_SIZE  0x4000
-#define ATTRIBUTE_FLAG_OFFSET     48
-#define INVALID_PTN               -1
-#define GPT_HDR_BLOCKS             0x1
+#define MIN_PARTITION_ARRAY_SIZE 0x4000
+#define ATTRIBUTE_FLAG_OFFSET 48
+#define INVALID_PTN -1
+#define GPT_HDR_BLOCKS 0x1
 #define MAX_PARTITION_ENTRIES_SZ (MAX_NUM_PARTITIONS * PARTITION_ENTRY_SIZE)
-#define GUID_SIZE                 16
-#define PRIMARY_HDR_LBA           0x1
-#define BOOT_PART_SIZE            32
+#define GUID_SIZE 16
+#define PRIMARY_HDR_LBA 0x1
+#define BOOT_PART_SIZE 32
 
 /*Slot specific macros*/
-#define MAX_SLOT_SUFFIX_SZ      3
-#define MIN_SLOTS              1
-#define MAX_SLOTS              2
-#define MAX_LUNS               8
-#define NO_LUN                -1
+#define MAX_SLOT_SUFFIX_SZ 3
+#define MIN_SLOTS 1
+#define MAX_SLOTS 2
+#define MAX_LUNS 8
+#define NO_LUN -1
 
-#define GET_LWORD_FROM_BYTE(x)    ((UINT32)*(x) | \
-        ((UINT32)*(x+1) << 8) | \
-        ((UINT32)*(x+2) << 16) | \
-        ((UINT32)*(x+3) << 24))
+#define GET_LWORD_FROM_BYTE(x)                                                 \
+  ((UINT32) * (x) | ((UINT32) * (x + 1) << 8) | ((UINT32) * (x + 2) << 16) |   \
+   ((UINT32) * (x + 3) << 24))
 
-#define GET_LLWORD_FROM_BYTE(x)    ((UINT64)*(x) | \
-        ((UINT64)*(x+1) << 8) | \
-        ((UINT64)*(x+2) << 16) | \
-        ((UINT64)*(x+3) << 24) | \
-        ((UINT64)*(x+4) << 32) | \
-        ((UINT64)*(x+5) << 40) | \
-        ((UINT64)*(x+6) << 48) | \
-        ((UINT64)*(x+7) << 56))
+#define GET_LLWORD_FROM_BYTE(x)                                                \
+  ((UINT64) * (x) | ((UINT64) * (x + 1) << 8) | ((UINT64) * (x + 2) << 16) |   \
+   ((UINT64) * (x + 3) << 24) | ((UINT64) * (x + 4) << 32) |                   \
+   ((UINT64) * (x + 5) << 40) | ((UINT64) * (x + 6) << 48) |                   \
+   ((UINT64) * (x + 7) << 56))
 
-#define GET_LONG(x)    ((UINT32)*(x) | \
-            ((UINT32)*(x+1) << 8) | \
-            ((UINT32)*(x+2) << 16) | \
-            ((UINT32)*(x+3) << 24))
+#define GET_LONG(x)                                                            \
+  ((UINT32) * (x) | ((UINT32) * (x + 1) << 8) | ((UINT32) * (x + 2) << 16) |   \
+   ((UINT32) * (x + 3) << 24))
 
-#define PUT_LONG(x, y)   *(x) = y & 0xff;     \
-    *(x+1) = (y >> 8) & 0xff;     \
-    *(x+2) = (y >> 16) & 0xff;    \
-    *(x+3) = (y >> 24) & 0xff;
+#define PUT_LONG(x, y)                                                         \
+  *(x) = y & 0xff;                                                             \
+  *(x + 1) = (y >> 8) & 0xff;                                                  \
+  *(x + 2) = (y >> 16) & 0xff;                                                 \
+  *(x + 3) = (y >> 24) & 0xff;
 
-#define PUT_LONG_LONG(x,y)    (*(x) =(y) & 0xff); \
-     (*((x)+1) = (((y) >> 8) & 0xff));    \
-     (*((x)+2) = (((y) >> 16) & 0xff));   \
-     (*((x)+3) = (((y) >> 24) & 0xff));   \
-     (*((x)+4) = (((y) >> 32) & 0xff));   \
-     (*((x)+5) = (((y) >> 40) & 0xff));   \
-     (*((x)+6) = (((y) >> 48) & 0xff));   \
-     (*((x)+7) = (((y) >> 56) & 0xff));
+#define PUT_LONG_LONG(x, y)                                                    \
+  (*(x) = (y)&0xff);                                                           \
+  (*((x) + 1) = (((y) >> 8) & 0xff));                                          \
+  (*((x) + 2) = (((y) >> 16) & 0xff));                                         \
+  (*((x) + 3) = (((y) >> 24) & 0xff));                                         \
+  (*((x) + 4) = (((y) >> 32) & 0xff));                                         \
+  (*((x) + 5) = (((y) >> 40) & 0xff));                                         \
+  (*((x) + 6) = (((y) >> 48) & 0xff));                                         \
+  (*((x) + 7) = (((y) >> 56) & 0xff));
 
-struct StoragePartInfo
-{
-	HandleInfo HandleInfoList[MAX_NUM_PARTITIONS];
-	UINT32 MaxHandles;
+struct StoragePartInfo {
+  HandleInfo HandleInfoList[MAX_NUM_PARTITIONS];
+  UINT32 MaxHandles;
 };
 extern struct StoragePartInfo Ptable[MAX_LUNS];
 
-typedef struct
-{
-	CHAR16 Suffix[MAX_SLOT_SUFFIX_SZ];
+typedef struct {
+  CHAR16 Suffix[MAX_SLOT_SUFFIX_SZ];
 } Slot;
 
-Slot GetCurrentSlotSuffix();
-UINT32 GetMaxLuns();
-VOID GetPartitionCount(UINT32 *Val);
-VOID SetMultiSlotBootVal(BOOLEAN Val);
+Slot
+GetCurrentSlotSuffix ();
+UINT32
+GetMaxLuns ();
+VOID
+GetPartitionCount (UINT32 *Val);
+VOID
+SetMultiSlotBootVal (BOOLEAN Val);
 
-struct GptHeaderData
-{
-	UINT64 FirstUsableLba;
-	UINT32 PartEntrySz;
-	UINT32 HeaderSz;
-	UINT32 MaxPtCnt;
-	UINT64 LastUsableLba;
+struct GptHeaderData {
+  UINT64 FirstUsableLba;
+  UINT32 PartEntrySz;
+  UINT32 HeaderSz;
+  UINT32 MaxPtCnt;
+  UINT64 LastUsableLba;
 };
 
-struct PartitionEntry
-{
-	EFI_PARTITION_ENTRY PartEntry;
-	UINT32 lun;
+struct PartitionEntry {
+  EFI_PARTITION_ENTRY PartEntry;
+  UINT32 lun;
 };
 extern struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 
 struct BootPartsLinkedList {
-	CHAR16 PartName[BOOT_PART_SIZE];
-	struct BootPartsLinkedList *Next;
+  CHAR16 PartName[BOOT_PART_SIZE];
+  struct BootPartsLinkedList *Next;
 };
 
-EFI_STATUS UpdatePartitionTable(UINT8 *GptImage, UINT32 Sz, INT32 Lun, struct StoragePartInfo *Ptable);
-UINT32 GetPartitionLunFromIndex(UINT32);
-INT32 GetPartitionIdxInLun(CHAR16 *Pname, UINT32 Lun);
-INT32 GetPartitionIndex(CHAR16* PartitionName);
-BOOLEAN PartitionHasMultiSlot(CONST CHAR16 *Pname);
+EFI_STATUS
+UpdatePartitionTable (UINT8 *GptImage,
+                      UINT32 Sz,
+                      INT32 Lun,
+                      struct StoragePartInfo *Ptable);
+UINT32 GetPartitionLunFromIndex (UINT32);
+INT32
+GetPartitionIdxInLun (CHAR16 *Pname, UINT32 Lun);
+INT32
+GetPartitionIndex (CHAR16 *PartitionName);
+BOOLEAN
+PartitionHasMultiSlot (CONST CHAR16 *Pname);
 EFI_STATUS EnumeratePartitions (VOID);
-VOID UpdatePartitionEntries(VOID);
-VOID UpdatePartitionAttributes(VOID);
-VOID FindPtnActiveSlot(VOID);
-EFI_STATUS FindBootableSlot(Slot *BootableSlot);
-BOOLEAN IsSuffixEmpty(Slot *CheckSlot);
-EFI_STATUS SetActiveSlot(Slot *NewSlot);
-BOOLEAN IsCurrentSlotBootable(VOID);
-EFI_STATUS HandleActiveSlotUnbootable(VOID);
-EFI_STATUS ClearUnbootable(VOID);
+VOID UpdatePartitionEntries (VOID);
+VOID UpdatePartitionAttributes (VOID);
+VOID FindPtnActiveSlot (VOID);
+EFI_STATUS
+FindBootableSlot (Slot *BootableSlot);
+BOOLEAN
+IsSuffixEmpty (Slot *CheckSlot);
+EFI_STATUS
+SetActiveSlot (Slot *NewSlot);
+BOOLEAN IsCurrentSlotBootable (VOID);
+EFI_STATUS HandleActiveSlotUnbootable (VOID);
+EFI_STATUS ClearUnbootable (VOID);
 #endif

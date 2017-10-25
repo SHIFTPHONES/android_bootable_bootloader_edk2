@@ -25,84 +25,169 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <Uefi.h>
+#include "AutoGen.h"
 #include <Library/BaseLib.h>
-#include <Library/UefiBootServicesTableLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
-#include <Library/MemoryAllocationLib.h>
-#include <Library/UefiHiiServicesLib.h>
 #include <Library/DeviceInfo.h>
 #include <Library/DrawUI.h>
-#include <Library/UnlockMenu.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/MenuKeysDetection.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiHiiServicesLib.h>
+#include <Library/UnlockMenu.h>
 #include <Library/UpdateDeviceTree.h>
-#include "AutoGen.h"
+#include <Uefi.h>
 
 #define UNLOCK_OPTION_NUM 2
 
 STATIC OPTION_MENU_INFO gMenuInfo;
 
 STATIC UNLOCK_INFO mUnlockInfo[] = {
-	[DISPLAY_MENU_LOCK] = {UNLOCK, FALSE},
-	[DISPLAY_MENU_UNLOCK] = {UNLOCK, TRUE},
-	[DISPLAY_MENU_LOCK_CRITICAL] = {UNLOCK_CRITICAL, FALSE},
-	[DISPLAY_MENU_UNLOCK_CRITICAL] = {UNLOCK_CRITICAL, TRUE},
+        [DISPLAY_MENU_LOCK] = {UNLOCK, FALSE},
+        [DISPLAY_MENU_UNLOCK] = {UNLOCK, TRUE},
+        [DISPLAY_MENU_LOCK_CRITICAL] = {UNLOCK_CRITICAL, FALSE},
+        [DISPLAY_MENU_UNLOCK_CRITICAL] = {UNLOCK_CRITICAL, TRUE},
 };
 
 STATIC MENU_MSG_INFO mUnlockMenuMsgInfo[] = {
-	{{"<!>"},BIG_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"\n\nBy unlocking the bootloader, you will be able to install "\
-		"custom operating system on this phone. "\
-		"A custom OS is not subject to the same level of testing "\
-		"as the original OS, and can cause your phone "\
-		"and installed applications to stop working properly.\n"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"\nSoftware integrity cannot be guaranteed with a custom OS, "\
-		"so any data stored on the phone while the bootloader "\
-		"is unlocked may be at risk. "},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"To prevent unauthorized access to your personal data, "\
-		"unlocking the bootloader will also delete all personal "\
-		"data on your phone.\n"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"\nPress the Volume keys to select whether to unlock the bootloader, "\
-		"then the Power Button to continue.\n\n"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"__________"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, LINEATION, 0, NOACTION},
-	{{"DO NOT UNLOCK THE BOOTLOADER"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, OPTION_ITEM, 0, RESTART},
-	{{"__________"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, LINEATION, 0, NOACTION},
-	{{"UNLOCK THE BOOTLOADER"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, OPTION_ITEM, 0, RECOVER},
-	{{"__________"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, LINEATION, 0, NOACTION},
+    {{"<!>"}, BIG_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
+    {{"\n\nBy unlocking the bootloader, you will be able to install "
+      "custom operating system on this phone. "
+      "A custom OS is not subject to the same level of testing "
+      "as the original OS, and can cause your phone "
+      "and installed applications to stop working properly.\n"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"\nSoftware integrity cannot be guaranteed with a custom OS, "
+      "so any data stored on the phone while the bootloader "
+      "is unlocked may be at risk. "},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"To prevent unauthorized access to your personal data, "
+      "unlocking the bootloader will also delete all personal "
+      "data on your phone.\n"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"\nPress the Volume keys to select whether to unlock the bootloader, "
+      "then the Power Button to continue.\n\n"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"__________"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     LINEATION,
+     0,
+     NOACTION},
+    {{"DO NOT UNLOCK THE BOOTLOADER"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     RESTART},
+    {{"__________"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     LINEATION,
+     0,
+     NOACTION},
+    {{"UNLOCK THE BOOTLOADER"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     RECOVER},
+    {{"__________"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     LINEATION,
+     0,
+     NOACTION},
 };
 
 STATIC MENU_MSG_INFO mLockMenuMsgInfo[] = {
-	{{"<!>"},BIG_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"\n\nIf you lock the bootloader, you will not be able to install "\
-		"custom operating system on this phone.\n"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"\nTo prevent unauthorized access to your personal data, "\
-		"locking the bootloader will also delete all personal "\
-		"data on your phone.\n"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"\nPress the Volume keys to select whether to "\
-		"unlock the bootloader, then the power button to continue.\n\n"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, COMMON, 0, NOACTION},
-	{{"__________"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, LINEATION, 0, NOACTION},
-	{{"DO NOT LOCK THE BOOTLOADER"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, OPTION_ITEM, 0, RESTART},
-	{{"__________"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, LINEATION, 0, NOACTION},
-	{{"LOCK THE BOOTLOADER"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, OPTION_ITEM, 0, RECOVER},
-	{{"__________"},
-		COMMON_FACTOR, BGR_WHITE, BGR_BLACK, LINEATION, 0, NOACTION},
+    {{"<!>"}, BIG_FACTOR, BGR_RED, BGR_BLACK, COMMON, 0, NOACTION},
+    {{"\n\nIf you lock the bootloader, you will not be able to install "
+      "custom operating system on this phone.\n"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"\nTo prevent unauthorized access to your personal data, "
+      "locking the bootloader will also delete all personal "
+      "data on your phone.\n"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"\nPress the Volume keys to select whether to "
+      "unlock the bootloader, then the power button to continue.\n\n"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"__________"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     LINEATION,
+     0,
+     NOACTION},
+    {{"DO NOT LOCK THE BOOTLOADER"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     RESTART},
+    {{"__________"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     LINEATION,
+     0,
+     NOACTION},
+    {{"LOCK THE BOOTLOADER"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     RECOVER},
+    {{"__________"},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     LINEATION,
+     0,
+     NOACTION},
 };
 
 /**
@@ -113,34 +198,35 @@ STATIC MENU_MSG_INFO mLockMenuMsgInfo[] = {
                      [DISPLAY_MENU_LOCK]: lock the device
                      [DISPLAY_MENU_LOCK_CRITICAL]: critical lock the device
  **/
-VOID ResetDeviceUnlockStatus(INTN Type)
+VOID
+ResetDeviceUnlockStatus (INTN Type)
 {
-	EFI_STATUS Result;
-	DeviceInfo *DevInfo = NULL;
+  EFI_STATUS Result;
+  DeviceInfo *DevInfo = NULL;
 
-	/* Read Device Info */
-	DevInfo = AllocateZeroPool(sizeof(DeviceInfo));
-	if (DevInfo == NULL) {
-		DEBUG((EFI_D_ERROR, "Failed to allocate zero pool for device info.\n"));
-		goto Exit;
-	}
+  /* Read Device Info */
+  DevInfo = AllocateZeroPool (sizeof (DeviceInfo));
+  if (DevInfo == NULL) {
+    DEBUG ((EFI_D_ERROR, "Failed to allocate zero pool for device info.\n"));
+    goto Exit;
+  }
 
-	Result = ReadWriteDeviceInfo(READ_CONFIG, DevInfo, sizeof(DeviceInfo));
-	if (Result != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Result));
-		goto Exit;
-	}
+  Result = ReadWriteDeviceInfo (READ_CONFIG, DevInfo, sizeof (DeviceInfo));
+  if (Result != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Unable to Read Device Info: %r\n", Result));
+    goto Exit;
+  }
 
-	Result = SetDeviceUnlockValue(mUnlockInfo[Type].UnlockType, mUnlockInfo[Type].UnlockValue);
-	if (Result != EFI_SUCCESS)
-		DEBUG((EFI_D_ERROR, "Failed to update the unlock status: %r\n", Result));
+  Result = SetDeviceUnlockValue (mUnlockInfo[Type].UnlockType,
+                                 mUnlockInfo[Type].UnlockValue);
+  if (Result != EFI_SUCCESS)
+    DEBUG ((EFI_D_ERROR, "Failed to update the unlock status: %r\n", Result));
 
 Exit:
-	if (DevInfo) {
-		FreePool(DevInfo);
-		DevInfo = NULL;
-	}
+  if (DevInfo) {
+    FreePool (DevInfo);
+    DevInfo = NULL;
+  }
 }
 
 /**
@@ -150,55 +236,58 @@ Exit:
   @retval     EFI_SUCCESS       The entry point is executed successfully.
   @retval     other	        Some error occurs when executing this entry point.
  **/
-STATIC EFI_STATUS UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Type, BOOLEAN Value)
+STATIC EFI_STATUS
+UnlockMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo,
+                      INTN Type,
+                      BOOLEAN Value)
 {
-	EFI_STATUS Status = EFI_SUCCESS;
-	UINT32 Location = 0;
-	UINT32 Height = 0;
-	UINT32 i = 0;
-	UINT32 j = 0;
-	UINT32 MaxLine = 0;
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 Location = 0;
+  UINT32 Height = 0;
+  UINT32 i = 0;
+  UINT32 j = 0;
+  UINT32 MaxLine = 0;
 
-	ZeroMem(&OptionMenuInfo->Info, sizeof(MENU_OPTION_ITEM_INFO));
+  ZeroMem (&OptionMenuInfo->Info, sizeof (MENU_OPTION_ITEM_INFO));
 
-	if (Value) {
-		OptionMenuInfo->Info.MsgInfo = mUnlockMenuMsgInfo;
-		MaxLine = ARRAY_SIZE(mUnlockMenuMsgInfo);
-	} else {
-		OptionMenuInfo->Info.MsgInfo = mLockMenuMsgInfo;
-		MaxLine = ARRAY_SIZE(mLockMenuMsgInfo);
-	}
+  if (Value) {
+    OptionMenuInfo->Info.MsgInfo = mUnlockMenuMsgInfo;
+    MaxLine = ARRAY_SIZE (mUnlockMenuMsgInfo);
+  } else {
+    OptionMenuInfo->Info.MsgInfo = mLockMenuMsgInfo;
+    MaxLine = ARRAY_SIZE (mLockMenuMsgInfo);
+  }
 
-	for (i = 0; i < MaxLine; i++) {
-		if (OptionMenuInfo->Info.MsgInfo[i].Attribute == OPTION_ITEM) {
-			if (j < UNLOCK_OPTION_NUM) {
-				OptionMenuInfo->Info.OptionItems[j] = i;
-				j++;
-			}
-		}
-		OptionMenuInfo->Info.MsgInfo[i].Location = Location;
-		Status = DrawMenu(&OptionMenuInfo->Info.MsgInfo[i], &Height);
-		if (Status != EFI_SUCCESS)
-			return Status;
-		Location += Height;
-	}
+  for (i = 0; i < MaxLine; i++) {
+    if (OptionMenuInfo->Info.MsgInfo[i].Attribute == OPTION_ITEM) {
+      if (j < UNLOCK_OPTION_NUM) {
+        OptionMenuInfo->Info.OptionItems[j] = i;
+        j++;
+      }
+    }
+    OptionMenuInfo->Info.MsgInfo[i].Location = Location;
+    Status = DrawMenu (&OptionMenuInfo->Info.MsgInfo[i], &Height);
+    if (Status != EFI_SUCCESS)
+      return Status;
+    Location += Height;
+  }
 
-	if (Type == UNLOCK) {
-		OptionMenuInfo->Info.MenuType = DISPLAY_MENU_UNLOCK;
-		if (!Value)
-			OptionMenuInfo->Info.MenuType = DISPLAY_MENU_LOCK;
-	} else if (Type == UNLOCK_CRITICAL) {
-		OptionMenuInfo->Info.MenuType = DISPLAY_MENU_UNLOCK_CRITICAL;
-		if (!Value)
-			OptionMenuInfo->Info.MenuType = DISPLAY_MENU_LOCK_CRITICAL;
-	}
+  if (Type == UNLOCK) {
+    OptionMenuInfo->Info.MenuType = DISPLAY_MENU_UNLOCK;
+    if (!Value)
+      OptionMenuInfo->Info.MenuType = DISPLAY_MENU_LOCK;
+  } else if (Type == UNLOCK_CRITICAL) {
+    OptionMenuInfo->Info.MenuType = DISPLAY_MENU_UNLOCK_CRITICAL;
+    if (!Value)
+      OptionMenuInfo->Info.MenuType = DISPLAY_MENU_LOCK_CRITICAL;
+  }
 
-	OptionMenuInfo->Info.OptionNum = UNLOCK_OPTION_NUM;
+  OptionMenuInfo->Info.OptionNum = UNLOCK_OPTION_NUM;
 
-	/* Initialize the option index */
-	OptionMenuInfo->Info.OptionIndex = UNLOCK_OPTION_NUM;
+  /* Initialize the option index */
+  OptionMenuInfo->Info.OptionIndex = UNLOCK_OPTION_NUM;
 
-	return Status;
+  return Status;
 }
 
 /**
@@ -211,32 +300,32 @@ STATIC EFI_STATUS UnlockMenuShowScreen(OPTION_MENU_INFO *OptionMenuInfo, INTN Ty
   @retval EFI_SUCCESS   The entry point is executed successfully.
   @retval other         Some error occurs when executing this entry point.
 **/
-EFI_STATUS DisplayUnlockMenu(INTN Type, BOOLEAN Value)
+EFI_STATUS
+DisplayUnlockMenu (INTN Type, BOOLEAN Value)
 {
-	EFI_STATUS Status = EFI_SUCCESS;
-	OPTION_MENU_INFO *OptionMenuInfo;
-	OptionMenuInfo = &gMenuInfo;
+  EFI_STATUS Status = EFI_SUCCESS;
+  OPTION_MENU_INFO *OptionMenuInfo;
+  OptionMenuInfo = &gMenuInfo;
 
-	if (FixedPcdGetBool(EnableDisplayMenu)) {
-		DrawMenuInit();
+  if (FixedPcdGetBool (EnableDisplayMenu)) {
+    DrawMenuInit ();
 
-		/* Initialize the last menu type */
-		OptionMenuInfo->LastMenuType =
-			OptionMenuInfo->Info.MenuType;
+    /* Initialize the last menu type */
+    OptionMenuInfo->LastMenuType = OptionMenuInfo->Info.MenuType;
 
-		Status = UnlockMenuShowScreen(OptionMenuInfo, Type, Value);
-		if (Status != EFI_SUCCESS) {
-			DEBUG((EFI_D_ERROR, "Unable to show %a menu on screen: %r\n",
-				Value? "Unlock": "Lock", Status));
-			return Status;
-		}
+    Status = UnlockMenuShowScreen (OptionMenuInfo, Type, Value);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Unable to show %a menu on screen: %r\n",
+              Value ? "Unlock" : "Lock", Status));
+      return Status;
+    }
 
-		MenuKeysDetectionInit(OptionMenuInfo);
-		DEBUG((EFI_D_VERBOSE, "Creating unlock keys detect event\n"));
-	} else {
-		DEBUG((EFI_D_INFO, "Display menu is not enabled!\n"));
-		Status = EFI_NOT_STARTED;
-	}
+    MenuKeysDetectionInit (OptionMenuInfo);
+    DEBUG ((EFI_D_VERBOSE, "Creating unlock keys detect event\n"));
+  } else {
+    DEBUG ((EFI_D_INFO, "Display menu is not enabled!\n"));
+    Status = EFI_NOT_STARTED;
+  }
 
-	return Status;
+  return Status;
 }

@@ -26,7 +26,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #ifndef __EFIVERIFIEDBOOT_H__
 #define __EFIVERIFIEDBOOT_H__
 
@@ -44,12 +43,17 @@
 #define QCOM_VERIFIEDBOOT_PROTOCOL_REVISION 0x0000000000010002
 
 #define MAX_PNAME_LENGTH 32
-#define MAX_VERSION_LEN  64
+#define MAX_VERSION_LEN 64
 
 /*  Protocol GUID definition */
 /** @ingroup efi_verifiedboot_protocol */
-#define EFI_VERIFIEDBOOT_PROTOCOL_GUID \
-   { 0x8e5eff91, 0x21b6, 0x47d3, { 0xaf, 0x2b, 0xc1, 0x5a, 0x1, 0xe0, 0x20, 0xec } }
+#define EFI_VERIFIEDBOOT_PROTOCOL_GUID                                         \
+  {                                                                            \
+    0x8e5eff91, 0x21b6, 0x47d3,                                                \
+    {                                                                          \
+      0xaf, 0x2b, 0xc1, 0x5a, 0x1, 0xe0, 0x20, 0xec                            \
+    }                                                                          \
+  }
 
 /*===========================================================================
   EXTERNAL VARIABLES
@@ -61,7 +65,6 @@ extern EFI_GUID gEfiQcomVerifiedBootProtocolGuid;
   TYPE DEFINITIONS
 ===========================================================================*/
 
-
 /** @cond */
 /* Protocol declaration.  */
 typedef struct _QCOM_VERIFIEDBOOT_PROTOCOL QCOM_VERIFIEDBOOT_PROTOCOL;
@@ -70,27 +73,24 @@ typedef struct _QCOM_VERIFIEDBOOT_PROTOCOL QCOM_VERIFIEDBOOT_PROTOCOL;
 /*
  * Device State operations
  */
-typedef enum _vb_device_state_op_t
-{
-   READ_CONFIG,
-   WRITE_CONFIG,
-   DEVICE_STATE_MAX = (int)0xFFFFFFFFULL,
+typedef enum _vb_device_state_op_t {
+  READ_CONFIG,
+  WRITE_CONFIG,
+  DEVICE_STATE_MAX = (int)0xFFFFFFFFULL,
 } vb_device_state_op_t;
 
-typedef enum _boot_state_t
-{
-	GREEN,
-	ORANGE,
-	YELLOW,
-	RED,
-	BOOT_STATE_MAX =  (int)0xFFFFFFFFULL,
-}boot_state_t;
+typedef enum _boot_state_t {
+  GREEN,
+  ORANGE,
+  YELLOW,
+  RED,
+  BOOT_STATE_MAX = (int)0xFFFFFFFFULL,
+} boot_state_t;
 
-typedef struct _device_info_vb_t
-{
-	BOOLEAN is_unlocked;
-	BOOLEAN is_unlock_critical;
-}device_info_vb_t;
+typedef struct _device_info_vb_t {
+  BOOLEAN is_unlocked;
+  BOOLEAN is_unlock_critical;
+} device_info_vb_t;
 
 /*===========================================================================
   FUNCTION DEFINITIONS
@@ -119,15 +119,11 @@ typedef struct _device_info_vb_t
 *   Failure:	Error code (negative only).
 */
 
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_RW_DEVICE_STATE )
-(
-  IN     QCOM_VERIFIEDBOOT_PROTOCOL *This,
-  IN     vb_device_state_op_t       op,
-  IN OUT UINT8                      *buf,
-  IN     UINT32                     buf_len
-);
+typedef EFI_STATUS (EFIAPI *QCOM_VB_RW_DEVICE_STATE) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This,
+    IN vb_device_state_op_t op,
+    IN OUT UINT8 *buf,
+    IN UINT32 buf_len);
 
 /**
 * Initialize Verified Boot
@@ -141,13 +137,9 @@ EFI_STATUS
 *   Failure:	Error code (negative only).
 */
 
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_DEVICE_INIT )
-(
-  IN  QCOM_VERIFIEDBOOT_PROTOCOL *This,
-  IN  device_info_vb_t           *devinfo
-);
+typedef EFI_STATUS (EFIAPI *QCOM_VB_DEVICE_INIT) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This,
+    IN device_info_vb_t *devinfo);
 
 /**
 * Send Milestone to TZ
@@ -157,12 +149,8 @@ EFI_STATUS
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_SEND_MILESTONE )
-(
-  IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This
-);
+typedef EFI_STATUS (EFIAPI *QCOM_VB_SEND_MILESTONE) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This);
 
 /**
 * Return if the device is secure or not
@@ -172,13 +160,9 @@ EFI_STATUS
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_IS_DEVICE_SECURE )
-(
-  IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This,
-  OUT BOOLEAN                      *State
-);
+typedef EFI_STATUS (EFIAPI *QCOM_VB_IS_DEVICE_SECURE) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This,
+    OUT BOOLEAN *State);
 
 /**
 * Send ROT to Keymaster
@@ -189,12 +173,8 @@ EFI_STATUS
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_SEND_ROT )
-(
-  IN  QCOM_VERIFIEDBOOT_PROTOCOL   *This
-);
+typedef EFI_STATUS (EFIAPI *QCOM_VB_SEND_ROT) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This);
 
 /**
 * Authenticate Linux Image based on VB
@@ -216,16 +196,12 @@ EFI_STATUS
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_VERIFY_IMAGE )
-(
-  IN     QCOM_VERIFIEDBOOT_PROTOCOL *This,
-  IN     UINT8                      pname[MAX_PNAME_LENGTH],
-  IN     UINT8                      *img,
-  IN     UINT32                     img_len,
-  OUT    boot_state_t               *bootstate
-);
+typedef EFI_STATUS (EFIAPI *QCOM_VB_VERIFY_IMAGE) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This,
+    IN UINT8 pname[MAX_PNAME_LENGTH],
+    IN UINT8 *img,
+    IN UINT32 img_len,
+    OUT boot_state_t *bootstate);
 
 /**
 * Send Delete CMD to Keymaster
@@ -235,12 +211,8 @@ EFI_STATUS
 *     0 - Success
 *     Negative value indicates failure.
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_RESET_STATE )
-(
-  IN     QCOM_VERIFIEDBOOT_PROTOCOL   *This
-);
+typedef EFI_STATUS (EFIAPI *QCOM_VB_RESET_STATE) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This);
 
 /**
 * Get boot state
@@ -250,7 +222,7 @@ EFI_STATUS
 *
 *
 */
-typedef EFI_STATUS(EFIAPI *QCOM_VB_GET_BOOT_STATE)(
+typedef EFI_STATUS (EFIAPI *QCOM_VB_GET_BOOT_STATE) (
     IN QCOM_VERIFIEDBOOT_PROTOCOL *This,
     OUT boot_state_t *bootstate);
 /**
@@ -259,15 +231,11 @@ typedef EFI_STATUS(EFIAPI *QCOM_VB_GET_BOOT_STATE)(
 *  In case of success return 0.
 *
 */
-typedef
-EFI_STATUS
-(EFIAPI *QCOM_VB_GET_CERT_FINGERPRINT)
-(
-  IN QCOM_VERIFIEDBOOT_PROTOCOL  *This,
-  OUT UINT8                      *buf,
-  IN  UINTN                      buf_len,
-  OUT UINTN                      *out_len
- );
+typedef EFI_STATUS (EFIAPI *QCOM_VB_GET_CERT_FINGERPRINT) (
+    IN QCOM_VERIFIEDBOOT_PROTOCOL *This,
+    OUT UINT8 *buf,
+    IN UINTN buf_len,
+    OUT UINTN *out_len);
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -279,18 +247,16 @@ EFI_STATUS
   @inputprotoparams
 */
 struct _QCOM_VERIFIEDBOOT_PROTOCOL {
-  UINT64                            Revision;
-  QCOM_VB_RW_DEVICE_STATE           VBRwDeviceState;
-  QCOM_VB_DEVICE_INIT               VBDeviceInit;
-  QCOM_VB_SEND_ROT                  VBSendRot;
-  QCOM_VB_SEND_MILESTONE            VBSendMilestone;
-  QCOM_VB_VERIFY_IMAGE              VBVerifyImage;
-  QCOM_VB_RESET_STATE               VBDeviceResetState;
-  QCOM_VB_IS_DEVICE_SECURE          VBIsDeviceSecure;
-  QCOM_VB_GET_BOOT_STATE            VBGetBootState;
-  QCOM_VB_GET_CERT_FINGERPRINT      VBGetCertFingerPrint;
+  UINT64 Revision;
+  QCOM_VB_RW_DEVICE_STATE VBRwDeviceState;
+  QCOM_VB_DEVICE_INIT VBDeviceInit;
+  QCOM_VB_SEND_ROT VBSendRot;
+  QCOM_VB_SEND_MILESTONE VBSendMilestone;
+  QCOM_VB_VERIFY_IMAGE VBVerifyImage;
+  QCOM_VB_RESET_STATE VBDeviceResetState;
+  QCOM_VB_IS_DEVICE_SECURE VBIsDeviceSecure;
+  QCOM_VB_GET_BOOT_STATE VBGetBootState;
+  QCOM_VB_GET_CERT_FINGERPRINT VBGetCertFingerPrint;
 };
 
 #endif /* __EFIVERIFIEDBOOT_H__ */
-
-

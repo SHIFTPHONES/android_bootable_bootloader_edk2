@@ -33,26 +33,27 @@
  * OUT: Transfer from the host
  * IN: Transfer to the host
  */
-#define USB_ENDPOINT_DIRECTION_OUT        0
-#define USB_ENDPOINT_DIRECTION_IN         1
+#define USB_ENDPOINT_DIRECTION_OUT 0
+#define USB_ENDPOINT_DIRECTION_IN 1
 
 /* Get ep and dir from EndpointIndex
  * EpAddress contains information about EP as below:
  * 0 .. 3b --> EP number
  * 7b --> Ep direction
  */
-#define USB_INDEX_TO_EP(index)        ((index) & 0xf)
-#define USB_INDEX_TO_EPDIR(index)     (((index) >> 7 & 0x1) ? USB_ENDPOINT_DIRECTION_IN : USB_ENDPOINT_DIRECTION_OUT)
+#define USB_INDEX_TO_EP(index) ((index)&0xf)
+#define USB_INDEX_TO_EPDIR(index)                                              \
+  (((index) >> 7 & 0x1) ? USB_ENDPOINT_DIRECTION_IN                            \
+                        : USB_ENDPOINT_DIRECTION_OUT)
 
-typedef struct FasbootDevice
-{
-  EFI_USB_DEVICE_PROTOCOL         *UsbDeviceProtocol;
-  VOID                            *gRxBuffer;
-  VOID                            *gTxBuffer;
+typedef struct FasbootDevice {
+  EFI_USB_DEVICE_PROTOCOL *UsbDeviceProtocol;
+  VOID *gRxBuffer;
+  VOID *gTxBuffer;
 } FastbootDeviceData;
 
-FastbootDeviceData GetFastbootDeviceData(VOID);
-EFI_STATUS HandleUsbEvents(VOID);
-EFI_STATUS FastbootUsbDeviceStop( VOID );
-EFI_STATUS FastbootInitialize(VOID);
+FastbootDeviceData GetFastbootDeviceData (VOID);
+EFI_STATUS HandleUsbEvents (VOID);
+EFI_STATUS FastbootUsbDeviceStop (VOID);
+EFI_STATUS FastbootInitialize (VOID);
 #endif

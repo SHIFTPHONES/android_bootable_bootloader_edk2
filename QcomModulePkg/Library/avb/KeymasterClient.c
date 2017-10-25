@@ -26,14 +26,14 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "KeymasterClient.h"
+#include "VerifiedBoot.h"
 #include "libavb/libavb.h"
-#include <Protocol/EFIQseecom.h>
-#include <Library/DebugLib.h>
-#include <Protocol/LoadedImage.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
-#include "VerifiedBoot.h"
+#include <Protocol/EFIQseecom.h>
+#include <Protocol/LoadedImage.h>
 #include <Protocol/scm_sip_interface.h>
 
 typedef struct {
@@ -116,11 +116,11 @@ typedef struct {
   UINT32 RotOffset;
   UINT32 RotSize;
   CHAR8 RotDigest[AVB_SHA256_DIGEST_SIZE];
-} __attribute__((packed)) KMSetRotReq;
+} __attribute__ ((packed)) KMSetRotReq;
 
 typedef struct {
   INT32 Status;
-} __attribute__((packed)) KMSetRotRsp;
+} __attribute__ ((packed)) KMSetRotRsp;
 
 typedef struct {
   UINT32 IsUnlocked;
@@ -128,7 +128,7 @@ typedef struct {
   UINT32 Color;
   UINT32 SystemVersion;
   UINT32 SystemSecurityLevel;
-} __attribute__((packed)) KMBootState;
+} __attribute__ ((packed)) KMBootState;
 
 typedef struct {
   UINT32 CmdId;
@@ -136,15 +136,15 @@ typedef struct {
   UINT32 Offset;
   UINT32 Size;
   KMBootState BootState;
-} __attribute__((packed)) KMSetBootStateReq;
+} __attribute__ ((packed)) KMSetBootStateReq;
 
 typedef struct {
   INT32 Status;
-} __attribute__((packed)) KMSetBootStateRsp;
+} __attribute__ ((packed)) KMSetBootStateRsp;
 
 typedef struct {
   UINT32 CmdId;
-} __attribute__((packed)) KMGetVersionReq;
+} __attribute__ ((packed)) KMGetVersionReq;
 
 typedef struct {
   INT32 Status;
@@ -152,57 +152,54 @@ typedef struct {
   UINT32 Minor;
   UINT32 AppMajor;
   UINT32 AppMinor;
-} __attribute__((packed)) KMGetVersionRsp;
+} __attribute__ ((packed)) KMGetVersionRsp;
 
 EFI_STATUS
-KeyMasterStartApp(KMHandle *Handle)
+KeyMasterStartApp (KMHandle *Handle)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   KMGetVersionReq Req = {0};
   KMGetVersionRsp Rsp = {0};
 
   if (Handle == NULL) {
-    DEBUG((EFI_D_ERROR, "KeyMasterStartApp: Invalid Handle\n"));
+    DEBUG ((EFI_D_ERROR, "KeyMasterStartApp: Invalid Handle\n"));
     return EFI_INVALID_PARAMETER;
   }
 
-  Status = gBS->LocateProtocol(&gQcomQseecomProtocolGuid, NULL,
-                               (VOID **)&(Handle->QseeComProtocol));
+  Status = gBS->LocateProtocol (&gQcomQseecomProtocolGuid, NULL,
+                                (VOID **)&(Handle->QseeComProtocol));
   if (Status != EFI_SUCCESS) {
-    DEBUG((EFI_D_ERROR, "Unable to locate QSEECom protocol: %r\n", Status));
+    DEBUG ((EFI_D_ERROR, "Unable to locate QSEECom protocol: %r\n", Status));
     return Status;
   }
 
-  Status = Handle->QseeComProtocol->QseecomStartApp(
-          Handle->QseeComProtocol, "keymaster", &(Handle->AppId));
+  Status = Handle->QseeComProtocol->QseecomStartApp (
+      Handle->QseeComProtocol, "keymaster", &(Handle->AppId));
   if (Status != EFI_SUCCESS) {
-    DEBUG((EFI_D_ERROR,
-           "KeyMasterStartApp: QseecomStartApp failed status: %r\n",
-           Status));
+    DEBUG ((EFI_D_ERROR,
+            "KeyMasterStartApp: QseecomStartApp failed status: %r\n", Status));
     return Status;
   }
 
-  DEBUG((EFI_D_VERBOSE, "keymaster app id %d\n", Handle->AppId));
+  DEBUG ((EFI_D_VERBOSE, "keymaster app id %d\n", Handle->AppId));
 
   Req.CmdId = KEYMASTER_GET_VERSION;
-  Status = Handle->QseeComProtocol->QseecomSendCmd(
-          Handle->QseeComProtocol, Handle->AppId, (UINT8 *)&Req,
-          sizeof(Req), (UINT8 *)&Rsp, sizeof(Rsp));
+  Status = Handle->QseeComProtocol->QseecomSendCmd (
+      Handle->QseeComProtocol, Handle->AppId, (UINT8 *)&Req, sizeof (Req),
+      (UINT8 *)&Rsp, sizeof (Rsp));
   if (Status != EFI_SUCCESS || Rsp.Status != 0 || Rsp.Major < 2) {
-    DEBUG((EFI_D_ERROR,
-           "KeyMasterStartApp: Get Version err, status: "
-           "%d, response status: %d, Major: %d\n",
-           Status, Rsp.Status, Rsp.Major));
+    DEBUG ((EFI_D_ERROR, "KeyMasterStartApp: Get Version err, status: "
+                         "%d, response status: %d, Major: %d\n",
+            Status, Rsp.Status, Rsp.Major));
     return EFI_LOAD_ERROR;
   }
-  DEBUG((EFI_D_VERBOSE,
-         "KeyMasterStartApp success AppId: 0x%x, Major: %d\n",
-         Handle->AppId, Rsp.Major));
+  DEBUG ((EFI_D_VERBOSE, "KeyMasterStartApp success AppId: 0x%x, Major: %d\n",
+          Handle->AppId, Rsp.Major));
   return Status;
 }
 
 EFI_STATUS
-KeyMasterSetRotAndBootState(KMRotAndBootState *BootState)
+KeyMasterSetRotAndBootState (KMRotAndBootState *BootState)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   CHAR8 *RotDigest = NULL;
@@ -219,130 +216,125 @@ KeyMasterSetRotAndBootState(KMRotAndBootState *BootState)
   UINT32 version = 0;
 
   if (BootState == NULL) {
-    DEBUG((EFI_D_ERROR, "Invalid parameter BootState\n"));
+    DEBUG ((EFI_D_ERROR, "Invalid parameter BootState\n"));
     return EFI_INVALID_PARAMETER;
   }
 
   /* Compute ROT digest */
-  avb_sha256_init(&RotCtx);
+  avb_sha256_init (&RotCtx);
 
   switch (BootState->Color) {
   case GREEN:
   case YELLOW:
-    avb_sha256_update(&RotCtx, (const uint8_t *)BootState->PublicKey,
-                      BootState->PublicKeyLength);
-    avb_sha256_update(&RotCtx, (const uint8_t *)&BootState->IsUnlocked,
-                      sizeof(BootState->IsUnlocked));
+    avb_sha256_update (&RotCtx, (const uint8_t *)BootState->PublicKey,
+                       BootState->PublicKeyLength);
+    avb_sha256_update (&RotCtx, (const uint8_t *)&BootState->IsUnlocked,
+                       sizeof (BootState->IsUnlocked));
     break;
   case ORANGE:
-    avb_sha256_update(&RotCtx, (const uint8_t *)&BootState->IsUnlocked,
-                      sizeof(BootState->IsUnlocked));
+    avb_sha256_update (&RotCtx, (const uint8_t *)&BootState->IsUnlocked,
+                       sizeof (BootState->IsUnlocked));
     break;
   case RED:
   default:
-    DEBUG((EFI_D_ERROR, "Invalid state to boot!\n"));
+    DEBUG ((EFI_D_ERROR, "Invalid state to boot!\n"));
     return EFI_LOAD_ERROR;
   }
 
-  RotDigest = (CHAR8 *)avb_sha256_final(&RotCtx);
+  RotDigest = (CHAR8 *)avb_sha256_final (&RotCtx);
 
   /* Compute BootState digest */
   switch (BootState->Color) {
   case GREEN:
   case YELLOW:
-    avb_sha256_init(&BootStateCtx);
-    avb_sha256_update(&BootStateCtx, (const uint8_t *)BootState->PublicKey,
-                      BootState->PublicKeyLength);
-    BootStateDigest = (CHAR8 *)avb_sha256_final(&BootStateCtx);
+    avb_sha256_init (&BootStateCtx);
+    avb_sha256_update (&BootStateCtx, (const uint8_t *)BootState->PublicKey,
+                       BootState->PublicKeyLength);
+    BootStateDigest = (CHAR8 *)avb_sha256_final (&BootStateCtx);
     break;
   case ORANGE:
     BootStateDigest = BootStateOrgangeDigest;
     break;
   case RED:
   default:
-    DEBUG((EFI_D_ERROR, "Invalid state to boot!\n"));
+    DEBUG ((EFI_D_ERROR, "Invalid state to boot!\n"));
     return EFI_LOAD_ERROR;
   }
 
   /* Load KeyMaster App */
-  GUARD(KeyMasterStartApp(&Handle));
+  GUARD (KeyMasterStartApp (&Handle));
 
   /* Set ROT */
   RotReq.CmdId = KEYMASTER_SET_ROT;
   RotReq.RotOffset = (UINT8 *)&RotReq.RotDigest - (UINT8 *)&RotReq;
-  RotReq.RotSize = sizeof(RotReq.RotDigest);
-  CopyMem(RotReq.RotDigest, RotDigest, AVB_SHA256_DIGEST_SIZE);
+  RotReq.RotSize = sizeof (RotReq.RotDigest);
+  CopyMem (RotReq.RotDigest, RotDigest, AVB_SHA256_DIGEST_SIZE);
 
-  Status = Handle.QseeComProtocol->QseecomSendCmd(
-          Handle.QseeComProtocol, Handle.AppId, (UINT8 *)&RotReq,
-          sizeof(RotReq), (UINT8 *)&RotRsp, sizeof(RotRsp));
+  Status = Handle.QseeComProtocol->QseecomSendCmd (
+      Handle.QseeComProtocol, Handle.AppId, (UINT8 *)&RotReq, sizeof (RotReq),
+      (UINT8 *)&RotRsp, sizeof (RotRsp));
   if (Status != EFI_SUCCESS || RotRsp.Status != 0) {
-    DEBUG((EFI_D_ERROR,
-           "KeyMasterSendRotAndBootState: Set ROT err, "
-           "Status: %r, response status: %d\n",
-           Status, RotRsp.Status));
+    DEBUG ((EFI_D_ERROR, "KeyMasterSendRotAndBootState: Set ROT err, "
+                         "Status: %r, response status: %d\n",
+            Status, RotRsp.Status));
     return EFI_LOAD_ERROR;
   }
 
   /* Set Boot State */
   BootStateReq.CmdId = KEYMASTER_SET_BOOT_STATE;
   BootStateReq.Version = 0;
-  BootStateReq.Size = sizeof(BootStateReq.BootState);
-  BootStateReq.Offset = (UINT8 *)&BootStateReq.BootState -
-                        (UINT8 *)&BootStateReq;
+  BootStateReq.Size = sizeof (BootStateReq.BootState);
+  BootStateReq.Offset =
+      (UINT8 *)&BootStateReq.BootState - (UINT8 *)&BootStateReq;
   BootStateReq.BootState.Color = BootState->Color;
   BootStateReq.BootState.IsUnlocked = BootState->IsUnlocked;
   BootStateReq.BootState.SystemSecurityLevel = BootState->SystemSecurityLevel;
   BootStateReq.BootState.SystemVersion = BootState->SystemVersion;
-  CopyMem(BootStateReq.BootState.PublicKey, BootStateDigest,
-          AVB_SHA256_DIGEST_SIZE);
+  CopyMem (BootStateReq.BootState.PublicKey, BootStateDigest,
+           AVB_SHA256_DIGEST_SIZE);
 
-  Status = Handle.QseeComProtocol->QseecomSendCmd(
-          Handle.QseeComProtocol, Handle.AppId, (UINT8 *)&BootStateReq,
-          sizeof(BootStateReq), (UINT8 *)&BootStateRsp, sizeof(BootStateRsp));
+  Status = Handle.QseeComProtocol->QseecomSendCmd (
+      Handle.QseeComProtocol, Handle.AppId, (UINT8 *)&BootStateReq,
+      sizeof (BootStateReq), (UINT8 *)&BootStateRsp, sizeof (BootStateRsp));
   if (Status != EFI_SUCCESS || BootStateRsp.Status != 0) {
-    DEBUG((EFI_D_ERROR,
-           "KeyMasterSendRotAndBootState: Set BootState err, "
-           "Status: %r, response status: %d\n",
-           Status, BootStateRsp.Status));
+    DEBUG ((EFI_D_ERROR, "KeyMasterSendRotAndBootState: Set BootState err, "
+                         "Status: %r, response status: %d\n",
+            Status, BootStateRsp.Status));
     return EFI_LOAD_ERROR;
   }
 
   /* Provide boot tamper state to TZ */
   if (((Status = IsSecureDevice (&secure_device)) == EFI_SUCCESS) &&
-        secure_device &&
-        (BootState->Color != GREEN)) {
+      secure_device && (BootState->Color != GREEN)) {
 
-    Status = ScmGetFeatureVersion(TZ_FVER_QSEE, &version);
+    Status = ScmGetFeatureVersion (TZ_FVER_QSEE, &version);
     if (Status != EFI_SUCCESS) {
-      DEBUG((EFI_D_ERROR,
-        "KeyMasterSetRotAndBootState: ScmGetFeatureVersion fails!\n"));
+      DEBUG ((EFI_D_ERROR,
+              "KeyMasterSetRotAndBootState: ScmGetFeatureVersion fails!\n"));
       return Status;
     }
-    if(AllowSetFuse(version)) {
-      Status = SetFuse(TZ_HLOS_IMG_TAMPER_FUSE);
+    if (AllowSetFuse (version)) {
+      Status = SetFuse (TZ_HLOS_IMG_TAMPER_FUSE);
       if (Status != EFI_SUCCESS) {
-        DEBUG((EFI_D_ERROR,
-          "KeyMasterSetRotAndBootState: "
-          "SetFuse (TZ_HLOS_IMG_TAMPER_FUSE) fails!\n"));
+        DEBUG ((EFI_D_ERROR, "KeyMasterSetRotAndBootState: "
+                             "SetFuse (TZ_HLOS_IMG_TAMPER_FUSE) fails!\n"));
         return Status;
       }
-      Status = SetFuse(TZ_HLOS_TAMPER_NOTIFY_FUSE);
+      Status = SetFuse (TZ_HLOS_TAMPER_NOTIFY_FUSE);
       if (Status != EFI_SUCCESS) {
-        DEBUG((EFI_D_ERROR,
-          "KeyMasterSetRotAndBootState: "
-          "SetFuse (TZ_HLOS_TAMPER_NOTIFY_FUSE) fails!\n"));
+        DEBUG ((EFI_D_ERROR, "KeyMasterSetRotAndBootState: "
+                             "SetFuse (TZ_HLOS_TAMPER_NOTIFY_FUSE) fails!\n"));
         return Status;
       }
     } else {
-      DEBUG((EFI_D_ERROR,
-        "TZ didn't support this feature! "
-        "Version: major = %d, minor = %d, patch = %d\n",
-        (version >> 22) & 0x3FF, (version >> 12) & 0x3FF, version & 0x3FF));
+      DEBUG ((EFI_D_ERROR, "TZ didn't support this feature! "
+                           "Version: major = %d, minor = %d, patch = %d\n",
+              (version >> 22) & 0x3FF, (version >> 12) & 0x3FF,
+              version & 0x3FF));
       return Status;
     }
   }
 
-  DEBUG((EFI_D_VERBOSE, "KeyMasterSetRotAndBootState success\n"));
+  DEBUG ((EFI_D_VERBOSE, "KeyMasterSetRotAndBootState success\n"));
   return Status;
 }

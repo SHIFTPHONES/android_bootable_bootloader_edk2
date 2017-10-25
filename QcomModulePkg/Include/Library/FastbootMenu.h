@@ -26,10 +26,10 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #ifndef _FASTBOOTMENU_H_
 #define _FASTBOOTMENU_H_
 
-VOID DisplayFastbootMenu(VOID);
-EFI_STATUS UpdateFastbootOptionItem(UINT32 OptionItem, UINT32 *pLocation);
+VOID DisplayFastbootMenu (VOID);
+EFI_STATUS
+UpdateFastbootOptionItem (UINT32 OptionItem, UINT32 *pLocation);
 #endif

@@ -28,7 +28,7 @@
 #ifndef __STACK_CANARY__
 #define __STACK_CANARY__
 
-VOID StackGuardChkSetup(VOID);
+VOID StackGuardChkSetup (VOID);
 VOID __stack_chk_fail (VOID);
 extern UINTN __stack_chk_guard;
 #endif

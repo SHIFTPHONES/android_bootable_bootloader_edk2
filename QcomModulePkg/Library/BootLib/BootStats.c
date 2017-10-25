@@ -27,91 +27,82 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "BootLinux.h"
 #include "BootStats.h"
-#include "Reg.h"
 #include "AutoGen.h"
+#include "BootLinux.h"
+#include "Reg.h"
 
-#define BS_INFO_OFFSET	(0x6B0)
+#define BS_INFO_OFFSET (0x6B0)
 
 STATIC UINT32 KernelLoadStart;
 STATIC UINT64 SharedImemAddress;
 STATIC UINT64 MpmTimerBase;
 STATIC UINT64 BsImemAddress;
 
-void BootStatsSetTimeStamp(BS_ENTRY BootStatId)
+void
+BootStatsSetTimeStamp (BS_ENTRY BootStatId)
 {
-	EFI_STATUS Status;
-	UINT32 BootStatClockCount = 0;
+  EFI_STATUS Status;
+  UINT32 BootStatClockCount = 0;
 
-	UINTN DataSize = sizeof(SharedImemAddress);
+  UINTN DataSize = sizeof (SharedImemAddress);
 
-	if (!SharedImemAddress) {
-		Status = gRT->GetVariable(
-				(CHAR16 *)L"Shared_IMEM_Base",
-				&gQcomTokenSpaceGuid,
-				NULL,
-				&DataSize,
-				&SharedImemAddress
-				);
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Failed to get Shared IMEM base, %r\n", Status));
-			return;
-		}
-	}
+  if (!SharedImemAddress) {
+    Status =
+        gRT->GetVariable ((CHAR16 *)L"Shared_IMEM_Base", &gQcomTokenSpaceGuid,
+                          NULL, &DataSize, &SharedImemAddress);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Failed to get Shared IMEM base, %r\n", Status));
+      return;
+    }
+  }
 
-	DataSize = sizeof(MpmTimerBase);
-	if (!MpmTimerBase) {
-		Status = gRT->GetVariable(
-				(CHAR16 *)L"MPM2_SLP_CNTR_ADDR",
-				&gQcomTokenSpaceGuid,
-				NULL,
-				&DataSize,
-				&MpmTimerBase
-				);
-		if (Status != EFI_SUCCESS)
-		{
-			DEBUG((EFI_D_ERROR, "Failed to get MPM Sleep counter base, %r\n", Status));
-			return;
-		}
-	}
+  DataSize = sizeof (MpmTimerBase);
+  if (!MpmTimerBase) {
+    Status =
+        gRT->GetVariable ((CHAR16 *)L"MPM2_SLP_CNTR_ADDR", &gQcomTokenSpaceGuid,
+                          NULL, &DataSize, &MpmTimerBase);
+    if (Status != EFI_SUCCESS) {
+      DEBUG (
+          (EFI_D_ERROR, "Failed to get MPM Sleep counter base, %r\n", Status));
+      return;
+    }
+  }
 
-	if (SharedImemAddress && MpmTimerBase)
-	{
-		UINT64 BootStatImemAddress;
-		BsImemAddress = SharedImemAddress + BS_INFO_OFFSET;
+  if (SharedImemAddress && MpmTimerBase) {
+    UINT64 BootStatImemAddress;
+    BsImemAddress = SharedImemAddress + BS_INFO_OFFSET;
 
-		if (BootStatId >= BS_MAX)
-		{
-			DEBUG((EFI_D_ERROR, "Bad BootStat id: %u, Max: %u\n", BootStatId, BS_MAX));
-			return;
-		}
+    if (BootStatId >= BS_MAX) {
+      DEBUG (
+          (EFI_D_ERROR, "Bad BootStat id: %u, Max: %u\n", BootStatId, BS_MAX));
+      return;
+    }
 
-		if (BootStatId == BS_KERNEL_LOAD_START)
-		{
-			KernelLoadStart = READL(MpmTimerBase);
-			DEBUG((EFI_D_VERBOSE, "BootStats: ID-%d: Kernel Load Start:%u\n", BootStatId, KernelLoadStart));
-			return;
-		}
+    if (BootStatId == BS_KERNEL_LOAD_START) {
+      KernelLoadStart = READL (MpmTimerBase);
+      DEBUG ((EFI_D_VERBOSE, "BootStats: ID-%d: Kernel Load Start:%u\n",
+              BootStatId, KernelLoadStart));
+      return;
+    }
 
-		if (BootStatId == BS_KERNEL_LOAD_DONE)
-		{
-			BootStatImemAddress = BsImemAddress + (sizeof(UINT32) * BS_KERNEL_LOAD_TIME);
-			BootStatClockCount =  READL(MpmTimerBase);
-			if (BootStatClockCount){
-				WRITEL(BootStatImemAddress, (BootStatClockCount - KernelLoadStart));
-			}
-			DEBUG((EFI_D_VERBOSE, "BootStats: ID-%d: Kernel Load Done:%u\n", BootStatId, BootStatClockCount));
-		}
-		else
-		{
-			BootStatImemAddress = BsImemAddress + (sizeof(UINT32) * BootStatId);
-			BootStatClockCount = READL(MpmTimerBase);
-			if(BootStatClockCount){
-				WRITEL(BootStatImemAddress, BootStatClockCount);
-			}
-			DEBUG((EFI_D_VERBOSE, "BootStats: ID-%d: BootStatClockCount:%u\n", BootStatId, BootStatClockCount));
-		}
-	}
+    if (BootStatId == BS_KERNEL_LOAD_DONE) {
+      BootStatImemAddress =
+          BsImemAddress + (sizeof (UINT32) * BS_KERNEL_LOAD_TIME);
+      BootStatClockCount = READL (MpmTimerBase);
+      if (BootStatClockCount) {
+        WRITEL (BootStatImemAddress, (BootStatClockCount - KernelLoadStart));
+      }
+      DEBUG ((EFI_D_VERBOSE, "BootStats: ID-%d: Kernel Load Done:%u\n",
+              BootStatId, BootStatClockCount));
+    } else {
+      BootStatImemAddress = BsImemAddress + (sizeof (UINT32) * BootStatId);
+      BootStatClockCount = READL (MpmTimerBase);
+      if (BootStatClockCount) {
+        WRITEL (BootStatImemAddress, BootStatClockCount);
+      }
+      DEBUG ((EFI_D_VERBOSE, "BootStats: ID-%d: BootStatClockCount:%u\n",
+              BootStatId, BootStatClockCount));
+    }
+  }
 }

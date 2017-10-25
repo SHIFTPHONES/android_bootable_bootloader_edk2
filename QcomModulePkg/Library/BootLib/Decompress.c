@@ -38,12 +38,12 @@
 #include "crc32.h"
 #endif
 
+#include "Decompress.h"
 #include "zlib/zlib.h"
 #include "zlib/zconf.h"
 #include "zlib/inftrees.h"
 #include "zlib/inflate.h"
 #include "zlib/inffast.h"
-#include "Decompress.h"
 
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
@@ -51,16 +51,18 @@
 #define GZIP_HEADER_LEN 10
 #define GZIP_FILENAME_LIMIT 256
 
-static void zlib_free(voidpf qpaque, void *addr)
+static void
+zlib_free (voidpf qpaque, void *addr)
 {
-    FreePool (addr);
-    addr = NULL;
+  FreePool (addr);
+  addr = NULL;
 }
 
-//typedef voidpf (*alloc_func) OF((voidpf opaque, uInt items, uInt size));
-static void *zlib_alloc(voidpf qpaque, uInt items, uInt size)
+// typedef voidpf (*alloc_func) OF((voidpf opaque, uInt items, uInt size));
+static void *
+zlib_alloc (voidpf qpaque, uInt items, uInt size)
 {
-	return AllocatePool(items * size);
+  return AllocatePool (items * size);
 }
 
 /* decompress gzip file "in_buf", return 0 if decompressed successful,
@@ -72,96 +74,102 @@ static void *zlib_alloc(voidpf qpaque, uInt items, uInt size)
  * pos - position of the end of gzip file
  * out_len - the length of decompressed data
  */
-int decompress(unsigned char *in_buf, unsigned int in_len,
-		unsigned char *out_buf,
-		unsigned int out_buf_len,
-		unsigned int *pos,
-		unsigned int *out_len) {
-	struct z_stream_s *stream;
-	int rc = -1;
-	int i;
+int
+decompress (unsigned char *in_buf,
+            unsigned int in_len,
+            unsigned char *out_buf,
+            unsigned int out_buf_len,
+            unsigned int *pos,
+            unsigned int *out_len)
+{
+  struct z_stream_s *stream;
+  int rc = -1;
+  int i;
 
-	if (in_len < GZIP_HEADER_LEN) {
-		DEBUG((EFI_D_ERROR, "the input data is not a gzip package.\n"));
-		return rc;
-	}
-    if (out_buf_len <= in_len) {
-		DEBUG((EFI_D_ERROR, "the available length: %u of out_buf is not enough, need %u.\n", out_buf_len, in_len));
-		return rc;
-	}
+  if (in_len < GZIP_HEADER_LEN) {
+    DEBUG ((EFI_D_ERROR, "the input data is not a gzip package.\n"));
+    return rc;
+  }
+  if (out_buf_len <= in_len) {
+    DEBUG ((EFI_D_ERROR,
+            "the available length: %u of out_buf is not enough, need %u.\n",
+            out_buf_len, in_len));
+    return rc;
+  }
 
-	stream = AllocatePool(sizeof(*stream));
-	if (stream == NULL) {
-		DEBUG((EFI_D_ERROR, "allocating z_stream failed.\n"));
-		return rc;
-	}
+  stream = AllocatePool (sizeof (*stream));
+  if (stream == NULL) {
+    DEBUG ((EFI_D_ERROR, "allocating z_stream failed.\n"));
+    return rc;
+  }
 
-	stream->zalloc = zlib_alloc;
-	stream->zfree = zlib_free;
-	stream->next_out = out_buf;
-	stream->avail_out = out_buf_len;
+  stream->zalloc = zlib_alloc;
+  stream->zfree = zlib_free;
+  stream->next_out = out_buf;
+  stream->avail_out = out_buf_len;
 
-	/* skip over gzip header */
-	stream->next_in = in_buf + GZIP_HEADER_LEN;
-    stream->avail_in = in_len - GZIP_HEADER_LEN;
-    /* skip over ascii filename */
-	if (in_buf[3] & 0x8) {
-		for (i = 0; i < GZIP_FILENAME_LIMIT && *stream->next_in++; i++) {
-			if (stream->avail_in == 0) {
-				DEBUG((EFI_D_ERROR, "header error\n"));
-				goto gunzip_end;
-			}
-			--stream->avail_in;
-		}
-	}
+  /* skip over gzip header */
+  stream->next_in = in_buf + GZIP_HEADER_LEN;
+  stream->avail_in = in_len - GZIP_HEADER_LEN;
+  /* skip over ascii filename */
+  if (in_buf[3] & 0x8) {
+    for (i = 0; i < GZIP_FILENAME_LIMIT && *stream->next_in++; i++) {
+      if (stream->avail_in == 0) {
+        DEBUG ((EFI_D_ERROR, "header error\n"));
+        goto gunzip_end;
+      }
+      --stream->avail_in;
+    }
+  }
 
-	rc = inflateInit2(stream, -MAX_WBITS);
-	if (rc != Z_OK) {
-		DEBUG((EFI_D_ERROR, "inflateInit2 failed!\n"));
-		goto gunzip_end;
-	}
+  rc = inflateInit2 (stream, -MAX_WBITS);
+  if (rc != Z_OK) {
+    DEBUG ((EFI_D_ERROR, "inflateInit2 failed!\n"));
+    goto gunzip_end;
+  }
 
-/* If inflate() returns
- * Z_OK and with zero avail_out: O/P buffer is full
- * Z_STREAM_END: we uncompressed it all
- */
-	rc = inflate(stream, Z_NO_FLUSH);
-	if (stream->avail_out == 0 && rc == Z_OK) {
-		rc = -1;
-		DEBUG((EFI_D_ERROR, "Error in decompression: Output buffer full\n"));
-		goto gunzip_end;
-	} else if (rc == Z_STREAM_END) {
-		rc = 0;
-	} else {
-		DEBUG((EFI_D_ERROR, "Error in decompression: Something went wrong while decompression\n"));
-		rc = -1;
-		goto gunzip_end;
-	}
+  /* If inflate() returns
+   * Z_OK and with zero avail_out: O/P buffer is full
+   * Z_STREAM_END: we uncompressed it all
+   */
+  rc = inflate (stream, Z_NO_FLUSH);
+  if (stream->avail_out == 0 && rc == Z_OK) {
+    rc = -1;
+    DEBUG ((EFI_D_ERROR, "Error in decompression: Output buffer full\n"));
+    goto gunzip_end;
+  } else if (rc == Z_STREAM_END) {
+    rc = 0;
+  } else {
+    DEBUG (
+        (EFI_D_ERROR,
+         "Error in decompression: Something went wrong while decompression\n"));
+    rc = -1;
+    goto gunzip_end;
+  }
 
-	inflateEnd(stream);
-	if (pos)
-		/* alculation the length of the compressed package */
-		*pos = stream->next_in - in_buf + 8;
+  inflateEnd (stream);
+  if (pos)
+    /* alculation the length of the compressed package */
+    *pos = stream->next_in - in_buf + 8;
 
-	if (out_len)
-		*out_len = stream->total_out;
+  if (out_len)
+    *out_len = stream->total_out;
 
 gunzip_end:
-    FreePool (stream);
-    stream = NULL;
-	return rc; /* returns 0 if decompressed successful */
+  FreePool (stream);
+  stream = NULL;
+  return rc; /* returns 0 if decompressed successful */
 }
 
 /* check if the input "buf" file was a gzip package.
  * Return true if the input "buf" is a gzip package.
  */
-int is_gzip_package(unsigned char *buf, unsigned int len)
+int
+is_gzip_package (unsigned char *buf, unsigned int len)
 {
-	if (len < 10 || !buf || buf[0] != 0x1f ||
-			buf[1] != 0x8b || buf[2] != 0x08)
-	{
-		return false;
-	}
+  if (len < 10 || !buf || buf[0] != 0x1f || buf[1] != 0x8b || buf[2] != 0x08) {
+    return false;
+  }
 
-	return true;
+  return true;
 }

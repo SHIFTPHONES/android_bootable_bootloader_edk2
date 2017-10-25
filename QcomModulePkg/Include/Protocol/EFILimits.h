@@ -44,8 +44,13 @@
 
 /*  Protocol GUID definition */
 /** @ingroup efi_limits_protocol */
-#define EFI_LIMITS_PROTOCOL_GUID \
-  { 0x79d6c879, 0x725e, 0x489e, { 0xa0, 0xa9, 0x27, 0xef, 0xa5, 0xdf, 0xcb, 0x35 } }
+#define EFI_LIMITS_PROTOCOL_GUID                                               \
+  {                                                                            \
+    0x79d6c879, 0x725e, 0x489e,                                                \
+    {                                                                          \
+      0xa0, 0xa9, 0x27, 0xef, 0xa5, 0xdf, 0xcb, 0x35                           \
+    }                                                                          \
+  }
 
 /** @cond */
 /*===========================================================================
@@ -65,8 +70,7 @@ typedef struct _EFI_LIMITS_PROTOCOL EFI_LIMITS_PROTOCOL;
 /** @endcond */
 
 /* Limits Throttle Level */
-typedef enum
-{
+typedef enum {
   EFI_LIMITS_THROTTLE_NONE = 0,
   EFI_LIMITS_THROTTLE_MIN,
   EFI_LIMITS_THROTTLE_QUARTER,
@@ -80,8 +84,7 @@ typedef enum
 } EFI_LIMITS_THROTTLE_TYPE;
 
 /* Limits Subsystem Identifier */
-typedef enum
-{
+typedef enum {
   EFI_LIMITS_SUBSYS_APC0 = 0,
   EFI_LIMITS_SUBSYS_APC1,
   EFI_LIMITS_SUBSYS_GPU,
@@ -115,10 +118,11 @@ typedef enum
   EFI_SUCCESS -- Function completed successfully.
   EFI_INVALID_PARAMETER -- Invalid parameter.
  */
-typedef EFI_STATUS (EFIAPI* EFI_LIMITS_SUBSYS_THROTTLE)( IN EFI_LIMITS_PROTOCOL       *This,
-                                                         IN EFI_LIMITS_SUBSYS_ID       SubsysId,
-                                                         OUT EFI_LIMITS_THROTTLE_TYPE *Throttle,
-                                                         OUT UINT32                   *Value);
+typedef EFI_STATUS (EFIAPI *EFI_LIMITS_SUBSYS_THROTTLE) (
+    IN EFI_LIMITS_PROTOCOL *This,
+    IN EFI_LIMITS_SUBSYS_ID SubsysId,
+    OUT EFI_LIMITS_THROTTLE_TYPE *Throttle,
+    OUT UINT32 *Value);
 
 /*===========================================================================
   PROTOCOL INTERFACE
@@ -131,8 +135,8 @@ typedef EFI_STATUS (EFIAPI* EFI_LIMITS_SUBSYS_THROTTLE)( IN EFI_LIMITS_PROTOCOL 
   @inputprotoparams{limits_proto_params.tex}
 */
 struct _EFI_LIMITS_PROTOCOL {
-  UINT64                           Revision;
-  EFI_LIMITS_SUBSYS_THROTTLE       SubSysThrottle;
+  UINT64 Revision;
+  EFI_LIMITS_SUBSYS_THROTTLE SubSysThrottle;
 };
 
 #endif /* __EFILIMITS_H__ */

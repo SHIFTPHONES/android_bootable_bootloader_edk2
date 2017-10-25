@@ -30,13 +30,12 @@
 #define __USB_DEVICE_PROTOCOL_H__
 
 #include <IndustryStandard/Usb.h>
-#include <Protocol/UsbIo.h>
 #include <Protocol/EFIUsbEx.h>
+#include <Protocol/UsbIo.h>
 
 /*  Protocol GUID definition */
 /** @ingroup efi_usb_device_protocol */
 extern EFI_GUID gEfiUsbDeviceProtocolGuid;
-
 
 /** @addtogroup efi_usb_dev_constants
 @{ */
@@ -45,7 +44,7 @@ extern EFI_GUID gEfiUsbDeviceProtocolGuid;
 /** @} */ /* end_addtogroup efi_usbfn_constants */
 
 /** USB string descriptor **/
-typedef EFI_USB_STRING_DESCRIPTOR                USB_STRING_DESCRIPTOR;
+typedef EFI_USB_STRING_DESCRIPTOR USB_STRING_DESCRIPTOR;
 
 /** USB Device Event */
 typedef enum {
@@ -64,40 +63,41 @@ typedef enum {
 } USB_DEVICE_TRANSFER_STATUS;
 
 /** USB Device State */
-typedef enum { 
+typedef enum {
   UsbDeviceStateConnected,
   UsbDeviceStateDisconnected
 } USB_DEVICE_STATE;
 
 /** USB TRANSFER OUTCOME */
 typedef struct {
-  USB_DEVICE_TRANSFER_STATUS    Status;
-  UINT8                         EndpointIndex;
-  UINTN                         BytesCompleted;
-  VOID                         *DataBuffer;
+  USB_DEVICE_TRANSFER_STATUS Status;
+  UINT8 EndpointIndex;
+  UINTN BytesCompleted;
+  VOID *DataBuffer;
 } USB_DEVICE_TRANSFER_OUTCOME;
 
 /** OEM data */
 // Every OEM DATA must start with this header information
-// OEM data are used for furture extension when the cleint 
+// OEM data are used for furture extension when the cleint
 // requires new information from USB Device
 // The caller needs to free the context buffer with FreePool
 typedef struct {
-  EFI_GUID DataGuid;      // The GUID which identifies the OEM data
-  UINTN    VersionNumber; // Version Number
-  UINTN    Size;          // Size, in bytes, which is equal to the header + the OEM defined data
-  VOID    *Context;       // Context information for the particular OEM data
+  EFI_GUID DataGuid;   // The GUID which identifies the OEM data
+  UINTN VersionNumber; // Version Number
+  UINTN Size; // Size, in bytes, which is equal to the header + the OEM defined
+              // data
+  VOID *Context; // Context information for the particular OEM data
 } USB_DEVICE_OEM_DATA;
 
 /** Data associated with the USB DEVICE Event. */
 typedef union {
-  USB_DEVICE_STATE              DeviceState;
-  USB_DEVICE_TRANSFER_OUTCOME   TransferOutcome;
-  USB_DEVICE_OEM_DATA           OemData;
+  USB_DEVICE_STATE DeviceState;
+  USB_DEVICE_TRANSFER_OUTCOME TransferOutcome;
+  USB_DEVICE_OEM_DATA OemData;
 } USB_DEVICE_EVENT_DATA;
 
-/* 
-   The set of USB descriptors and associated data structure 
+/*
+   The set of USB descriptors and associated data structure
    DeviceDescriptor          Pointer to device descriptor
 
    Descriptors               Array of pointers to buffers, where
@@ -124,26 +124,27 @@ typedef union {
                              companion descriptor.
 
    DeviceQualifierDescriptor Pointer to device qualifier descriptor
-   
+
    BinaryDeviceOjectStore    Pointer to binary object device store.
-   
+
    StringDescriptorCount     Number of string descriptors in StringDescritors
 
    StringDescritors          Array of pointers to string descriptors, where
                              StringDescritors[n] contains the pointer to the
                              string descriptor n.
-                             StringDescritors can be set to NULL. If it is not set to NULL, 
+                             StringDescritors can be set to NULL. If it is not
+set to NULL,
                              StringDescriptorCount must be greater than zero.
 **/
 typedef struct _USB_DEVICE_DESCRIPTOR_SET {
-  EFI_USB_DEVICE_DESCRIPTOR              *DeviceDescriptor;
-  VOID                                  **Descriptors;
-  EFI_USB_DEVICE_DESCRIPTOR              *SSDeviceDescriptor;
-  VOID                                  **SSDescriptors;
-  EFI_USB_DEVICE_QUALIFIER_DESCRIPTOR    *DeviceQualifierDescriptor;
-  VOID                                   *BinaryDeviceOjectStore;
-  UINT8                                   StringDescriptorCount;
-  EFI_USB_STRING_DESCRIPTOR             **StringDescritors;
+  EFI_USB_DEVICE_DESCRIPTOR *DeviceDescriptor;
+  VOID **Descriptors;
+  EFI_USB_DEVICE_DESCRIPTOR *SSDeviceDescriptor;
+  VOID **SSDescriptors;
+  EFI_USB_DEVICE_QUALIFIER_DESCRIPTOR *DeviceQualifierDescriptor;
+  VOID *BinaryDeviceOjectStore;
+  UINT8 StringDescriptorCount;
+  EFI_USB_STRING_DESCRIPTOR **StringDescritors;
 } USB_DEVICE_DESCRIPTOR_SET;
 
 /*
@@ -151,10 +152,12 @@ typedef struct _USB_DEVICE_DESCRIPTOR_SET {
   Put data in the Tx or Rx buffer to be transfered.
 
   @par
-  Don't call this function again until the previous transfer on the same endpoint
+  Don't call this function again until the previous transfer on the same
+  endpoint
   has finished.
 
-  @param[in]EndpointIndex    Endpoint index, as specified in endpoint descriptors, of
+  @param[in]EndpointIndex    Endpoint index, as specified in endpoint
+  descriptors, of
                              the endpoint to send the data from.
   @param[in]Size             Size in bytes of data.
   @param[in]Buffer           Pointer to data.
@@ -162,14 +165,9 @@ typedef struct _USB_DEVICE_DESCRIPTOR_SET {
   @retval EFI_SUCCESS           The data was queued successfully.
   @retval EFI_INVALID_PARAMETER There was an error sending the data.
 */
-typedef
-EFI_STATUS
-(*USB_DEVICE_SEND) (
-  IN       UINT8    EndpointIndex,
-  IN       UINTN    Size,
-  IN       VOID    *Buffer
-  );
-
+typedef EFI_STATUS (*USB_DEVICE_SEND) (IN UINT8 EndpointIndex,
+                                       IN UINTN Size,
+                                       IN VOID *Buffer);
 
 /*
   @par Summary
@@ -178,18 +176,14 @@ EFI_STATUS
   @par
   The function aborts the current transfer issued on EndpointIndex
 
-  @param[in]EndpointIndex       Endpoint index, as specified in endpoint descriptors, of
+  @param[in]EndpointIndex       Endpoint index, as specified in endpoint
+  descriptors, of
                                 the endpoint to send the data from.
 
   @retval EFI_SUCCESS           The data was queued successfully.
   @retval EFI_INVALID_PARAMETER There was an error sending the data.
 */
-typedef
-EFI_STATUS
-(*USB_DEVICE_ABORT_XFER) (
-  IN       UINT8    EndpointIndex
-  );
-
+typedef EFI_STATUS (*USB_DEVICE_ABORT_XFER) (IN UINT8 EndpointIndex);
 
 /*
   @par Summary
@@ -205,14 +199,10 @@ EFI_STATUS
   @retval EFI_SUCCESS           The data was queued successfully.
   @retval EFI_INVALID_PARAMETER There was an error sending the data.
 */
-typedef
-EFI_STATUS
-(EFIAPI *USB_DEVICE_HANDLE_EVENT)(
-  OUT       USB_DEVICE_EVENT          *Event,
-  OUT       UINTN                     *DataSize,
-  OUT       USB_DEVICE_EVENT_DATA     *EventData
-);
-
+typedef EFI_STATUS (EFIAPI *USB_DEVICE_HANDLE_EVENT) (
+    OUT USB_DEVICE_EVENT *Event,
+    OUT UINTN *DataSize,
+    OUT USB_DEVICE_EVENT_DATA *EventData);
 
 /*
   @par Summary
@@ -230,14 +220,12 @@ EFI_STATUS
 
   @retval     EFI_SUCCESS           Function completed successfully.
   @retval     EFI_INVALID_PARAMETER Parameter is invalid.
-  @retval     EFI_OUT_OF_RESOURCES  Requested transfer buffer could not be allocated.
+  @retval     EFI_OUT_OF_RESOURCES  Requested transfer buffer could not be
+  allocated.
 */
-typedef
-EFI_STATUS
-(EFIAPI *USB_DEVICE_ALLOCATE_TRANSFER_BUFFER)(
-  IN   UINTN                  Size,
-  OUT  VOID                 **Buffer
-);
+typedef EFI_STATUS (EFIAPI *USB_DEVICE_ALLOCATE_TRANSFER_BUFFER) (
+    IN UINTN Size,
+    OUT VOID **Buffer);
 
 /*
   @par Summary
@@ -249,11 +237,7 @@ EFI_STATUS
   @retval EFI_SUCCESS           Function completed successfully.
   @retval EFI_INVALID_PARAMETER Parameter is invalid.
 */
-typedef
-EFI_STATUS
-(EFIAPI *USB_DEVICE_FREE_TRANSFER_BUFFER)(
-  IN VOID                   *Buffer
-);
+typedef EFI_STATUS (EFIAPI *USB_DEVICE_FREE_TRANSFER_BUFFER) (IN VOID *Buffer);
 
 /*
   @par Summary
@@ -261,70 +245,75 @@ EFI_STATUS
 
   @param[in] DeviceDescriptor           Pointer to device descriptor
   @param[in] Descriptors                Array of pointers to buffers, where
-                                        Descriptors[n] contains the response to a
-                                        GET_DESCRIPTOR request for configuration n. From
+                                        Descriptors[n] contains the response to
+  a
+                                        GET_DESCRIPTOR request for configuration
+  n. From
                                         USB Spec section 9.4.3:
-                                        "The first interface descriptor follows the
+                                        "The first interface descriptor follows
+  the
                                         configuration descriptor. The endpoint
-                                        descriptors for the first interface follow the
+                                        descriptors for the first interface
+  follow the
                                         first interface descriptor. If there are
                                         additional interfaces, their interface
-                                        descriptor and endpoint descriptors follow the
+                                        descriptor and endpoint descriptors
+  follow the
                                         first interface's endpoint descriptors".
 
-                                        The size of each buffer is the TotalLength
+                                        The size of each buffer is the
+  TotalLength
                                         member of the Configuration Descriptor.
 
                                         The size of the array is
                                         DeviceDescriptor->NumConfigurations.
   @param[in] DeviceQualifierDescriptor  Pointer to device qualifier descriptor
   @param[in] BinaryDeviceOjectStore     Pointer to binary object device store
-   (optional) Default to NULL. If the pointer is NULL, the DeviceDescriptor.bcdUSB 
+   (optional) Default to NULL. If the pointer is NULL, the
+  DeviceDescriptor.bcdUSB
               must be version less than 2.1
-  @param[in] StringDescriptorCount      Number of string descriptors in StringDescritors 
-  @param[in] StringDescritors           Array of pointers to string descriptors, where
-                                        StringDescritors[n] contains the pointer to the
+  @param[in] StringDescriptorCount      Number of string descriptors in
+  StringDescritors
+  @param[in] StringDescritors           Array of pointers to string descriptors,
+  where
+                                        StringDescritors[n] contains the pointer
+  to the
                                         string descriptor n.
-   (optional) Default to NULL. If not NULL, StringDescriptorCount must be greater 
+   (optional) Default to NULL. If not NULL, StringDescriptorCount must be
+  greater
               than zero.
- 
+
   @retval EFI_SUCCESS           Function completed successfully.
   @retval Others                Operation failed.
 */
-typedef
-EFI_STATUS
-(*USB_DEVICE_START) (
-  IN USB_DEVICE_DESCRIPTOR                    *DeviceDescriptor,
-  IN VOID                                    **Descriptors,
-  IN USB_DEVICE_QUALIFIER_DESCRIPTOR          *DeviceQualifierDescriptor,
-  IN VOID                                     *BinaryDeviceOjectStore, OPTIONAL
-  IN UINT8                                     StringDescriptorCount,
-  IN USB_STRING_DESCRIPTOR                   **StringDescritors OPTIONAL);
-
+typedef EFI_STATUS (*USB_DEVICE_START) (
+    IN USB_DEVICE_DESCRIPTOR *DeviceDescriptor,
+    IN VOID **Descriptors,
+    IN USB_DEVICE_QUALIFIER_DESCRIPTOR *DeviceQualifierDescriptor,
+    IN VOID *BinaryDeviceOjectStore,
+    OPTIONAL IN UINT8 StringDescriptorCount,
+    IN USB_STRING_DESCRIPTOR **StringDescritors OPTIONAL);
 
 /*
   @par Summary
   Start the USB peripheral controller and respond to enumeration. This routine
-  extends the functionality of USB_DEVICE_START by providing an additional 
+  extends the functionality of USB_DEVICE_START by providing an additional
   SSDescriptors parameters to support USB 3.0 device configuration.
 
-  @param[in]                    Descriptors needed for USB 3.0 configuration. 
- 
+  @param[in]                    Descriptors needed for USB 3.0 configuration.
+
   @retval EFI_SUCCESS           Function completed successfully.
   @retval Others                Operation failed.
 */
-typedef
-EFI_STATUS
-(*USB_DEVICE_START_EX) (
-  IN USB_DEVICE_DESCRIPTOR_SET         *UsbDevDescSet
-);
+typedef EFI_STATUS (*USB_DEVICE_START_EX) (
+    IN USB_DEVICE_DESCRIPTOR_SET *UsbDevDescSet);
 
-
-/* 
+/*
   @par Summary
-  Sets or clears the Stall state on the specified endpoint. 
+  Sets or clears the Stall state on the specified endpoint.
 
-  @param[in]  EndpointIndex     Endpoint index, as specified in endpoint descriptors, of
+  @param[in]  EndpointIndex     Endpoint index, as specified in endpoint
+  descriptors, of
                                 the endpoint to send the data from.
   @param[in]  State             Requested Stall state on the specified endpoint.
                                 TRUE causes the endpoint to stall; FALSE clears
@@ -336,28 +325,22 @@ EFI_STATUS
   @dependencies
   USB_DEVICE_START() must have already been called.
 */
-typedef
-EFI_STATUS
-(EFIAPI *USB_DEVICE_SET_ENDPOINT_STALL_STATE)(
-  IN UINT8                         EndpointIndex,
-  IN BOOLEAN                       State
-  );
-
+typedef EFI_STATUS (EFIAPI *USB_DEVICE_SET_ENDPOINT_STALL_STATE) (
+    IN UINT8 EndpointIndex,
+    IN BOOLEAN State);
 
 /*
   @par Summary
   Stop the USB controller and clean up the resources allocated.
-  
-  @par 
-  After calling the function, no more access to the USB Device Protocol is allowed.
+
+  @par
+  After calling the function, no more access to the USB Device Protocol is
+  allowed.
 
   @retval     EFI_SUCCESS           Function completed successfully.
   @retval     Others                Operation failed.
 */
-typedef
-EFI_STATUS
-(*USB_DEVICE_STOP) ( VOID );
-
+typedef EFI_STATUS (*USB_DEVICE_STOP) (VOID);
 
 /*===========================================================================
   PROTOCOL INTERFACE
@@ -365,26 +348,26 @@ EFI_STATUS
 /** @ingroup efi_usb_device_protocol
   @par Summary
   This protocol enables a lightweight communication between the host and
-  device over the USB in a preboot environment. The client of the EFI_USB_DEVICE_PROTOCOL
-  is responsible to handle any non-standard USB control transfer and transfers 
+  device over the USB in a preboot environment. The client of the
+  EFI_USB_DEVICE_PROTOCOL
+  is responsible to handle any non-standard USB control transfer and transfers
   on non-control endpoint.
 
   @par Parameters
   @inputprotoparams{usb_dev_proto_params.tex}
 */
 struct _EFI_USB_DEVICE_PROTOCOL {
-  UINTN                                 Revision;
-  USB_DEVICE_START                      Start;
-  USB_DEVICE_SEND                       Send;
-  USB_DEVICE_HANDLE_EVENT               HandleEvent;
-  USB_DEVICE_ALLOCATE_TRANSFER_BUFFER   AllocateTransferBuffer;
-  USB_DEVICE_FREE_TRANSFER_BUFFER       FreeTransferBuffer;
-  USB_DEVICE_STOP                       Stop;
-  USB_DEVICE_ABORT_XFER                 AbortXfer;
-  USB_DEVICE_SET_ENDPOINT_STALL_STATE   SetEndpointStallState;
-  USB_DEVICE_START_EX                   StartEx;
+  UINTN Revision;
+  USB_DEVICE_START Start;
+  USB_DEVICE_SEND Send;
+  USB_DEVICE_HANDLE_EVENT HandleEvent;
+  USB_DEVICE_ALLOCATE_TRANSFER_BUFFER AllocateTransferBuffer;
+  USB_DEVICE_FREE_TRANSFER_BUFFER FreeTransferBuffer;
+  USB_DEVICE_STOP Stop;
+  USB_DEVICE_ABORT_XFER AbortXfer;
+  USB_DEVICE_SET_ENDPOINT_STALL_STATE SetEndpointStallState;
+  USB_DEVICE_START_EX StartEx;
 };
 typedef struct _EFI_USB_DEVICE_PROTOCOL EFI_USB_DEVICE_PROTOCOL;
 
-#endif //ifndef __USB_DEVICE_PROTOCOL_H__
-
+#endif // ifndef __USB_DEVICE_PROTOCOL_H__

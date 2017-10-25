@@ -34,27 +34,30 @@
 #ifndef __UPDATECMDLINE_H__
 #define __UPDATECMDLINE_H__
 
-#include <Uefi.h>
-#include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/MemoryAllocationLib.h>
 #include <Library/DeviceInfo.h>
+#include <Library/MemoryAllocationLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
+#include <Uefi.h>
 
 #define BOOT_BASE_BAND " androidboot.baseband="
-#define BATT_MIN_VOLT  3200
+#define BATT_MIN_VOLT 3200
 
 #define MAX_PATH_SIZE 64
 #define SERIAL_NUM_SIZE 64
 
-EFI_STATUS UpdateCmdLine(CONST CHAR8 * CmdLine,
-			 CHAR8 *FfbmStr,
-			 BOOLEAN Recovery,
-			 BOOLEAN AlarmBoot,
-			 CONST CHAR8 *VBCmdLine,
-			 CHAR8 **FinalCmdLine);
-BOOLEAN TargetBatterySocOk(UINT32 *BatteryVoltage);
+EFI_STATUS
+UpdateCmdLine (CONST CHAR8 *CmdLine,
+               CHAR8 *FfbmStr,
+               BOOLEAN Recovery,
+               BOOLEAN AlarmBoot,
+               CONST CHAR8 *VBCmdLine,
+               CHAR8 **FinalCmdLine);
+BOOLEAN
+TargetBatterySocOk (UINT32 *BatteryVoltage);
 
-UINT32 GetSystemPath(CHAR8 **SysPath);
+UINT32
+GetSystemPath (CHAR8 **SysPath);
 
 #endif

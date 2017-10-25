@@ -29,7 +29,14 @@
 #ifndef __PLATFORM_MSM_SHARED_DECOMPRESS_H
 #define __PLATFORM_MSM_SHARED_DECOMPRESS_H
 
-int is_gzip_package(unsigned char *, unsigned int);
+int
+is_gzip_package (unsigned char *, unsigned int);
 
-int decompress(unsigned char *, unsigned int, unsigned char *, unsigned int, unsigned int *, unsigned int *);
+int
+decompress (unsigned char *,
+            unsigned int,
+            unsigned char *,
+            unsigned int,
+            unsigned int *,
+            unsigned int *);
 #endif /* __PLATFORM_MSM_SHARED_DECOMPRESS_H */

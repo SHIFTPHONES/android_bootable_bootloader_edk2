@@ -31,44 +31,41 @@
 
 #include <Uefi.h>
 
-enum
-{
-	NO_AVB = 0,
-	AVB_1,
-	AVB_2
-};
+enum { NO_AVB = 0, AVB_1, AVB_2 };
 
 #define GUARD(code)                                                            \
-    do {                                                                       \
-        Status = (code);                                                       \
-        if (Status != EFI_SUCCESS) {                                           \
-            DEBUG((EFI_D_ERROR, "Err: line:%d %a() status: %r\n", __LINE__,    \
-                   __FUNCTION__, Status));                                     \
-            return Status;                                                     \
-        }                                                                      \
-    } while (0)
+  do {                                                                         \
+    Status = (code);                                                           \
+    if (Status != EFI_SUCCESS) {                                               \
+      DEBUG ((EFI_D_ERROR, "Err: line:%d %a() status: %r\n", __LINE__,         \
+              __FUNCTION__, Status));                                          \
+      return Status;                                                           \
+    }                                                                          \
+  } while (0)
 
 #define GUARD_OUT(code)                                                        \
-    do {                                                                       \
-        Status = (code);                                                       \
-        if (Status != EFI_SUCCESS) {                                           \
-            DEBUG((EFI_D_ERROR, "Err: line:%d %a() status: %r\n", __LINE__,    \
-                   __FUNCTION__, Status));                                     \
-            goto out;                                                          \
-        }                                                                      \
-    } while (0)
+  do {                                                                         \
+    Status = (code);                                                           \
+    if (Status != EFI_SUCCESS) {                                               \
+      DEBUG ((EFI_D_ERROR, "Err: line:%d %a() status: %r\n", __LINE__,         \
+              __FUNCTION__, Status));                                          \
+      goto out;                                                                \
+    }                                                                          \
+  } while (0)
 
 /* forward declare BootInfo */
 typedef struct BootInfo BootInfo;
 
-BOOLEAN VerifiedBootEnbled();
+BOOLEAN
+VerifiedBootEnbled ();
 
 /**
  * @return  0 - AVB disabled
  *          1 - VB 1.0
  *          2 - VB 2.0
  */
-UINT32 GetAVBVersion();
+UINT32
+GetAVBVersion ();
 
 /**
  * Authenticates and loads boot image in
@@ -78,7 +75,8 @@ UINT32 GetAVBVersion();
  *
  * @return EFI_STATUS
  */
-EFI_STATUS LoadImageAndAuth(BootInfo *Info);
+EFI_STATUS
+LoadImageAndAuth (BootInfo *Info);
 
 /**
  *  Free resources/memory allocated by
@@ -87,7 +85,8 @@ EFI_STATUS LoadImageAndAuth(BootInfo *Info);
  *
  * @return VOID
  */
-VOID FreeVerifiedBootResource(BootInfo *Info);
+VOID
+FreeVerifiedBootResource (BootInfo *Info);
 
 /**
  *
@@ -96,6 +95,8 @@ VOID FreeVerifiedBootResource(BootInfo *Info);
  *
  * @return EFI_STATUS
  */
-EFI_STATUS GetCertFingerPrint(UINT8 *FingerPrint, UINTN FingerPrintLen,
-                              UINTN *FingerPrintLenOut);
+EFI_STATUS
+GetCertFingerPrint (UINT8 *FingerPrint,
+                    UINTN FingerPrintLen,
+                    UINTN *FingerPrintLenOut);
 #endif /* __VERIFIEDBOOT_H__ */

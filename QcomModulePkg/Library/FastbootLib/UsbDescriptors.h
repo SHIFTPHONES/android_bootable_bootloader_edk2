@@ -37,20 +37,22 @@
 #include <Library/UefiLib.h>
 #include <Protocol/EFIUsbDevice.h>
 
-/* USB endpoint number for bulk data transfers (both IN/OUT used) */ 
-#define USBLB_BULK_EP                 1
+/* USB endpoint number for bulk data transfers (both IN/OUT used) */
+#define USBLB_BULK_EP 1
 
 /* Converts endpoint index and direction to address. */
-#define ENDPOINT_ADDR(EndpointIndex, Tx) \
+#define ENDPOINT_ADDR(EndpointIndex, Tx)                                       \
   ((EndpointIndex) | ((Tx) ? 0x80 : 0x00))
 
 /* Fastboot device/config/interface/endpoint descriptor set */
-extern EFI_USB_DEVICE_QUALIFIER_DESCRIPTOR       DeviceQualifier;
+extern EFI_USB_DEVICE_QUALIFIER_DESCRIPTOR DeviceQualifier;
 
 /* Fastboot String descriptors */
 extern EFI_USB_STRING_DESCRIPTOR *StrDescriptors[5];
 
 VOID
-BuildDefaultDescriptors(OUT USB_DEVICE_DESCRIPTOR **DevDesc, OUT VOID **Descriptors,
-			            OUT USB_DEVICE_DESCRIPTOR **SSDevDesc, OUT VOID **SSDescriptors);
+BuildDefaultDescriptors (OUT USB_DEVICE_DESCRIPTOR **DevDesc,
+                         OUT VOID **Descriptors,
+                         OUT USB_DEVICE_DESCRIPTOR **SSDevDesc,
+                         OUT VOID **SSDescriptors);
 #endif /* _USBFN_DESCAPP_H_ */

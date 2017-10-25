@@ -29,28 +29,29 @@
 #ifndef __RTIC_H__
 #define __RTIC_H__
 
-#define RTIC_ID_SIZE            0x4
-#define RTIC_ID                   1
+#define RTIC_ID_SIZE 0x4
+#define RTIC_ID 1
 
-#define TZ_SVC_RTIC              25
+#define TZ_SVC_RTIC 25
 
-#define HYP_NOTIFY_RTIC_DTB_LOCATION	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_SIP, TZ_SVC_RTIC, 0x1)
-#define HYP_NOTIFY_RTIC_DTB_LOCATION_PARAM_ID \
-	TZ_SYSCALL_CREATE_PARAM_ID_3( TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RO, TZ_SYSCALL_PARAM_TYPE_VAL )
+#define HYP_NOTIFY_RTIC_DTB_LOCATION                                           \
+  TZ_SYSCALL_CREATE_SMC_ID (TZ_OWNER_SIP, TZ_SVC_RTIC, 0x1)
+#define HYP_NOTIFY_RTIC_DTB_LOCATION_PARAM_ID                                  \
+  TZ_SYSCALL_CREATE_PARAM_ID_3 (TZ_SYSCALL_PARAM_TYPE_VAL,                     \
+                                TZ_SYSCALL_PARAM_TYPE_BUF_RO,                  \
+                                TZ_SYSCALL_PARAM_TYPE_VAL)
 
-typedef struct HypNotifyRticDtb
-{
-	UINT64         KernelPhysBase;
-	const UINT64  *DtbAddress;
-	size_t         DtbSize;
+typedef struct HypNotifyRticDtb {
+  UINT64 KernelPhysBase;
+  const UINT64 *DtbAddress;
+  size_t DtbSize;
 } __attribute__ ((packed)) HypNotifyRticDtb;
 
-
-struct RticId
-{
-	UINT32 Id;
+struct RticId {
+  UINT32 Id;
 };
 
-BOOLEAN GetRticDtb(VOID *Dtb);
+BOOLEAN
+GetRticDtb (VOID *Dtb);
 
 #endif

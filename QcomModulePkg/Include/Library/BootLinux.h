@@ -31,85 +31,100 @@
 
 #include <Uefi.h>
 
+#include <Guid/FileInfo.h>
+#include <Guid/FileSystemInfo.h>
+#include <Guid/Gpt.h>
 #include <Library/BaseLib.h>
-#include <Library/IoLib.h>
-#include <Library/PcdLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiRuntimeServicesTableLib.h>
-#include <Library/UefiLib.h>
-#include <Library/DebugLib.h>
 #include <Library/BaseMemoryLib.h>
-#include <Library/MemoryAllocationLib.h>
-#include <Library/DevicePathLib.h>
-#include <Library/EfiFileLib.h>
-#include <Library/TimerLib.h>
-#include <Library/PrintLib.h>
 #include <Library/CacheMaintenanceLib.h>
+#include <Library/DebugLib.h>
+#include <Library/DevicePathLib.h>
 #include <Library/DrawUI.h>
+#include <Library/EfiFileLib.h>
+#include <Library/IoLib.h>
+#include <Library/MemoryAllocationLib.h>
+#include <Library/PcdLib.h>
+#include <Library/PrintLib.h>
+#include <Library/TimerLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 #include <PiDxe.h>
 #include <Protocol/BlockIo.h>
-#include <Protocol/SimpleFileSystem.h>
 #include <Protocol/DevicePath.h>
-#include <Protocol/SerialIo.h>
+#include <Protocol/EFIVerifiedBoot.h>
 #include <Protocol/FirmwareVolume2.h>
 #include <Protocol/LoadedImage.h>
-#include <Protocol/EFIVerifiedBoot.h>
-#include <Guid/FileSystemInfo.h>
-#include <Guid/FileInfo.h>
-#include <Guid/Gpt.h>
+#include <Protocol/SerialIo.h>
+#include <Protocol/SimpleFileSystem.h>
 
-#include "ShutdownServices.h"
+#include "Board.h"
 #include "BootImage.h"
+#include "Decompress.h"
 #include "DeviceInfo.h"
+#include "LinuxLoaderLib.h"
+#include "LocateDeviceTree.h"
+#include "PartitionTableUpdate.h"
+#include "Recovery.h"
+#include "ShutdownServices.h"
 #include "UpdateCmdLine.h"
 #include "UpdateDeviceTree.h"
-#include "LocateDeviceTree.h"
-#include "Decompress.h"
-#include "LinuxLoaderLib.h"
-#include "Board.h"
-#include "Recovery.h"
-#include "PartitionTableUpdate.h"
 #include "VerifiedBoot.h"
 
-#define ALIGN32_BELOW(addr)   ALIGN_POINTER(addr - 32,32)
-#define LOCAL_ROUND_TO_PAGE(x,y) (((x) + (y - 1)) & (~(y - 1)))
-#define ROUND_TO_PAGE(x,y) ((ADD_OF((x),(y))) & (~(y)))
-#define ALIGN_PAGES(x,y) (((x) + (y - 1)) / (y))
+#define ALIGN32_BELOW(addr) ALIGN_POINTER (addr - 32, 32)
+#define LOCAL_ROUND_TO_PAGE(x, y) (((x) + (y - 1)) & (~(y - 1)))
+#define ROUND_TO_PAGE(x, y) ((ADD_OF ((x), (y))) & (~(y)))
+#define ALIGN_PAGES(x, y) (((x) + (y - 1)) / (y))
 #define DECOMPRESS_SIZE_FACTOR 8
 #define ALIGNMENT_MASK_4KB 4096
 #define MAX_NUMBER_OF_LOADED_IMAGES 32
 
-typedef VOID (*LINUX_KERNEL)(UINT64 ParametersBase, UINT64 Reserved0, UINT64 Reserved1, UINT64 Reserved2);
-typedef VOID (*LINUX_KERNEL32)(UINT32 Zero, UINT32 Arch, UINTN ParametersBase);
+typedef VOID (*LINUX_KERNEL) (UINT64 ParametersBase,
+                              UINT64 Reserved0,
+                              UINT64 Reserved1,
+                              UINT64 Reserved2);
+typedef VOID (*LINUX_KERNEL32) (UINT32 Zero, UINT32 Arch, UINTN ParametersBase);
 
 typedef struct {
-	CHAR8 *Name;
-	VOID *ImageBuffer;
-	UINTN ImageSize;
+  CHAR8 *Name;
+  VOID *ImageBuffer;
+  UINTN ImageSize;
 } ImageData;
 
 typedef struct BootInfo {
-	BOOLEAN MultiSlotBoot;
-	BOOLEAN BootIntoRecovery;
-	BOOLEAN BootReasonAlarm;
-	CHAR16 Pname[MAX_GPT_NAME_SIZE];
-	CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
-	ImageData Images[MAX_NUMBER_OF_LOADED_IMAGES];
-	UINTN NumLoadedImages;
-	QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
-	boot_state_t BootState;
-	CHAR8 *VBCmdLine;
-	UINT32 VBCmdLineLen;
-	UINT32 VBCmdLineFilledLen;
-	VOID    *VBData;
+  BOOLEAN MultiSlotBoot;
+  BOOLEAN BootIntoRecovery;
+  BOOLEAN BootReasonAlarm;
+  CHAR16 Pname[MAX_GPT_NAME_SIZE];
+  CHAR16 BootableSlot[MAX_GPT_NAME_SIZE];
+  ImageData Images[MAX_NUMBER_OF_LOADED_IMAGES];
+  UINTN NumLoadedImages;
+  QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
+  boot_state_t BootState;
+  CHAR8 *VBCmdLine;
+  UINT32 VBCmdLineLen;
+  UINT32 VBCmdLineFilledLen;
+  VOID *VBData;
 } BootInfo;
 
-EFI_STATUS BootLinux(BootInfo *Info);
-EFI_STATUS CheckImageHeader (VOID *ImageHdrBuffer, UINT32 ImageHdrSize, UINT32 *ImageSizeActual, UINT32 *PageSize);
-EFI_STATUS LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
-EFI_STATUS LaunchApp(IN UINT32  Argc, IN CHAR8  **Argv);
-BOOLEAN TargetBuildVariantUser(VOID);
-EFI_STATUS GetImage(CONST BootInfo *Info, VOID**ImageBuffer, UINTN *ImageSize, CHAR8 *ImageName);
-BOOLEAN LoadAndValidateDtboImg(BootInfo *Info, VOID** DtboImgBuffer);
-BOOLEAN IsBootDevImage(VOID);
+EFI_STATUS
+BootLinux (BootInfo *Info);
+EFI_STATUS
+CheckImageHeader (VOID *ImageHdrBuffer,
+                  UINT32 ImageHdrSize,
+                  UINT32 *ImageSizeActual,
+                  UINT32 *PageSize);
+EFI_STATUS
+LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
+EFI_STATUS
+LaunchApp (IN UINT32 Argc, IN CHAR8 **Argv);
+BOOLEAN TargetBuildVariantUser (VOID);
+EFI_STATUS
+GetImage (CONST BootInfo *Info,
+          VOID **ImageBuffer,
+          UINTN *ImageSize,
+          CHAR8 *ImageName);
+BOOLEAN
+LoadAndValidateDtboImg (BootInfo *Info, VOID **DtboImgBuffer);
+BOOLEAN IsBootDevImage (VOID);
 #endif

@@ -30,56 +30,64 @@
 #define __BOARD_H__
 
 #include <Uefi.h>
-#include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
-#include <Library/UefiBootServicesTableLib.h>
 #include <Library/MemoryAllocationLib.h>
-#include <Protocol/EFIRamPartition.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
 #include <Protocol/EFIChipInfo.h>
-#include <Protocol/EFIPmicVersion.h>
 #include <Protocol/EFIPlatformInfo.h>
+#include <Protocol/EFIPmicVersion.h>
+#include <Protocol/EFIRamPartition.h>
 
-#define HANDLE_MAX_INFO_LIST    128
+#define HANDLE_MAX_INFO_LIST 128
 #define CHIP_BASE_BAND_LEN 4
-#define BIT(x)        (1UL << x)
+#define BIT(x) (1UL << x)
 
-typedef enum
-{
-	EMMC = 0,
-	UFS  = 1,
-	NAND = 2,
-	UNKNOWN,
+typedef enum {
+  EMMC = 0,
+  UFS = 1,
+  NAND = 2,
+  UNKNOWN,
 } MemCardType;
 
 struct BoardInfo {
-	EFI_PLATFORMINFO_PLATFORM_INFO_TYPE PlatformInfo;
-	UINT32 RawChipId;
-	CHAR8 ChipBaseBand[EFICHIPINFO_MAX_ID_LENGTH];
-	EFIChipInfoVersionType ChipVersion;
-	EFIChipInfoFoundryIdType FoundryId;
+  EFI_PLATFORMINFO_PLATFORM_INFO_TYPE PlatformInfo;
+  UINT32 RawChipId;
+  CHAR8 ChipBaseBand[EFICHIPINFO_MAX_ID_LENGTH];
+  EFIChipInfoVersionType ChipVersion;
+  EFIChipInfoFoundryIdType FoundryId;
 };
 
-EFI_STATUS BaseMem(UINT64 *BaseMemory);
+EFI_STATUS
+BaseMem (UINT64 *BaseMemory);
 
-UINT32 BoardPmicModel(UINT32 PmicDeviceIndex);
+UINT32
+BoardPmicModel (UINT32 PmicDeviceIndex);
 
-UINT32 BoardPmicTarget(UINT32 PmicDeviceIndex);
+UINT32
+BoardPmicTarget (UINT32 PmicDeviceIndex);
 
-EFI_STATUS BoardInit(VOID);
+EFI_STATUS BoardInit (VOID);
 
-EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len);
-UINT32 BoardPlatformRawChipId(VOID);
-CHAR8* BoardPlatformChipBaseBand(VOID);
-EFIChipInfoVersionType BoardPlatformChipVersion(VOID);
-EFIChipInfoFoundryIdType BoardPlatformFoundryId(VOID);
-EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType(VOID);
-UINT32 BoardPlatformVersion(VOID);
-UINT32 BoardPlatformSubType(VOID);
-UINT32 BoardTargetId(VOID);
-VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len);
-VOID BoardHwPlatformName(CHAR8 *StrHwPlatform, UINT32 Len);
-EFI_STATUS UfsGetSetBootLun(UINT32 *UfsBootlun, BOOLEAN IsGet);
-UINT32 BoardPlatformRawChipId(VOID);
-EFI_STATUS GetRamPartitions(RamPartitionEntry **RamPartitions, UINT32 *NumPartitions);
-VOID GetPageSize(UINT32 *PageSize);
+EFI_STATUS
+BoardSerialNum (CHAR8 *StrSerialNum, UINT32 Len);
+UINT32 BoardPlatformRawChipId (VOID);
+CHAR8 *BoardPlatformChipBaseBand (VOID);
+EFIChipInfoVersionType BoardPlatformChipVersion (VOID);
+EFIChipInfoFoundryIdType BoardPlatformFoundryId (VOID);
+EFI_PLATFORMINFO_PLATFORM_TYPE BoardPlatformType (VOID);
+UINT32 BoardPlatformVersion (VOID);
+UINT32 BoardPlatformSubType (VOID);
+UINT32 BoardTargetId (VOID);
+VOID
+GetRootDeviceType (CHAR8 *StrDeviceType, UINT32 Len);
+VOID
+BoardHwPlatformName (CHAR8 *StrHwPlatform, UINT32 Len);
+EFI_STATUS
+UfsGetSetBootLun (UINT32 *UfsBootlun, BOOLEAN IsGet);
+UINT32 BoardPlatformRawChipId (VOID);
+EFI_STATUS
+GetRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions);
+VOID
+GetPageSize (UINT32 *PageSize);
 #endif

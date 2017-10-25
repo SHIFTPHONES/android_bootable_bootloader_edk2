@@ -26,7 +26,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #ifndef _DRAWUI_H_
 #define _DRAWUI_H_
 
@@ -38,7 +37,7 @@
  * "1440(W) 2560(H)" : "sysfont4x" -- 1440/(8*4) = 45
  * "2160(W) 3840(H)" : "sysfont6x" -- 2160/(8*6) = 45
  */
-#define CHAR_NUM_PERROW_POR  45
+#define CHAR_NUM_PERROW_POR 45
 
 /* 80 characters per line for horizontal orientation
  * "480 (H) 640 (W)" : ""       -- 640 / (8 * 1) = 80
@@ -47,93 +46,102 @@
  * "1440(H) 2560(W)" : "sysfont4x" -- 2560/(8*4) = 80
  * "2160(H) 3840(W)" : "sysfont6x" -- 3840/(8*6) = 80
  */
-#define CHAR_NUM_PERROW_HOR  80
+#define CHAR_NUM_PERROW_HOR 80
 
-#define MAX_MSG_SIZE        256
-#define MAX_RSP_SIZE        64
+#define MAX_MSG_SIZE 256
+#define MAX_RSP_SIZE 64
 
 typedef enum {
-	DISPLAY_MENU_YELLOW = 0,
-	DISPLAY_MENU_ORANGE,
-	DISPLAY_MENU_RED,
-	DISPLAY_MENU_EIO,
-	DISPLAY_MENU_MORE_OPTION,
-	DISPLAY_MENU_UNLOCK,
-	DISPLAY_MENU_FASTBOOT,
-	DISPLAY_MENU_UNLOCK_CRITICAL,
-	DISPLAY_MENU_LOCK,
-	DISPLAY_MENU_LOCK_CRITICAL
+  DISPLAY_MENU_YELLOW = 0,
+  DISPLAY_MENU_ORANGE,
+  DISPLAY_MENU_RED,
+  DISPLAY_MENU_EIO,
+  DISPLAY_MENU_MORE_OPTION,
+  DISPLAY_MENU_UNLOCK,
+  DISPLAY_MENU_FASTBOOT,
+  DISPLAY_MENU_UNLOCK_CRITICAL,
+  DISPLAY_MENU_LOCK,
+  DISPLAY_MENU_LOCK_CRITICAL
 } DISPLAY_MENU_TYPE;
 
 typedef enum {
-	BGR_WHITE,
-	BGR_BLACK,
-	BGR_ORANGE,
-	BGR_YELLOW,
-	BGR_RED,
-	BGR_GREEN,
-	BGR_BLUE,
-	BGR_CYAN,
-	BGR_SILVER,
+  BGR_WHITE,
+  BGR_BLACK,
+  BGR_ORANGE,
+  BGR_YELLOW,
+  BGR_RED,
+  BGR_GREEN,
+  BGR_BLUE,
+  BGR_CYAN,
+  BGR_SILVER,
 } COLOR_TYPE;
 
 typedef enum {
-	COMMON_FACTOR = 1,
-	BIG_FACTOR,
-	MAX_FACTORTYPE = 2,
+  COMMON_FACTOR = 1,
+  BIG_FACTOR,
+  MAX_FACTORTYPE = 2,
 } SCALE_FACTOR_TYPE;
 
 typedef enum {
-	POWEROFF = 0,
-	RESTART,
-	RECOVER,
-	FASTBOOT,
-	BACK,
-	CONTINUE,
-	FFBM,
-	QMMI,
-	NOACTION,
-	OPTION_ACTION_MAX,
+  POWEROFF = 0,
+  RESTART,
+  RECOVER,
+  FASTBOOT,
+  BACK,
+  CONTINUE,
+  FFBM,
+  QMMI,
+  NOACTION,
+  OPTION_ACTION_MAX,
 } OPTION_ITEM_ACTION;
 
 typedef enum {
-	COMMON = 0,
-	ALIGN_RIGHT,
-	ALIGN_LEFT,
-	OPTION_ITEM,
-	LINEATION,
+  COMMON = 0,
+  ALIGN_RIGHT,
+  ALIGN_LEFT,
+  OPTION_ITEM,
+  LINEATION,
 } MENU_STRING_TYPE;
 
-typedef struct{
-	CHAR8   Msg[MAX_MSG_SIZE];
-	UINT32  ScaleFactorType;
-	UINT32  FgColor;
-	UINT32  BgColor;
-	UINT32  Attribute;
-	UINT32  Location;
-	UINT32  Action;
+typedef struct {
+  CHAR8 Msg[MAX_MSG_SIZE];
+  UINT32 ScaleFactorType;
+  UINT32 FgColor;
+  UINT32 BgColor;
+  UINT32 Attribute;
+  UINT32 Location;
+  UINT32 Action;
 } MENU_MSG_INFO;
 
 typedef struct {
-	MENU_MSG_INFO   *MsgInfo;
-	UINT32          OptionItems[OPTION_ACTION_MAX];
-	UINT32          OptionNum;
-	UINT32          OptionIndex;
-	UINT32          MenuType;
-	UINT32          TimeoutTime;
+  MENU_MSG_INFO *MsgInfo;
+  UINT32 OptionItems[OPTION_ACTION_MAX];
+  UINT32 OptionNum;
+  UINT32 OptionIndex;
+  UINT32 MenuType;
+  UINT32 TimeoutTime;
 } MENU_OPTION_ITEM_INFO;
 
 typedef struct {
-	MENU_OPTION_ITEM_INFO   Info;
-	UINT32                  LastMenuType;
+  MENU_OPTION_ITEM_INFO Info;
+  UINT32 LastMenuType;
 } OPTION_MENU_INFO;
 
-VOID SetMenuMsgInfo(MENU_MSG_INFO *MenuMsgInfo, CHAR8* Msg, UINT32 ScaleFactorType,
-	UINT32 FgColor, UINT32 BgColor, UINT32 Attribute, UINT32 Location, UINT32 Action);
-EFI_STATUS DrawMenu(MENU_MSG_INFO *TargetMenu, UINT32 *Height);
-EFI_STATUS UpdateMsgBackground(MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor);
-EFI_STATUS BackUpBootLogoBltBuffer(VOID);
+VOID
+SetMenuMsgInfo (MENU_MSG_INFO *MenuMsgInfo,
+                CHAR8 *Msg,
+                UINT32 ScaleFactorType,
+                UINT32 FgColor,
+                UINT32 BgColor,
+                UINT32 Attribute,
+                UINT32 Location,
+                UINT32 Action);
+EFI_STATUS
+DrawMenu (MENU_MSG_INFO *TargetMenu, UINT32 *Height);
+EFI_STATUS
+UpdateMsgBackground (MENU_MSG_INFO *MenuMsgInfo, UINT32 NewBgColor);
+EFI_STATUS BackUpBootLogoBltBuffer (VOID);
 VOID RestoreBootLogoBitBuffer (VOID);
-VOID FreeBootLogoBltBuffer(VOID);
-VOID DrawMenuInit(VOID);
+VOID FreeBootLogoBltBuffer (VOID);
+VOID DrawMenuInit (VOID);
 #endif

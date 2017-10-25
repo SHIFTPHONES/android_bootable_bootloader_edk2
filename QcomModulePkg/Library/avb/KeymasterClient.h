@@ -29,19 +29,19 @@
 #ifndef __KEYMASTER_CLIENT_H__
 #define __KEYMASTER_CLIENT_H__
 
-#include <Uefi.h>
 #include <Protocol/EFIVerifiedBoot.h>
+#include <Uefi.h>
 
 typedef struct {
-	BOOLEAN IsUnlocked;
-	boot_state_t Color;
-	UINT32 PublicKeyLength;
-	CONST CHAR8 *PublicKey;
-	UINT32 SystemVersion;
-	UINT32 SystemSecurityLevel;
+  BOOLEAN IsUnlocked;
+  boot_state_t Color;
+  UINT32 PublicKeyLength;
+  CONST CHAR8 *PublicKey;
+  UINT32 SystemVersion;
+  UINT32 SystemSecurityLevel;
 } KMRotAndBootState;
 
-EFI_STATUS KeyMasterSetRotAndBootState(KMRotAndBootState *BootState);
+EFI_STATUS
+KeyMasterSetRotAndBootState (KMRotAndBootState *BootState);
 
 #endif /* __KEYMASTER_CLIENT_H__ */
-

@@ -24,7 +24,7 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  *@file  EFIChargerEx.h
  *@brief Charger Extended Protocol for UEFI open source.
  */
@@ -48,7 +48,7 @@ when       who     what, where, why
 /*===========================================================================
 MACRO DECLARATIONS
 ===========================================================================*/
-/** @addtogroup efi_ChargerEx_constants 
+/** @addtogroup efi_ChargerEx_constants
 @{ */
 /**
 Protocol version.
@@ -59,8 +59,13 @@ Protocol version.
 
 /*  Protocol GUID definition */
 /** @ingroup efi_ChargerEx_protocol */
-#define EFI_CHARGER_EX_PROTOCOL_GUID \
-    { 0x6edc8a6d, 0x2663, 0x43cd, { 0x90, 0xff, 0x46, 0x21, 0xff, 0xd1, 0x0d, 0xf5 } } 
+#define EFI_CHARGER_EX_PROTOCOL_GUID                                           \
+  {                                                                            \
+    0x6edc8a6d, 0x2663, 0x43cd,                                                \
+    {                                                                          \
+      0x90, 0xff, 0x46, 0x21, 0xff, 0xd1, 0x0d, 0xf5                           \
+    }                                                                          \
+  }
 
 /** @cond */
 /*===========================================================================
@@ -77,24 +82,22 @@ TYPE DEFINITIONS
 typedef enum {
   EFI_CHARGER_EX_POWER_FLASH_BATTERY_VOLTAGE_TYPE,
   EFI_CHARGER_EX_POWER_TYPE_INVALID = 0x7FFFFFFF
-}EFI_CHARGER_EX_POWER_TYPE;
-
+} EFI_CHARGER_EX_POWER_TYPE;
 
 typedef struct {
   BOOLEAN bCanFlash;
-  UINT32  BattCurrVoltage;
-  UINT32  BattRequiredVoltage;
-}EFI_CHARGER_EX_FLASH_INFO;
+  UINT32 BattCurrVoltage;
+  UINT32 BattRequiredVoltage;
+} EFI_CHARGER_EX_FLASH_INFO;
 
 /**
 Protocol declaration.
 */
-typedef struct _EFI_CHARGER_EX_PROTOCOL   EFI_CHARGER_EX_PROTOCOL;
+typedef struct _EFI_CHARGER_EX_PROTOCOL EFI_CHARGER_EX_PROTOCOL;
 /** @endcond */
 
 /** @addtogroup efi_ChargerEx_data_types
 @{ */
-
 
 /*===========================================================================
 FUNCTION DEFINITIONS
@@ -111,12 +114,8 @@ FUNCTION DEFINITIONS
   EFI_SUCCESS            -- Function completed successfully.
   EFI_DEVICE_ERROR       -- Physical device reported an error.
 */
-typedef
-EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_CHARGER_PRESENCE)
-(
-  OUT BOOLEAN  *pChargerPresent
-);
-
+typedef EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_CHARGER_PRESENCE) (
+    OUT BOOLEAN *pChargerPresent);
 
 /* EFI_CHARGER_EX_GET_BATTERY_VOLTAGE */
 /**@ingroup efi_charger_ex_get_battery_voltage
@@ -129,11 +128,8 @@ EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_CHARGER_PRESENCE)
   EFI_SUCCESS            -- Function completed successfully.
   EFI_DEVICE_ERROR       -- Physical device reported an error.
 */
-typedef
-EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_BATTERY_VOLTAGE)
-(
-  OUT UINT32  *pBatteryVoltagemV
-);
+typedef EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_BATTERY_VOLTAGE) (
+    OUT UINT32 *pBatteryVoltagemV);
 
 /* EFI_CHARGER_EX_GET_BATTERY_PRESENCE */
 /**@ingroup efi_charger_ex_get_battery_presence
@@ -146,29 +142,23 @@ EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_BATTERY_VOLTAGE)
   EFI_SUCCESS            -- Function completed successfully.
   EFI_DEVICE_ERROR       -- Physical device reported an error.
 */
-typedef
-EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_BATTERY_PRESENCE)
-(
-  OUT BOOLEAN  *pBatteryPresent
-);
+typedef EFI_STATUS (EFIAPI *EFI_CHARGER_EX_GET_BATTERY_PRESENCE) (
+    OUT BOOLEAN *pBatteryPresent);
 
 /* EFI_CHARGER_EX_IS_OFFMODE_CHARGING */
 /**@ingroup efi_charger_ex_is_offmode_charging
   @par Summary
   This API returns if device needs to off mode charging
 
-  @param[out]  bOffModeCharging   TRUE:OffMode Charging is needed, Otherwise FALSE
+  @param[out]  bOffModeCharging   TRUE:OffMode Charging is needed, Otherwise
+  FALSE
 
   @return
   EFI_SUCCESS            -- Function completed successfully.
   EFI_DEVICE_ERROR       -- Physical device reported an error.
 */
-typedef
-EFI_STATUS ( EFIAPI * EFI_CHARGER_EX_IS_OFFMODE_CHARGING)
-(
-  OUT BOOLEAN *bOffModeCharging
-);
-
+typedef EFI_STATUS (EFIAPI *EFI_CHARGER_EX_IS_OFFMODE_CHARGING) (
+    OUT BOOLEAN *bOffModeCharging);
 
 /* EFI_CHARGER_EX_IS_POWER_OK */
 /**@ingroup efi_charger_ex_is_power_ok
@@ -182,12 +172,9 @@ EFI_STATUS ( EFIAPI * EFI_CHARGER_EX_IS_OFFMODE_CHARGING)
   EFI_SUCCESS            -- Function completed successfully.
   EFI_DEVICE_ERROR       -- Physical device reported an error.
 */
-typedef
-EFI_STATUS ( EFIAPI * EFI_CHARGER_EX_IS_POWER_OK)
-(
-  IN  EFI_CHARGER_EX_POWER_TYPE PowerType,
-  OUT VOID                     *PowerTypeInfo
-);
+typedef EFI_STATUS (EFIAPI *EFI_CHARGER_EX_IS_POWER_OK) (
+    IN EFI_CHARGER_EX_POWER_TYPE PowerType,
+    OUT VOID *PowerTypeInfo);
 
 /*===========================================================================
 PROTOCOL INTERFACE
@@ -197,17 +184,19 @@ PROTOCOL INTERFACE
 PMIC Charger Protocol interface.
 
 @par Parameters
-@inputprotoparams{pmic_charger_proto_params.tex} 
+@inputprotoparams{pmic_charger_proto_params.tex}
 */
 
 struct _EFI_CHARGER_EX_PROTOCOL {
-  UINT64                                Revision;
-  EFI_CHARGER_EX_GET_CHARGER_PRESENCE   GetChargerPresence;    // Returns if charger is present
-  EFI_CHARGER_EX_GET_BATTERY_PRESENCE   GetBatteryPresence;    // Returns if battery is present
-  EFI_CHARGER_EX_GET_BATTERY_VOLTAGE    GetBatteryVoltage;     // Returns battery voltage
-  EFI_CHARGER_EX_IS_OFFMODE_CHARGING    IsOffModeCharging;
-  EFI_CHARGER_EX_IS_POWER_OK            IsPowerOk;
+  UINT64 Revision;
+  EFI_CHARGER_EX_GET_CHARGER_PRESENCE
+      GetChargerPresence; // Returns if charger is present
+  EFI_CHARGER_EX_GET_BATTERY_PRESENCE
+      GetBatteryPresence; // Returns if battery is present
+  EFI_CHARGER_EX_GET_BATTERY_VOLTAGE
+      GetBatteryVoltage; // Returns battery voltage
+  EFI_CHARGER_EX_IS_OFFMODE_CHARGING IsOffModeCharging;
+  EFI_CHARGER_EX_IS_POWER_OK IsPowerOk;
 };
 
-
-#endif  /* __EFICHARGEREX_H__ */
+#endif /* __EFICHARGEREX_H__ */

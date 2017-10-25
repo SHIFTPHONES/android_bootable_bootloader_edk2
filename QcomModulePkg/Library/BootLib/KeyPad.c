@@ -27,59 +27,49 @@
 */
 
 #include <Uefi.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiRuntimeServicesTableLib.h>
-#include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
-#include <Library/PartitionTableUpdate.h>
 #include <Library/KeyPad.h>
+#include <Library/PartitionTableUpdate.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 
-EFI_STATUS GetKeyPress(UINT32 *KeyPressed)
+EFI_STATUS
+GetKeyPress (UINT32 *KeyPressed)
 {
-	EFI_STATUS Status;
-	EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *InputEx;
-	EFI_KEY_DATA KeyData;
-	Status = gBS->OpenProtocol (
-			gST->ConsoleInHandle,
-			&gEfiSimpleTextInputExProtocolGuid,
-			(VOID**)&InputEx,
-			gImageHandle,
-			NULL,
-			EFI_OPEN_PROTOCOL_GET_PROTOCOL
-			);
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR,"Input Open protocol failed Status:%r \n", Status));
-		return Status;
-	}
+  EFI_STATUS Status;
+  EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *InputEx;
+  EFI_KEY_DATA KeyData;
+  Status = gBS->OpenProtocol (
+      gST->ConsoleInHandle, &gEfiSimpleTextInputExProtocolGuid,
+      (VOID **)&InputEx, gImageHandle, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Input Open protocol failed Status:%r \n", Status));
+    return Status;
+  }
 
-	gBS->SetMem(&KeyData, sizeof(KeyData), 0);
+  gBS->SetMem (&KeyData, sizeof (KeyData), 0);
 
-	Status = InputEx->ReadKeyStrokeEx (InputEx, &KeyData);
-	if (Status != EFI_SUCCESS)
-		return Status;
+  Status = InputEx->ReadKeyStrokeEx (InputEx, &KeyData);
+  if (Status != EFI_SUCCESS)
+    return Status;
 
-	DEBUG((EFI_D_VERBOSE,"Key Stroke Read\n"));
-	DEBUG((EFI_D_VERBOSE, "ScanCode = (0x%x), UnicodeChar =(0x%x)\n",
-			               KeyData.Key.ScanCode, KeyData.Key.UnicodeChar));
-	DEBUG((EFI_D_VERBOSE, "ShiftState=(0x%x), ToggleState==(0x%x)\n",
-			               KeyData.KeyState.KeyShiftState, KeyData.KeyState.KeyToggleState ));
+  DEBUG ((EFI_D_VERBOSE, "Key Stroke Read\n"));
+  DEBUG ((EFI_D_VERBOSE, "ScanCode = (0x%x), UnicodeChar =(0x%x)\n",
+          KeyData.Key.ScanCode, KeyData.Key.UnicodeChar));
+  DEBUG ((EFI_D_VERBOSE, "ShiftState=(0x%x), ToggleState==(0x%x)\n",
+          KeyData.KeyState.KeyShiftState, KeyData.KeyState.KeyToggleState));
 
-	Status = InputEx->Reset(InputEx, FALSE);
-	if (Status != EFI_SUCCESS)
-	{
-		DEBUG((EFI_D_ERROR, "Error resetting the input key status: %x\n", Status));
-		return Status;
-	}
+  Status = InputEx->Reset (InputEx, FALSE);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error resetting the input key status: %x\n", Status));
+    return Status;
+  }
 
-	*KeyPressed = KeyData.Key.ScanCode;
+  *KeyPressed = KeyData.Key.ScanCode;
 
-	gBS->CloseProtocol (
-			gST->ConsoleInHandle,
-			&gEfiSimpleTextInputExProtocolGuid,
-			gImageHandle,
-			NULL
-		);
+  gBS->CloseProtocol (gST->ConsoleInHandle, &gEfiSimpleTextInputExProtocolGuid,
+                      gImageHandle, NULL);
 
-	return Status;
+  return Status;
 }

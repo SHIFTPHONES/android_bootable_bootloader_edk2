@@ -30,25 +30,25 @@
 #ifndef _META_FORMAT_H_
 #define _META_FORMAT_H_
 
-#define META_HEADER_MAGIC  0xce1ad63c
+#define META_HEADER_MAGIC 0xce1ad63c
 #define META_PARTITION_NAME_SZ 72
 /*Keeping the maximum number of images supported to 32 for future expansion*/
 /*Refer device/qcom/common/meta_image/meta_image.c file for reference*/
 #define MAX_IMAGES_IN_METAIMG 32
 
 typedef struct meta_header {
-  UINT32       magic;		    /* 0xce1ad63c */
-  UINT16       major_version;	/* (0x1) - reject images with higher major versions */
-  UINT16       minor_version;	/* (0x0) - allow images with higer minor versions */
-  CHAR8 	    img_version[64]; /* Top level version for images in this meta */
-  UINT16	    meta_hdr_sz;    /* size of this header */
-  UINT16	    img_hdr_sz;     /* size of img_header_entry list */
+  UINT32 magic;          /* 0xce1ad63c */
+  UINT16 major_version;  /* (0x1) - reject images with higher major versions */
+  UINT16 minor_version;  /* (0x0) - allow images with higer minor versions */
+  CHAR8 img_version[64]; /* Top level version for images in this meta */
+  UINT16 meta_hdr_sz;    /* size of this header */
+  UINT16 img_hdr_sz;     /* size of img_header_entry list */
 } meta_header_t;
 
 typedef struct img_header_entry {
-  CHAR8      ptn_name[META_PARTITION_NAME_SZ];
-  UINT32       start_offset;
-  UINT32       size;
+  CHAR8 ptn_name[META_PARTITION_NAME_SZ];
+  UINT32 start_offset;
+  UINT32 size;
 } img_header_entry_t;
 
 #endif

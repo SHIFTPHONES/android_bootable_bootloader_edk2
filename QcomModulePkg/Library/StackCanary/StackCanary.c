@@ -27,47 +27,54 @@
 */
 
 #include "LinuxLoaderLib.h"
-#include <Protocol/EFIRng.h>
 #include <Library/StackCanary.h>
+#include <Protocol/EFIRng.h>
 
-UINTN  __stack_chk_guard = 0xc0c0c0c0;
+UINTN __stack_chk_guard = 0xc0c0c0c0;
 
-VOID StackGuardChkSetup(VOID)
+VOID StackGuardChkSetup (VOID)
 {
-	EFI_QCOM_RNG_PROTOCOL *RngIf;
-	EFI_STATUS Status;
-	EFI_GUID AlgoId;
-	UINTN AlgoIdSize = sizeof(EFI_GUID);
+  EFI_QCOM_RNG_PROTOCOL *RngIf;
+  EFI_STATUS Status;
+  EFI_GUID AlgoId;
+  UINTN AlgoIdSize = sizeof (EFI_GUID);
 
-	Status = gBS->LocateProtocol(&gQcomRngProtocolGuid, NULL, (VOID **) &RngIf);
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error locating PRNG protocol, using default canary :%r\n", Status));
-		return;
-	}
+  Status = gBS->LocateProtocol (&gQcomRngProtocolGuid, NULL, (VOID **)&RngIf);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR,
+            "Error locating PRNG protocol, using default canary :%r\n",
+            Status));
+    return;
+  }
 
-	Status = RngIf->GetInfo(RngIf, &AlgoIdSize, &AlgoId);
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error GetInfo for PRNG failed: %r\n", Status));
-		return;
-	}
+  Status = RngIf->GetInfo (RngIf, &AlgoIdSize, &AlgoId);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error GetInfo for PRNG failed: %r\n", Status));
+    return;
+  }
 
-	Status = RngIf->GetRNG(RngIf, &AlgoId, sizeof(UINTN), (UINT8 *)&__stack_chk_guard);
-	if (Status != EFI_SUCCESS) {
-		DEBUG((EFI_D_ERROR, "Error getting PRNG random number, using default canary: %r\n", Status));
-		return;
-	}
+  Status = RngIf->GetRNG (RngIf, &AlgoId, sizeof (UINTN),
+                          (UINT8 *)&__stack_chk_guard);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR,
+            "Error getting PRNG random number, using default canary: %r\n",
+            Status));
+    return;
+  }
 }
 
 /*
  * Callback if stack cananry is corrupted
  */
-void __stack_chk_fail (void)
+void
+__stack_chk_fail (void)
 {
-	volatile UINT32 i = 1;
-	/*
-	 * Loop forever in case of stack overflow. Avoid
-	 * calling into another api in case of stack corruption/overflow
-	 */
-	DEBUG((EFI_D_ERROR, "Error: Stack Smashing Detected. Halting...\n"));
-	while (i);
+  volatile UINT32 i = 1;
+  /*
+   * Loop forever in case of stack overflow. Avoid
+   * calling into another api in case of stack corruption/overflow
+   */
+  DEBUG ((EFI_D_ERROR, "Error: Stack Smashing Detected. Halting...\n"));
+  while (i)
+    ;
 }

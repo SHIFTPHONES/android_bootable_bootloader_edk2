@@ -30,16 +30,16 @@
 #ifndef __BOOT_STATS_H
 #define __BOOT_STATS_H
 
-typedef enum
-{
-    BS_BL_START = 0,
-    BS_KERNEL_ENTRY,
-    BS_KERNEL_RESERVED,
-    BS_KERNEL_LOAD_TIME,
-    BS_KERNEL_LOAD_START,
-    BS_KERNEL_LOAD_DONE,
-    BS_MAX,
+typedef enum {
+  BS_BL_START = 0,
+  BS_KERNEL_ENTRY,
+  BS_KERNEL_RESERVED,
+  BS_KERNEL_LOAD_TIME,
+  BS_KERNEL_LOAD_START,
+  BS_KERNEL_LOAD_DONE,
+  BS_MAX,
 } BS_ENTRY;
 
-void BootStatsSetTimeStamp(BS_ENTRY BootStatId);
+void
+BootStatsSetTimeStamp (BS_ENTRY BootStatId);
 #endif

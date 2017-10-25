@@ -31,17 +31,18 @@
 
 #include "LinuxLoaderLib.h"
 
-#define FFBM_MODE_BUF_SIZE   8
+#define FFBM_MODE_BUF_SIZE 8
 
 /* Recovery Message */
-struct RecoveryMessage
-{
-	CHAR8 command[32];
-	CHAR8 status[32];
-	CHAR8 recovery[1024];
+struct RecoveryMessage {
+  CHAR8 command[32];
+  CHAR8 status[32];
+  CHAR8 recovery[1024];
 };
 
-EFI_STATUS RecoveryInit(BOOLEAN *BootIntoRecovery);
-EFI_STATUS GetFfbmCommand(CHAR8 *FfbmMode, UINT32 Sz);
+EFI_STATUS
+RecoveryInit (BOOLEAN *BootIntoRecovery);
+EFI_STATUS
+GetFfbmCommand (CHAR8 *FfbmMode, UINT32 Sz);
 
 #endif

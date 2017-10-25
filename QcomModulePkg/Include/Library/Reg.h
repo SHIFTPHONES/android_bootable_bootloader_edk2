@@ -26,12 +26,11 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #ifndef _REG_H
 #define _REG_H
 
 #define REG32(addr) ((volatile UINT32 *)(addr))
-#define READL(addr)  (*REG32(addr))
-#define WRITEL(addr, val)  (*REG32(addr) = (val))
+#define READL(addr) (*REG32 (addr))
+#define WRITEL(addr, val) (*REG32 (addr) = (val))
 
 #endif

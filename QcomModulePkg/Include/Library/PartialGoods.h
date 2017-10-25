@@ -32,21 +32,20 @@
 #include <Library/Board.h>
 #define MAX_CPU_CLUSTER 2
 
-struct SubNodeListNew
-{
-	CONST CHAR8 *SubNodeName;    /* Subnode name */
-	CONST CHAR8 *PropertyName;   /* Property name */
-	CONST CHAR8 *PropertyStr;   /* Property string value */
-	CONST CHAR8 *ReplaceStr;   /* Replace string */
+struct SubNodeListNew {
+  CONST CHAR8 *SubNodeName;  /* Subnode name */
+  CONST CHAR8 *PropertyName; /* Property name */
+  CONST CHAR8 *PropertyStr;  /* Property string value */
+  CONST CHAR8 *ReplaceStr;   /* Replace string */
 };
 
-struct PartialGoods
-{
-	UINT32 Val; /* Value for the defect */
-	CONST CHAR8 *ParentNode; /* Parent Node name*/
-	struct SubNodeListNew SubNode; /* Sub node name list*/
+struct PartialGoods {
+  UINT32 Val;                    /* Value for the defect */
+  CONST CHAR8 *ParentNode;       /* Parent Node name*/
+  struct SubNodeListNew SubNode; /* Sub node name list*/
 };
 
-EFI_STATUS UpdatePartialGoodsNode(VOID *fdt);
+EFI_STATUS
+UpdatePartialGoodsNode (VOID *fdt);
 
 #endif

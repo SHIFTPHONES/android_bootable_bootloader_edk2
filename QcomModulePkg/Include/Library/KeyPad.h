@@ -31,5 +31,6 @@
 
 #include <Protocol/SimpleTextIn.h>
 
-EFI_STATUS GetKeyPress(UINT32 *KeyPressed);
+EFI_STATUS
+GetKeyPress (UINT32 *KeyPressed);
 #endif

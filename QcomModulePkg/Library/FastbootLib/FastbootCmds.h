@@ -35,50 +35,49 @@
 
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
-#include <Library/MemoryAllocationLib.h>
 #include <Library/LinuxLoaderLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/PartitionTableUpdate.h>
 
-#define ENDPOINT_IN             0x01
-#define ENDPOINT_OUT            0x81
+#define ENDPOINT_IN 0x01
+#define ENDPOINT_OUT 0x81
 
-#define MAX_DOWNLOAD_SIZE       1024*1024*512
-#define MAX_DOWNLOAD_SIZE_STR   "536870912"
-#define MAX_BUFFER_SIZE         MAX_DOWNLOAD_SIZE
-#define MAX_RSP_SIZE    64
-#define ERASE_BUFF_SIZE         256*1024
-#define ERASE_BUFF_BLOCKS       256*2
-#define USB_BUFFER_SIZE         1024*1024*16
-#define VERSION_STR_LEN         96
-#define FASTBOOT_STRING_MAX_LENGTH  256
+#define MAX_DOWNLOAD_SIZE 1024 * 1024 * 512
+#define MAX_DOWNLOAD_SIZE_STR "536870912"
+#define MAX_BUFFER_SIZE MAX_DOWNLOAD_SIZE
+#define MAX_RSP_SIZE 64
+#define ERASE_BUFF_SIZE 256 * 1024
+#define ERASE_BUFF_BLOCKS 256 * 2
+#define USB_BUFFER_SIZE 1024 * 1024 * 16
+#define VERSION_STR_LEN 96
+#define FASTBOOT_STRING_MAX_LENGTH 256
 #define FASTBOOT_COMMAND_MAX_LENGTH 64
-#define MAX_GET_VAR_NAME_SIZE       32
-#define SIGACTUAL		4096
+#define MAX_GET_VAR_NAME_SIZE 32
+#define SIGACTUAL 4096
 #define SLOT_SUFFIX_ARRAY_SIZE 10
 #define SLOT_ATTR_SIZE 32
 #define ATTR_RESP_SIZE 4
 #define MAX_FASTBOOT_COMMAND_SIZE 64
-#define RECOVERY_WIPE_DATA "recovery\n--wipe_data\n--reason=MasterClearConfirm\n--locale=en_US\n"
+#define RECOVERY_WIPE_DATA                                                     \
+  "recovery\n--wipe_data\n--reason=MasterClearConfirm\n--locale=en_US\n"
 
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 
 /* Fastboot Command descriptor */
 struct FastbootCmdDesc {
-    CHAR8 *name;
-    fastboot_cmd_fn cb;
+  CHAR8 *name;
+  fastboot_cmd_fn cb;
 };
 
 /* Fastboot Variable list */
-typedef struct _FASTBOOT_VAR
-{
+typedef struct _FASTBOOT_VAR {
   struct _FASTBOOT_VAR *next;
   CONST CHAR8 *name;
   CONST CHAR8 *value;
 } FASTBOOT_VAR;
 
 /* Partition info fastboot variable */
-struct GetVarPartitionInfo
-{
+struct GetVarPartitionInfo {
   const CHAR8 part_name[MAX_GET_VAR_NAME_SIZE];
   CHAR8 getvar_size_str[MAX_GET_VAR_NAME_SIZE];
   CHAR8 getvar_type_str[MAX_GET_VAR_NAME_SIZE];
@@ -86,68 +85,71 @@ struct GetVarPartitionInfo
   CHAR8 type_response[MAX_RSP_SIZE];
 };
 
-
 /* Fastboot State */
-typedef enum
-{
+typedef enum {
   ExpectCmdState,
   ExpectDataState,
   FastbootStateMax
 } ANDROID_FASTBOOT_STATE;
 
 /* Data structure to store the command list */
-typedef struct _FASTBOOT_CMD
-{
+typedef struct _FASTBOOT_CMD {
   struct _FASTBOOT_CMD *next;
   CONST CHAR8 *prefix;
   UINT32 prefix_len;
-  VOID (*handle)(CONST CHAR8 *arg, VOID *data, UINT32 sz);
+  VOID (*handle) (CONST CHAR8 *arg, VOID *data, UINT32 sz);
 } FASTBOOT_CMD;
 
 /* Returns the number of bytes left in the
- * download. You must be expecting a download to 
+ * download. You must be expecting a download to
  * call this  function
  */
-UINTN GetXfrSize(VOID);
+UINTN GetXfrSize (VOID);
 
 /* Registers commands and publishes Variables */
-EFI_STATUS FastbootEnvSetup(VOID *xfer_buffer, UINT32 max);
+EFI_STATUS
+FastbootEnvSetup (VOID *xfer_buffer, UINT32 max);
 
-/* register a command handler 
+/* register a command handler
  * - command handlers will be called if their prefix matches
  * - they are expected to call fastboot_okay() or fastboot_fail()
  *   to indicate success/failure before returning
  */
-VOID FastbootRegister(CONST CHAR8 *prefix,
-  VOID (*handle)(CONST CHAR8 *arg, 
-  VOID *data, UINT32 size)
-  );
+VOID
+FastbootRegister (CONST CHAR8 *prefix,
+                  VOID (*handle) (CONST CHAR8 *arg, VOID *data, UINT32 size));
 
 /* Only callable from within a command handler
  * One of thse functions must be called to be a valid command
  */
-VOID FastbootOkay(CONST CHAR8 *result);
-VOID FastbootFail(CONST CHAR8 *reason);
-VOID FastbootInfo(CONST CHAR8 *Info);
+VOID
+FastbootOkay (CONST CHAR8 *result);
+VOID
+FastbootFail (CONST CHAR8 *reason);
+VOID
+FastbootInfo (CONST CHAR8 *Info);
 
 /* Initializes the Fastboot App */
 EFI_STATUS
-FastbootCmdsInit ( VOID );
+FastbootCmdsInit (VOID);
 
 /* Uninitializes the Fastboot App */
 EFI_STATUS
-FastbootCmdsUnInit( VOID );
-  
+FastbootCmdsUnInit (VOID);
+
 /* Called when a message/download data passed to the app */
-VOID DataReady (IN UINT64 Size, IN VOID *Data);
+VOID
+DataReady (IN UINT64 Size, IN VOID *Data);
 
-BOOLEAN FastbootFatal(VOID);
-VOID PartitionDump(VOID);
+BOOLEAN FastbootFatal (VOID);
+VOID PartitionDump (VOID);
 
-VOID *FastbootDloadBuffer(VOID);
+VOID *FastbootDloadBuffer (VOID);
 
-ANDROID_FASTBOOT_STATE FastbootCurrentState(VOID);
+ANDROID_FASTBOOT_STATE FastbootCurrentState (VOID);
 
-EFI_STATUS UpdateDevInfo(CHAR16* Pname, CHAR8* ImgVersion);
-VOID GetDevInfo(DeviceInfo **DevinfoPtr);
+EFI_STATUS
+UpdateDevInfo (CHAR16 *Pname, CHAR8 *ImgVersion);
+VOID
+GetDevInfo (DeviceInfo **DevinfoPtr);
 #endif
