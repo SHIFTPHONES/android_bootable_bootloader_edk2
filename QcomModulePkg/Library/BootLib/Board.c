@@ -210,56 +210,97 @@ STATIC EFI_STATUS GetPmicInfo(UINT32 PmicDeviceIndex, EFI_PM_DEVICE_INFO_TYPE *p
 }
 
 /**
- Return a device type
+ Device Handler Info
+
  @param[out]     HanderInfo  : Pointer to array of HandleInfo structures
                                in which the output is returned.
  @param[in, out] MaxHandles  : On input, max number of handle structures
                                the buffer can hold, On output, the number
                                of handle structures returned.
+ @param[in]      Type        : Device Type : UNKNOWN, UFS, EMMC, NAND
+ @retval         EFI_STATUS  : Return Success on getting Handler Info
+ **/
+
+STATIC EFI_STATUS GetDeviceHandleInfo (VOID *HanderInfo,
+                                       UINT32 MaxHandles,
+                                       MemCardType Type)
+{
+    EFI_STATUS               Status = EFI_INVALID_PARAMETER;
+    UINT32                   Attribs = 0;
+    PartiSelectFilter        HandleFilter;
+    HandleInfo               *HandleInfoList = HanderInfo;
+
+    Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
+    HandleFilter.PartitionType = NULL;
+    HandleFilter.VolumeName = NULL;
+
+    switch (Type) {
+        case UFS:
+            HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
+            break;
+        case EMMC:
+            HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
+            break;
+        case NAND:
+            HandleFilter.RootDeviceType = &gEfiNandUserPartitionGuid;
+            break;
+        case UNKNOWN:
+            DEBUG ((EFI_D_ERROR, "Device type unknown\n"));
+            return Status;
+    }
+
+    Status = GetBlkIOHandles (Attribs,
+                              &HandleFilter,
+                              HandleInfoList,
+                              &MaxHandles);
+    if (EFI_ERROR (Status)) {
+        DEBUG ((EFI_D_ERROR, "Get BlkIohandles failed\n"));
+        return Status;
+    }
+    return Status;
+}
+
+/**
+ Return a device type
  @retval         Device type : UNKNOWN|UFS|EMMC, default is UNKNOWN
  **/
-UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
+
+STATIC MemCardType CheckRootDeviceType (VOID)
 {
-	EFI_STATUS               Status = EFI_INVALID_PARAMETER;
-	UINT32                   Attribs = 0;
-	UINT32                   MaxBlKIOHandles = MaxHandles;
-	PartiSelectFilter        HandleFilter;
-	extern EFI_GUID          gEfiEmmcUserPartitionGuid;
-	extern EFI_GUID          gEfiUfsLU0Guid;
-	extern EFI_GUID          gEfiNandUserPartitionGuid;
-	HandleInfo               *HandleInfoList = HanderInfo;
-	MemCardType              Type = UNKNOWN;
+    EFI_STATUS                   Status = EFI_INVALID_PARAMETER;
+    STATIC MemCardType           Type = UNKNOWN;
+    MEM_CARD_INFO                CardInfoData;
+    EFI_MEM_CARDINFO_PROTOCOL    *CardInfo;
 
-	Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
+    if (Type == UNKNOWN) {
+        Status = gBS->LocateProtocol (&gEfiMemCardInfoProtocolGuid,
+                                     NULL,
+                                     (VOID**)&CardInfo);
+        if (!EFI_ERROR (Status)) {
 
-	HandleFilter.PartitionType = NULL;
-	HandleFilter.VolumeName = NULL;
-	HandleFilter.RootDeviceType = &gEfiEmmcUserPartitionGuid;
+            Status = CardInfo->GetCardInfo (CardInfo, &CardInfoData);
 
-	Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
-	if (EFI_ERROR (Status) || MaxBlKIOHandles == 0) {
-		MaxBlKIOHandles = MaxHandles;
-		HandleFilter.PartitionType = NULL;
-		HandleFilter.VolumeName = NULL;
-		HandleFilter.RootDeviceType = &gEfiNandUserPartitionGuid;
+            if (!EFI_ERROR (Status)) {
 
-		Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
-		if (EFI_ERROR (Status) || MaxBlKIOHandles == 0) {
-			MaxBlKIOHandles = MaxHandles;
-			HandleFilter.PartitionType = NULL;
-			HandleFilter.VolumeName = NULL;
-			HandleFilter.RootDeviceType = &gEfiUfsLU0Guid;
-
-			Status = GetBlkIOHandles(Attribs, &HandleFilter, HandleInfoList, &MaxBlKIOHandles);
-			if (Status == EFI_SUCCESS)
-				Type = UFS;
-		} else {
-			Type = NAND;
-		}
-	} else {
-		Type = EMMC;
-	}
-	return Type;
+                if (!AsciiStrnCmp ((CHAR8 *)CardInfoData.card_type,
+                                          "UFS",
+                                          AsciiStrLen ("UFS"))) {
+                    Type = UFS;
+                } else if (!AsciiStrnCmp ((CHAR8 *)CardInfoData.card_type,
+                                          "EMMC",
+                                          AsciiStrLen ("EMMC"))) {
+                    Type = EMMC;
+                } else if (!AsciiStrnCmp ((CHAR8 *)CardInfoData.card_type,
+                                          "NAND",
+                                          AsciiStrLen ("NAND"))) {
+                    Type = NAND;
+                } else {
+                    return UNKNOWN;
+                }
+            }
+        }
+    }
+    return Type;
 }
 
 /**
@@ -269,12 +310,10 @@ UINT32 CheckRootDeviceType(VOID *HanderInfo, UINT32 MaxHandles)
  **/
 VOID GetRootDeviceType(CHAR8 *StrDeviceType, UINT32 Len)
 {
-	HandleInfo  HandleInfoList[HANDLE_MAX_INFO_LIST];
-	UINT32      MaxHandles = ARRAY_SIZE(HandleInfoList);
 	UINT32      Type;
 
-	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
-  AsciiSPrint (StrDeviceType, Len, "%a", DeviceType[Type]);
+        Type = CheckRootDeviceType ();
+        AsciiSPrint (StrDeviceType, Len, "%a", DeviceType[Type]);
 }
 
 /**
@@ -287,16 +326,27 @@ VOID GetPageSize(UINT32 *PageSize)
 	HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
 	UINT32 MaxHandles = ARRAY_SIZE(HandleInfoList);
 	UINT32 Type;
+        EFI_STATUS               Status = EFI_INVALID_PARAMETER;
 
-	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
+        Type = CheckRootDeviceType ();
+
 	switch (Type) {
 		case EMMC:
 			*PageSize = BOOT_IMG_EMMC_PAGE_SIZE;
 			break;
 		case UFS:
 		case NAND:
-			BlkIo = HandleInfoList[0].BlkIo;
-			*PageSize = BlkIo->Media->BlockSize;
+                        Status = GetDeviceHandleInfo (HandleInfoList,
+                                                      MaxHandles,
+                                                      Type);
+                        if (EFI_ERROR (Status)) {
+                           /** if handle info is not  found/failed to get
+                               then default Pagesize will be returned **/
+                          *PageSize = BOOT_IMG_MAX_PAGE_SIZE;
+                        } else {
+                          BlkIo = HandleInfoList[0].BlkIo;
+                          *PageSize = BlkIo->Media->BlockSize;
+                        }
 			break;
 		default:
 			*PageSize = BOOT_IMG_MAX_PAGE_SIZE;
@@ -417,9 +467,16 @@ EFI_STATUS BoardSerialNum(CHAR8 *StrSerialNum, UINT32 Len)
 	UINT32                       MaxHandles = ARRAY_SIZE(HandleInfoList);
 	MemCardType                  Type = EMMC;
 
-	Type = CheckRootDeviceType(HandleInfoList, MaxHandles);
+        Type = CheckRootDeviceType ();
 	if (Type == UNKNOWN)
 		return EFI_NOT_FOUND;
+
+        Status = GetDeviceHandleInfo (HandleInfoList,
+                                      MaxHandles,
+                                      Type);
+        if (EFI_ERROR (Status)) {
+          return Status;
+        }
 
 	Status = gBS->HandleProtocol(HandleInfoList[0].Handle,
 								 &gEfiMemCardInfoProtocolGuid,
