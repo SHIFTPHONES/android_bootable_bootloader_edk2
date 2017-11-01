@@ -461,13 +461,10 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   if (HaveCmdLine) {
     --Dst;
   }
-  HaveCmdLine = 1;
   STR_COPY (Dst, Src);
 
   Src = BootDevBuf;
-  if (HaveCmdLine) {
-    --Dst;
-  }
+  --Dst;
   STR_COPY (Dst, Src);
   FreePool (BootDevBuf);
   BootDevBuf = NULL;
