@@ -680,7 +680,7 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
       CurDtbInfo->DtMatchVal |= BIT (SUBTYPE_EXACT_MATCH);
     } else if (CurDtbInfo->DtPlatformSubtype == 0) {
       CurDtbInfo->DtMatchVal |= BIT (SUBTYPE_DEFAULT_MATCH);
-    } else if (CurDtbInfo->DtPlatformSubtype) {
+    } else {
       DEBUG ((EFI_D_VERBOSE, "subtype-id doesnot match\n"));
       /* If it's neither exact nor default match don't select dtb */
       CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
