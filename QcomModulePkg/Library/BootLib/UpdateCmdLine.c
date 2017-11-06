@@ -31,10 +31,6 @@
  *
  **/
 
-#include "UpdateCmdLine.h"
-#include "AutoGen.h"
-#include "Recovery.h"
-#include <DeviceInfo.h>
 #include <Library/BootLinux.h>
 #include <Library/PartitionTableUpdate.h>
 #include <Library/PrintLib.h>
@@ -44,6 +40,11 @@
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/EFIPmicPon.h>
 #include <Protocol/Print2.h>
+
+#include "AutoGen.h"
+#include <DeviceInfo.h>
+#include "UpdateCmdLine.h"
+#include "Recovery.h"
 
 STATIC CONST CHAR8 *BootDeviceCmdLine = " androidboot.bootdevice=";
 STATIC CONST CHAR8 *UsbSerialCmdLine = " androidboot.serialno=";
