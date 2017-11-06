@@ -8,25 +8,19 @@ export $(BOOTLOADER_OUT)
 BUILDDIR=$(shell pwd)
 export WRAPPER := $(BUILDDIR)/clang-wrapper.py
 
-ifeq ($(ANDROID_BUILD_TOP),)
-export CLANG35_AARCH64_PREFIX := $(CLANG_PREFIX)
-else
-export CLANG35_AARCH64_PREFIX := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-$(TARGET_GCC_VERSION)/bin/aarch64-linux-android-
-export CLANG35_AARCH64_GCC_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-$(TARGET_GCC_VERSION)
-endif
 export CLANG35_BIN := $(CLANG_BIN)
-export CLANG35_ARM_PREFIX := $(CLANG_BIN)../tools/bin/arm-
-export CLANG35_ARM_LINK_PREFIX := $(CLANG_LINK_PATH)/arm-linux-gnueabihf-
-
-export BUILD_REPORT_DIR := $(BOOTLOADER_OUT)/build_report
-ANDROID_PRODUCT_OUT := $(BOOTLOADER_OUT)/Build
+export CLANG35_GCC_TOOLCHAIN := $(CLANG35_GCC_TOOLCHAIN)
 
 ifeq ($(TARGET_ARCHITECTURE),arm)
 export ARCHITECTURE := ARM
+export CLANG35_ARM_PREFIX := $(CLANG_PREFIX)
 else
 export ARCHITECTURE := AARCH64
-export CLANG35_GCC_TOOLCHAIN := $(CLANG35_AARCH64_GCC_TOOLCHAIN)
+export CLANG35_AARCH64_PREFIX := $(CLANG_PREFIX)
 endif
+
+export BUILD_REPORT_DIR := $(BOOTLOADER_OUT)/build_report
+ANDROID_PRODUCT_OUT := $(BOOTLOADER_OUT)/Build
 
 WORKSPACE=$(BUILDDIR)
 TARGET_TOOLS := CLANG35
