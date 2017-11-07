@@ -85,6 +85,7 @@ VOID
 BoardHwPlatformName (CHAR8 *StrHwPlatform, UINT32 Len);
 EFI_STATUS
 UfsGetSetBootLun (UINT32 *UfsBootlun, BOOLEAN IsGet);
+BOOLEAN BoardPlatformFusion (VOID);
 UINT32 BoardPlatformRawChipId (VOID);
 EFI_STATUS
 GetRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions);
