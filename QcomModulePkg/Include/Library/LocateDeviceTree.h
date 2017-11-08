@@ -118,6 +118,12 @@ typedef enum {
   MAX_PMIC_IDX,
 } PMIC_INDEXES;
 
+typedef struct PmicIdInfo {
+  UINT32 DtPmicModel[MAX_PMIC_IDX];
+  UINT32 DtPmicRev[MAX_PMIC_IDX];
+  UINT32 DtMatchVal;
+} PmicIdInfo;
+
 typedef struct DtInfo {
   UINT32 DtPlatformId;
   UINT32 DtSocRev;

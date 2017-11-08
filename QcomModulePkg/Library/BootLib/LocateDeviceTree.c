@@ -529,6 +529,85 @@ CheckAllBitsSet (UINT32 DtMatchVal)
   return (DtMatchVal & ALL_BITS_SET) == (ALL_BITS_SET);
 }
 
+STATIC VOID
+ReadBestPmicMatch (CONST CHAR8 *PmicProp, UINT32 PmicEntCount,
+                  PmicIdInfo *CurPmicInfo, PmicIdInfo *BestPmicInfo)
+{
+  UINT32 PmicEntIdx;
+  UINT32 Idx;
+
+  BestPmicInfo->DtMatchVal = 0;
+  for (PmicEntIdx = 0; PmicEntIdx < PmicEntCount; PmicEntIdx++) {
+    CurPmicInfo[PmicEntIdx].DtMatchVal = 0;
+    for (Idx = 0; Idx < MAX_PMIC_IDX; Idx++) {
+      CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] =
+          fdt32_to_cpu (((struct pmic_id *)PmicProp)->pmic_version[Idx]);
+
+      DEBUG ((EFI_D_VERBOSE, "pmic_data[%u].:%x\n", Idx,
+          CurPmicInfo[PmicEntIdx].DtPmicModel[Idx]));
+      CurPmicInfo[PmicEntIdx].DtPmicRev[Idx] =
+          CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] & PMIC_REV_MASK;
+      CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] =
+          CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] & PMIC_MODEL_MASK;
+
+      if ((CurPmicInfo[PmicEntIdx].DtPmicModel[Idx]) ==
+          BoardPmicModel (Idx)) {
+        CurPmicInfo[PmicEntIdx].DtMatchVal |=
+          BIT ((PMIC_MATCH_EXACT_MODEL_IDX0 + Idx * PMIC_SHIFT_IDX));
+      } else if (CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] == 0) {
+        CurPmicInfo[PmicEntIdx].DtMatchVal |=
+          BIT ((PMIC_MATCH_DEFAULT_MODEL_IDX0 + Idx * PMIC_SHIFT_IDX));
+      } else {
+        CurPmicInfo[PmicEntIdx].DtMatchVal = BIT (NONE_MATCH);
+        DEBUG ((EFI_D_VERBOSE, "Pmic model does not match\n"));
+        break;
+      }
+
+      if (CurPmicInfo[PmicEntIdx].DtPmicRev[Idx] == (BoardPmicTarget (Idx)
+          & PMIC_REV_MASK)) {
+        CurPmicInfo[PmicEntIdx].DtMatchVal |=
+          BIT ((PMIC_MATCH_EXACT_REV_IDX0 + Idx * PMIC_SHIFT_IDX));
+      } else if (CurPmicInfo[PmicEntIdx].DtPmicRev[Idx] <
+            (BoardPmicTarget (Idx) & PMIC_REV_MASK)) {
+        CurPmicInfo[PmicEntIdx].DtMatchVal |= BIT ((PMIC_MATCH_BEST_REV_IDX0 +
+            Idx * PMIC_SHIFT_IDX));
+      } else {
+        DEBUG ((EFI_D_VERBOSE, "Pmic revision does not match\n"));
+        break;
+      }
+    }
+
+    DEBUG ((EFI_D_VERBOSE, "BestPmicInfo.DtMatchVal : %x"
+        " CurPmicInfo[%u]->DtMatchVal : %x\n", BestPmicInfo->DtMatchVal,
+        PmicEntIdx, CurPmicInfo[PmicEntIdx].DtMatchVal));
+    if (BestPmicInfo->DtMatchVal < CurPmicInfo[PmicEntIdx].DtMatchVal) {
+      gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          sizeof (struct PmicIdInfo));
+    } else if (BestPmicInfo->DtMatchVal ==
+          CurPmicInfo[PmicEntIdx].DtMatchVal) {
+      if (BestPmicInfo->DtPmicRev[0] < CurPmicInfo[PmicEntIdx].DtPmicRev[0]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          sizeof (struct PmicIdInfo));
+      } else if (BestPmicInfo->DtPmicRev[1] <
+          CurPmicInfo[PmicEntIdx].DtPmicRev[1]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          sizeof (struct PmicIdInfo));
+      } else if (BestPmicInfo->DtPmicRev[2] <
+          CurPmicInfo[PmicEntIdx].DtPmicRev[2]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          sizeof (struct PmicIdInfo));
+      } else if (BestPmicInfo->DtPmicRev[3] <
+          CurPmicInfo[PmicEntIdx].DtPmicRev[3]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          sizeof (struct PmicIdInfo));
+      }
+    }
+
+    PmicProp += sizeof (struct pmic_id);
+  }
+}
+
+
 /* Dt selection table for quick reference
   | SNO | Dt Property   | CDT Property    | Exact | Best | Default |
   |-----+---------------+-----------------+-------+------+---------+
@@ -560,7 +639,11 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   INT32 RootOffset = 0;
   VOID *Dtb = CurDtbInfo->Dtb;
   UINT32 Idx;
+  UINT32 PmicEntCount;
+  PmicIdInfo *CurPmicInfo = NULL;
+  PmicIdInfo BestPmicInfo;
 
+  memset (&BestPmicInfo, 0, sizeof (PmicIdInfo));
   /*Ensure MatchVal to 0 initially*/
   CurDtbInfo->DtMatchVal = 0;
   RootOffset = fdt_path_offset (Dtb, "/");
@@ -696,43 +779,24 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   PmicProp =
       (CONST CHAR8 *)fdt_getprop (Dtb, RootOffset, "qcom,pmic-id", &LenPmicId);
   if ((PmicProp) && (LenPmicId > 0) && (!(LenPmicId % PMIC_ID_SIZE))) {
-    for (Idx = 0; Idx < MAX_PMIC_IDX; Idx++) {
-      CurDtbInfo->DtPmicModel[Idx] =
-          fdt32_to_cpu (((struct pmic_id *)PmicProp)->pmic_version[Idx]);
-      DEBUG ((EFI_D_VERBOSE, "BoardPmicid = %x DtPmicid = %x"
-                             "\n",
-              BoardPmicTarget (Idx), CurDtbInfo->DtPmicModel[Idx]));
-      CurDtbInfo->DtPmicRev[Idx] = CurDtbInfo->DtPmicModel[Idx] & PMIC_REV_MASK;
-      CurDtbInfo->DtPmicModel[Idx] =
-          CurDtbInfo->DtPmicModel[Idx] & PMIC_MODEL_MASK;
-
-      if (CurDtbInfo->DtPmicModel[Idx] == BoardPmicModel (Idx)) {
-        CurDtbInfo->DtMatchVal |=
-            BIT ((PMIC_MATCH_EXACT_MODEL_IDX0 + Idx * PMIC_SHIFT_IDX));
-      } else if (CurDtbInfo->DtPmicModel[Idx] == 0) {
-        CurDtbInfo->DtMatchVal |=
-            BIT ((PMIC_MATCH_DEFAULT_MODEL_IDX0 + Idx * PMIC_SHIFT_IDX));
-      } else {
-        DEBUG ((EFI_D_VERBOSE, "Pmic model does not "
-                               "match\n"));
-        /* If it's neither exact nor default match don't
-        *  select dtb */
-        CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
-        goto cleanup;
-      }
-
-      if (CurDtbInfo->DtPmicRev[Idx] == (BoardPmicTarget (Idx) & PMIC_REV_MASK))
-        CurDtbInfo->DtMatchVal |=
-            BIT ((PMIC_MATCH_EXACT_REV_IDX0 + Idx * PMIC_SHIFT_IDX));
-      else if (CurDtbInfo->DtPmicRev[Idx] <
-               (BoardPmicTarget (Idx) & PMIC_REV_MASK))
-        CurDtbInfo->DtMatchVal |=
-            BIT ((PMIC_MATCH_BEST_REV_IDX0 + Idx * PMIC_SHIFT_IDX));
-      else {
-        DEBUG ((EFI_D_VERBOSE, "Pmic version does not "
-                               "match\n"));
-      }
+    PmicEntCount = LenPmicId / PMIC_ID_SIZE;
+    CurPmicInfo = (struct PmicIdInfo *)
+        AllocatePool (sizeof (struct PmicIdInfo) * PmicEntCount);
+    if (!CurPmicInfo) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate memory for Pmic data\n"));
+      goto cleanup;
     }
+
+    ReadBestPmicMatch (PmicProp, PmicEntCount, CurPmicInfo, &BestPmicInfo);
+    CurDtbInfo->DtMatchVal |= BestPmicInfo.DtMatchVal;
+    for (Idx = 0; Idx < MAX_PMIC_IDX; Idx++) {
+      CurDtbInfo->DtPmicModel[Idx] = BestPmicInfo.DtPmicModel[Idx];
+      CurDtbInfo->DtPmicRev[Idx] = BestPmicInfo.DtPmicRev[Idx];
+    }
+
+    DEBUG ((EFI_D_VERBOSE, "CurDtbInfo->DtMatchVal : %x  "
+      "BestPmicInfo.DtMatchVal :%x\n", CurDtbInfo->DtMatchVal,
+      BestPmicInfo.DtMatchVal));
   } else {
     DEBUG ((EFI_D_VERBOSE, "qcom,pmic-id does not exit (or) is (%d)"
                            " not a multiple of (%d)\n",
@@ -740,6 +804,11 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   }
 
 cleanup:
+
+  if (CurPmicInfo) {
+    FreePool (CurPmicInfo);
+  }
+
   if (CurDtbInfo->DtMatchVal & BIT (ExactMatch)) {
     if (BestDtbInfo->DtMatchVal < CurDtbInfo->DtMatchVal) {
       gBS->CopyMem (BestDtbInfo, CurDtbInfo, sizeof (struct DtInfo));
