@@ -81,9 +81,11 @@ TargetPauseForBatteryCharge (BOOLEAN *BatteryStatus)
 
   Status = gBS->LocateProtocol (&gChargerExProtocolGuid, NULL,
                                 (VOID **)&ChgDetectProtocol);
-  if (EFI_ERROR (Status) || (NULL == ChgDetectProtocol)) {
-    DEBUG (
-        (EFI_D_ERROR, "Error locating charger detect protocol: %r\n", Status));
+  if (Status == EFI_NOT_FOUND) {
+    DEBUG ((EFI_D_VERBOSE, "Charger Protocol is not available.\n"));
+    return EFI_SUCCESS;
+  } else if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Error finding charger protocol: %r\n", Status));
     return Status;
   }
 
@@ -158,7 +160,10 @@ TargetCheckBatteryStatus (BOOLEAN *BatteryPresent,
 
   Status = gBS->LocateProtocol (&gChargerExProtocolGuid, NULL,
                                 (void **)&ChgDetectProtocol);
-  if (EFI_ERROR (Status) || (NULL == ChgDetectProtocol)) {
+  if (Status == EFI_NOT_FOUND) {
+    DEBUG ((EFI_D_VERBOSE, "Charger Protocol is not available.\n"));
+    return EFI_SUCCESS;
+  } else if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR, "Error locating charger detect protocol\n"));
     return EFI_PROTOCOL_ERROR;
   }
@@ -205,7 +210,10 @@ TargetBatterySocOk (UINT32 *BatteryVoltage)
   *BatteryVoltage = 0;
   Status = gBS->LocateProtocol (&gChargerExProtocolGuid, NULL,
                                 (VOID **)&ChgDetectProtocol);
-  if (EFI_ERROR (Status) || (NULL == ChgDetectProtocol)) {
+  if (Status == EFI_NOT_FOUND) {
+    DEBUG ((EFI_D_VERBOSE, "Charger Protocol is not available.\n"));
+    return TRUE;
+  } else if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR, "Error locating charger detect protocol\n"));
     return FALSE;
   }
