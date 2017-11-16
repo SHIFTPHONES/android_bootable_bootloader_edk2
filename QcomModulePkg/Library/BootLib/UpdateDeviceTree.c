@@ -365,7 +365,8 @@ UpdateDeviceTree (VOID *fdt,
   }
 
   /* Add padding to make space for new nodes and properties. */
-  PaddSize = ADD_OF (fdt_totalsize (fdt), DTB_PAD_SIZE);
+  PaddSize = ADD_OF (fdt_totalsize (fdt),
+                    DTB_PAD_SIZE + AsciiStrLen (cmdline));
   if (!PaddSize) {
     DEBUG ((EFI_D_ERROR, "ERROR: Integer Oveflow: fdt size = %u\n",
             fdt_totalsize (fdt)));
