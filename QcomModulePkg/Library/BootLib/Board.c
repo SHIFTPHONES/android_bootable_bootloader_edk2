@@ -142,6 +142,8 @@ GetChipInfo (struct BoardInfo *platform_board_info)
           platform_board_info->FoundryId));
   DEBUG ((EFI_D_VERBOSE, "Chip BaseBand    : %a\n",
           platform_board_info->ChipBaseBand));
+  DEBUG ((EFI_D_VERBOSE, "Fusion Value    : %d\n",
+          platform_board_info->PlatformInfo.fusion));
   return Status;
 }
 
@@ -544,6 +546,9 @@ EFIChipInfoFoundryIdType BoardPlatformFoundryId (VOID)
 
 CHAR8 *BoardPlatformChipBaseBand (VOID)
 {
+  if (BoardPlatformFusion ()) {
+    return "mdm";
+  }
   return platform_board_info.ChipBaseBand;
 }
 
@@ -560,6 +565,11 @@ UINT32 BoardPlatformVersion (VOID)
 UINT32 BoardPlatformSubType (VOID)
 {
   return platform_board_info.PlatformInfo.subtype;
+}
+
+BOOLEAN BoardPlatformFusion (VOID)
+{
+  return platform_board_info.PlatformInfo.fusion;
 }
 
 UINT32 BoardTargetId (VOID)
