@@ -471,6 +471,7 @@ WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
   UINT32 MaxHandles;
   UINT32 BlkIOAttrib = 0;
   CHAR8 *MsgBuffer = NULL;
+  UINT32 DivMsgBufSize;
 
   if (Msg == NULL)
     return EFI_INVALID_PARAMETER;
@@ -499,23 +500,56 @@ WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
   }
 
   BlkIo = HandleInfoList[0].BlkIo;
+  if (MsgSize % BlkIo->Media->BlockSize) {
+    /* If the MsgSize is not divisible by BlockSize.
+     * Write the Msg data to partition in twice.
+     * First, write the divisible Msg buffer size to partition
+     * Second, malloc 1 BlockSize buffer for the rest Msg data
+     * and then write.
+     */
+    DivMsgBufSize = (MsgSize / BlkIo->Media->BlockSize) *
+                    BlkIo->Media->BlockSize;
+    if (DivMsgBufSize) {
+      Status = BlkIo->WriteBlocks (BlkIo,
+                                   BlkIo->Media->MediaId,
+                                   0,
+                                   DivMsgBufSize,
+                                   Msg);
+      if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+                "Write the divisible MsgBuffer failed :%r\n", Status));
+        return Status;
+      }
+    }
 
-  if (MsgSize >= BlkIo->Media->BlockSize) {
-    return EFI_OUT_OF_RESOURCES;
+    MsgBuffer = AllocateZeroPool (BlkIo->Media->BlockSize);
+    if (MsgBuffer == NULL) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate zero pool for MsgBuffer\n"));
+      return EFI_OUT_OF_RESOURCES;
+    }
+
+    gBS->CopyMem (MsgBuffer, Msg + DivMsgBufSize, MsgSize - DivMsgBufSize);
+    Status = BlkIo->WriteBlocks (BlkIo,
+                                 BlkIo->Media->MediaId,
+                                 MsgSize / BlkIo->Media->BlockSize,
+                                 BlkIo->Media->BlockSize,
+                                 MsgBuffer);
+
+    FreePool (MsgBuffer);
+    MsgBuffer = NULL;
+  } else {
+    Status = BlkIo->WriteBlocks (BlkIo,
+                                 BlkIo->Media->MediaId,
+                                 0,
+                                 MsgSize,
+                                 Msg);
   }
 
-  MsgBuffer = AllocateZeroPool (BlkIo->Media->BlockSize);
-  if (MsgBuffer == NULL) {
-    DEBUG ((EFI_D_ERROR, "Failed to allocate zero pool for MsgBuffer\n"));
-    return EFI_OUT_OF_RESOURCES;
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR,
+          "Write the Msg failed :%r\n", Status));
   }
 
-  gBS->CopyMem (MsgBuffer, Msg, MsgSize);
-  Status = BlkIo->WriteBlocks (BlkIo, BlkIo->Media->MediaId, 0,
-                               BlkIo->Media->BlockSize, MsgBuffer);
-
-  FreePool (MsgBuffer);
-  MsgBuffer = NULL;
   return Status;
 }
 

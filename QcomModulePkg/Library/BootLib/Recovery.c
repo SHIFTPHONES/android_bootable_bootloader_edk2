@@ -29,6 +29,7 @@
 #include "Recovery.h"
 #include "AutoGen.h"
 #include <Library/LinuxLoaderLib.h>
+#include <Library/BootLinux.h>
 
 STATIC EFI_STATUS
 ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
@@ -39,6 +40,8 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
   HandleInfo HandleInfoList[1];
   UINT32 MaxHandles;
   UINT32 BlkIOAttrib = 0;
+  UINT64 MsgSize;
+  UINT64 PartitionSize;
 
   BlkIOAttrib = BLK_IO_SEL_PARTITIONED_GPT;
   BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
@@ -65,21 +68,20 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
   }
 
   BlkIo = HandleInfoList[0].BlkIo;
-
-  if (Size >= BlkIo->Media->BlockSize) {
+  MsgSize = ROUND_TO_PAGE (Size, BlkIo->Media->BlockSize - 1);
+  PartitionSize = (BlkIo->Media->LastBlock + 1) * BlkIo->Media->BlockSize;
+  if (MsgSize > PartitionSize) {
     return EFI_OUT_OF_RESOURCES;
   }
 
-  *Msg = AllocatePool (BlkIo->Media->BlockSize);
+  *Msg = AllocatePool (MsgSize);
   if (!(*Msg)) {
     DEBUG (
         (EFI_D_ERROR, "Error allocating memory for reading from Partition\n"));
     return EFI_OUT_OF_RESOURCES;
   }
 
-  Status = BlkIo->ReadBlocks (BlkIo, BlkIo->Media->MediaId, 0,
-                              BlkIo->Media->BlockSize, *Msg);
-
+  Status = BlkIo->ReadBlocks (BlkIo, BlkIo->Media->MediaId, 0, MsgSize, *Msg);
   if (Status != EFI_SUCCESS) {
     FreePool (*Msg);
     *Msg = NULL;
