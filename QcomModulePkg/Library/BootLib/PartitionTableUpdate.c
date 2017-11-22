@@ -1561,5 +1561,26 @@ LoadAndValidateDtboImg (BootInfo *Info, VOID **DtboImgBuffer)
     return FALSE;
   }
 
+  if ((UINT64)fdt32_to_cpu (DtboTableHdr->DtEntryCount) *
+          fdt32_to_cpu (DtboTableHdr->DtEntrySize) > DtboImgSize) {
+      DEBUG ((EFI_D_ERROR,
+              "DTB header is corrupted, DtEntryCount %x, DtEntrySize %x,"
+              " DtboImgSize %x\n", fdt32_to_cpu (DtboTableHdr->DtEntryCount),
+              fdt32_to_cpu (DtboTableHdr->DtEntrySize), DtboImgSize));
+      return FALSE;
+  }
+
+  if (fdt32_to_cpu (DtboTableHdr->DtEntryOffset) +
+          (UINT64)fdt32_to_cpu (DtboTableHdr->DtEntryCount) *
+          fdt32_to_cpu (DtboTableHdr->DtEntrySize) > DtboImgSize) {
+      DEBUG ((EFI_D_ERROR,
+              "DTB header is corrupted, DtEntryOffset %x, DtEntryCount %x,"
+              "DtEntrySize %x, DtboImgSize %x\n",
+              fdt32_to_cpu (DtboTableHdr->DtEntryOffset),
+              fdt32_to_cpu (DtboTableHdr->DtEntryCount),
+              fdt32_to_cpu (DtboTableHdr->DtEntrySize), DtboImgSize));
+      return FALSE;
+  }
+
   return TRUE;
 }
