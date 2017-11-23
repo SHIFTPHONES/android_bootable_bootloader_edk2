@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -106,6 +106,24 @@ typedef struct BootInfo {
   UINT32 VBCmdLineFilledLen;
   VOID *VBData;
 } BootInfo;
+
+typedef struct BootLinuxParamlist {
+  UINT32 PageSize;
+  UINT32 KernelSize;
+  UINT32 SecondSize;
+  UINT64 BaseMemory;
+  UINT64 DeviceTreeLoadAddr;
+  UINT64 KernelLoadAddr;
+  UINT64 RamdiskLoadAddr;
+  UINT32 RamdiskSize;
+  UINT32 RamdiskOffset;
+  CHAR8 *FinalCmdLine;
+  CHAR8 *CmdLine;
+  BOOLEAN BootingWith32BitKernel;
+  UINT32 KernelSizeActual;
+  VOID *ImageBuffer;
+  VOID *DtboImgBuffer;
+} BootParamlist;
 
 EFI_STATUS
 BootLinux (BootInfo *Info);
