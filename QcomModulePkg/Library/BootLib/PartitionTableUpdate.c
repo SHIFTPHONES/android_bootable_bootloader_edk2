@@ -209,6 +209,7 @@ VOID UpdatePartitionAttributes (VOID)
   UINT32 PartEntriesblocks = 0;
   BOOLEAN SkipUpdation;
   UINT64 Attr;
+  struct PartitionEntry *InMemPtnEnt;
 
   GetRootDeviceType (BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
   for (Lun = 0; Lun < MaxLuns; Lun++) {
@@ -273,6 +274,7 @@ VOID UpdatePartitionAttributes (VOID)
       PtnEntriesPtr = Ptn_Entries;
 
       for (i = 0; i < PartitionCount; i++) {
+        InMemPtnEnt = (struct PartitionEntry *)PtnEntriesPtr;
         /*If GUID is not present, then it is BlkIo Handle of the Lun. Skip*/
         if (!(PtnEntries[i].PartEntry.PartitionTypeGUID.Data1)) {
           DEBUG ((EFI_D_VERBOSE, " Skipping Lun:%d, i=%d\n", Lun, i));
@@ -291,7 +293,9 @@ VOID UpdatePartitionAttributes (VOID)
             continue;
         }
         Attr = GET_LLWORD_FROM_BYTE (&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET]);
-        if (Attr != PtnEntries[i].PartEntry.Attributes) {
+        if ((Attr != PtnEntries[i].PartEntry.Attributes) ||
+            memcmp (&InMemPtnEnt->PartEntry.PartitionTypeGUID,
+            &PtnEntries[i].PartEntry.PartitionTypeGUID, sizeof (EFI_GUID))) {
           /* Update the partition attributes  and partiton GUID values */
           PUT_LONG_LONG (&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET],
                          PtnEntries[i].PartEntry.Attributes);
