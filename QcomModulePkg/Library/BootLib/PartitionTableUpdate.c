@@ -404,6 +404,7 @@ STATIC EFI_STATUS GetMultiSlotPartsList (VOID)
   UINT32 i = 0;
   UINT32 j = 0;
   UINT32 Len = 0;
+  UINT32 PtnLen = 0;
   CHAR16 *SearchString = NULL;
   struct BootPartsLinkedList *TempNode = NULL;
 
@@ -416,12 +417,14 @@ STATIC EFI_STATUS GetMultiSlotPartsList (VOID)
       if (!PtnEntries[j].PartEntry.PartitionName[0])
         continue;
       Len = StrLen (SearchString);
+      PtnLen = StrLen (PtnEntries[j].PartEntry.PartitionName);
 
       /*Need to compare till "boot_"a hence skip last Char from StrLen value*/
-      if (!StrnCmp (PtnEntries[j].PartEntry.PartitionName, SearchString,
-                    Len - 1) &&
+      if ((PtnLen == Len) &&
+          !StrnCmp (PtnEntries[j].PartEntry.PartitionName,
+          SearchString, Len - 1) &&
           (StrStr (SearchString, (CONST CHAR16 *)L"_a") ||
-           (StrStr (SearchString, (CONST CHAR16 *)L"_b")))) {
+          StrStr (SearchString, (CONST CHAR16 *)L"_b"))) {
         TempNode = AllocatePool (sizeof (struct BootPartsLinkedList));
         if (TempNode) {
           /*Skip _a/_b from partition name*/
