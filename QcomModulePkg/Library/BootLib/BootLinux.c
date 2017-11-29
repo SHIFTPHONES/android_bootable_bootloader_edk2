@@ -406,6 +406,15 @@ BootLinux (BootInfo *Info)
         return EFI_NOT_FOUND;
       }
     }
+
+    if (CHECK_ADD64 ((UINT64)DeviceTreeLoadAddr,
+            fdt_totalsize (FinalDtbHdr))) {
+        DEBUG ((EFI_D_ERROR, "Integer Oveflow: DeviceTreeLoadAddr=%u, "
+                         "FinalDtbHdr=%u\n",
+            (UINT64)DeviceTreeLoadAddr, fdt_totalsize (FinalDtbHdr)));
+        return EFI_BAD_BUFFER_SIZE;
+    }
+
     gBS->CopyMem ((VOID *)DeviceTreeLoadAddr, FinalDtbHdr,
                   fdt_totalsize (FinalDtbHdr));
     post_overlay_free ();
@@ -431,6 +440,13 @@ BootLinux (BootInfo *Info)
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Device Tree update failed Status:%r\n", Status));
     return Status;
+  }
+
+  if (CHECK_ADD64 ((UINT64)RamdiskLoadAddr, RamdiskSize)) {
+    DEBUG ((EFI_D_ERROR, "Integer Oveflow: ImageBuffer=%u, "
+                         "RamdiskSize=%u\n",
+            (UINT64)RamdiskLoadAddr, RamdiskSize));
+    return EFI_BAD_BUFFER_SIZE;
   }
 
   gBS->CopyMem ((CHAR8 *)RamdiskLoadAddr, ImageBuffer + RamdiskOffset,
