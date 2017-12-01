@@ -1451,7 +1451,7 @@ FindBootableSlot (Slot *BootableSlot)
     return EFI_INVALID_PARAMETER;
   }
 
-  GUARD_OUT (GetActiveSlot (BootableSlot));
+  GUARD (GetActiveSlot (BootableSlot));
 
   /* Validate Active Slot is bootable */
   BootEntry = GetBootPartitionEntry (BootableSlot);
