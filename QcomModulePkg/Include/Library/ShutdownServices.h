@@ -12,7 +12,7 @@
 *  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
 *  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 *
-* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -72,6 +72,11 @@
 
 // Reboot modes
 typedef enum {
+  /* 0 - 31 Cold reset: Common defined features
+   * 32 - 63 Cold Reset: OEM specific reasons
+   * 64 - 254 - Reserved
+   * 255 - Emergency download
+   */
   NORMAL_MODE = 0x0,
   RECOVERY_MODE = 0x1,
   FASTBOOT_MODE = 0x2,
@@ -79,6 +84,8 @@ typedef enum {
   DM_VERITY_LOGGING = 0x4,
   DM_VERITY_ENFORCING = 0x5,
   DM_VERITY_KEYSCLEAR = 0x6,
+  OEM_RESET_MIN = 0x20,
+  OEM_RESET_MAX = 0x3f,
   EMERGENCY_DLOAD = 0xFF,
 } RebootReasonType;
 
