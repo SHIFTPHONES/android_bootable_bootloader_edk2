@@ -18,7 +18,7 @@ found at
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -525,6 +525,243 @@ GetPartitionHasSlot (CHAR16 *PartitionName,
   return HasSlot;
 }
 
+STATIC EFI_STATUS
+HandleChunkTypeRaw (sparse_header_t *sparse_header,
+        chunk_header_t *chunk_header,
+        VOID **Image,
+        SparseImgParam *SparseImgData)
+{
+  EFI_STATUS Status;
+
+  if (sparse_header == NULL ||
+      chunk_header == NULL ||
+      *Image == NULL ||
+      SparseImgData == NULL) {
+    DEBUG ((EFI_D_ERROR, "Invalid input Parameters\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if ((UINT64)chunk_header->total_sz !=
+      ((UINT64)sparse_header->chunk_hdr_sz +
+       SparseImgData->ChunkDataSz)) {
+    DEBUG ((EFI_D_ERROR, "Bogus chunk size for chunk type Raw\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if (CHECK_ADD64 ((UINT64)*Image, SparseImgData->ChunkDataSz)) {
+    DEBUG ((EFI_D_ERROR,
+            "Integer overflow while adding Image and chunk data sz\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if (SparseImgData->ImageEnd < (UINT64)*Image +
+      SparseImgData->ChunkDataSz) {
+    DEBUG ((EFI_D_ERROR,
+            "buffer overreads occured due to invalid sparse header\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  /* Data is validated, now write to the disk */
+  SparseImgData->WrittenBlockCount =
+    SparseImgData->TotalBlocks * SparseImgData->BlockCountFactor;
+  Status = WriteToDisk (SparseImgData->BlockIo, SparseImgData->Handle,
+                        *Image,
+                        SparseImgData->ChunkDataSz,
+                        SparseImgData->WrittenBlockCount);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Flash Write Failure\n"));
+    return Status;
+  }
+
+  if (SparseImgData->TotalBlocks >
+       (MAX_UINT32 - chunk_header->chunk_sz)) {
+    DEBUG ((EFI_D_ERROR, "Bogus size for RAW chunk Type\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  SparseImgData->TotalBlocks += chunk_header->chunk_sz;
+  *Image += SparseImgData->ChunkDataSz;
+
+  return EFI_SUCCESS;
+}
+
+STATIC EFI_STATUS
+HandleChunkTypeFill (sparse_header_t *sparse_header,
+        chunk_header_t *chunk_header,
+        VOID **Image,
+        SparseImgParam *SparseImgData)
+{
+  UINT32 *FillBuf = NULL;
+  UINT32 FillVal;
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 Temp;
+
+  if (sparse_header == NULL ||
+      chunk_header == NULL ||
+      *Image == NULL ||
+      SparseImgData == NULL) {
+    DEBUG ((EFI_D_ERROR, "Invalid input Parameters\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if (chunk_header->total_sz !=
+     (sparse_header->chunk_hdr_sz + sizeof (UINT32))) {
+    DEBUG ((EFI_D_ERROR, "Bogus chunk size for chunk type FILL\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  FillBuf = AllocatePool (sparse_header->blk_sz);
+  if (!FillBuf) {
+    DEBUG ((EFI_D_ERROR, "Malloc failed for: CHUNK_TYPE_FILL\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  if (CHECK_ADD64 ((UINT64)*Image, sizeof (UINT32))) {
+    DEBUG ((EFI_D_ERROR,
+              "Integer overflow while adding Image and uint32\n"));
+    Status = EFI_INVALID_PARAMETER;
+    goto out;
+  }
+
+  if (SparseImgData->ImageEnd < (UINT64)*Image + sizeof (UINT32)) {
+    DEBUG ((EFI_D_ERROR,
+            "Buffer overread occured due to invalid sparse header\n"));
+   Status = EFI_INVALID_PARAMETER;
+   goto out;
+  }
+
+  FillVal = *(UINT32 *)*Image;
+  *Image = (CHAR8 *)*Image + sizeof (UINT32);
+
+  for (Temp = 0;
+       Temp < (sparse_header->blk_sz / sizeof (FillVal));
+       Temp++) {
+    FillBuf[Temp] = FillVal;
+  }
+
+  for (Temp = 0; Temp < chunk_header->chunk_sz; Temp++) {
+    /* Make sure the data does not exceed the partition size */
+    if ((UINT64)SparseImgData->TotalBlocks *
+         (UINT64)sparse_header->blk_sz +
+         sparse_header->blk_sz >
+         SparseImgData->PartitionSize) {
+      DEBUG ((EFI_D_ERROR, "Chunk data size for fill type "
+                            "exceeds partition size\n"));
+      Status = EFI_VOLUME_FULL;
+      goto out;
+    }
+
+    SparseImgData->WrittenBlockCount =
+      SparseImgData->TotalBlocks *
+        SparseImgData->BlockCountFactor;
+    Status = WriteToDisk (SparseImgData->BlockIo,
+                          SparseImgData->Handle,
+                          (VOID *)FillBuf,
+                          sparse_header->blk_sz,
+                          SparseImgData->WrittenBlockCount);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((EFI_D_ERROR, "Flash write failure for FILL Chunk\n"));
+
+    goto out;
+    }
+
+    SparseImgData->TotalBlocks++;
+  }
+
+  out:
+    if (FillBuf) {
+    FreePool (FillBuf);
+    FillBuf = NULL;
+    }
+    return Status;
+}
+
+STATIC EFI_STATUS
+ValidateChunkDataAndFlash (sparse_header_t *sparse_header,
+             chunk_header_t *chunk_header,
+             VOID **Image,
+             SparseImgParam *SparseImgData)
+{
+  EFI_STATUS Status;
+
+  if (sparse_header == NULL ||
+      chunk_header == NULL ||
+      *Image == NULL ||
+      SparseImgData == NULL) {
+    DEBUG ((EFI_D_ERROR, "Invalid input Parameters\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  switch (chunk_header->chunk_type) {
+    case CHUNK_TYPE_RAW:
+    Status = HandleChunkTypeRaw (sparse_header,
+                                 chunk_header,
+                                 Image,
+                                 SparseImgData);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
+    break;
+
+    case CHUNK_TYPE_FILL:
+      Status = HandleChunkTypeFill (sparse_header,
+                                    chunk_header,
+                                    Image,
+                                    SparseImgData);
+
+      if (EFI_ERROR (Status)) {
+        return Status;
+      }
+
+    break;
+
+    case CHUNK_TYPE_DONT_CARE:
+      if (SparseImgData->TotalBlocks >
+           (MAX_UINT32 - chunk_header->chunk_sz)) {
+        DEBUG ((EFI_D_ERROR, "bogus size for chunk DONT CARE type\n"));
+        return EFI_INVALID_PARAMETER;
+      }
+      SparseImgData->TotalBlocks += chunk_header->chunk_sz;
+    break;
+
+    case CHUNK_TYPE_CRC:
+      if (chunk_header->total_sz != sparse_header->chunk_hdr_sz) {
+        DEBUG ((EFI_D_ERROR, "Bogus chunk size for chunk type CRC\n"));
+        return EFI_INVALID_PARAMETER;
+      }
+
+      if (SparseImgData->TotalBlocks >
+           (MAX_UINT32 - chunk_header->chunk_sz)) {
+        DEBUG ((EFI_D_ERROR, "Bogus size for chunk type CRC\n"));
+        return EFI_INVALID_PARAMETER;
+      }
+
+      SparseImgData->TotalBlocks += chunk_header->chunk_sz;
+
+
+      if (CHECK_ADD64 ((UINT64)*Image, SparseImgData->ChunkDataSz)) {
+        DEBUG ((EFI_D_ERROR,
+                "Integer overflow while adding Image and chunk data sz\n"));
+        return EFI_INVALID_PARAMETER;
+      }
+
+      *Image += (UINT32)SparseImgData->ChunkDataSz;
+      if (SparseImgData->ImageEnd < (UINT64)*Image) {
+        DEBUG ((EFI_D_ERROR, "buffer overreads occured due to "
+                              "invalid sparse header\n"));
+        return EFI_INVALID_PARAMETER;
+      }
+    break;
+
+    default:
+      DEBUG ((EFI_D_ERROR, "Unknown chunk type: %x\n",
+             chunk_header->chunk_type));
+      return EFI_INVALID_PARAMETER;
+  }
+  return EFI_SUCCESS;
+}
+
 /* Handle Sparse Image Flashing */
 STATIC
 EFI_STATUS
@@ -533,42 +770,37 @@ HandleSparseImgFlash (IN CHAR16 *PartitionName,
                       IN VOID *Image,
                       IN UINT64 sz)
 {
-  UINT32 chunk;
-  UINT64 chunk_data_sz;
-  UINT32 *fill_buf = NULL;
-  UINT32 fill_val;
   sparse_header_t *sparse_header;
   chunk_header_t *chunk_header;
-  UINT32 total_blocks = 0;
-  UINT64 block_count_factor = 0;
-  UINT64 written_block_count = 0;
-  UINT64 PartitionSize = 0;
-  UINT32 i;
-  UINT64 ImageEnd;
   EFI_STATUS Status;
-  EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
-  EFI_HANDLE *Handle = NULL;
+
+  SparseImgParam SparseImgData = {0};
 
   if (CHECK_ADD64 ((UINT64)Image, sz)) {
     DEBUG ((EFI_D_ERROR, "Integer overflow while adding Image and sz\n"));
     return EFI_INVALID_PARAMETER;
   }
 
-  ImageEnd = (UINT64)Image + sz;
+  SparseImgData.ImageEnd = (UINT64)Image + sz;
   /* Caller to ensure that the partition is present in the Partition Table*/
-  Status = PartitionGetInfo (PartitionName, &BlockIo, &Handle);
+  Status = PartitionGetInfo (PartitionName,
+                             &(SparseImgData.BlockIo),
+                             &(SparseImgData.Handle));
+
   if (Status != EFI_SUCCESS)
     return Status;
-  if (!BlockIo) {
+  if (!SparseImgData.BlockIo) {
     DEBUG ((EFI_D_ERROR, "BlockIo for %a is corrupted\n", PartitionName));
     return EFI_VOLUME_CORRUPTED;
   }
-  if (!Handle) {
+  if (!SparseImgData.Handle) {
     DEBUG ((EFI_D_ERROR, "EFI handle for %a is corrupted\n", PartitionName));
     return EFI_VOLUME_CORRUPTED;
   }
   // Check image will fit on device
-  PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+  SparseImgData.PartitionSize =
+                              (SparseImgData.BlockIo->Media->LastBlock + 1)
+                               * SparseImgData.BlockIo->Media->BlockSize;
 
   if (sz < sizeof (sparse_header_t)) {
     DEBUG ((EFI_D_ERROR, "Input image is invalid\n"));
@@ -577,7 +809,7 @@ HandleSparseImgFlash (IN CHAR16 *PartitionName,
 
   sparse_header = (sparse_header_t *)Image;
   if (((UINT64)sparse_header->total_blks * (UINT64)sparse_header->blk_sz) >
-      PartitionSize) {
+      SparseImgData.PartitionSize) {
     DEBUG ((EFI_D_ERROR, "Image is too large for the partition\n"));
     return EFI_VOLUME_FULL;
   }
@@ -594,13 +826,14 @@ HandleSparseImgFlash (IN CHAR16 *PartitionName,
     return EFI_INVALID_PARAMETER;
   }
 
-  if ((sparse_header->blk_sz) % (BlockIo->Media->BlockSize)) {
+  if ((sparse_header->blk_sz) % (SparseImgData.BlockIo->Media->BlockSize)) {
     DEBUG ((EFI_D_ERROR, "Unsupported sparse block size %x\n",
             sparse_header->blk_sz));
     return EFI_INVALID_PARAMETER;
   }
 
-  block_count_factor = (sparse_header->blk_sz) / (BlockIo->Media->BlockSize);
+  SparseImgData.BlockCountFactor = (sparse_header->blk_sz) /
+                                   (SparseImgData.BlockIo->Media->BlockSize);
 
   DEBUG ((EFI_D_VERBOSE, "=== Sparse Image Header ===\n"));
   DEBUG ((EFI_D_VERBOSE, "magic: 0x%x\n", sparse_header->magic));
@@ -615,9 +848,12 @@ HandleSparseImgFlash (IN CHAR16 *PartitionName,
   DEBUG ((EFI_D_VERBOSE, "total_chunks: %d\n", sparse_header->total_chunks));
 
   /* Start processing the chunks */
-  for (chunk = 0; chunk < sparse_header->total_chunks; chunk++) {
-    if (((UINT64)total_blocks * (UINT64)sparse_header->blk_sz) >=
-        PartitionSize) {
+  for (SparseImgData.Chunk = 0;
+       SparseImgData.Chunk < sparse_header->total_chunks;
+       SparseImgData.Chunk++) {
+
+    if (((UINT64)SparseImgData.TotalBlocks * (UINT64)sparse_header->blk_sz) >=
+        SparseImgData.PartitionSize) {
       DEBUG ((EFI_D_ERROR, "Size of image is too large for the partition\n"));
       return EFI_VOLUME_FULL;
     }
@@ -632,7 +868,7 @@ HandleSparseImgFlash (IN CHAR16 *PartitionName,
     }
     Image += sizeof (chunk_header_t);
 
-    if (ImageEnd < (UINT64)Image) {
+    if (SparseImgData.ImageEnd < (UINT64)Image) {
       DEBUG ((EFI_D_ERROR,
               "buffer overreads occured due to invalid sparse header\n"));
       return EFI_BAD_BUFFER_SIZE;
@@ -648,160 +884,33 @@ HandleSparseImgFlash (IN CHAR16 *PartitionName,
       return EFI_INVALID_PARAMETER;
     }
 
-    chunk_data_sz = (UINT64)sparse_header->blk_sz * chunk_header->chunk_sz;
+    SparseImgData.ChunkDataSz = (UINT64)sparse_header->blk_sz *
+                                 chunk_header->chunk_sz;
     /* Make sure that chunk size calculate from sparse image does not exceed the
      * partition size
      */
-    if ((UINT64)total_blocks * (UINT64)sparse_header->blk_sz + chunk_data_sz >
-        PartitionSize) {
+    if ((UINT64)SparseImgData.TotalBlocks *
+        (UINT64)sparse_header->blk_sz +
+        SparseImgData.ChunkDataSz >
+        SparseImgData.PartitionSize) {
       DEBUG ((EFI_D_ERROR, "Chunk data size exceeds partition size\n"));
       return EFI_VOLUME_FULL;
     }
 
-    switch (chunk_header->chunk_type) {
-    case CHUNK_TYPE_RAW:
-      if ((UINT64)chunk_header->total_sz !=
-          ((UINT64)sparse_header->chunk_hdr_sz + chunk_data_sz)) {
-        DEBUG ((EFI_D_ERROR, "Bogus chunk size for chunk type Raw\n"));
-        return EFI_INVALID_PARAMETER;
-      }
+    Status = ValidateChunkDataAndFlash (sparse_header,
+                                        chunk_header,
+                                        &Image,
+                                        &SparseImgData);
 
-      if (CHECK_ADD64 ((UINT64)Image, chunk_data_sz)) {
-        DEBUG ((EFI_D_ERROR,
-                "Integer overflow while adding Image and chunk data sz\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      if (ImageEnd < (UINT64)Image + chunk_data_sz) {
-        DEBUG ((EFI_D_ERROR,
-                "buffer overreads occured due to invalid sparse header\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      /* Data is validated, now write to the disk */
-      written_block_count = total_blocks * block_count_factor;
-      Status = WriteToDisk (BlockIo, Handle, Image, chunk_data_sz,
-                            written_block_count);
-      if (EFI_ERROR (Status)) {
-        DEBUG ((EFI_D_ERROR, "Flash Write Failure\n"));
-        return Status;
-      }
-
-      if (total_blocks > (MAX_UINT32 - chunk_header->chunk_sz)) {
-        DEBUG ((EFI_D_ERROR, "Bogus size for RAW chunk Type\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      total_blocks += chunk_header->chunk_sz;
-      Image += chunk_data_sz;
-      break;
-
-    case CHUNK_TYPE_FILL:
-      if (chunk_header->total_sz !=
-          (sparse_header->chunk_hdr_sz + sizeof (UINT32))) {
-        DEBUG ((EFI_D_ERROR, "Bogus chunk size for chunk type FILL\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      fill_buf = AllocatePool (sparse_header->blk_sz);
-      if (!fill_buf) {
-        DEBUG ((EFI_D_ERROR, "Malloc failed for: CHUNK_TYPE_FILL\n"));
-        return EFI_OUT_OF_RESOURCES;
-      }
-
-      if (CHECK_ADD64 ((UINT64)Image, sizeof (UINT32))) {
-        DEBUG (
-            (EFI_D_ERROR, "Integer overflow while adding Image and uint32\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      if (ImageEnd < (UINT64)Image + sizeof (UINT32)) {
-        DEBUG ((EFI_D_ERROR,
-                "Buffer overread occured due to invalid sparse header\n"));
-        FreePool (fill_buf);
-        fill_buf = NULL;
-        return EFI_INVALID_PARAMETER;
-      }
-
-      fill_val = *(UINT32 *)Image;
-      Image = (CHAR8 *)Image + sizeof (UINT32);
-      for (i = 0; i < (sparse_header->blk_sz / sizeof (fill_val)); i++)
-        fill_buf[i] = fill_val;
-
-      for (i = 0; i < chunk_header->chunk_sz; i++) {
-        /* Make sure the data does not exceed the partition size */
-        if ((UINT64)total_blocks * (UINT64)sparse_header->blk_sz +
-                sparse_header->blk_sz >
-            PartitionSize) {
-          DEBUG ((EFI_D_ERROR, "Chunk data size for fill type "
-                               "exceeds partition size\n"));
-          FreePool (fill_buf);
-          fill_buf = NULL;
-          return EFI_VOLUME_FULL;
-        }
-
-        written_block_count = total_blocks * block_count_factor;
-        Status = WriteToDisk (BlockIo, Handle, (VOID *)fill_buf,
-                              sparse_header->blk_sz, written_block_count);
-        if (EFI_ERROR (Status)) {
-          DEBUG ((EFI_D_ERROR, "Flash write failure for FILL Chunk\n"));
-          FreePool (fill_buf);
-          return Status;
-        }
-
-        total_blocks++;
-      }
-
-      FreePool (fill_buf);
-      fill_buf = NULL;
-      break;
-
-    case CHUNK_TYPE_DONT_CARE:
-      if (total_blocks > (MAX_UINT32 - chunk_header->chunk_sz)) {
-        DEBUG ((EFI_D_ERROR, "bogus size for chunk DONT CARE type\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-      total_blocks += chunk_header->chunk_sz;
-      break;
-
-    case CHUNK_TYPE_CRC:
-      if (chunk_header->total_sz != sparse_header->chunk_hdr_sz) {
-        DEBUG ((EFI_D_ERROR, "Bogus chunk size for chunk type CRC\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      if (total_blocks > (MAX_UINT32 - chunk_header->chunk_sz)) {
-        DEBUG ((EFI_D_ERROR, "Bogus size for chunk type CRC\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      total_blocks += chunk_header->chunk_sz;
-
-      if (CHECK_ADD64 ((UINT64)Image, chunk_data_sz)) {
-        DEBUG ((EFI_D_ERROR,
-                "Integer overflow while adding Image and chunk data sz\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-
-      Image += (UINT32)chunk_data_sz;
-      if (ImageEnd < (UINT64)Image) {
-        DEBUG ((EFI_D_ERROR, "buffer overreads occured due to "
-                             "invalid sparse header\n"));
-        return EFI_INVALID_PARAMETER;
-      }
-      break;
-
-    default:
-      DEBUG (
-          (EFI_D_ERROR, "Unknown chunk type: %x\n", chunk_header->chunk_type));
-      return EFI_INVALID_PARAMETER;
+    if (EFI_ERROR (Status)) {
+      return Status;
     }
   }
 
   DEBUG ((EFI_D_INFO, "Wrote %d blocks, expected to write %d blocks\n",
-          total_blocks, sparse_header->total_blks));
+            SparseImgData.TotalBlocks, sparse_header->total_blks));
 
-  if (total_blocks != sparse_header->total_blks) {
+  if (SparseImgData.TotalBlocks != sparse_header->total_blks) {
     DEBUG ((EFI_D_ERROR, "Sparse Image Write Failure\n"));
     Status = EFI_VOLUME_CORRUPTED;
   }
@@ -1938,6 +2047,7 @@ FastbootRegister (IN CONST CHAR8 *prefix,
                   IN VOID (*handle) (CONST CHAR8 *arg, VOID *data, UINT32 sz))
 {
   FASTBOOT_CMD *cmd;
+
   cmd = AllocatePool (sizeof (*cmd));
   if (cmd) {
     cmd->prefix = prefix;
@@ -1945,6 +2055,9 @@ FastbootRegister (IN CONST CHAR8 *prefix,
     cmd->handle = handle;
     cmd->next = cmdlist;
     cmdlist = cmd;
+  } else {
+    DEBUG ((EFI_D_VERBOSE,
+            "Failed to allocate memory to cmd\n"));
   }
 }
 
