@@ -3,7 +3,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,6 +46,34 @@
 
 #define MAX_PATH_SIZE 72
 #define SERIAL_NUM_SIZE 64
+
+typedef struct UpdateCmdLineParamList {
+  BOOLEAN Recovery;
+  BOOLEAN MultiSlotBoot;
+  BOOLEAN AlarmBoot;
+  BOOLEAN MdtpActive;
+  UINT32 CmdLineLen;
+  UINT32 HaveCmdLine;
+  UINT32 PauseAtBootUp;
+  CHAR8 *StrSerialNum;
+  CHAR8 *SlotSuffixAscii;
+  CHAR8 *ChipBaseBand;
+  CHAR8 *DisplayCmdLine;
+  CONST CHAR8 *CmdLine;
+  CONST CHAR8 *AlarmBootCmdLine;
+  CONST CHAR8 *MdtpActiveFlag;
+  CONST CHAR8 *BatteryChgPause;
+  CONST CHAR8 *UsbSerialCmdLine;
+  CONST CHAR8 *VBCmdLine;
+  CONST CHAR8 *LogLevel;
+  CONST CHAR8 *BootDeviceCmdLine;
+  CONST CHAR8 *AndroidBootMode;
+  CHAR8 *BootDevBuf;
+  CHAR8 *FfbmStr;
+  CHAR8 *AndroidSlotSuffix;
+  CHAR8 *SkipRamFs;
+  CHAR8 *MultiSlotCmdSuffix;
+} UpdateCmdLineParamList;
 
 EFI_STATUS
 UpdateCmdLine (CONST CHAR8 *CmdLine,
