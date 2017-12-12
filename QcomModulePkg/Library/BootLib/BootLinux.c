@@ -783,6 +783,18 @@ BOOLEAN TargetBuildVariantUser (VOID)
 }
 #endif
 
+#ifdef ENABLE_LE_VARIANT
+BOOLEAN IsLEVariant (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsLEVariant (VOID)
+{
+  return FALSE;
+}
+#endif
+
 VOID
 ResetBootDevImage (VOID)
 {

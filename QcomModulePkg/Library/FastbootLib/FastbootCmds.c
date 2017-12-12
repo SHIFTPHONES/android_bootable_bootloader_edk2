@@ -1920,8 +1920,11 @@ FastbootCmdsInit (VOID)
   }
 
   /* Allocate buffer used to store images passed by the download command */
-  Status = GetFastbootDeviceData ().UsbDeviceProtocol->AllocateTransferBuffer (
-      MAX_BUFFER_SIZE * 2, (VOID **)&FastBootBuffer);
+  Status =
+        GetFastbootDeviceData ().UsbDeviceProtocol->AllocateTransferBuffer (
+               IsLEVariant () ? MAX_BUFFER_SIZE : (MAX_BUFFER_SIZE * 2),
+               (VOID **)&FastBootBuffer);
+
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Not enough memory to Allocate Fastboot Buffer\n"));
     return Status;
@@ -2605,13 +2608,14 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   CHAR8 DeviceType[MAX_RSP_SIZE] = "\0";
   BOOLEAN BatterySocOk = FALSE;
   UINT32 BatteryVoltage = 0;
+  BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
 
   mDataBuffer = base;
   mNumDataBytes = size;
   mFlashNumDataBytes = size;
   mUsbDataBuffer = base;
-  mFlashDataBuffer = base + MAX_BUFFER_SIZE;
-  BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+
+  mFlashDataBuffer = IsLEVariant () ? base : (base + MAX_BUFFER_SIZE);
 
   /* Find all Software Partitions in the User Partition */
   UINT32 i;
