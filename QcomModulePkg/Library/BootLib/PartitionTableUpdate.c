@@ -1232,6 +1232,10 @@ SetActiveSlot (Slot *NewSlot)
   Slot CurrentSlot = {{0}};
   Slot *AlternateSlot = NULL;
   Slot Slots[] = {{L"_a"}, {L"_b"}};
+  BOOLEAN UfsGet = TRUE;
+  BOOLEAN UfsSet = FALSE;
+  UINT32 UfsBootLun = 0;
+  CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
   struct PartitionEntry *BootEntry = NULL;
 
   if (NewSlot == NULL) {
@@ -1276,9 +1280,29 @@ SetActiveSlot (Slot *NewSlot)
 
   if (StrnCmp (CurrentSlot.Suffix, NewSlot->Suffix,
                StrLen (CurrentSlot.Suffix)) == 0) {
-    /* This Slot is already active do nothing */
     DEBUG ((EFI_D_INFO, "SetActiveSlot: %s already active slot\n",
             NewSlot->Suffix));
+
+    /* Check if BootLun is matching with Slot */
+    GetRootDeviceType (BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+    if (!AsciiStrnCmp (BootDeviceType, "UFS", AsciiStrLen ("UFS"))) {
+      UfsGetSetBootLun (&UfsBootLun, UfsGet);
+      if (UfsBootLun == 0x1 &&
+          !StrnCmp (CurrentSlot.Suffix, (CONST CHAR16 *)L"_b",
+          StrLen ((CONST CHAR16 *)L"_b"))) {
+        DEBUG ((EFI_D_INFO, "Boot lun mismatch switch from 1 to 2\n"));
+        DEBUG ((EFI_D_INFO, "Reboot Required\n"));
+        UfsBootLun = 0x2;
+        UfsGetSetBootLun (&UfsBootLun, UfsSet);
+      } else if (UfsBootLun == 0x2 &&
+               !StrnCmp (CurrentSlot.Suffix, (CONST CHAR16 *)L"_a",
+               StrLen ((CONST CHAR16 *)L"_a"))) {
+        DEBUG ((EFI_D_INFO, "Boot lun mismatch switch from 2 to 1\n"));
+        DEBUG ((EFI_D_INFO, "Reboot Required\n"));
+        UfsBootLun = 0x1;
+        UfsGetSetBootLun (&UfsBootLun, UfsSet);
+      }
+    }
   } else {
     DEBUG ((EFI_D_INFO, "Alternate slot %s, New slot %s\n",
             AlternateSlot->Suffix, NewSlot->Suffix));
