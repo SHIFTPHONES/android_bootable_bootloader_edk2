@@ -86,10 +86,11 @@ decompress (unsigned char *in_buf,
   int rc = -1;
   int i;
 
-  if (in_len < GZIP_HEADER_LEN) {
+  if (in_len <= GZIP_HEADER_LEN) {
     DEBUG ((EFI_D_ERROR, "the input data is not a gzip package.\n"));
     return rc;
   }
+
   if (out_buf_len <= in_len) {
     DEBUG ((EFI_D_ERROR,
             "the available length: %u of out_buf is not enough, need %u.\n",
