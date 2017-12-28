@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2017-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -147,9 +147,6 @@ typedef struct DtInfo {
  * The macros below are defined based on these.
  */
 #define DT_ENTRY_V1_SIZE 0xC
-#define PLAT_ID_SIZE 0x8
-#define BOARD_ID_SIZE 0x8
-#define PMIC_ID_SIZE 0x8
 
 /*Struct def for device tree entry*/
 struct dt_entry {
@@ -201,6 +198,10 @@ struct board_id {
 struct pmic_id {
   UINT32 pmic_version[4];
 };
+
+#define PLAT_ID_SIZE    sizeof (struct plat_id)
+#define BOARD_ID_SIZE   sizeof (struct board_id)
+#define PMIC_ID_SIZE    sizeof (struct pmic_id)
 
 struct dt_mem_node_info {
   UINT32 offset;
