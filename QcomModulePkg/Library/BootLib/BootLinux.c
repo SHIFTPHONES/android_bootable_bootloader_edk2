@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -296,6 +296,12 @@ BootLinux (BootInfo *Info)
     return EFI_BAD_BUFFER_SIZE;
   }
 
+  if ((KernelLoadAddr + Kptr->ImageSize) >= DeviceTreeLoadAddr) {
+    DEBUG ((EFI_D_ERROR,
+      "Dtb header can get corrupted because of kernel size\n"));
+    return EFI_BAD_BUFFER_SIZE;
+  }
+
   DEBUG ((EFI_D_VERBOSE, "Kernel Load Address: 0x%x\n", KernelLoadAddr));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size Actual: 0x%x\n", KernelSizeActual));
   DEBUG ((EFI_D_VERBOSE, "Second Size Actual: 0x%x\n", SecondSizeActual));
@@ -395,7 +401,7 @@ BootLinux (BootInfo *Info)
 
       SocDtbHdr = ufdt_install_blob (SocDtb, fdt_totalsize (SocDtb));
       if (!SocDtbHdr) {
-        DEBUG ((EFI_D_ERROR, "Error: Istall blob failed\n"));
+        DEBUG ((EFI_D_ERROR, "Error: Install blob failed\n"));
         return EFI_NOT_FOUND;
       }
 
