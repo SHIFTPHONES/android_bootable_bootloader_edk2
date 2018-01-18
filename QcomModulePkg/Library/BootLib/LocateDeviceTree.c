@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -531,45 +531,46 @@ CheckAllBitsSet (UINT32 DtMatchVal)
 
 STATIC VOID
 ReadBestPmicMatch (CONST CHAR8 *PmicProp, UINT32 PmicEntCount,
-                  PmicIdInfo *CurPmicInfo, PmicIdInfo *BestPmicInfo)
+                    PmicIdInfo *BestPmicInfo)
 {
   UINT32 PmicEntIdx;
   UINT32 Idx;
+  PmicIdInfo CurPmicInfo;
 
-  BestPmicInfo->DtMatchVal = 0;
+  memset (BestPmicInfo, 0, sizeof (PmicIdInfo));
   for (PmicEntIdx = 0; PmicEntIdx < PmicEntCount; PmicEntIdx++) {
-    CurPmicInfo[PmicEntIdx].DtMatchVal = 0;
+    memset (&CurPmicInfo, 0, sizeof (PmicIdInfo));
     for (Idx = 0; Idx < MAX_PMIC_IDX; Idx++) {
-      CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] =
+      CurPmicInfo.DtPmicModel[Idx] =
           fdt32_to_cpu (((struct pmic_id *)PmicProp)->pmic_version[Idx]);
 
       DEBUG ((EFI_D_VERBOSE, "pmic_data[%u].:%x\n", Idx,
-          CurPmicInfo[PmicEntIdx].DtPmicModel[Idx]));
-      CurPmicInfo[PmicEntIdx].DtPmicRev[Idx] =
-          CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] & PMIC_REV_MASK;
-      CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] =
-          CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] & PMIC_MODEL_MASK;
+          CurPmicInfo.DtPmicModel[Idx]));
+      CurPmicInfo.DtPmicRev[Idx] =
+          CurPmicInfo.DtPmicModel[Idx] & PMIC_REV_MASK;
+      CurPmicInfo.DtPmicModel[Idx] =
+          CurPmicInfo.DtPmicModel[Idx] & PMIC_MODEL_MASK;
 
-      if ((CurPmicInfo[PmicEntIdx].DtPmicModel[Idx]) ==
+      if ((CurPmicInfo.DtPmicModel[Idx]) ==
           BoardPmicModel (Idx)) {
-        CurPmicInfo[PmicEntIdx].DtMatchVal |=
+        CurPmicInfo.DtMatchVal |=
           BIT ((PMIC_MATCH_EXACT_MODEL_IDX0 + Idx * PMIC_SHIFT_IDX));
-      } else if (CurPmicInfo[PmicEntIdx].DtPmicModel[Idx] == 0) {
-        CurPmicInfo[PmicEntIdx].DtMatchVal |=
+      } else if (CurPmicInfo.DtPmicModel[Idx] == 0) {
+        CurPmicInfo.DtMatchVal |=
           BIT ((PMIC_MATCH_DEFAULT_MODEL_IDX0 + Idx * PMIC_SHIFT_IDX));
       } else {
-        CurPmicInfo[PmicEntIdx].DtMatchVal = BIT (NONE_MATCH);
+        CurPmicInfo.DtMatchVal = BIT (NONE_MATCH);
         DEBUG ((EFI_D_VERBOSE, "Pmic model does not match\n"));
         break;
       }
 
-      if (CurPmicInfo[PmicEntIdx].DtPmicRev[Idx] == (BoardPmicTarget (Idx)
+      if (CurPmicInfo.DtPmicRev[Idx] == (BoardPmicTarget (Idx)
           & PMIC_REV_MASK)) {
-        CurPmicInfo[PmicEntIdx].DtMatchVal |=
+        CurPmicInfo.DtMatchVal |=
           BIT ((PMIC_MATCH_EXACT_REV_IDX0 + Idx * PMIC_SHIFT_IDX));
-      } else if (CurPmicInfo[PmicEntIdx].DtPmicRev[Idx] <
+      } else if (CurPmicInfo.DtPmicRev[Idx] <
             (BoardPmicTarget (Idx) & PMIC_REV_MASK)) {
-        CurPmicInfo[PmicEntIdx].DtMatchVal |= BIT ((PMIC_MATCH_BEST_REV_IDX0 +
+        CurPmicInfo.DtMatchVal |= BIT ((PMIC_MATCH_BEST_REV_IDX0 +
             Idx * PMIC_SHIFT_IDX));
       } else {
         DEBUG ((EFI_D_VERBOSE, "Pmic revision does not match\n"));
@@ -579,26 +580,26 @@ ReadBestPmicMatch (CONST CHAR8 *PmicProp, UINT32 PmicEntCount,
 
     DEBUG ((EFI_D_VERBOSE, "BestPmicInfo.DtMatchVal : %x"
         " CurPmicInfo[%u]->DtMatchVal : %x\n", BestPmicInfo->DtMatchVal,
-        PmicEntIdx, CurPmicInfo[PmicEntIdx].DtMatchVal));
-    if (BestPmicInfo->DtMatchVal < CurPmicInfo[PmicEntIdx].DtMatchVal) {
-      gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+        PmicEntIdx, CurPmicInfo.DtMatchVal));
+    if (BestPmicInfo->DtMatchVal < CurPmicInfo.DtMatchVal) {
+      gBS->CopyMem (BestPmicInfo, &CurPmicInfo,
           sizeof (struct PmicIdInfo));
     } else if (BestPmicInfo->DtMatchVal ==
-          CurPmicInfo[PmicEntIdx].DtMatchVal) {
-      if (BestPmicInfo->DtPmicRev[0] < CurPmicInfo[PmicEntIdx].DtPmicRev[0]) {
-        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          CurPmicInfo.DtMatchVal) {
+      if (BestPmicInfo->DtPmicRev[0] < CurPmicInfo.DtPmicRev[0]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo,
           sizeof (struct PmicIdInfo));
       } else if (BestPmicInfo->DtPmicRev[1] <
-          CurPmicInfo[PmicEntIdx].DtPmicRev[1]) {
-        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          CurPmicInfo.DtPmicRev[1]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo,
           sizeof (struct PmicIdInfo));
       } else if (BestPmicInfo->DtPmicRev[2] <
-          CurPmicInfo[PmicEntIdx].DtPmicRev[2]) {
-        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          CurPmicInfo.DtPmicRev[2]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo,
           sizeof (struct PmicIdInfo));
       } else if (BestPmicInfo->DtPmicRev[3] <
-          CurPmicInfo[PmicEntIdx].DtPmicRev[3]) {
-        gBS->CopyMem (BestPmicInfo, &CurPmicInfo[PmicEntIdx],
+          CurPmicInfo.DtPmicRev[3]) {
+        gBS->CopyMem (BestPmicInfo, &CurPmicInfo,
           sizeof (struct PmicIdInfo));
       }
     }
@@ -640,10 +641,8 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   VOID *Dtb = CurDtbInfo->Dtb;
   UINT32 Idx;
   UINT32 PmicEntCount;
-  PmicIdInfo *CurPmicInfo = NULL;
   PmicIdInfo BestPmicInfo;
 
-  memset (&BestPmicInfo, 0, sizeof (PmicIdInfo));
   /*Ensure MatchVal to 0 initially*/
   CurDtbInfo->DtMatchVal = 0;
   RootOffset = fdt_path_offset (Dtb, "/");
@@ -780,14 +779,8 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
       (CONST CHAR8 *)fdt_getprop (Dtb, RootOffset, "qcom,pmic-id", &LenPmicId);
   if ((PmicProp) && (LenPmicId > 0) && (!(LenPmicId % PMIC_ID_SIZE))) {
     PmicEntCount = LenPmicId / PMIC_ID_SIZE;
-    CurPmicInfo = (struct PmicIdInfo *)
-        AllocatePool (sizeof (struct PmicIdInfo) * PmicEntCount);
-    if (!CurPmicInfo) {
-      DEBUG ((EFI_D_ERROR, "Failed to allocate memory for Pmic data\n"));
-      goto cleanup;
-    }
-
-    ReadBestPmicMatch (PmicProp, PmicEntCount, CurPmicInfo, &BestPmicInfo);
+    /* Get the best match pmic */
+    ReadBestPmicMatch (PmicProp, PmicEntCount, &BestPmicInfo);
     CurDtbInfo->DtMatchVal |= BestPmicInfo.DtMatchVal;
     for (Idx = 0; Idx < MAX_PMIC_IDX; Idx++) {
       CurDtbInfo->DtPmicModel[Idx] = BestPmicInfo.DtPmicModel[Idx];
@@ -804,10 +797,6 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   }
 
 cleanup:
-
-  if (CurPmicInfo) {
-    FreePool (CurPmicInfo);
-  }
 
   if (CurDtbInfo->DtMatchVal & BIT (ExactMatch)) {
     if (BestDtbInfo->DtMatchVal < CurDtbInfo->DtMatchVal) {
