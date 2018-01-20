@@ -2,7 +2,7 @@
  * Copyright (C) 2008 The Android Open Source Project
  * All rights reserved.
  *
- * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -94,16 +94,16 @@ typedef struct boot_img_hdr {
  * */
 
 struct kernel64_hdr {
-  UINT32 insn;
-  UINT32 res1;
-  UINT64 text_offset;
-  UINT64 res2;
-  UINT64 res3;
-  UINT64 res4;
-  UINT64 res5;
-  UINT64 res6;
-  UINT32 magic_64;
-  UINT32 res7;
+  UINT32 Code0;       /* Executable code */
+  UINT32 Code1;       /* Executable code */
+  UINT64 TextOffset; /* Image load offset, little endian */
+  UINT64 ImageSize;  /* Effective Image size, little endian */
+  UINT64 Flags;       /* kernel flags, little endian */
+  UINT64 Res2;        /* reserved */
+  UINT64 Res3;        /* reserved */
+  UINT64 Res4;        /* reserved */
+  UINT32 magic_64;    /* Magic number, little endian, "ARM\x64" i.e 0x644d5241*/
+  UINT32 Res5;        /* reserved (used for PE COFF offset) */
 };
 
 #endif
