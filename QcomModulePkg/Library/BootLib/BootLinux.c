@@ -261,6 +261,12 @@ BootLinux (BootInfo *Info)
 
   if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
     BootingWith32BitKernel = TRUE;
+  } else {
+    if ((KernelLoadAddr + Kptr->ImageSize) >= DeviceTreeLoadAddr) {
+      DEBUG ((EFI_D_ERROR,
+        "Dtb header can get corrupted due to runtime kernel size\n"));
+      return EFI_BAD_BUFFER_SIZE;
+    }
   }
 
   /*Finds out the location of device tree image and ramdisk image within the
@@ -293,12 +299,6 @@ BootLinux (BootInfo *Info)
     DEBUG ((EFI_D_ERROR,
             "Integer Oveflow: SecondOffset=%u, SecondSizeActual=%u\n",
             SecondOffset, SecondSizeActual));
-    return EFI_BAD_BUFFER_SIZE;
-  }
-
-  if ((KernelLoadAddr + Kptr->ImageSize) >= DeviceTreeLoadAddr) {
-    DEBUG ((EFI_D_ERROR,
-      "Dtb header can get corrupted because of kernel size\n"));
     return EFI_BAD_BUFFER_SIZE;
   }
 
