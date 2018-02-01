@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,6 +27,7 @@
  */
 #include "AutoGen.h"
 #include "LinuxLoaderLib.h"
+#include "Board.h"
 #include <FastbootLib/FastbootCmds.h>
 #include <Library/BoardCustom.h>
 #include <Library/MemoryAllocationLib.h>
@@ -190,15 +191,17 @@ UpdateDevInfo (CHAR16 *Pname, CHAR8 *ImgVersion)
   EFI_STATUS Status = EFI_SUCCESS;
 
   if (!StrCmp ((CONST CHAR16 *)Pname, (CONST CHAR16 *)L"bootloader")) {
-    AsciiStrnCpyS (DevInfo.bootloader_version, MAX_VERSION_LEN, PRODUCT_NAME,
-                   AsciiStrLen (PRODUCT_NAME));
+    AsciiStrnCpyS (DevInfo.bootloader_version, MAX_VERSION_LEN,
+                   BoardPlatformChipBaseBand (),
+                   AsciiStrLen (BoardPlatformChipBaseBand ()));
     AsciiStrnCatS (DevInfo.bootloader_version, MAX_VERSION_LEN, "-",
                    AsciiStrLen ("-"));
     AsciiStrnCatS (DevInfo.bootloader_version, MAX_VERSION_LEN, ImgVersion,
                    AsciiStrLen (ImgVersion));
   } else {
-    AsciiStrnCpyS (DevInfo.radio_version, MAX_VERSION_LEN, PRODUCT_NAME,
-                   AsciiStrLen (PRODUCT_NAME));
+    AsciiStrnCpyS (DevInfo.radio_version, MAX_VERSION_LEN,
+                   BoardPlatformChipBaseBand (),
+                   AsciiStrLen (BoardPlatformChipBaseBand ()));
     AsciiStrnCatS (DevInfo.radio_version, MAX_VERSION_LEN, "-",
                    AsciiStrLen ("-"));
     AsciiStrnCatS (DevInfo.radio_version, MAX_VERSION_LEN, ImgVersion,

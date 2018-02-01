@@ -312,12 +312,6 @@ BootLinux (BootInfo *Info)
       (EFI_D_VERBOSE, "Device Tree Load Address: 0x%x\n", DeviceTreeLoadAddr));
   DEBUG ((EFI_D_VERBOSE, "Device TreeOffset: 0x%x\n", DeviceTreeOffset));
 
-  /* Populate board data required for dtb selection and command line */
-  Status = BoardInit ();
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Error finding board information: %r\n", Status));
-    return Status;
-  }
 
   /*Updates the command line from boot image, appends device serial no.,
    *baseband information, etc

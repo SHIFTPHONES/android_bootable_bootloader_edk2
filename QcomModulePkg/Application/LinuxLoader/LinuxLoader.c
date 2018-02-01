@@ -219,6 +219,13 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   if (Status != EFI_SUCCESS)
     DEBUG ((EFI_D_VERBOSE, "RecoveryInit failed ignore: %r\n", Status));
 
+  /* Populate board data required for fastboot, dtb selection and cmd line */
+  Status = BoardInit ();
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error finding board information: %r\n", Status));
+    return Status;
+  }
+
   if (!BootIntoFastboot) {
     BootInfo Info = {0};
     Info.MultiSlotBoot = MultiSlotBoot;
