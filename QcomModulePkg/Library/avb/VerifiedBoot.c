@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,6 +36,8 @@
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
 STATIC CONST CHAR8 *VerifiedState = " androidboot.verifiedbootstate=";
 STATIC CONST CHAR8 *KeymasterLoadState = " androidboot.keymaster=1";
+STATIC CONST CHAR8 *DmVerityCmd = " root=/dev/dm-0 dm=\"system none ro,0 1 "
+                                    "android-verity";
 STATIC CONST CHAR8 *Space = " ";
 
 STATIC struct verified_boot_verity_mode VbVm[] = {
@@ -229,6 +231,7 @@ LoadImageAndAuthVB1 (BootInfo *Info)
   CHAR8 PnameAscii[MAX_GPT_NAME_SIZE];
   CHAR8 *SystemPath = NULL;
   UINT32 SystemPathLen = 0;
+  CHAR8 *Temp = NULL;
 
   GUARD (VBCommonInit (Info));
   GUARD (VBAllocateCmdLine (Info));
@@ -276,7 +279,17 @@ LoadImageAndAuthVB1 (BootInfo *Info)
       DEBUG ((EFI_D_ERROR, "GetSystemPath failed!\n"));
       return EFI_LOAD_ERROR;
     }
+    GUARD (AppendVBCmdLine (Info, DmVerityCmd));
+    /* Copy only the portion after "root=" in the SystemPath */
+    Temp = AsciiStrStr (SystemPath, "root=");
+    if (Temp) {
+      CopyMem (Temp, SystemPath + AsciiStrLen ("root=") + 1,
+          SystemPathLen - AsciiStrLen ("root=") - 1);
+      SystemPath[SystemPathLen - AsciiStrLen ("root=")] = '\0';
+    }
+
     GUARD (AppendVBCmdLine (Info, SystemPath));
+    GUARD (AppendVBCmdLine (Info, "\""));
   }
   GUARD (AppendVBCommonCmdLine (Info));
   GUARD (AppendVBCmdLine (Info, VerityMode));
