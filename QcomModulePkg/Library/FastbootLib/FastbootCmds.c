@@ -1335,6 +1335,69 @@ STATIC VOID ExchangeFlashAndUsbDataBuf (VOID)
   mFlashNumDataBytes = mNumDataBytes;
 }
 
+STATIC EFI_STATUS
+ReenumeratePartTable (VOID)
+{
+  EFI_STATUS Status;
+  LunSet = FALSE;
+  EFI_EVENT gBlockIoRefreshEvt;
+  BOOLEAN MultiSlotBoot = FALSE;
+  BOOLEAN BootPtnUpdated = FALSE;
+
+  Status =
+    gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, BlockIoCallback,
+                        NULL, &gBlockIoRefreshGuid, &gBlockIoRefreshEvt);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error Creating event for Block Io refresh:%x\n",
+            Status));
+    return Status;
+  }
+
+  Status = gBS->SignalEvent (gBlockIoRefreshEvt);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error Signalling event for Block Io refresh:%x\n",
+            Status));
+    return Status;
+  }
+  Status = EnumeratePartitions ();
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Enumeration of partitions failed\n"));
+    return Status;
+  }
+  UpdatePartitionEntries ();
+
+  IsBootPtnUpdated (Lun, &BootPtnUpdated);
+  if (BootPtnUpdated) {
+    /*Check for multislot boot support*/
+    MultiSlotBoot = PartitionHasMultiSlot (L"boot");
+    if (MultiSlotBoot) {
+      FindPtnActiveSlot ();
+      PopulateMultislotMetadata ();
+      DEBUG ((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
+    } else {
+      DEBUG ((EFI_D_VERBOSE, "Multi Slot boot is not supported\n"));
+      if (BootSlotInfo == NULL) {
+        DEBUG ((EFI_D_VERBOSE, "No change in Ptable\n"));
+      } else {
+        DEBUG ((EFI_D_VERBOSE, "Nullifying A/B info\n"));
+        ClearFastbootVarsofAB ();
+        FreePool (BootSlotInfo);
+        BootSlotInfo = NULL;
+        gBS->SetMem ((VOID *)SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, 0);
+        InitialPopulate = FALSE;
+      }
+    }
+  }
+
+  DEBUG ((EFI_D_INFO, "*************** New partition Table Dump Start "
+                      "*******************\n"));
+  PartitionDump ();
+  DEBUG ((EFI_D_INFO, "*************** New partition Table Dump End   "
+                      "*******************\n"));
+  return Status;
+}
+
+
 /* Handle Flash Command */
 STATIC VOID
 CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
@@ -1346,14 +1409,7 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
   CHAR16 *Token = NULL;
   LunSet = FALSE;
-  EFI_EVENT gBlockIoRefreshEvt;
   BOOLEAN MultiSlotBoot = FALSE;
-  EFI_GUID gBlockIoRefreshGuid = {
-      0xb1eb3d10,
-      0x9d67,
-      0x40ca,
-      {0x95, 0x59, 0xf1, 0x48, 0x8b, 0x1b, 0x2d, 0xdb}};
-  BOOLEAN BootPtnUpdated = FALSE;
   UINT32 UfsBootLun = 0;
   CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
   /* For partition info */
@@ -1433,64 +1489,16 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
                         "*******************\n"));
     Status = UpdatePartitionTable (mFlashDataBuffer, mFlashNumDataBytes, Lun,
                                    Ptable);
-    /* Signal the Block IO to updae and reenumerate the parition table */
-    if (Status == EFI_SUCCESS) {
-      Status =
-          gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, BlockIoCallback,
-                              NULL, &gBlockIoRefreshGuid, &gBlockIoRefreshEvt);
-      if (Status != EFI_SUCCESS) {
-        DEBUG ((EFI_D_ERROR, "Error Creating event for Block Io refresh:%x\n",
-                Status));
-        FastbootFail ("Failed to update partition Table\n");
+    /* Signal the Block IO to update and reenumerate the parition table */
+    if (Status == EFI_SUCCESS)  {
+      Status = ReenumeratePartTable ();
+      if (Status == EFI_SUCCESS) {
+        FastbootOkay ("");
+        goto out;
+      } else {
+        FastbootFail ("Error Updating partition Table\n");
         goto out;
       }
-      Status = gBS->SignalEvent (gBlockIoRefreshEvt);
-      if (Status != EFI_SUCCESS) {
-        DEBUG ((EFI_D_ERROR, "Error Signalling event for Block Io refresh:%x\n",
-                Status));
-        FastbootFail ("Failed to update partition Table\n");
-        goto out;
-      }
-      Status = EnumeratePartitions ();
-      if (EFI_ERROR (Status)) {
-        FastbootFail ("Partition table update failed\n");
-        goto out;
-      }
-      UpdatePartitionEntries ();
-
-      IsBootPtnUpdated (Lun, &BootPtnUpdated);
-      if (BootPtnUpdated) {
-        /*Check for multislot boot support*/
-        MultiSlotBoot = PartitionHasMultiSlot (L"boot");
-        if (MultiSlotBoot) {
-          FindPtnActiveSlot ();
-          PopulateMultislotMetadata ();
-          DEBUG ((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
-        } else {
-          DEBUG ((EFI_D_VERBOSE, "Multi Slot boot is not supported\n"));
-          if (BootSlotInfo == NULL)
-            DEBUG ((EFI_D_VERBOSE, "No change in Ptable\n"));
-          else {
-            DEBUG ((EFI_D_VERBOSE, "Nullifying A/B info\n"));
-            ClearFastbootVarsofAB ();
-            FreePool (BootSlotInfo);
-            BootSlotInfo = NULL;
-            gBS->SetMem ((VOID *)SlotSuffixArray, SLOT_SUFFIX_ARRAY_SIZE, 0);
-            InitialPopulate = FALSE;
-          }
-        }
-      }
-
-      DEBUG ((EFI_D_INFO, "*************** New partition Table Dump Start "
-                          "*******************\n"));
-      PartitionDump ();
-      DEBUG ((EFI_D_INFO, "*************** New partition Table Dump End   "
-                          "*******************\n"));
-      FastbootOkay ("");
-      goto out;
-    } else {
-      FastbootFail ("Error Updating partition Table\n");
-      goto out;
     }
   }
 
