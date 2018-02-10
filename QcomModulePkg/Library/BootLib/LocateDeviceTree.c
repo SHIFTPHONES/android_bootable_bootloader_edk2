@@ -116,8 +116,9 @@ DeviceTreeCompatible (VOID *dtb,
   int min_plat_id_len = 0;
   int len_pmic_id;
   UINT32 dtb_ver;
-  UINT32 num_entries = 0;
-  UINT32 i, j, k, n;
+  UINT64 NumEntries = 0;
+  UINT64 i;
+  UINT32 j, k, n;
   UINT32 msm_data_count;
   UINT32 board_data_count;
   UINT32 pmic_data_count;
@@ -246,6 +247,12 @@ DeviceTreeCompatible (VOID *dtb,
       plat_prop += sizeof (struct plat_id);
     }
 
+    if ((pmic_data_count != 0) &&
+      (MAX_UINT64 / pmic_data_count < (msm_data_count * board_data_count))) {
+        DEBUG ((EFI_D_ERROR, "NumEntries exceeds MAX_UINT64\n"));
+        goto Exit;
+    }
+
     if (dtb_ver == DEV_TREE_VERSION_V3 && pmic_prop) {
       /* Extract pmic data from DTB */
       for (i = 0; i < pmic_data_count; i++) {
@@ -262,23 +269,15 @@ DeviceTreeCompatible (VOID *dtb,
       }
 
       /* We need to merge board & platform data into dt entry structure */
-      num_entries = msm_data_count * board_data_count * pmic_data_count;
+      NumEntries = (uint64_t)msm_data_count * board_data_count *
+              pmic_data_count;
     } else {
       /* We need to merge board & platform data into dt entry structure */
-      num_entries = msm_data_count * board_data_count;
-    }
-
-    if ((((uint64_t)msm_data_count * (uint64_t)board_data_count *
-          (uint64_t)pmic_data_count) !=
-         msm_data_count * board_data_count * pmic_data_count) ||
-        (((uint64_t)msm_data_count * (uint64_t)board_data_count) !=
-         msm_data_count * board_data_count)) {
-
-      goto Exit;
+      NumEntries = (uint64_t)msm_data_count * board_data_count;
     }
 
     dt_entry_array = (struct dt_entry *)AllocatePool (sizeof (struct dt_entry) *
-                                                      num_entries);
+                                                      NumEntries);
     if (!dt_entry_array) {
       DEBUG ((EFI_D_ERROR, "Failed to allocate memory for dt_entry_array\n"));
       goto Exit;
@@ -325,7 +324,7 @@ DeviceTreeCompatible (VOID *dtb,
       }
     }
 
-    for (i = 0; i < num_entries; i++) {
+    for (i = 0; i < NumEntries; i++) {
       if (platform_dt_absolute_match (&(dt_entry_array[i]), dtb_list)) {
         DEBUG ((EFI_D_VERBOSE, "Device tree exact match the board: <0x%x 0x%x "
                                "0x%x 0x%x> == <0x%x 0x%x 0x%x 0x%x>\n",
