@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -232,7 +232,7 @@ GetPmicInfo (UINT32 PmicDeviceIndex,
 /**
  Device Handler Info
 
- @param[out]     HanderInfo  : Pointer to array of HandleInfo structures
+ @param[out]     HndlInfo  : Pointer to array of HandleInfo structures
                                in which the output is returned.
  @param[in, out] MaxHandles  : On input, max number of handle structures
                                the buffer can hold, On output, the number
@@ -242,12 +242,12 @@ GetPmicInfo (UINT32 PmicDeviceIndex,
  **/
 
 STATIC EFI_STATUS
-GetDeviceHandleInfo (VOID *HanderInfo, UINT32 MaxHandles, MemCardType Type)
+GetDeviceHandleInfo (VOID *HndlInfo, UINT32 MaxHandles, MemCardType Type)
 {
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
   UINT32 Attribs = 0;
   PartiSelectFilter HandleFilter;
-  HandleInfo *HandleInfoList = HanderInfo;
+  HandleInfo *HandleInfoList = HndlInfo;
 
   Attribs |= BLK_IO_SEL_MATCH_ROOT_DEVICE;
   HandleFilter.PartitionType = NULL;
@@ -269,8 +269,9 @@ GetDeviceHandleInfo (VOID *HanderInfo, UINT32 MaxHandles, MemCardType Type)
   }
 
   Status =
-      GetBlkIOHandles (Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
-  if (EFI_ERROR (Status)) {
+     GetBlkIOHandles (Attribs, &HandleFilter, HandleInfoList, &MaxHandles);
+  if (EFI_ERROR (Status) ||
+     MaxHandles == 0) {
     DEBUG ((EFI_D_ERROR, "Get BlkIohandles failed\n"));
     return Status;
   }
@@ -279,7 +280,29 @@ GetDeviceHandleInfo (VOID *HanderInfo, UINT32 MaxHandles, MemCardType Type)
 
 /**
  Return a device type
- @retval         Device type : UNKNOWN|UFS|EMMC, default is UNKNOWN
+ @retval         Device type : UNKNOWN | UFS | EMMC | NAND
+ **/
+STATIC UINT32
+GetCompatibleRootDeviceType (VOID)
+{
+  EFI_STATUS Status = EFI_INVALID_PARAMETER;
+  HandleInfo HandleInfoList[HANDLE_MAX_INFO_LIST];
+  UINT32 MaxHandles = ARRAY_SIZE (HandleInfoList);
+  UINT32 Index;
+
+  for (Index = 0; Index < UNKNOWN; Index++) {
+    Status = GetDeviceHandleInfo (HandleInfoList, MaxHandles, Index);
+    if (Status == EFI_SUCCESS) {
+      return Index;
+    }
+  }
+
+  return Index;
+}
+
+/**
+ Return a device type
+ @retval         Device type : UNKNOWN | UFS | EMMC | NAND, default is UNKNOWN
  **/
 
 STATIC MemCardType CheckRootDeviceType (VOID)
@@ -308,7 +331,7 @@ STATIC MemCardType CheckRootDeviceType (VOID)
                                   AsciiStrLen ("NAND"))) {
           Type = NAND;
         } else {
-          return UNKNOWN;
+          Type = GetCompatibleRootDeviceType ();
         }
       }
     }
