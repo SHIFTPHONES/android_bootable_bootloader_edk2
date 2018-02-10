@@ -2183,6 +2183,11 @@ CmdGetVar (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
     Token = AsciiStrStr (Arg, ":");
     if (Token) {
       Token = Token + AsciiStrLen (":");
+      if (AsciiStrLen (Token) >= ARRAY_SIZE (PartNameUniStr)) {
+        FastbootFail ("Invalid partition name");
+        return;
+      }
+
       AsciiStrToUnicodeStr (Token, PartNameUniStr);
 
       if (PartitionHasMultiSlot (PartNameUniStr)) {
