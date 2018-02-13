@@ -1545,7 +1545,7 @@ LoadAndValidateDtboImg (BootInfo *Info, VOID **DtboImgBuffer)
 
   Status = GetImage (Info, DtboImgBuffer, &DtboImgSize, "dtbo");
   if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "BootLinux: GetImage failed!"));
+    DEBUG ((EFI_D_ERROR, "BootLinux: GetImage dtbo failed!\n"));
     return FALSE;
   }
   if (!*DtboImgBuffer) {
