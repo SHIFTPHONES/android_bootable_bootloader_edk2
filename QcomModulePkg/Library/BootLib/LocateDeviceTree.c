@@ -630,7 +630,7 @@ STATIC EFI_STATUS GetPlatformMatchDtb (DtInfo * CurDtbInfo,
         (CurDtbInfo->DtPlatformId & SOC_MASK)) {
       CurDtbInfo->DtMatchVal |= BIT (SOC_MATCH);
     } else {
-      DEBUG ((EFI_D_VERBOSE, "qcom,msm-id doesnot match\n"));
+      DEBUG ((EFI_D_VERBOSE, "qcom,msm-id does not match\n"));
       /* If it's neither exact nor default match don't select dtb */
       CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
       return EFI_NOT_FOUND;
@@ -644,7 +644,7 @@ STATIC EFI_STATUS GetPlatformMatchDtb (DtInfo * CurDtbInfo,
     } else if (CurDtbInfo->DtSocRev < BoardPlatformChipVersion ()) {
       CurDtbInfo->DtMatchVal |= BIT (VERSION_BEST_MATCH);
     } else if (CurDtbInfo->DtSocRev) {
-      DEBUG ((EFI_D_VERBOSE, "soc version doesnot match\n"));
+      DEBUG ((EFI_D_VERBOSE, "soc version does not match\n"));
     }
     /*Compare Foundry Id of the dtb vs Board*/
     CurDtbInfo->DtFoundryId =
@@ -659,7 +659,7 @@ STATIC EFI_STATUS GetPlatformMatchDtb (DtInfo * CurDtbInfo,
     } else if (CurDtbInfo->DtFoundryId == 0) {
       CurDtbInfo->DtMatchVal |= BIT (FOUNDRYID_DEFAULT_MATCH);
     } else {
-      DEBUG ((EFI_D_VERBOSE, "soc foundry doesnot match\n"));
+      DEBUG ((EFI_D_VERBOSE, "soc foundry does not match\n"));
       /* If it's neither exact nor default match don't select dtb */
       CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
       return EFI_NOT_FOUND;
@@ -798,7 +798,7 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
                                          &LenPlatId);
   Status = GetPlatformMatchDtb (CurDtbInfo, PlatProp, LenPlatId, MinPlatIdLen);
   if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Platform dt prop search failed."));
+    DEBUG ((EFI_D_VERBOSE, "Platform dt prop search failed.\n"));
     goto cleanup;
   }
 
@@ -808,7 +808,7 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
                                           &LenBoardId);
   Status = GetBoardMatchDtb (CurDtbInfo, BoardProp, LenBoardId);
   if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Board dt prop search failed."));
+    DEBUG ((EFI_D_VERBOSE, "Board dt prop search failed.\n"));
     goto cleanup;
   }
 
