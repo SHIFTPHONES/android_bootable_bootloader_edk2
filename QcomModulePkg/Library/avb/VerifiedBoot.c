@@ -141,12 +141,6 @@ VBCommonInit (BootInfo *Info)
 {
   EFI_STATUS Status = EFI_SUCCESS;
 
-  /* AVB 2.0 requires multi slot */
-  if (GetAVBVersion () >= AVB_2 && !Info->MultiSlotBoot) {
-    DEBUG ((EFI_D_ERROR, "AVB requires multislot support!\n"));
-    return EFI_LOAD_ERROR;
-  }
-
   Info->BootState = RED;
 
   Status = gBS->LocateProtocol (&gEfiQcomVerifiedBootProtocolGuid, NULL,
@@ -375,7 +369,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   CHAR8 PnameAscii[MAX_GPT_NAME_SIZE] = {0};
   CHAR8 *SlotSuffix = NULL;
   BOOLEAN AllowVerificationError = IsUnlocked ();
-  CONST CHAR8 *RequestedPartitionAll[] = {"boot", "dtbo", NULL};
+  CONST CHAR8 *RequestedPartitionMission[] = {"boot", "dtbo", NULL};
+  CONST CHAR8 *RequestedPartitionRecovery[] = {"recovery", "dtbo", NULL};
   CONST CHAR8 *CONST *RequestedPartition = NULL;
   UINTN NumRequestedPartition = 0;
   UINT32 ImageHdrSize = 0;
@@ -409,23 +404,41 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     goto out;
   }
 
-  UnicodeStrToAsciiStr (Info->Pname, PnameAscii);
-  if ((MAX_SLOT_SUFFIX_SZ + 1) > AsciiStrLen (PnameAscii)) {
-    DEBUG ((EFI_D_ERROR, "ERROR: Can not determine slot suffix\n"));
-    Status = EFI_INVALID_PARAMETER;
-    goto out;
+  if (Info->MultiSlotBoot) {
+    UnicodeStrToAsciiStr (Info->Pname, PnameAscii);
+    if ((MAX_SLOT_SUFFIX_SZ + 1) > AsciiStrLen (PnameAscii)) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Can not determine slot suffix\n"));
+      Status = EFI_INVALID_PARAMETER;
+      goto out;
+    }
+    SlotSuffix = &PnameAscii[AsciiStrLen (PnameAscii) - MAX_SLOT_SUFFIX_SZ + 1];
+  } else {
+     SlotSuffix = "\0";
   }
-  SlotSuffix = &PnameAscii[AsciiStrLen (PnameAscii) - MAX_SLOT_SUFFIX_SZ + 1];
 
   DEBUG ((EFI_D_VERBOSE, "Slot: %a, allow verification error: %a\n", SlotSuffix,
           BooleanString[AllowVerificationError].name));
 
-  RequestedPartition = RequestedPartitionAll;
-  NumRequestedPartition = ARRAY_SIZE (RequestedPartitionAll) - 1;
+  if ((!Info->MultiSlotBoot) &&
+           Info->BootIntoRecovery) {
+     RequestedPartition = RequestedPartitionRecovery;
+     NumRequestedPartition = ARRAY_SIZE (RequestedPartitionRecovery) - 1;
+     if (Info->NumLoadedImages) {
+       /* fastboot boot option, skip Index 0, as boot image already
+        * loaded */
+       RequestedPartition = &RequestedPartitionRecovery[1];
+     }
+  } else {
+     RequestedPartition = RequestedPartitionMission;
+     NumRequestedPartition = ARRAY_SIZE (RequestedPartitionMission) - 1;
+     if (Info->NumLoadedImages) {
+       /* fastboot boot option, skip Index 0, as boot image already
+        * loaded */
+       RequestedPartition = &RequestedPartitionMission[1];
+     }
+  }
+
   if (Info->NumLoadedImages) {
-    /* fastboot boot option, skip Index 0, as boot image already
-     * loaded */
-    RequestedPartition = &RequestedPartitionAll[1];
     NumRequestedPartition--;
   }
 
@@ -485,10 +498,10 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     }
   }
 
-  if (Info->NumLoadedImages < (ARRAY_SIZE (RequestedPartitionAll) - 1)) {
+  if (Info->NumLoadedImages < NumRequestedPartition) {
     DEBUG ((EFI_D_ERROR, "ERROR: AvbSlotVerify slot data error: num of "
                          "loaded partitions %d, requested %d\n",
-            Info->NumLoadedImages, ARRAY_SIZE (RequestedPartitionAll) - 1));
+            Info->NumLoadedImages, NumRequestedPartition));
     Status = EFI_LOAD_ERROR;
     goto out;
   }
@@ -506,10 +519,13 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   Info->VBData = (VOID *)VBData;
 
   GetPageSize (&ImageHdrSize);
-  GUARD_OUT (GetImage (Info, &ImageBuffer, &ImageSize, "boot"));
+  GUARD_OUT (GetImage (Info, &ImageBuffer, &ImageSize,
+                    ((!Info->MultiSlotBoot) &&
+                     Info->BootIntoRecovery) ?
+                     "recovery" : "boot"));
 
-  Status =
-      CheckImageHeader (ImageBuffer, ImageHdrSize, &ImageSizeActual, &PageSize);
+  Status = CheckImageHeader (ImageBuffer, ImageHdrSize,
+        &ImageSizeActual, &PageSize);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
     goto out;
@@ -566,10 +582,16 @@ out:
       avb_free (VBData);
     }
     Info->BootState = RED;
-    HandleActiveSlotUnbootable ();
-    /* HandleActiveSlotUnbootable should have swapped slots and
-    * reboot the device. If no bootable slot found, enter fastboot */
-    DEBUG ((EFI_D_WARN, "No bootable slots found enter fastboot mode\n"));
+    if (Info->MultiSlotBoot) {
+      HandleActiveSlotUnbootable ();
+      /* HandleActiveSlotUnbootable should have swapped slots and
+       * reboot the device. If no bootable slot found, enter fastboot
+       */
+      DEBUG ((EFI_D_WARN, "No bootable slots found enter fastboot mode\n"));
+    } else {
+       DEBUG ((EFI_D_WARN,
+           "Non Multi-slot: Unbootable entering fastboot mode\n"));
+    }
   }
 
   DEBUG ((EFI_D_ERROR, "VB2: boot state: %a(%d)\n", VbSn[Info->BootState].name,
