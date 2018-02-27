@@ -106,6 +106,8 @@ STATIC CHAR8 StrBatterySocOk[MAX_RSP_SIZE];
 STATIC CHAR8 ChargeScreenEnable[MAX_RSP_SIZE];
 STATIC CHAR8 OffModeCharge[MAX_RSP_SIZE];
 STATIC CHAR8 StrSocVersion[MAX_RSP_SIZE];
+STATIC CHAR8 LogicalBlkSizeStr[MAX_RSP_SIZE];
+STATIC CHAR8 EraseBlkSizeStr[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
   CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -169,6 +171,8 @@ STATIC VOID
 AcceptCmd (IN UINT64 Size, IN CHAR8 *Data);
 STATIC VOID
 AcceptCmdHandler (IN EFI_EVENT Event, IN VOID *Context);
+
+#define NAND_PAGES_PER_BLOCK 64
 
 #define UBI_HEADER_MAGIC "UBI#"
 #define UBI_NUM_IMAGES 1
@@ -2784,6 +2788,7 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   BOOLEAN BatterySocOk = FALSE;
   UINT32 BatteryVoltage = 0;
   BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+  MemCardType Type = UNKNOWN;
 
   mDataBuffer = base;
   mNumDataBytes = size;
@@ -2794,6 +2799,7 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
 
   /* Find all Software Partitions in the User Partition */
   UINT32 i;
+  UINT32 BlkSize = 0;
   DeviceInfo *DevInfoPtr = NULL;
 
   struct FastbootCmdDesc cmd_list[] = {
@@ -2870,6 +2876,16 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   AsciiSPrint (StrVariant, sizeof (StrVariant), "%a %a", HWPlatformBuf,
                DeviceType);
   FastbootPublishVar ("variant", StrVariant);
+  GetPageSize (&BlkSize);
+  AsciiSPrint (LogicalBlkSizeStr, sizeof (LogicalBlkSizeStr), " 0x%x", BlkSize);
+  FastbootPublishVar ("logical-block-size", LogicalBlkSizeStr);
+  Type = CheckRootDeviceType ();
+  if (Type == NAND) {
+    BlkSize = NAND_PAGES_PER_BLOCK * BlkSize;
+  }
+
+  AsciiSPrint (EraseBlkSizeStr, sizeof (EraseBlkSizeStr), " 0x%x", BlkSize);
+  FastbootPublishVar ("erase-block-size", EraseBlkSizeStr);
   GetDevInfo (&DevInfoPtr);
   FastbootPublishVar ("version-bootloader", DevInfoPtr->bootloader_version);
   FastbootPublishVar ("version-baseband", DevInfoPtr->radio_version);
