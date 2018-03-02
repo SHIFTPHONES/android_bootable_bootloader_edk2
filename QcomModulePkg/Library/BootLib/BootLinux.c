@@ -183,10 +183,11 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
 if (!DtboImgInvalid) {
     // appended device tree
     Dtb = DeviceTreeAppended ((VOID *)(BootParamlistPtr->ImageBuffer +
-                              BootParamlistPtr->PageSize),
-                                BootParamlistPtr->KernelSize,
-                                DtbOffset,
-                                (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
+                             BootParamlistPtr->PageSize +
+                             BootParamlistPtr->PatchedKernelHdrSize),
+                             BootParamlistPtr->KernelSize,
+                             DtbOffset,
+                             (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
     if (!Dtb) {
       if (DtbOffset >= BootParamlistPtr->KernelSize) {
         DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the kernel size\n"));
@@ -229,7 +230,8 @@ if (!DtboImgInvalid) {
      /*It is the case of DTB overlay Get the Soc specific dtb */
       FinalDtbHdr = SocDtb =
       GetSocDtb ((VOID *)(BootParamlistPtr->ImageBuffer +
-                 BootParamlistPtr->PageSize),
+                 BootParamlistPtr->PageSize +
+                 BootParamlistPtr->PatchedKernelHdrSize),
                  BootParamlistPtr->KernelSize,
                  DtbOffset,
                  (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
@@ -332,9 +334,28 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
 
     Kptr = (struct kernel64_hdr *)*KernelLoadAddr;
   } else {
-    Kptr = BootParamlistPtr->ImageBuffer + BootParamlistPtr->PageSize;
+    Kptr = (struct kernel64_hdr *)(BootParamlistPtr->ImageBuffer
+                         + BootParamlistPtr->PageSize);
+    DEBUG ((EFI_D_INFO, "Uncompressed kernel in use\n"));
+    /* Patch kernel support only for 64-bit */
+    if (!AsciiStrnCmp ((char*)(BootParamlistPtr->ImageBuffer
+                 + BootParamlistPtr->PageSize), PATCHED_KERNEL_MAGIC,
+                 sizeof (PATCHED_KERNEL_MAGIC) - 1)) {
+      DEBUG ((EFI_D_VERBOSE, "Patched kernel detected\n"));
 
-    /* Uncompress kernel - zImage*/
+      /* The size of the kernel is stored at start of kernel image + 16
+       * The dtb would start just after the kernel */
+      gBS->CopyMem ((VOID *)DtbOffset, (VOID *) (BootParamlistPtr->ImageBuffer
+                 + BootParamlistPtr->PageSize + sizeof (PATCHED_KERNEL_MAGIC)
+                 - 1), sizeof (*DtbOffset));
+
+      BootParamlistPtr->PatchedKernelHdrSize = PATCHED_KERNEL_HEADER_SIZE;
+      Kptr = (struct kernel64_hdr *)((VOID *)Kptr +
+                 BootParamlistPtr->PatchedKernelHdrSize);
+      gBS->CopyMem ((VOID *)*KernelLoadAddr, (VOID *)Kptr,
+                 BootParamlistPtr->KernelSize);
+    }
+
     if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
       *KernelLoadAddr =
       (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
