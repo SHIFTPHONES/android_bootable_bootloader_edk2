@@ -129,9 +129,9 @@ Returns:
   } else {
     Length = strlen(Str);
     if (Length < 4) {
-      strncpy (TemStr + 4 - Length, Str, Length);
+      memcpy (TemStr + 4 - Length, Str, Length);
     } else {
-      strncpy (TemStr, Str + Length - 4, 4);
+      memcpy (TemStr, Str + Length - 4, 4);
     }
   
     sscanf (
@@ -1470,7 +1470,7 @@ Returns:
   //
   FitStartPtr = (FIT_TABLE *) RelativeAddress;
 
-  strncpy ((CHAR8 *) &FitStartPtr->CompAddress, FIT_SIGNATURE, 8);  // "_FIT_   "
+  memcpy ((CHAR8 *) &FitStartPtr->CompAddress, FIT_SIGNATURE, 8);  // "_FIT_   "
   assert (((VtfInfo->CompSize & 0x00FFFFFF) % 16) == 0);
   FitStartPtr->CompSize     = (VtfInfo->CompSize & 0x00FFFFFF) / 16;
   FitStartPtr->CompVersion  = MAKE_VERSION (VtfInfo->MajorVer, VtfInfo->MinorVer);
