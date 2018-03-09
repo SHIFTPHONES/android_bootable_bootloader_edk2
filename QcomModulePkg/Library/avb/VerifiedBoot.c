@@ -452,6 +452,12 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   Result = avb_slot_verify (Ops, RequestedPartition, SlotSuffix, VerifyFlags,
                             VerityFlags, &SlotData);
 
+  if (SlotData == NULL) {
+    Status = EFI_LOAD_ERROR;
+    Info->BootState = RED;
+    goto out;
+  }
+
   if (AllowVerificationError && ResultShouldContinue (Result)) {
     DEBUG ((EFI_D_ERROR, "State: Unlocked, AvbSlotVerify returned "
                          "%a, continue boot\n",
