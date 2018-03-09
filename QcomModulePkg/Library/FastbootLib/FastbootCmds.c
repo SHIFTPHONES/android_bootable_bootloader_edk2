@@ -1527,6 +1527,7 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   BOOLEAN HasSlot = FALSE;
   CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
   CHAR8 FlashResultStr[MAX_RSP_SIZE] = "";
+  UINT64 PartitionSize = 0;
 
   ExchangeFlashAndUsbDataBuf ();
   if (mFlashDataBuffer == NULL) {
@@ -1634,15 +1635,18 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     }
 
     IsFlashComplete = FALSE;
+    PartitionSize = (BlockIo->Media->LastBlock + 1)
+                        * (BlockIo->Media->BlockSize);
 
-    Status = HandleUsbEventsInTimer ();
-    if (EFI_ERROR (Status)) {
-      DEBUG ((EFI_D_ERROR, "Failed to handle usb event: %r\n", Status));
-
-      IsFlashComplete = TRUE;
-      StopUsbTimer ();
-    } else {
-      FastbootOkay ("");
+    if (PartitionSize > MAX_DOWNLOAD_SIZE) {
+      Status = HandleUsbEventsInTimer ();
+      if (EFI_ERROR (Status)) {
+        DEBUG ((EFI_D_ERROR, "Failed to handle usb event: %r\n", Status));
+        IsFlashComplete = TRUE;
+        StopUsbTimer ();
+      } else {
+        FastbootOkay ("");
+      }
     }
 
     FlashResult = HandleSparseImgFlash (PartitionName, sizeof (PartitionName),
@@ -1650,7 +1654,6 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
 
     IsFlashComplete = TRUE;
     StopUsbTimer ();
-
   } else if (!AsciiStrnCmp (UbiHeader->HdrMagic, UBI_HEADER_MAGIC, 4)) {
     FlashResult = HandleUbiImgFlash (PartitionName,
                                      sizeof (PartitionName),
@@ -1672,7 +1675,9 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
    * sparse images.
    */
   if ((sparse_header->magic != SPARSE_HEADER_MAGIC) ||
-      (Status != EFI_SUCCESS)) {
+        (PartitionSize < MAX_DOWNLOAD_SIZE) ||
+        ((PartitionSize > MAX_DOWNLOAD_SIZE) &&
+        (Status != EFI_SUCCESS))) {
     if (EFI_ERROR (FlashResult)) {
       if (FlashResult == EFI_NOT_FOUND) {
         AsciiSPrint (FlashResultStr, MAX_RSP_SIZE, "(%s) No such partition",
