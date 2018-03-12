@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -55,6 +55,7 @@
 #include <Protocol/EFIEraseBlock.h>
 #include <Protocol/EFIMdtp.h>
 #include <Protocol/EFIVerifiedBoot.h>
+#include <Protocol/EFINandPartiGuid.h>
 #include <Protocol/FirmwareVolume2.h>
 #include <Protocol/LoadedImage.h>
 #include <Protocol/SerialIo.h>
@@ -138,6 +139,9 @@ LoadImageFromPartition (VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname);
 
 EFI_STATUS
 ReadWriteDeviceInfo (vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz);
+
+EFI_STATUS
+GetNandMiscPartiGuid (EFI_GUID *Ptype);
 /**
   Returns a list of BlkIo handles based on required criteria
   SelectionAttrib : Bitmask representing the conditions that need

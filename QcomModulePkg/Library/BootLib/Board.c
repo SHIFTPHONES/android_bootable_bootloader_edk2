@@ -305,7 +305,8 @@ GetCompatibleRootDeviceType (VOID)
  @retval         Device type : UNKNOWN | UFS | EMMC | NAND, default is UNKNOWN
  **/
 
-STATIC MemCardType CheckRootDeviceType (VOID)
+MemCardType
+CheckRootDeviceType (VOID)
 {
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
   STATIC MemCardType Type = UNKNOWN;
