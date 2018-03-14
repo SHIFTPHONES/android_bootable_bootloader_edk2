@@ -12,16 +12,6 @@ ifneq ($(wildcard $(SDCLANG_PATH)),)
   ABL_USE_SDLLVM := true
 endif
 
-ifneq ($(wildcard $(SDCLANG_PATH_2)),)
-  ifeq ($(shell echo $(SDCLANG_PATH_2) | head -c 1),/)
-    CLANG_BIN := $(SDCLANG_PATH_2)/
-  else
-    CLANG_BIN := $(ANDROID_BUILD_TOP)/$(SDCLANG_PATH_2)/
-  endif
-
-  ABL_USE_SDLLVM := true
-endif
-
 ifeq ($(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SUPPORTS_VERITY),true)
 	VERIFIED_BOOT := VERIFIED_BOOT=1
 else
