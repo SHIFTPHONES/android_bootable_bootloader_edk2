@@ -613,8 +613,7 @@ STATIC EFI_STATUS GetPlatformMatchDtb (DtInfo * CurDtbInfo,
                                        INT32 MinPlatIdLen)
 {
 
-  if (CurDtbInfo == NULL ||
-      PlatProp == NULL) {
+  if (CurDtbInfo == NULL) {
     DEBUG ((EFI_D_VERBOSE, "Input parameters null\n"));
     return EFI_INVALID_PARAMETER;
   }
@@ -676,8 +675,7 @@ STATIC EFI_STATUS GetBoardMatchDtb (DtInfo *CurDtbInfo,
                                     CONST CHAR8 *BoardProp,
                                     INT32 LenBoardId)
 {
-  if (CurDtbInfo == NULL ||
-      BoardProp == NULL) {
+  if (CurDtbInfo == NULL) {
     DEBUG ((EFI_D_VERBOSE, "Input parameters null\n"));
     return EFI_INVALID_PARAMETER;
   }
