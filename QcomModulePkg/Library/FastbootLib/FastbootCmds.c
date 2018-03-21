@@ -1700,6 +1700,17 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   }
 
 out:
+  if (!AsciiStrnCmp (arg, "system", AsciiStrLen ("system")) &&
+    GetAVBVersion () == AVB_1 &&
+    !IsEnforcing () &&
+    (FlashResult == EFI_SUCCESS)) {
+     // reset dm_verity mode to enforcing
+    Status = EnableEnforcingMode (TRUE);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "failed to update verity mode:  %r\n", Status));
+    }
+  }
+
   LunSet = FALSE;
 }
 
