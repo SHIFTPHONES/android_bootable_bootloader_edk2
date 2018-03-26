@@ -450,20 +450,26 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
                            Param->SlotSuffixAscii);
      Src = Param->SlotSuffixAscii;
      STR_COPY (Dst, Src);
+   }
 
-     /* Skip Initramfs*/
-     if (!Param->Recovery) {
-       Src = Param->SkipRamFs;
-       --Dst;
-       STR_COPY (Dst, Src);
-     }
+  if ((IsBuildAsSystemRootImage () &&
+      (GetAVBVersion () == AVB_1) &&
+      !Param->MultiSlotBoot) ||
+      (Param->MultiSlotBoot &&
+      !IsBootDevImage ())) {
+    /* Skip Initramfs*/
+    if (!Param->Recovery) {
+      Src = Param->SkipRamFs;
+      --Dst;
+      STR_COPY (Dst, Src);
+    }
 
      /*Add Multi slot command line suffix*/
      Src = Param->MultiSlotCmdSuffix;
      --Dst;
      STR_COPY (Dst, Src);
    }
-  return EFI_SUCCESS;
+   return EFI_SUCCESS;
 }
 
 /*Update command line: appends boot information to the original commandline

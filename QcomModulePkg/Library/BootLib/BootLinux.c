@@ -921,6 +921,18 @@ BOOLEAN IsLEVariant (VOID)
 }
 #endif
 
+#ifdef BUILD_SYSTEM_ROOT_IMAGE
+BOOLEAN IsBuildAsSystemRootImage (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsBuildAsSystemRootImage (VOID)
+{
+  return FALSE;
+}
+#endif
+
 VOID
 ResetBootDevImage (VOID)
 {
