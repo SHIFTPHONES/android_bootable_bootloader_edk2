@@ -8,7 +8,8 @@
 
 
 [BuildOptions.AARCH64]
-  GCC:*_*_*_CC_FLAGS = -O2 -DZ_SOLO --compile-and-analyze $(BUILD_REPORT_DIR)
+  GCC:*_*_*_CC_FLAGS = -O2 -DZ_SOLO
+  GCC:*_*_*_CC_FLAGS = $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT)
 
 [Sources]
   zutil.c

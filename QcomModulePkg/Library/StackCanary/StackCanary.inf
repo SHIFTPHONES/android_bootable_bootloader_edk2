@@ -40,8 +40,8 @@
 	StackCanary.c
 
 [BuildOptions.AARCH64]
-	GCC:*_*_*_CC_FLAGS = -fno-stack-protector --compile-and-analyze $(BUILD_REPORT_DIR)
-
+	GCC:*_*_*_CC_FLAGS = -fno-stack-protector
+	GCC:*_*_*_CC_FLAGS = $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT)
 [BuildOptions.ARM]
 	GCC:*_*_*_CC_FLAGS = -fno-stack-protector
 

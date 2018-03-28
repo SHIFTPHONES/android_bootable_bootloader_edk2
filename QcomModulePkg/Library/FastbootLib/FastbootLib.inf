@@ -42,7 +42,7 @@
 #
 
 [BuildOptions.AARCH64]
-  GCC:*_*_*_CC_FLAGS = --compile-and-analyze $(BUILD_REPORT_DIR)
+  GCC:*_*_*_CC_FLAGS = $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT)
 
 [Sources]
   FastbootMain.c
