@@ -43,12 +43,16 @@ else
 	UBSAN_GCC_FLAG_ALIGNMENT :=
 endif
 
-ifeq ($(ENABLE_LE_VARIANT), true)
-	ENABLE_LE_VARIANT := 1
+ifeq ($(TARGET_ARCHITECTURE), arm)
 	LOAD_ADDRESS := 0X8FB00000
 else
-	ENABLE_LE_VARIANT := 0
 	LOAD_ADDRESS := 0X9FA00000
+endif
+
+ifeq ($(ENABLE_LE_VARIANT), true)
+	ENABLE_LE_VARIANT := 1
+else
+	ENABLE_LE_VARIANT := 0
 endif
 
 .PHONY: all cleanall
