@@ -1605,11 +1605,10 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
       if (Status == EFI_SUCCESS) {
         FastbootOkay ("");
         goto out;
-      } else {
-        FastbootFail ("Error Updating partition Table\n");
-        goto out;
       }
     }
+    FastbootFail ("Error Updating partition Table\n");
+    goto out;
   }
 
   sparse_header = (sparse_header_t *)mFlashDataBuffer;
