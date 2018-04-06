@@ -813,13 +813,6 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     goto out;
   }
 
-  if (ImageSizeActual > ImageSize) {
-    Status = EFI_BUFFER_TOO_SMALL;
-    DEBUG ((EFI_D_ERROR, "Boot size in vbmeta less than actual boot image size "
-                         "flash corresponding vbmeta.img\n"));
-    goto out;
-  }
-
   if (AllowVerificationError) {
     Info->BootState = ORANGE;
   } else {
