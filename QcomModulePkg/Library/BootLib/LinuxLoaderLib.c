@@ -462,6 +462,30 @@ ReadWriteDeviceInfo (vb_device_state_op_t Mode, void *DevInfo, UINT32 Sz)
 }
 
 EFI_STATUS
+GetNandMiscPartiGuid (EFI_GUID *Ptype)
+{
+  EFI_STATUS Status = EFI_INVALID_PARAMETER;
+  EFI_NAND_PARTI_GUID_PROTOCOL *NandPartiGuid;
+
+  Status = gBS->LocateProtocol (&gEfiNandPartiGuidProtocolGuid, NULL,
+                                (VOID **)&NandPartiGuid);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Unable to locate NandPartiGuid protocol: %r\n",
+                                Status));
+    return Status;
+  }
+
+  Status = NandPartiGuid->GenGuid (NandPartiGuid, (CONST CHAR16 *)L"misc",
+                                StrLen ((CONST CHAR16 *)L"misc"), Ptype);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "NandPartiGuid GenGuid failed with: %r\n", Status));
+    return Status;
+  }
+
+  return Status;
+}
+
+EFI_STATUS
 WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
 {
   EFI_STATUS Status;

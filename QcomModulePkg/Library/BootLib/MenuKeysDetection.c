@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -39,6 +39,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UnlockMenu.h>
 #include <Library/VerifiedBootMenu.h>
+#include <Library/Board.h>
 #include <Uefi.h>
 
 #include <Protocol/EFIVerifiedBoot.h>
@@ -100,9 +101,14 @@ STATIC VOID
 UpdateDeviceStatus (OPTION_MENU_INFO *MsgInfo, INTN Reason)
 {
   CHAR8 FfbmPageBuffer[FFBM_MODE_BUF_SIZE] = "";
+  EFI_STATUS Status = EFI_SUCCESS;
+  EFI_GUID Ptype = gEfiMiscPartitionGuid;
+  MemCardType CardType = UNKNOWN;
 
   /* Clear the screen */
   gST->ConOut->ClearScreen (gST->ConOut);
+
+  CardType = CheckRootDeviceType ();
 
   switch (Reason) {
   case RECOVER:
@@ -133,14 +139,22 @@ UpdateDeviceStatus (OPTION_MENU_INFO *MsgInfo, INTN Reason)
     break;
   case FFBM:
     AsciiSPrint (FfbmPageBuffer, sizeof (FfbmPageBuffer), "ffbm-00");
-    WriteToPartition (&gEfiMiscPartitionGuid, FfbmPageBuffer,
-                      sizeof (FfbmPageBuffer));
+    if (CardType == NAND) {
+      Status = GetNandMiscPartiGuid (&Ptype);
+    }
+    if (Status == EFI_SUCCESS) {
+      WriteToPartition (&Ptype, FfbmPageBuffer, sizeof (FfbmPageBuffer));
+    }
     RebootDevice (NORMAL_MODE);
     break;
   case QMMI:
     AsciiSPrint (FfbmPageBuffer, sizeof (FfbmPageBuffer), "ffbm-02");
-    WriteToPartition (&gEfiMiscPartitionGuid, FfbmPageBuffer,
-                      sizeof (FfbmPageBuffer));
+    if (CardType == NAND) {
+      Status = GetNandMiscPartiGuid (&Ptype);
+    }
+    if (Status == EFI_SUCCESS) {
+      WriteToPartition (&Ptype, FfbmPageBuffer, sizeof (FfbmPageBuffer));
+    }
     RebootDevice (NORMAL_MODE);
     break;
   }
