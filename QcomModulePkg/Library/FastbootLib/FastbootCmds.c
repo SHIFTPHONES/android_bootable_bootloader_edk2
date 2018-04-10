@@ -181,6 +181,18 @@ typedef struct {
   VOID *Data;
 } CmdInfo;
 
+#ifdef DISABLE_PARALLEL_DOWNLOAD_FLASH
+BOOLEAN IsDisableParallelDownloadFlash (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsDisableParallelDownloadFlash (VOID)
+{
+  return FALSE;
+}
+#endif
+
 /* Clean up memory for the getvar variables during exit */
 STATIC EFI_STATUS FastbootUnInit (VOID)
 {
@@ -1640,7 +1652,8 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     PartitionSize = (BlockIo->Media->LastBlock + 1)
                         * (BlockIo->Media->BlockSize);
 
-    if (PartitionSize > MAX_DOWNLOAD_SIZE) {
+    if ((PartitionSize > MAX_DOWNLOAD_SIZE) &&
+         !IsDisableParallelDownloadFlash ()) {
       Status = HandleUsbEventsInTimer ();
       if (EFI_ERROR (Status)) {
         DEBUG ((EFI_D_ERROR, "Failed to handle usb event: %r\n", Status));
@@ -1679,7 +1692,8 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   if ((sparse_header->magic != SPARSE_HEADER_MAGIC) ||
         (PartitionSize < MAX_DOWNLOAD_SIZE) ||
         ((PartitionSize > MAX_DOWNLOAD_SIZE) &&
-        (Status != EFI_SUCCESS))) {
+        (IsDisableParallelDownloadFlash () ||
+        (Status != EFI_SUCCESS)))) {
     if (EFI_ERROR (FlashResult)) {
       if (FlashResult == EFI_NOT_FOUND) {
         AsciiSPrint (FlashResultStr, MAX_RSP_SIZE, "(%s) No such partition",
@@ -2602,29 +2616,32 @@ AcceptCmd (IN UINT64 Size, IN CHAR8 *Data)
     Size = MAX_FASTBOOT_COMMAND_SIZE;
   Data[Size] = '\0';
 
-  /* Wait for flash finished before next command */
-  if (AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
-    StopUsbTimer ();
-    if (!IsFlashComplete) {
-      Status = AcceptCmdTimerInit (Size, Data);
-      if (Status == EFI_SUCCESS)
-        return;
-    }
-  }
-
   DEBUG ((EFI_D_INFO, "Handling Cmd: %a\n", Data));
 
-  /* Check last flash result */
-  if (FlashResult != EFI_SUCCESS) {
-    AsciiSPrint (FlashResultStr, MAX_RSP_SIZE, "%a : %r",
+  if (!IsDisableParallelDownloadFlash ()) {
+    /* Wait for flash finished before next command */
+    if (AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
+      StopUsbTimer ();
+      if (!IsFlashComplete) {
+        Status = AcceptCmdTimerInit (Size, Data);
+        if (Status == EFI_SUCCESS) {
+          return;
+        }
+      }
+    }
+
+    /* Check last flash result */
+    if (FlashResult != EFI_SUCCESS) {
+      AsciiSPrint (FlashResultStr, MAX_RSP_SIZE, "%a : %r",
                  "Error: Last flash failed", FlashResult);
 
-    DEBUG ((EFI_D_ERROR, "%a\n", FlashResultStr));
-    if (!AsciiStrnCmp (Data, "flash", AsciiStrLen ("flash")) ||
-        !AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
-      FastbootFail (FlashResultStr);
-      FlashResult = EFI_SUCCESS;
-      return;
+      DEBUG ((EFI_D_ERROR, "%a\n", FlashResultStr));
+      if (!AsciiStrnCmp (Data, "flash", AsciiStrLen ("flash")) ||
+          !AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
+        FastbootFail (FlashResultStr);
+        FlashResult = EFI_SUCCESS;
+        return;
+      }
     }
   }
 

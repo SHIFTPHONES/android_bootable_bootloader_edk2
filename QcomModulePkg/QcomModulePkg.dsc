@@ -116,6 +116,9 @@
   !if $(BUILD_SYSTEM_ROOT_IMAGE)
       GCC:*_*_*_CC_FLAGS = -DBUILD_SYSTEM_ROOT_IMAGE
   !endif
+  !if $(DISABLE_PARALLEL_DOWNLOAD_FLASH) == 1
+      GCC:*_*_*_CC_FLAGS = -DDISABLE_PARALLEL_DOWNLOAD_FLASH
+  !endif
 
 [PcdsFixedAtBuild.common]
 
