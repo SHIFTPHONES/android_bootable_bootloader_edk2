@@ -2228,7 +2228,7 @@ CmdGetVar (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 STATIC VOID
 CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
-  struct boot_img_hdr *hdr = (struct boot_img_hdr *)Data;
+  boot_img_hdr *hdr = Data;
   EFI_STATUS Status = EFI_SUCCESS;
   UINT32 ImageSizeActual = 0;
   UINT32 ImageHdrSize = 0;
@@ -2254,7 +2254,7 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
     }
   }
 
-  if (Size < sizeof (struct boot_img_hdr)) {
+  if (Size < sizeof (boot_img_hdr)) {
     FastbootFail ("Invalid Boot image Header");
     return;
   }

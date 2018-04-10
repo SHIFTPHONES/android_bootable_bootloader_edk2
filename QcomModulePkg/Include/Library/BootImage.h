@@ -38,9 +38,14 @@
 #define BOOT_IMG_EMMC_PAGE_SIZE 2048
 #define BOOT_IMG_MAX_PAGE_SIZE 4096
 #define KERNEL64_HDR_MAGIC 0x644D5241 /* ARM64 */
+#define BOOT_EXTRA_ARGS_SIZE 1024
 
-/*Struct def for boot image header*/
-typedef struct boot_img_hdr {
+#define BOOT_HEADER_VERSION_ZERO 0
+/* Struct def for boot image header
+ * Bootloader expects the structure of boot_img_hdr with header version
+ *  BOOT_HEADER_VERSION_ZERO to be as follows:
+ */
+struct boot_img_hdr_v0 {
   CHAR8 magic[BOOT_MAGIC_SIZE];
 
   UINT32 kernel_size; /* size in bytes */
@@ -54,7 +59,7 @@ typedef struct boot_img_hdr {
 
   UINT32 tags_addr;  /* physical addr for kernel tags */
   UINT32 page_size;  /* flash page size we assume */
-  UINT32 dt_size;    /* device_tree in bytes */
+  UINT32 header_version; /* version for the boot image header */
   UINT32 os_version; /* version << 11 | patch_level */
 
   UINT8 name[BOOT_NAME_SIZE]; /* asciiz product name */
@@ -62,7 +67,24 @@ typedef struct boot_img_hdr {
   UINT8 cmdline[BOOT_ARGS_SIZE];
 
   UINT32 id[8]; /* timestamp / checksum / sha1 / etc */
-} boot_img_hdr;
+
+  /* Supplemental command line data; kept here to maintain
+   * binary compatibility with older versions of mkbootimg
+   */
+  UINT8 extra_cmdline[BOOT_EXTRA_ARGS_SIZE];
+} __attribute__((packed));
+
+/*
+ * It is expected that callers would explicitly specify which version of the
+ * boot image header they need to use.
+ */
+typedef struct boot_img_hdr_v0 boot_img_hdr;
+
+/**
+ * Offset of recovery DTBO length in a boot image header of version V1 or
+ * above.
+ */
+#define BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET sizeof (boot_img_hdr)
 
 /*
  * ** +-----------------+
@@ -74,13 +96,9 @@ typedef struct boot_img_hdr {
  * ** +-----------------+
  * ** | second stage    | o pages
  * ** +-----------------+
- * ** | device tree     | p pages
- * ** +-----------------+
- * **
  * ** n = (kernel_size + page_size - 1) / page_size
  * ** m = (ramdisk_size + page_size - 1) / page_size
  * ** o = (second_size + page_size - 1) / page_size
- * ** p = (dt_size + page_size - 1) / page_size
  * ** 0. all entities are page_size aligned in flash
  * ** 1. kernel and ramdisk are required (size != 0)
  * ** 2. second is optional (second_size == 0 -> no second)
@@ -92,6 +110,47 @@ typedef struct boot_img_hdr {
  * ** 6. if second_size != 0: jump to second_addr
  * **    else: jump to kernel_addr
  * */
+
+#define BOOT_HEADER_VERSION_ONE 1
+
+struct boot_img_hdr_v1 {
+  UINT32 recovery_dtbo_size;   /* size in bytes for recovery DTBO image */
+  UINT64 recovery_dtbo_offset; /* physical load addr */
+  UINT32 header_size;
+} __attribute__((packed));
+
+/* When the boot image header has a version of BOOT_HEADER_VERSION_ONE,
+ * the structure of the boot image is as follows:
+ *
+ * +-----------------+
+ * | boot header     | 1 page
+ * +-----------------+
+ * | kernel          | n pages
+ * +-----------------+
+ * | ramdisk         | m pages
+ * +-----------------+
+ * | second stage    | o pages
+ * +-----------------+
+ * | recovery dtbo   | p pages
+ * +-----------------+
+ * n = (kernel_size + page_size - 1) / page_size
+ * m = (ramdisk_size + page_size - 1) / page_size
+ * o = (second_size + page_size - 1) / page_size
+ * p = (recovery_dtbo_size + page_size - 1) / page_size
+ *
+ * 0. all entities are page_size aligned in flash
+ * 1. kernel and ramdisk are required (size != 0)
+ * 2. recovery_dtbo is required for recovery.img
+ *    in non-A/B devices(recovery_dtbo_size != 0)
+ * 3. second is optional (second_size == 0 -> no second)
+ * 4. load each element (kernel, ramdisk, second, recovery_dtbo) at
+ *    the specified physical address (kernel_addr, etc)
+ * 5. prepare tags at tag_addr.  kernel_args[] is
+ *    appended to the kernel commandline in the tags.
+ * 6. r0 = 0, r1 = MACHINE_TYPE, r2 = tags_addr
+ * 7. if second_size != 0: jump to second_addr
+ *    else: jump to kernel_addr
+ */
 
 struct kernel64_hdr {
   UINT32 Code0;       /* Executable code */

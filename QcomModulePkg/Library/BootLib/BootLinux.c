@@ -702,10 +702,10 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   UINT32 RamdiskSizeActual = 0;
 
   // Boot Image header information variables
+  UINT32 HeaderVersion = 0;
   UINT32 KernelSize = 0;
   UINT32 RamdiskSize = 0;
   UINT32 SecondSize = 0;
-  UINT32 DeviceTreeSize = 0;
   UINT32 tempImgSize = 0;
 
   if (CompareMem ((void *)((boot_img_hdr *)(ImageHdrBuffer))->magic, BOOT_MAGIC,
@@ -714,11 +714,11 @@ CheckImageHeader (VOID *ImageHdrBuffer,
     return EFI_NO_MEDIA;
   }
 
+  HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
   KernelSize = ((boot_img_hdr *)(ImageHdrBuffer))->kernel_size;
   RamdiskSize = ((boot_img_hdr *)(ImageHdrBuffer))->ramdisk_size;
   SecondSize = ((boot_img_hdr *)(ImageHdrBuffer))->second_size;
   *PageSize = ((boot_img_hdr *)(ImageHdrBuffer))->page_size;
-  DeviceTreeSize = ((boot_img_hdr *)(ImageHdrBuffer))->dt_size;
 
   if (!KernelSize || !*PageSize) {
     DEBUG ((EFI_D_ERROR, "Invalid image Sizes\n"));
@@ -743,13 +743,6 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   RamdiskSizeActual = ROUND_TO_PAGE (RamdiskSize, *PageSize - 1);
   if (RamdiskSize && !RamdiskSizeActual) {
     DEBUG ((EFI_D_ERROR, "Integer Oveflow: Ramdisk Size = %u\n", RamdiskSize));
-    return EFI_BAD_BUFFER_SIZE;
-  }
-
-  DtSizeActual = ROUND_TO_PAGE (DeviceTreeSize, *PageSize - 1);
-  if (DeviceTreeSize && !(DtSizeActual)) {
-    DEBUG (
-        (EFI_D_ERROR, "Integer Oveflow: Device Tree = %u\n", DeviceTreeSize));
     return EFI_BAD_BUFFER_SIZE;
   }
 
@@ -780,9 +773,8 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   DEBUG ((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 1            : 0x%x\n", KernelSize));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 2            : 0x%x\n", SecondSize));
-  DEBUG ((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
   DEBUG ((EFI_D_VERBOSE, "Ramdisk Size             : 0x%x\n", RamdiskSize));
-  DEBUG ((EFI_D_VERBOSE, "Device Tree Size         : 0x%x\n", DeviceTreeSize));
+  DEBUG ((EFI_D_VERBOSE, "Image Header version     : 0x%x\n", HeaderVersion));
 
   return Status;
 }
