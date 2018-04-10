@@ -177,10 +177,8 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
     return EFI_INVALID_PARAMETER;
   }
 
-  DtboImgInvalid = LoadAndValidateDtboImg (Info,
-                                           &(BootParamlistPtr->DtboImgBuffer));
-
-if (!DtboImgInvalid) {
+  DtboImgInvalid = LoadAndValidateDtboImg (Info, BootParamlistPtr);
+  if (!DtboImgInvalid) {
     // appended device tree
     Dtb = DeviceTreeAppended ((VOID *)(BootParamlistPtr->ImageBuffer +
                              BootParamlistPtr->PageSize +
@@ -466,7 +464,6 @@ BootLinux (BootInfo *Info)
 {
 
   EFI_STATUS Status;
-  UINTN ImageSize = 0;
   CHAR16 *PartitionName = NULL;
   BOOLEAN Recovery = FALSE;
   BOOLEAN AlarmBoot = FALSE;
@@ -503,12 +500,12 @@ BootLinux (BootInfo *Info)
 
   Status = GetImage (Info,
                      &BootParamlistPtr.ImageBuffer,
-                     &ImageSize,
+                     (UINTN *)&BootParamlistPtr.ImageSize,
                      (!Info->MultiSlotBoot &&
                       Recovery)? "recovery" : "boot");
   if (Status != EFI_SUCCESS ||
       BootParamlistPtr.ImageBuffer == NULL ||
-      ImageSize <= 0) {
+      BootParamlistPtr.ImageSize <= 0) {
     DEBUG ((EFI_D_ERROR, "BootLinux: Get%aImage failed!\n",
             (!Info->MultiSlotBoot &&
              Recovery)? "Recovery" : "Boot"));
@@ -611,6 +608,8 @@ BootLinux (BootInfo *Info)
     return Status;
   }
 
+  Info->HeaderVersion = ((boot_img_hdr *)
+                         (BootParamlistPtr.ImageBuffer))->header_version;
   Status = DTBImgCheckAndAppendDT (Info, &BootParamlistPtr,
                                    DtbOffset);
   if (Status != EFI_SUCCESS) {
