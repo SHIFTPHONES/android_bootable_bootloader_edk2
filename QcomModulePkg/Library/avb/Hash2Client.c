@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -35,17 +35,16 @@
 #include <Protocol/Hash2.h>
 #include <Uefi.h>
 
-/* Initializes the SHA-256 context. */
+/*
+  Initializes the SHA-256 context.
+  Ctx cannot be NULL here, it is caller's responsibility
+  to ensure Ctx is not NULL.
+*/
 void
 avb_sha256_init (AvbSHA256Ctx *Ctx)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   EFI_HASH2_PROTOCOL *pEfiHash2Protocol = NULL;
-
-  if (Ctx == NULL) {
-    DEBUG ((EFI_D_ERROR, "avb_sha256_init failed, Ctx is NULL\n"));
-    return;
-  }
 
   GUARD_OUT (gBS->LocateProtocol (&gEfiHash2ProtocolGuid, NULL,
                                   (VOID **)&pEfiHash2Protocol));
@@ -61,15 +60,19 @@ out:
   }
 }
 
-/* Updates the SHA-256 context with |len| bytes from |data|. */
+/*
+  Updates the SHA-256 context with |len| bytes from |data|.
+  Ctx cannot be NULL here, it is caller's responsibility
+  to ensure Ctx is not NULL.
+*/
 void
 avb_sha256_update (AvbSHA256Ctx *Ctx, const uint8_t *Data, uint32_t Len)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   EFI_HASH2_PROTOCOL *pEfiHash2Protocol = NULL;
 
-  if (Ctx == NULL || Data == NULL) {
-    DEBUG ((EFI_D_ERROR, "avb_sha256_update failed, Ctx or Data is NULL\n"));
+  if (Data == NULL) {
+    DEBUG ((EFI_D_ERROR, "avb_sha256_update failed, Data is NULL\n"));
     return;
   }
 
@@ -85,18 +88,17 @@ avb_sha256_update (AvbSHA256Ctx *Ctx, const uint8_t *Data, uint32_t Len)
   }
 }
 
-/* Returns the SHA-256 digest. */
+/*
+  Returns the SHA-256 digest.
+  Ctx cannot be NULL here, it is caller's responsibility
+  to ensure Ctx is not NULL.
+*/
 uint8_t *
 avb_sha256_final (AvbSHA256Ctx *Ctx)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   EFI_HASH2_OUTPUT Hash2Output;
   EFI_HASH2_PROTOCOL *pEfiHash2Protocol = NULL;
-
-  if (Ctx == NULL) {
-    DEBUG ((EFI_D_ERROR, "avb_sha256_final failed, Ctx is NULL\n"));
-    return NULL;
-  }
 
   pEfiHash2Protocol = Ctx->user_data;
   if (pEfiHash2Protocol == NULL) {
