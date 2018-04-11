@@ -490,6 +490,80 @@ GetNandMiscPartiGuid (EFI_GUID *Ptype)
 }
 
 EFI_STATUS
+WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
+                   IN UINT64 Offset,
+                   IN UINT64 Size,
+                   IN VOID *Image)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  CHAR8 *ImageBuffer = NULL;
+  UINT32 DivMsgBufSize;
+
+  if ((BlockIo == NULL) ||
+    (Image == NULL)) {
+    DEBUG ((EFI_D_ERROR, "NUll BlockIo or Image\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  /* If the Size is not divisible by BlockSize.
+    * Write the Image data to partition in twice.
+    * First, write the divisible Image buffer size to partition
+    * Second, malloc 1 BlockSize buffer for the rest Image data
+    * and then write.
+    */
+  DivMsgBufSize = (Size / BlockIo->Media->BlockSize) *
+                   BlockIo->Media->BlockSize;
+  if (DivMsgBufSize) {
+    Status = BlockIo->WriteBlocks (BlockIo,
+                                   BlockIo->Media->MediaId,
+                                   Offset,
+                                   DivMsgBufSize,
+                                   Image);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Write the divisible Image failed :%r\n", Status));
+      return Status;
+    }
+  }
+
+  if (Size - DivMsgBufSize > 0) {
+    ImageBuffer = AllocateZeroPool (BlockIo->Media->BlockSize);
+    if (ImageBuffer == NULL) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate zero pool for ImageBuffer\n"));
+      return EFI_OUT_OF_RESOURCES;
+    }
+
+    /* Read firstly to ensure the final write is not to change data
+     * in this Block other than "Size - DivMsgBufSize"
+     */
+    Status = BlockIo->ReadBlocks (BlockIo,
+                                 BlockIo->Media->MediaId,
+                                 Offset + Size / BlockIo->Media->BlockSize,
+                                 BlockIo->Media->BlockSize,
+                                 ImageBuffer);
+
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Reading block failed :%r\n", Status));
+      FreePool (ImageBuffer);
+      ImageBuffer = NULL;
+      return Status;
+    }
+
+    gBS->CopyMem (ImageBuffer, Image + DivMsgBufSize, Size - DivMsgBufSize);
+    Status = BlockIo->WriteBlocks (BlockIo,
+                                 BlockIo->Media->MediaId,
+                                 Offset+ Size / BlockIo->Media->BlockSize,
+                                 BlockIo->Media->BlockSize,
+                                 ImageBuffer);
+
+    FreePool (ImageBuffer);
+    ImageBuffer = NULL;
+  }
+
+  return Status;
+}
+
+
+EFI_STATUS
 WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
 {
   EFI_STATUS Status;
@@ -498,8 +572,6 @@ WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
   HandleInfo HandleInfoList[1];
   UINT32 MaxHandles;
   UINT32 BlkIOAttrib = 0;
-  CHAR8 *MsgBuffer = NULL;
-  UINT32 DivMsgBufSize;
 
   if (Msg == NULL)
     return EFI_INVALID_PARAMETER;
@@ -532,64 +604,7 @@ WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
   }
 
   BlkIo = HandleInfoList[0].BlkIo;
-  if (MsgSize % BlkIo->Media->BlockSize) {
-    /* If the MsgSize is not divisible by BlockSize.
-     * Write the Msg data to partition in twice.
-     * First, write the divisible Msg buffer size to partition
-     * Second, malloc 1 BlockSize buffer for the rest Msg data
-     * and then write.
-     */
-    DivMsgBufSize = (MsgSize / BlkIo->Media->BlockSize) *
-                    BlkIo->Media->BlockSize;
-    if (DivMsgBufSize) {
-      Status = BlkIo->WriteBlocks (BlkIo,
-                                   BlkIo->Media->MediaId,
-                                   0,
-                                   DivMsgBufSize,
-                                   Msg);
-      if (Status != EFI_SUCCESS) {
-        DEBUG ((EFI_D_ERROR,
-                "Write the divisible MsgBuffer failed :%r\n", Status));
-        return Status;
-      }
-    }
-
-    MsgBuffer = AllocateZeroPool (BlkIo->Media->BlockSize);
-    if (MsgBuffer == NULL) {
-      DEBUG ((EFI_D_ERROR, "Failed to allocate zero pool for MsgBuffer\n"));
-      return EFI_OUT_OF_RESOURCES;
-    }
-
-    Status = BlkIo->ReadBlocks (BlkIo,
-                                 BlkIo->Media->MediaId,
-                                 MsgSize / BlkIo->Media->BlockSize,
-                                 BlkIo->Media->BlockSize,
-                                 MsgBuffer);
-
-    if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR,
-            "Reading block failed :%r\n", Status));
-      FreePool (MsgBuffer);
-      MsgBuffer = NULL;
-      return Status;
-    }
-
-    gBS->CopyMem (MsgBuffer, Msg + DivMsgBufSize, MsgSize - DivMsgBufSize);
-    Status = BlkIo->WriteBlocks (BlkIo,
-                                 BlkIo->Media->MediaId,
-                                 MsgSize / BlkIo->Media->BlockSize,
-                                 BlkIo->Media->BlockSize,
-                                 MsgBuffer);
-
-    FreePool (MsgBuffer);
-    MsgBuffer = NULL;
-  } else {
-    Status = BlkIo->WriteBlocks (BlkIo,
-                                 BlkIo->Media->MediaId,
-                                 0,
-                                 MsgSize,
-                                 Msg);
-  }
+  Status = WriteBlockToPartition (BlkIo, 0, MsgSize, Msg);
 
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR,

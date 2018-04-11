@@ -181,4 +181,9 @@ GetBootDevice (CHAR8 *BootDevBuf, UINT32 Len);
 EFI_STATUS
 IsMdtpActive (BOOLEAN *IsActive);
 
+EFI_STATUS
+WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
+                   IN UINT64 Offset,
+                   IN UINT64 Size,
+                   IN VOID *Image);
 #endif
