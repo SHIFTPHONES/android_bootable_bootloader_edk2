@@ -1542,7 +1542,9 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   }
   AsciiStrToUnicodeStr (arg, PartitionName);
 
-  if (TargetBuildVariantUser ()) {
+  if ((GetAVBVersion () == AVB_LE) ||
+      ((GetAVBVersion () != AVB_LE) &&
+      (TargetBuildVariantUser ()))) {
     if (!IsUnlocked ()) {
       FastbootFail ("Flashing is not allowed in Lock State");
       return;
@@ -1729,7 +1731,10 @@ CmdErase (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   }
   AsciiStrToUnicodeStr (arg, PartitionName);
 
-  if (TargetBuildVariantUser ()) {
+
+  if ((GetAVBVersion () == AVB_LE) ||
+      ((GetAVBVersion () != AVB_LE) &&
+      (TargetBuildVariantUser ()))) {
     if (!IsUnlocked ()) {
       FastbootFail ("Erase is not allowed in Lock State");
       return;
@@ -2353,12 +2358,25 @@ SetDeviceUnlock (UINT32 Type, BOOLEAN State)
     return;
   }
 
-  Status = DisplayUnlockMenu (Type, State);
-  if (Status != EFI_SUCCESS) {
-    FastbootFail ("Command not support: the display is not enabled");
-    return;
+
+  if (GetAVBVersion () != AVB_LE) {
+    Status = DisplayUnlockMenu (Type, State);
+    if (Status != EFI_SUCCESS) {
+      FastbootFail ("Command not support: the display is not enabled");
+      return;
+    } else {
+      FastbootOkay ("");
+    }
   } else {
+    Status = SetDeviceUnlockValue (Type, State);
+    if (Status != EFI_SUCCESS) {
+         AsciiSPrint (response, MAX_RSP_SIZE, "\tSet device %a failed: %r",
+                  (State ? "unlocked!" : "locked!"), Status);
+         FastbootFail (response);
+         return;
+    }
     FastbootOkay ("");
+    RebootDevice (RECOVERY_MODE);
   }
 }
 #endif
