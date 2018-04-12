@@ -39,6 +39,7 @@ import subprocess
 
 allowed_warnings = set([
     "list.h:80",
+    "LinuxLoaderLib.c:526",
  ])
 
 # Capture the name of the object file, if can find it.
