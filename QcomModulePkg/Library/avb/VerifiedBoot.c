@@ -32,6 +32,7 @@
 #include "libavb/libavb.h"
 #include <Library/MenuKeysDetection.h>
 #include <Library/VerifiedBootMenu.h>
+#include <Library/LEOEMCertificate.h>
 
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
 STATIC CONST CHAR8 *VerifiedState = " androidboot.verifiedbootstate=";
@@ -70,12 +71,14 @@ typedef struct {
 UINT32
 GetAVBVersion ()
 {
-#if VERIFIED_BOOT_2
-  return 2;
+#if VERIFIED_BOOT_LE
+  return AVB_LE;
+#elif VERIFIED_BOOT_2
+  return AVB_2;
 #elif VERIFIED_BOOT
-  return 1;
+  return AVB_1;
 #else
-  return 0;
+  return NO_AVB;
 #endif
 }
 
@@ -358,6 +361,277 @@ ResultShouldContinue (AvbSlotVerifyResult Result)
 }
 
 STATIC EFI_STATUS
+LEGetImageHash (QcomAsn1x509Protocol *pEfiQcomASN1X509Protocol,
+        VB_HASH HashAlgorithm,
+        UINT8 *Img, UINTN ImgSize,
+        UINT8 *ImgHash, UINTN HashSize)
+{
+    EFI_STATUS Status = EFI_FAILURE;
+    EFI_GUID *HashAlgorithmGuid;
+    UINTN DigestSize = 0;
+    EFI_HASH2_OUTPUT Hash2Output;
+    EFI_HASH2_PROTOCOL *pEfiHash2Protocol = NULL;
+
+    if (pEfiQcomASN1X509Protocol == NULL ||
+        Img == NULL ||
+        ImgHash == NULL) {
+        DEBUG ((EFI_D_ERROR,
+                "LEGetRSAPublicKeyInfoFromCertificate: Invalid pointer\n"));
+        return EFI_INVALID_PARAMETER;
+    }
+
+    switch (HashAlgorithm) {
+    case VB_SHA256:
+        HashAlgorithmGuid = &gEfiHashAlgorithmSha256Guid;
+        break;
+    default:
+        DEBUG ((EFI_D_ERROR,
+            "VB: LEGetImageHash: not supported algorithm:%d\n", HashAlgorithm));
+        Status = EFI_UNSUPPORTED;
+        goto exit;
+    }
+
+    Status = gBS->LocateProtocol (&gEfiHash2ProtocolGuid,
+                 NULL, (VOID **)&pEfiHash2Protocol);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+        "VB:LEGetImageHash: LocateProtocol unsuccessful!Status: %r\n", Status));
+        goto exit;
+    }
+
+    Status = pEfiHash2Protocol->GetHashSize (pEfiHash2Protocol,
+                HashAlgorithmGuid, &DigestSize);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+         "VB: LEGetImageHash: GetHashSize unsuccessful! Status: %r\n", Status));
+        goto exit;
+    }
+    if (HashSize != DigestSize) {
+        DEBUG ((EFI_D_ERROR,
+            "VB: LEGetImageHash: Invalid size! HashSize: %d, DigestSize: %d\n"
+            , HashSize, DigestSize));
+        Status = EFI_FAILURE;
+        goto exit;
+    }
+    Status = pEfiHash2Protocol->HashInit (pEfiHash2Protocol, HashAlgorithmGuid);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+            "VB: LEGetImageHash: HashInit unsuccessful! Status: %r\n", Status));
+        goto exit;
+    }
+    Status = pEfiHash2Protocol->HashUpdate (pEfiHash2Protocol, Img, ImgSize);
+    if (EFI_SUCCESS != Status) {
+
+        DEBUG ((EFI_D_ERROR,
+            "VB: LEGetImageHash: HashUpdate unsuccessful(Img)!Status: %r\n"
+            , Status));
+        goto exit;
+    }
+    Status = pEfiHash2Protocol->HashFinal (pEfiHash2Protocol, &Hash2Output);
+    if (EFI_SUCCESS != Status) {
+
+        DEBUG ((EFI_D_ERROR,
+        "VB: LEGetImageHash: HashFinal unsuccessful! Status: %r\n", Status));
+        goto exit;
+    }
+    gBS->CopyMem ((VOID *)ImgHash, (VOID *)&Hash2Output, DigestSize);
+    Status = EFI_SUCCESS;
+
+exit:
+    return Status;
+}
+
+STATIC EFI_STATUS LEGetRSAPublicKeyInfoFromCertificate (
+                QcomAsn1x509Protocol *pEfiQcomASN1X509Protocol,
+                CERTIFICATE *Certificate,
+                secasn1_data_type *Modulus,
+                secasn1_data_type *PublicExp,
+                UINT32 *PaddingType)
+{
+    EFI_STATUS Status = EFI_FAILURE;
+    RSA RsaKey = {NULL};
+
+    if (pEfiQcomASN1X509Protocol == NULL ||
+        Certificate == NULL ||
+        Modulus == NULL ||
+        PublicExp == NULL ||
+        PaddingType == NULL) {
+        DEBUG ((EFI_D_ERROR,
+                "LEGetRSAPublicKeyInfoFromCertificate: Invalid pointer\n"));
+        return EFI_INVALID_PARAMETER;
+    }
+
+    Status = pEfiQcomASN1X509Protocol->ASN1X509GetRSAFromCert
+                    (pEfiQcomASN1X509Protocol, Certificate, &RsaKey);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+            "VB: ASN1X509GetRSAFromCert unsuccessful! Status : %r\n", Status));
+        goto exit;
+    }
+    Status = pEfiQcomASN1X509Protocol->ASN1X509GetKeymaterial
+            (pEfiQcomASN1X509Protocol, &RsaKey, Modulus, PublicExp);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+            "VB: ASN1X509GetKeymaterial unsuccessful! Status: %r\n", Status));
+        goto exit;
+    }
+    *PaddingType = CE_RSA_PAD_PKCS1_V1_5_SIG;
+exit:
+    return Status;
+}
+STATIC EFI_STATUS LEVerifyHashWithRSASignature (
+                UINT8 *ImgHash,
+                VB_HASH HashAlgorithm,
+                secasn1_data_type *Modulus,
+                secasn1_data_type *PublicExp,
+                UINT32 PaddingType,
+                CONST UINT8 *SignaturePtr,
+                UINT32 SignatureLen)
+{
+    EFI_STATUS Status = EFI_FAILURE;
+    CE_RSA_KEY Key = {0};
+    BigInt ModulusBi;
+    BigInt PublicExpBi;
+    INT32 HashIdx;
+    INT32 HashLen;
+    VOID *PaddingInfo = NULL;
+    QcomSecRsaProtocol *pEfiQcomSecRSAProtocol = NULL;
+    SetMem (&Key, sizeof (CE_RSA_KEY), 0);
+
+    if (ImgHash == NULL ||
+        Modulus == NULL ||
+        PublicExp == NULL ||
+        SignaturePtr == NULL) {
+        DEBUG ((EFI_D_ERROR, "LEVerifyHashWithRSASignature:Invalid pointer\n"));
+        return EFI_INVALID_PARAMETER;
+    }
+
+    switch (HashAlgorithm) {
+    case VB_SHA256:
+        HashIdx = CE_HASH_IDX_SHA256;
+        HashLen = VB_SHA256_SIZE;
+        break;
+    default:
+        DEBUG ((EFI_D_ERROR,
+                "VB: LEVerifySignature: Hash algorithm not supported\n"));
+        Status = EFI_UNSUPPORTED;
+        goto exit;
+    }
+
+    Key.N = AllocatePool (sizeof (S_BIGINT));
+    if (Key.N == NULL) {
+        DEBUG ((EFI_D_ERROR,
+                "VB: LEVerifySignature: mem allocation err for Key.N\n"));
+        goto exit;
+    }
+    Key.e = AllocatePool (sizeof (S_BIGINT));
+    if (Key.e == NULL) {
+        DEBUG ((EFI_D_ERROR,
+                "VB: LEVerifySignature: mem allocation err for Key.e\n"));
+        goto exit;
+    }
+    Status = gBS->LocateProtocol (&gEfiQcomSecRSAProtocolGuid,
+                NULL, (VOID **) &pEfiQcomSecRSAProtocol);
+    if ( Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+        "VB: LEVerifySignature: LocateProtocol failed, Status: %r\n", Status));
+        goto exit;
+    }
+
+    Status = pEfiQcomSecRSAProtocol->SecRSABigIntReadBin (
+            pEfiQcomSecRSAProtocol, Modulus->data, Modulus->Len, &ModulusBi);
+    if ( Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+                "VB: LEVerifySignature: SecRSABigIntReadBin for Modulus failed!"
+                "Status: %r\n", Status));
+        goto exit;
+    }
+    Status = pEfiQcomSecRSAProtocol->SecRSABigIntReadBin (
+        pEfiQcomSecRSAProtocol, PublicExp->data, PublicExp->Len,  &PublicExpBi);
+    if ( Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: LEVerifySignature: SecRSABigIntReadBin for"
+                        " Modulus failed! Status: %r\n", Status));
+        goto exit;
+    }
+
+    Key.N->Bi = ModulusBi;
+    Key.e->Bi = PublicExpBi;
+    Key.e->Sign = S_BIGINT_POS;
+    Key.Type = CE_RSA_KEY_PUBLIC;
+
+    Status = pEfiQcomSecRSAProtocol->SecRSAVerifySig (pEfiQcomSecRSAProtocol,
+                &Key, PaddingType,
+                    PaddingInfo, HashIdx,
+                    ImgHash, HashLen, (UINT8*)SignaturePtr, SignatureLen);
+
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+        "VB: LEVerifySignature: SecRSAVerifySig failed! Status: %r\n", Status));
+        goto exit;
+    }
+
+    DEBUG ((EFI_D_VERBOSE, "VB: LEVerifySignature: SecRSAVerifySig success!"
+                      " Status: %r\n", Status));
+
+    Status = EFI_SUCCESS;
+exit:
+    if (Key.N != NULL) {
+        FreePool (Key.N);
+    }
+    if (Key.e != NULL) {
+        FreePool (Key.e);
+    }
+    return Status;
+}
+
+STATIC EFI_STATUS LEVerifyHashWithSignature (
+                    QcomAsn1x509Protocol *pEfiQcomASN1X509Protocol,
+                    UINT8 *ImgHash, VB_HASH HashAlgorithm,
+                    CERTIFICATE *Certificate,
+                    CONST UINT8 *SignaturePtr,
+                    UINT32 SignatureLen)
+{
+    EFI_STATUS Status = EFI_FAILURE;
+    secasn1_data_type Modulus = {NULL};
+    secasn1_data_type PublicExp = {NULL};
+    UINT32 PaddingType = 0;
+
+    if (pEfiQcomASN1X509Protocol == NULL ||
+        ImgHash == NULL ||
+        Certificate == NULL ||
+        SignaturePtr == NULL) {
+        DEBUG ((EFI_D_ERROR, "LEVerifyHashWithSignature: Invalid pointer\n"));
+        return EFI_INVALID_PARAMETER;
+    }
+
+    /* TODO: get subject publick key info from certificate, implement new
+                                                    algorithm in XBL*/
+    /* XBL implemented by default sha256 and rsaEncryption with
+                                                    PKCS1_V1_5 padding*/
+
+    Status = LEGetRSAPublicKeyInfoFromCertificate (pEfiQcomASN1X509Protocol,
+                Certificate, &Modulus, &PublicExp, &PaddingType);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: LEGetRSAPublicKeyInfoFromCertificate "
+                      "unsuccessful! Status: %r\n", Status));
+        goto exit;
+    }
+
+    Status = LEVerifyHashWithRSASignature (ImgHash, HashAlgorithm,
+                &Modulus, &PublicExp, PaddingType,
+                SignaturePtr, SignatureLen);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: LEVerifyHashWithSignature unsuccessful! "
+                      "Status: %r\n", Status));
+        goto exit;
+    }
+    Status = EFI_SUCCESS;
+exit:
+    return Status;
+}
+
+
+STATIC EFI_STATUS
 LoadImageAndAuthVB2 (BootInfo *Info)
 {
   EFI_STATUS Status = EFI_SUCCESS;
@@ -560,7 +834,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
 
   /* Set Rot & Boot State*/
   Data.Color = Info->BootState;
-  Data.IsUnlocked = AllowVerificationError;
+  Data. IsUnlocked = AllowVerificationError;
   Data.PublicKeyLength = UserData->PublicKeyLen;
   Data.PublicKey = UserData->PublicKey;
 
@@ -665,6 +939,85 @@ DisplayVerifiedBootScreen (BootInfo *Info)
   return EFI_SUCCESS;
 }
 
+STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
+{
+    EFI_STATUS Status = EFI_SUCCESS;
+    QcomAsn1x509Protocol *QcomAsn1X509Protocal = NULL;
+    CONST UINT8 *OemCertFile = LeOemCertificate;
+    UINTN OemCertFileLen = sizeof (LeOemCertificate);
+    CERTIFICATE OemCert = {NULL};
+    UINTN HashSize;
+    UINT8 *ImgHash = NULL;
+    UINTN ImgSize;
+    VB_HASH HashAlgorithm;
+    UINT8 *SigAddr = NULL;
+    UINT32 SigSize = 0;
+
+    /*Load image*/
+    GUARD (VBCommonInit (Info));
+    GUARD (LoadImageNoAuth (Info));
+
+    /* Initialize Verified Boot*/
+    device_info_vb_t DevInfo_vb;
+    DevInfo_vb.is_unlocked = IsUnlocked ();
+    DevInfo_vb.is_unlock_critical = IsUnlockCritical ();
+    Status = Info->VbIntf->VBDeviceInit (Info->VbIntf,
+                                        (device_info_vb_t *)&DevInfo_vb);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: Error during VBDeviceInit: %r\n", Status));
+        return Status;
+    }
+
+    /* Locate QcomAsn1x509Protocol*/
+    Status = gBS->LocateProtocol (&gEfiQcomASN1X509ProtocolGuid, NULL,
+                                 (VOID **)&QcomAsn1X509Protocal);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: Error LocateProtocol "
+                      "gEfiQcomASN1X509ProtocolGuid: %r\n", Status));
+        return Status;
+    }
+
+    /* Read OEM certificate from the embedded header file */
+    Status = QcomAsn1X509Protocal->ASN1X509VerifyOEMCertificate
+                (QcomAsn1X509Protocal, OemCertFile, OemCertFileLen, &OemCert);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: Error during "
+                      "ASN1X509VerifyOEMCertificate: %r\n", Status));
+        return Status;
+    }
+
+    /*Calculate kernel image hash, SHA256 is used by default*/
+    HashAlgorithm = VB_SHA256;
+    HashSize = VB_SHA256_SIZE;
+    ImgSize = Info->Images[0].ImageSize;
+    ImgHash = AllocatePool (HashSize);
+    if (ImgHash == NULL) {
+        DEBUG ((EFI_D_ERROR, "kernel image hash buffer allocation failed!\n"));
+        Status = EFI_OUT_OF_RESOURCES;
+        return Status;
+    }
+    Status = LEGetImageHash (QcomAsn1X509Protocal, HashAlgorithm,
+                (UINT8 *)Info->Images[0].ImageBuffer,
+                ImgSize, ImgHash, HashSize);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: Error during VBGetImageHash: %r\n", Status));
+        return Status;
+    }
+
+    SigAddr = (UINT8 *)Info->Images[0].ImageBuffer + ImgSize;
+    SigSize = LE_BOOTIMG_SIG_SIZE;
+    Status = LEVerifyHashWithSignature (QcomAsn1X509Protocal, ImgHash,
+    HashAlgorithm, &OemCert, SigAddr, SigSize);
+
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: Error during "
+                      "LEVBVerifyHashWithSignature: %r\n", Status));
+        return Status;
+    }
+    DEBUG ((EFI_D_INFO, "VB: LoadImageAndAuthForLE complete!\n"));
+    return Status;
+}
+
 EFI_STATUS
 LoadImageAndAuth (BootInfo *Info)
 {
@@ -733,6 +1086,9 @@ LoadImageAndAuth (BootInfo *Info)
   case AVB_2:
     Status = LoadImageAndAuthVB2 (Info);
     break;
+  case AVB_LE:
+    Status = LoadImageAndAuthForLE (Info);
+    break;
   default:
     DEBUG ((EFI_D_ERROR, "Unsupported AVB version %d\n", AVBVersion));
     Status = EFI_UNSUPPORTED;
@@ -756,14 +1112,15 @@ LoadImageAndAuth (BootInfo *Info)
     return Status;
   }
 
-  DisplayVerifiedBootScreen (Info);
-  DEBUG ((EFI_D_VERBOSE, "Sending Milestone Call\n"));
-  Status = Info->VbIntf->VBSendMilestone (Info->VbIntf);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Error sending milestone call to TZ\n"));
-    return Status;
+  if (AVBVersion != AVB_LE) {
+    DisplayVerifiedBootScreen (Info);
+    DEBUG ((EFI_D_VERBOSE, "Sending Milestone Call\n"));
+    Status = Info->VbIntf->VBSendMilestone (Info->VbIntf);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Error sending milestone call to TZ\n"));
+      return Status;
+    }
   }
-
   return Status;
 }
 

@@ -57,6 +57,10 @@
 #include <Protocol/LoadedImage.h>
 #include <Protocol/SerialIo.h>
 #include <Protocol/SimpleFileSystem.h>
+#include <Protocol/EFISecRSA.h>
+#include <Protocol/Hash.h>
+#include <Protocol/Hash2.h>
+#include <Protocol/EFIASN1X509.h>
 
 #include "Board.h"
 #include "BootImage.h"
