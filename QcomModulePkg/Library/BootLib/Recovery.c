@@ -65,6 +65,10 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
       DEBUG ((EFI_D_INFO, "%s: multiple partitions found.\r\n", __func__));
       return EFI_LOAD_ERROR;
     }
+  } else {
+    DEBUG ((EFI_D_ERROR,
+           "%s: GetBlkIOHandles failed: %r\n", __func__, Status));
+    return Status;
   }
 
   BlkIo = HandleInfoList[0].BlkIo;

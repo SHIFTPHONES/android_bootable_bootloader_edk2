@@ -304,6 +304,10 @@ LoadImageFromPartition (VOID *ImageBuffer, UINT32 *ImageSize, CHAR16 *Pname)
           (EFI_D_INFO, "ExecImgFromVolume(): multiple partitions found.\r\n"));
       return EFI_LOAD_ERROR;
     }
+  } else {
+    DEBUG ((EFI_D_ERROR,
+            "%s: GetBlkIOHandles failed: %r\n", __func__, Status));
+    return Status;
   }
 
   BlkIo = HandleInfoList[0].BlkIo;
@@ -521,6 +525,10 @@ WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
       DEBUG ((EFI_D_INFO, "%s: multiple partitions found.\r\n", __func__));
       return EFI_LOAD_ERROR;
     }
+  } else {
+    DEBUG ((EFI_D_ERROR,
+            "%s: GetBlkIOHandles failed: %r\n", __func__, Status));
+    return Status;
   }
 
   BlkIo = HandleInfoList[0].BlkIo;
