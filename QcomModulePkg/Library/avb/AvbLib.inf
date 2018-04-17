@@ -40,7 +40,7 @@
 	GCC:*_*_*_CC_FLAGS = -DAVB_COMPILATION -DAVB_ENABLE_DEBUG
 
 [BuildOptions.AARCH64]
-	GCC:*_*_*_CC_FLAGS = --compile-and-analyze $(BUILD_REPORT_DIR)
+	GCC:*_*_*_CC_FLAGS = $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT)
 
 [Sources]
    libavb/avb_chain_partition_descriptor.c
