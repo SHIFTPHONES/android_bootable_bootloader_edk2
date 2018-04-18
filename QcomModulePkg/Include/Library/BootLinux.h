@@ -115,6 +115,7 @@ typedef struct BootInfo {
   UINT32 VBCmdLineLen;
   UINT32 VBCmdLineFilledLen;
   VOID *VBData;
+  UINT32 HeaderVersion;
 } BootInfo;
 
 typedef struct BootLinuxParamlist {
@@ -133,6 +134,7 @@ typedef struct BootLinuxParamlist {
   BOOLEAN BootingWith32BitKernel;
   UINT32 KernelSizeActual;
   VOID *ImageBuffer;
+  UINT64 ImageSize;
   VOID *DtboImgBuffer;
 } BootParamlist;
 
@@ -155,7 +157,8 @@ GetImage (CONST BootInfo *Info,
           UINTN *ImageSize,
           CHAR8 *ImageName);
 BOOLEAN
-LoadAndValidateDtboImg (BootInfo *Info, VOID **DtboImgBuffer);
+LoadAndValidateDtboImg (BootInfo *Info,
+                        BootParamlist *BootParamlistPtr);
 VOID SetBootDevImage (VOID);
 VOID ResetBootDevImage (VOID);
 BOOLEAN IsBootDevImage (VOID);

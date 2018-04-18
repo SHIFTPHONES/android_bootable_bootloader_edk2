@@ -840,7 +840,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   Data.PublicKeyLength = UserData->PublicKeyLen;
   Data.PublicKey = UserData->PublicKey;
 
-  BootImgHdr = (struct boot_img_hdr *)ImageBuffer;
+  BootImgHdr = (boot_img_hdr *)ImageBuffer;
   Data.SystemSecurityLevel = (BootImgHdr->os_version & 0x7FF);
   Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF800) >> 11;
 
