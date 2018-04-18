@@ -952,8 +952,11 @@ STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
     VB_HASH HashAlgorithm;
     UINT8 *SigAddr = NULL;
     UINT32 SigSize = 0;
+    CHAR8 *SystemPath = NULL;
+    UINT32 SystemPathLen = 0;
 
     /*Load image*/
+    GUARD (VBAllocateCmdLine (Info));
     GUARD (VBCommonInit (Info));
     GUARD (LoadImageNoAuth (Info));
 
@@ -1015,6 +1018,15 @@ STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
         return Status;
     }
     DEBUG ((EFI_D_INFO, "VB: LoadImageAndAuthForLE complete!\n"));
+
+    if (!IsRootCmdLineUpdated (Info)) {
+        SystemPathLen = GetSystemPath (&SystemPath);
+        if (SystemPathLen == 0 ||
+            SystemPath == NULL) {
+            return EFI_LOAD_ERROR;
+        }
+        GUARD (AppendVBCmdLine (Info, SystemPath));
+    }
     return Status;
 }
 
