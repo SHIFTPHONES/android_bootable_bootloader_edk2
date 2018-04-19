@@ -6,6 +6,8 @@
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = Zlib
 
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = $(LLVM_ENABLE_SAFESTACK) $(LLVM_SAFESTACK_USE_PTR) $(LLVM_SAFESTACK_COLORING)
 
 [BuildOptions.AARCH64]
   GCC:*_*_*_CC_FLAGS = -O2 -DZ_SOLO

@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+# * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
 # *
 # * Redistribution and use in source and binary forms, with or without
 # * modification, are permitted provided that the following conditions are
@@ -39,9 +39,13 @@
 [Sources]
 	StackCanary.c
 
+[BuildOptions]
+	GCC:*_*_*_CC_FLAGS = $(LLVM_ENABLE_SAFESTACK) $(LLVM_SAFESTACK_USE_PTR) $(LLVM_SAFESTACK_COLORING)
+
 [BuildOptions.AARCH64]
 	GCC:*_*_*_CC_FLAGS = -fno-stack-protector
 	GCC:*_*_*_CC_FLAGS = $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT)
+
 [BuildOptions.ARM]
 	GCC:*_*_*_CC_FLAGS = -fno-stack-protector
 

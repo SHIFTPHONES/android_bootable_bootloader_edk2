@@ -51,6 +51,34 @@ STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
 
+STATIC VOID* UnSafeStackPtr;
+
+STATIC EFI_STATUS __attribute__ ( (no_sanitize ("safe-stack")))
+AllocateUnSafeStackPtr (VOID)
+{
+
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  UnSafeStackPtr = AllocatePool (BOOT_LOADER_MAX_UNSAFE_STACK_SIZE);
+  if (UnSafeStackPtr == NULL) {
+    DEBUG ((EFI_D_ERROR, "Failed to Allocate memory for UnSafeStack \n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    return Status;
+  }
+
+  UnSafeStackPtr += BOOT_LOADER_MAX_UNSAFE_STACK_SIZE;
+
+  return Status;
+}
+
+//This function is to return the Unsafestack ptr address
+VOID** __attribute__ ( (no_sanitize ("safe-stack")))
+__safestack_pointer_address (VOID)
+{
+
+  return (VOID**) &UnSafeStackPtr;
+}
+
 // This function is used to Deactivate MDTP by entering recovery UI
 
 STATIC EFI_STATUS MdtpDisable (VOID)
@@ -111,7 +139,7 @@ GetRebootReason (UINT32 *ResetReason)
 
  **/
 
-EFI_STATUS EFIAPI
+EFI_STATUS EFIAPI  __attribute__ ( (no_sanitize ("safe-stack")))
 LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
 {
   EFI_STATUS Status;
@@ -122,6 +150,13 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   BOOLEAN MultiSlotBoot;
 
   DEBUG ((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
+
+  Status = AllocateUnSafeStackPtr ();
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Unable to Allocate memory for Unsafe Stack: %r\n",
+            Status));
+    goto stack_guard_update_default;
+  }
 
   StackGuardChkSetup ();
 

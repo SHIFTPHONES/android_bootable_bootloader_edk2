@@ -33,6 +33,27 @@ ABL_FV_IMG := $(BUILD_ROOT)/FV/abl.fv
 ABL_FV_ELF := $(BOOTLOADER_OUT)/../../abl.elf
 SHELL:=/bin/bash
 
+# This function is to check version compatibility, used to control features based on the compiler version. \
+Arguments should be return value, current version and supported version in order. \
+It sets return value to true if the current version is equal or greater than the supported version.
+define check_version_compatibility
+	$(eval CURR_VERSION := $(shell $(2)/clang --version |& grep -i "clang version" |& sed 's/[^0-9.]//g'))
+	$(eval CURR_VERSION_MAJOR := $(shell echo $(CURR_VERSION) |& cut -d. -f1))
+	$(eval CURR_VERSION_MINOR := $(shell echo $(CURR_VERSION) |& cut -d. -f2))
+	$(eval SUPPORTED_VERSION := $(3))
+	$(eval SUPPORTED_VERSION_MAJOR := $(shell echo $(SUPPORTED_VERSION) |& cut -d. -f1))
+	$(eval SUPPORTED_VERSION_MINOR := $(shell echo $(SUPPORTED_VERSION) |& cut -d. -f2))
+
+	ifeq ($(shell expr $(CURR_VERSION_MAJOR) \> $(SUPPORTED_VERSION_MAJOR)), 1)
+		$(1) := true
+	endif
+	ifeq ($(shell expr $(CURR_VERSION_MAJOR) \= $(SUPPORTED_VERSION_MAJOR)), 1)
+		ifeq ($(shell expr $(CURR_VERSION_MINOR) \>= $(SUPPORTED_VERSION_MINOR)), 1)
+			$(1) := true
+		endif
+	endif
+endef
+
 # UEFI UBSAN Configuration
 # ENABLE_UEFI_UBSAN := true
 
@@ -72,6 +93,24 @@ endif
 
 export SDLLVM_COMPILE_ANALYZE := $(SDLLVM_COMPILE_ANALYZE)
 export SDLLVM_ANALYZE_REPORT := $(SDLLVM_ANALYZE_REPORT)
+
+CLANG_SUPPORTS_SAFESTACK := false
+$(eval $(call check_version_compatibility, CLANG_SUPPORTS_SAFESTACK, $(CLANG_BIN), $(SAFESTACK_SUPPORTED_CLANG_VERSION)))
+
+ifeq "$(ABL_SAFESTACK)" "true"
+	ifeq "$(CLANG_SUPPORTS_SAFESTACK)" "true"
+		LLVM_ENABLE_SAFESTACK := -fsanitize=safe-stack
+		LLVM_SAFESTACK_USE_PTR := -mllvm -safestack-use-pointer-address
+		LLVM_SAFESTACK_COLORING := -mllvm -safe-stack-coloring=true
+	endif
+else
+	LLVM_ENABLE_SAFESTACK :=
+	LLVM_SAFESTACK_USE_PTR :=
+	LLVM_SAFESTACK_COLORING :=
+endif
+export LLVM_ENABLE_SAFESTACK := $(LLVM_ENABLE_SAFESTACK)
+export LLVM_SAFESTACK_USE_PTR := $(LLVM_SAFESTACK_USE_PTR)
+export LLVM_SAFESTACK_COLORING := $(LLVM_SAFESTACK_COLORING)
 
 .PHONY: all cleanall
 
