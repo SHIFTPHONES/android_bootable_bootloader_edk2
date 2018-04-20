@@ -29,7 +29,6 @@
 #include "LinuxLoaderLib.h"
 #include "Board.h"
 #include <FastbootLib/FastbootCmds.h>
-#include <Library/BoardCustom.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PartitionTableUpdate.h>
 #include <Library/Recovery.h>
@@ -201,17 +200,15 @@ UpdateDevInfo (CHAR16 *Pname, CHAR8 *ImgVersion)
   EFI_STATUS Status = EFI_SUCCESS;
 
   if (!StrCmp ((CONST CHAR16 *)Pname, (CONST CHAR16 *)L"bootloader")) {
-    AsciiStrnCpyS (DevInfo.bootloader_version, MAX_VERSION_LEN,
-                   BoardPlatformChipBaseBand (),
-                   AsciiStrLen (BoardPlatformChipBaseBand ()));
+    AsciiStrnCpyS (DevInfo.bootloader_version, MAX_VERSION_LEN, PRODUCT_NAME,
+                   AsciiStrLen (PRODUCT_NAME));
     AsciiStrnCatS (DevInfo.bootloader_version, MAX_VERSION_LEN, "-",
                    AsciiStrLen ("-"));
     AsciiStrnCatS (DevInfo.bootloader_version, MAX_VERSION_LEN, ImgVersion,
                    AsciiStrLen (ImgVersion));
   } else {
-    AsciiStrnCpyS (DevInfo.radio_version, MAX_VERSION_LEN,
-                   BoardPlatformChipBaseBand (),
-                   AsciiStrLen (BoardPlatformChipBaseBand ()));
+    AsciiStrnCpyS (DevInfo.radio_version, MAX_VERSION_LEN, PRODUCT_NAME,
+                   AsciiStrLen (PRODUCT_NAME));
     AsciiStrnCatS (DevInfo.radio_version, MAX_VERSION_LEN, "-",
                    AsciiStrLen ("-"));
     AsciiStrnCatS (DevInfo.radio_version, MAX_VERSION_LEN, ImgVersion,

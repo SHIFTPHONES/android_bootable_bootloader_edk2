@@ -28,7 +28,6 @@
 #include "AutoGen.h"
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
-#include <Library/BoardCustom.h>
 #include <Library/DebugLib.h>
 #include <Library/DeviceInfo.h>
 #include <Library/DrawUI.h>
@@ -247,9 +246,8 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
     case 2:
       /* Get product name */
       AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
-                     sizeof (mFastbootCommonMsgInfo[i].Msg),
-                     BoardPlatformChipBaseBand (),
-                     AsciiStrLen (BoardPlatformChipBaseBand ()));
+        sizeof (mFastbootCommonMsgInfo[i].Msg), PRODUCT_NAME,
+        AsciiStrLen (PRODUCT_NAME));
       break;
     case 3:
       /* Get variant value */

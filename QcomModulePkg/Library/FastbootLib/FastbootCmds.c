@@ -48,7 +48,6 @@ found at
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/BaseMemoryLib.h>
-#include <Library/BoardCustom.h>
 #include <Library/DebugLib.h>
 #include <Library/DeviceInfo.h>
 #include <Library/DevicePathLib.h>
@@ -2851,8 +2850,7 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   /* Publish getvar variables */
   FastbootPublishVar ("kernel", "uefi");
   FastbootPublishVar ("max-download-size", MAX_DOWNLOAD_SIZE_STR);
-  AsciiStrnCpyS (FullProduct, MAX_RSP_SIZE, BoardPlatformChipBaseBand (),
-                 sizeof (BoardPlatformChipBaseBand ()));
+  AsciiSPrint (FullProduct, sizeof (FullProduct), "%a", PRODUCT_NAME);
   FastbootPublishVar ("product", FullProduct);
   FastbootPublishVar ("serialno", StrSerialNum);
   FastbootPublishVar ("secure", IsSecureBootEnabled () ? "yes" : "no");
