@@ -105,6 +105,7 @@ STATIC CHAR8 StrBatteryVoltage[MAX_RSP_SIZE];
 STATIC CHAR8 StrBatterySocOk[MAX_RSP_SIZE];
 STATIC CHAR8 ChargeScreenEnable[MAX_RSP_SIZE];
 STATIC CHAR8 OffModeCharge[MAX_RSP_SIZE];
+STATIC CHAR8 StrSocVersion[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
   CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -2869,6 +2870,10 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
                IsChargingScreenEnable ());
   FastbootPublishVar ("off-mode-charge", ChargeScreenEnable);
   FastbootPublishVar ("unlocked", IsUnlocked () ? "yes" : "no");
+
+  AsciiSPrint (StrSocVersion, sizeof (StrSocVersion), "%x",
+                BoardPlatformChipVersion ());
+  FastbootPublishVar ("hw-revision", StrSocVersion);
 
   /* Register handlers for the supported commands*/
   UINT32 FastbootCmdCnt = sizeof (cmd_list) / sizeof (cmd_list[0]);
