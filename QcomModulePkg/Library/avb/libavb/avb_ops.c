@@ -444,12 +444,29 @@ AvbIOResult
 AvbWriteRollbackIndex(AvbOps *Ops, size_t RollbackIndexLocation, uint64_t RollbackIndex)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
+        BOOLEAN UpdateRollbackIndex = FALSE;
+        AvbOpsUserData *UserData = NULL;
 
 	DEBUG((EFI_D_VERBOSE,
 	       "WriteRollbackIndex Location %d, RollbackIndex %d\n",
 	       RollbackIndexLocation, RollbackIndex));
-	/* Update rollback if the current slot is bootable */
-	if (IsCurrentSlotBootable()) {
+
+        UserData = (AvbOpsUserData *)Ops->user_data;
+        if (UserData->IsMultiSlot) {
+                /* Update rollback if the current slot is bootable */
+                if (IsCurrentSlotBootable ()) {
+                          UpdateRollbackIndex = TRUE;
+                } else {
+                          UpdateRollbackIndex = FALSE;
+                          DEBUG ((EFI_D_WARN, "Not updating rollback"
+                              "index as current slot is unbootable\n"));
+                }
+         } else {
+                /* When Multislot is disabled, always update*/
+                UpdateRollbackIndex = TRUE;
+         }
+
+         if (UpdateRollbackIndex == TRUE) {
 		DEBUG((EFI_D_INFO,
 		       "Updating rollback index %d, for location %d\n",
 		       RollbackIndex, RollbackIndexLocation));
@@ -458,9 +475,6 @@ AvbWriteRollbackIndex(AvbOps *Ops, size_t RollbackIndexLocation, uint64_t Rollba
 			DEBUG((EFI_D_ERROR, "ReadRollbackIndex failed! %r\n", Status));
 			return AVB_IO_RESULT_ERROR_IO;
 		}
-	} else {
-		DEBUG((EFI_D_WARN, "Not updating rollback index as current "
-		                   "slot is unbootable\n"));
 	}
 	return AVB_IO_RESULT_OK;
 }
