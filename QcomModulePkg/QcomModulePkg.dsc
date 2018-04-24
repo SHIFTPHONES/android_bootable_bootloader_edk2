@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+# * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
 # *
 # * Redistribution and use in source and binary forms, with or without
 # * modification, are permitted provided that the following conditions are
@@ -112,6 +112,9 @@
   !endif
   !if $(ENABLE_LE_VARIANT) == 1
       GCC:*_*_*_CC_FLAGS = -DENABLE_LE_VARIANT
+  !endif
+  !if $(BUILD_SYSTEM_ROOT_IMAGE)
+      GCC:*_*_*_CC_FLAGS = -DBUILD_SYSTEM_ROOT_IMAGE
   !endif
 
 [PcdsFixedAtBuild.common]
