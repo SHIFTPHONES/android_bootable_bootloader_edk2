@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -66,6 +66,9 @@
 #define MAX_FASTBOOT_COMMAND_SIZE 64
 #define RECOVERY_WIPE_DATA                                                     \
   "recovery\n--wipe_data\n--reason=MasterClearConfirm\n--locale=en_US\n"
+
+/* Fs detection macros  and definitions */
+#define RAW_FS_STR "raw"
 
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 

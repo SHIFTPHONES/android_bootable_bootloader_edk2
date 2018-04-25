@@ -88,6 +88,8 @@ STATIC struct GetVarPartitionInfo part_info[] = {
     {"cache", "partition-size:", "partition-type:", "", "ext4"},
 };
 
+STATIC struct GetVarPartitionInfo PublishedPartInfo[MAX_NUM_PARTITIONS];
+
 #ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC CONST CHAR16 *CriticalPartitions[] = {
     L"abl",  L"rpm",        L"tz",      L"sdi",       L"xbl",       L"hyp",
@@ -2686,58 +2688,144 @@ AcceptCmd (IN UINT64 Size, IN CHAR8 *Data)
 }
 
 STATIC EFI_STATUS
-PublishGetVarPartitionInfo (IN struct GetVarPartitionInfo *info,
-                            IN UINT32 num_parts)
+GetPartitionType (IN CHAR16 *PartName, OUT CHAR8 * PartType)
 {
-  UINT32 i;
+  UINT32 LoopCounter;
+  CHAR8 AsciiPartName[MAX_GET_VAR_NAME_SIZE];
+
+  if (PartName == NULL ||
+      PartType == NULL) {
+    DEBUG ((EFI_D_ERROR, "Invalid parameters to GetPartitionType\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  /* By default copy raw to response */
+  AsciiStrnCpyS (PartType, MAX_GET_VAR_NAME_SIZE,
+                  RAW_FS_STR, AsciiStrLen (RAW_FS_STR));
+  UnicodeStrToAsciiStr (PartName, AsciiPartName);
+
+  /* Mark partition type for hard-coded partitions only */
+  for (LoopCounter = 0; LoopCounter < ARRAY_SIZE (part_info); LoopCounter++) {
+    /* Check if its a hardcoded partition type */
+    if (!AsciiStrnCmp ((CONST CHAR8 *) AsciiPartName,
+                          part_info[LoopCounter].part_name,
+                          AsciiStrLen (part_info[LoopCounter].part_name))) {
+          AsciiStrnCpyS (PartType, MAX_GET_VAR_NAME_SIZE,
+                          part_info[LoopCounter].type_response,
+                          AsciiStrLen (part_info[LoopCounter].type_response));
+    }
+  }
+  return EFI_SUCCESS;
+}
+
+STATIC EFI_STATUS
+GetPartitionSize (IN CHAR16 *PartName, OUT CHAR8 * PartSize)
+{
   EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
   EFI_HANDLE *Handle = NULL;
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
-  CHAR16 PartitionNameUniCode[MAX_GPT_NAME_SIZE];
-  Slot CurrentSlot;
-  CHAR8 CurrSlotAscii[MAX_SLOT_SUFFIX_SZ];
 
-  for (i = 0; i < num_parts; i++) {
-    AsciiStrToUnicodeStr (info[i].part_name, PartitionNameUniCode);
-    if (PartitionHasMultiSlot (PartitionNameUniCode)) {
-      CurrentSlot = GetCurrentSlotSuffix ();
-      StrnCatS (PartitionNameUniCode, MAX_GPT_NAME_SIZE, CurrentSlot.Suffix,
-                StrLen (CurrentSlot.Suffix));
-      UnicodeStrToAsciiStr (CurrentSlot.Suffix, CurrSlotAscii);
-      AsciiStrnCatS ((CHAR8 *)info[i].part_name, MAX_GET_VAR_NAME_SIZE,
-                     CurrSlotAscii, MAX_SLOT_SUFFIX_SZ);
-    }
-    Status = PartitionGetInfo (PartitionNameUniCode, &BlockIo, &Handle);
-    if (Status != EFI_SUCCESS)
-      return Status;
-    if (!BlockIo) {
-      DEBUG ((EFI_D_ERROR, "BlockIo for %a is corrupted\n", info[i].part_name));
-      return EFI_VOLUME_CORRUPTED;
-    }
-    if (!Handle) {
-      DEBUG (
-          (EFI_D_ERROR, "EFI handle for %a is corrupted\n", info[i].part_name));
-      return EFI_VOLUME_CORRUPTED;
-    }
-
-    AsciiSPrint (info[i].size_response, MAX_RSP_SIZE, " 0x%llx",
-                 (UINT64) (BlockIo->Media->LastBlock + 1) *
-                     BlockIo->Media->BlockSize);
-
-    Status = AsciiStrnCatS (info[i].getvar_size_str, MAX_GET_VAR_NAME_SIZE,
-                            info[i].part_name, AsciiStrLen (info[i].part_name));
-    if (EFI_ERROR (Status))
-      DEBUG ((EFI_D_ERROR, "Error Publishing the partition size info\n"));
-
-    Status = AsciiStrnCatS (info[i].getvar_type_str, MAX_GET_VAR_NAME_SIZE,
-                            info[i].part_name, AsciiStrLen (info[i].part_name));
-    if (EFI_ERROR (Status))
-      DEBUG ((EFI_D_ERROR, "Error Publishing the partition type info\n"));
-
-    FastbootPublishVar (info[i].getvar_size_str, info[i].size_response);
-    FastbootPublishVar (info[i].getvar_type_str, info[i].type_response);
+  Status = PartitionGetInfo (PartName, &BlockIo, &Handle);
+  if (Status != EFI_SUCCESS) {
+    return Status;
   }
-  return Status;
+
+  if (!BlockIo) {
+    DEBUG ((EFI_D_ERROR, "BlockIo for %s is corrupted\n", PartName));
+    return EFI_VOLUME_CORRUPTED;
+  }
+
+  AsciiSPrint (PartSize, MAX_RSP_SIZE, " 0x%llx",
+               (UINT64) (BlockIo->Media->LastBlock + 1) *
+                   BlockIo->Media->BlockSize);
+  return EFI_SUCCESS;
+
+}
+
+STATIC EFI_STATUS
+PublishGetVarPartitionInfo (
+                            IN struct GetVarPartitionInfo *PublishedPartInfo,
+                            IN UINT32 NumParts)
+{
+  UINT32 PtnLoopCount;
+  EFI_STATUS Status = EFI_INVALID_PARAMETER;
+  EFI_STATUS RetStatus = EFI_SUCCESS;
+  CHAR16 *PartitionNameUniCode = NULL;
+  BOOLEAN PublishType;
+  BOOLEAN PublishSize;
+
+  /* Clear Published Partition Buffer */
+  gBS->SetMem (PublishedPartInfo,
+          sizeof (struct GetVarPartitionInfo) * MAX_NUM_PARTITIONS, 0);
+
+  /* Loop will go through each partition entry
+     and publish info for all partitions.*/
+  for (PtnLoopCount = 1; PtnLoopCount <= NumParts; PtnLoopCount++) {
+    PublishType = FALSE;
+    PublishSize = FALSE;
+    PartitionNameUniCode = PtnEntries[PtnLoopCount].PartEntry.PartitionName;
+    /* Skip Null/last partition */
+    if (PartitionNameUniCode[0] == '\0') {
+      continue;
+    }
+    UnicodeStrToAsciiStr (PtnEntries[PtnLoopCount].PartEntry.PartitionName,
+                          (CHAR8 *)PublishedPartInfo[PtnLoopCount].part_name);
+
+    /* Fill partition size variable and response string */
+    AsciiStrnCpyS (PublishedPartInfo[PtnLoopCount].getvar_size_str,
+                      MAX_GET_VAR_NAME_SIZE, "partition-size:",
+                      AsciiStrLen ("partition-size:"));
+    Status = AsciiStrnCatS (PublishedPartInfo[PtnLoopCount].getvar_size_str,
+                            MAX_GET_VAR_NAME_SIZE,
+                            PublishedPartInfo[PtnLoopCount].part_name,
+                            AsciiStrLen (
+                              PublishedPartInfo[PtnLoopCount].part_name));
+    if (!EFI_ERROR (Status)) {
+      Status = GetPartitionSize (
+                            PartitionNameUniCode,
+                            PublishedPartInfo[PtnLoopCount].size_response);
+      if (Status == EFI_SUCCESS) {
+        PublishSize = TRUE;
+      }
+    }
+
+    /* Fill partition type variable and response string */
+    AsciiStrnCpyS (PublishedPartInfo[PtnLoopCount].getvar_type_str,
+                    MAX_GET_VAR_NAME_SIZE, "partition-type:",
+                    AsciiStrLen ("partition-type:"));
+    Status = AsciiStrnCatS (PublishedPartInfo[PtnLoopCount].getvar_type_str,
+                              MAX_GET_VAR_NAME_SIZE,
+                              PublishedPartInfo[PtnLoopCount].part_name,
+                              AsciiStrLen (
+                                PublishedPartInfo[PtnLoopCount].part_name));
+    if (!EFI_ERROR (Status)) {
+      Status = GetPartitionType (
+                            PartitionNameUniCode,
+                            PublishedPartInfo[PtnLoopCount].type_response);
+      if (Status == EFI_SUCCESS) {
+        PublishType = TRUE;
+      }
+    }
+
+    if (PublishSize) {
+      FastbootPublishVar (PublishedPartInfo[PtnLoopCount].getvar_size_str,
+                              PublishedPartInfo[PtnLoopCount].size_response);
+    } else {
+        DEBUG ((EFI_D_ERROR, "Error Publishing size info for %s partition\n",
+                                                        PartitionNameUniCode));
+        RetStatus = EFI_INVALID_PARAMETER;
+    }
+
+    if (PublishType) {
+      FastbootPublishVar (PublishedPartInfo[PtnLoopCount].getvar_type_str,
+                              PublishedPartInfo[PtnLoopCount].type_response);
+    } else {
+        DEBUG ((EFI_D_ERROR, "Error Publishing type info for %s partition\n",
+                                                        PartitionNameUniCode));
+        RetStatus = EFI_INVALID_PARAMETER;
+    }
+  }
+  return RetStatus;
 }
 
 STATIC EFI_STATUS
@@ -2787,6 +2875,7 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   CHAR8 DeviceType[MAX_RSP_SIZE] = "\0";
   BOOLEAN BatterySocOk = FALSE;
   UINT32 BatteryVoltage = 0;
+  UINT32 PartitionCount = 0;
   BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
   MemCardType Type = UNKNOWN;
 
@@ -2867,10 +2956,10 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
     DEBUG ((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
   }
 
-  Status = PublishGetVarPartitionInfo (part_info, sizeof (part_info) /
-                                                      sizeof (part_info[0]));
+  GetPartitionCount (&PartitionCount);
+  Status = PublishGetVarPartitionInfo (PublishedPartInfo, PartitionCount);
   if (Status != EFI_SUCCESS)
-    DEBUG ((EFI_D_ERROR, "Partition Table info is not populated\n"));
+    DEBUG ((EFI_D_ERROR, "Failed to publish part info for all partitions\n"));
   BoardHwPlatformName (HWPlatformBuf, sizeof (HWPlatformBuf));
   GetRootDeviceType (DeviceType, sizeof (DeviceType));
   AsciiSPrint (StrVariant, sizeof (StrVariant), "%a %a", HWPlatformBuf,
