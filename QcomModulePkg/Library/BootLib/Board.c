@@ -367,27 +367,12 @@ GetPageSize (UINT32 *PageSize)
   UINT32 Type;
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
 
+  *PageSize = BOOT_IMG_MAX_PAGE_SIZE;
   Type = CheckRootDeviceType ();
-
-  switch (Type) {
-  case EMMC:
-    *PageSize = BOOT_IMG_EMMC_PAGE_SIZE;
-    break;
-  case UFS:
-  case NAND:
-    Status = GetDeviceHandleInfo (HandleInfoList, MaxHandles, Type);
-    if (EFI_ERROR (Status)) {
-      /** if handle info is not  found/failed to get
-          then default Pagesize will be returned **/
-      *PageSize = BOOT_IMG_MAX_PAGE_SIZE;
-    } else {
-      BlkIo = HandleInfoList[0].BlkIo;
-      *PageSize = BlkIo->Media->BlockSize;
-    }
-    break;
-  default:
-    *PageSize = BOOT_IMG_MAX_PAGE_SIZE;
-    break;
+  Status = GetDeviceHandleInfo (HandleInfoList, MaxHandles, Type);
+  if (Status == EFI_SUCCESS) {
+    BlkIo = HandleInfoList[0].BlkIo;
+    *PageSize = BlkIo->Media->BlockSize;
   }
 }
 
