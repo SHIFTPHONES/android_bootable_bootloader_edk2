@@ -56,19 +56,27 @@ typedef enum {
   EFI_PLATFORMINFO_TYPE_DRAGONBOARD = 0x0A, /**< DragonBoard@tm device. */
   EFI_PLATFORMINFO_TYPE_QRD = 0x0B,         /**< QRD device. */
   EFI_PLATFORMINFO_TYPE_EVB = 0x0C,         /**< EVB device. */
+  EFI_PLATFORMINFO_TYPE_HRD = 0x0D,         /**< HRD device. */
+  EFI_PLATFORMINFO_TYPE_DTV = 0x0E,  /**< DTV device. */
   EFI_PLATFORMINFO_TYPE_RUMI = 0x0F, /**< Target is on Rumi (ASIC emulation). */
-  EFI_PLATFORMINFO_TYPE_VIRTIO =
-      0x10, /**< Target is on Virtio (system-level simulation). */
+  EFI_PLATFORMINFO_TYPE_VIRTIO = 0x10,  /**< Target is on Virtio
+                                            (system-level simulation). */
   EFI_PLATFORMINFO_TYPE_GOBI = 0x11, /**< Gobi@tm device. */
+  EFI_PLATFORMINFO_TYPE_CBH  = 0x12,  /**< CBH device. */
   EFI_PLATFORMINFO_TYPE_BTS = 0x13,  /**< BTS device. */
   EFI_PLATFORMINFO_TYPE_XPM = 0x14,  /**< XPM device. */
   EFI_PLATFORMINFO_TYPE_RCM = 0x15,  /**< RCM device. */
+  EFI_PLATFORMINFO_TYPE_DMA = 0x16,  /**< DMA device. */
   EFI_PLATFORMINFO_TYPE_STP = 0x17,  /**< STP device. */
   EFI_PLATFORMINFO_TYPE_SBC = 0x18,  /**< SBC device. */
   EFI_PLATFORMINFO_TYPE_ADP = 0x19,  /**< ADP device. */
+  EFI_PLATFORMINFO_TYPE_CHI = 0x1A,  /**< CHI device. */
   EFI_PLATFORMINFO_TYPE_SDP = 0x1B,  /**< SDP device. */
   EFI_PLATFORMINFO_TYPE_RRP = 0x1C,  /**< RRP device. */
+  EFI_PLATFORMINFO_TYPE_CLS = 0x1D,  /**< CLS device. */
+  EFI_PLATFORMINFO_TYPE_TTP = 0x1E,  /**< TTP device. */
   EFI_PLATFORMINFO_TYPE_HDK = 0x1F,  /**< HDK device. */
+  EFI_PLATFORMINFO_TYPE_IOT = 0x20,  /**< IOT device. */
   EFI_PLATFORMINFO_TYPE_ATP = 0x21,  /**< ATP device. */
 
   EFI_PLATFORMINFO_NUM_TYPES, /**< Number of known targets
