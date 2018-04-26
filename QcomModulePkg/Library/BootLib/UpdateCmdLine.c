@@ -56,7 +56,8 @@ STATIC CONST CHAR8 *AlarmBootCmdLine = " androidboot.alarmboot=true";
 
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
-STATIC CHAR8 *RootCmdLine = " rootwait ro init=/init";
+STATIC CHAR8 *RootCmdLine = " rootwait ro init=";
+STATIC CHAR8 *InitCmdline = INIT_BIN;
 STATIC CHAR8 *SkipRamFs = " skip_initramfs";
 
 /* Display command line related structures */
@@ -464,12 +465,17 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
       STR_COPY (Dst, Src);
     }
 
-    /* Add root command line */
-    Src = Param->RootCmdLine;
-    --Dst;
-    STR_COPY (Dst, Src);
-  }
-  return EFI_SUCCESS;
+     /* Add root command line */
+     Src = Param->RootCmdLine;
+     --Dst;
+     STR_COPY (Dst, Src);
+
+     /* Add init value*/
+     Src = Param->InitCmdline;
+     --Dst;
+     STR_COPY (Dst, Src);
+   }
+   return EFI_SUCCESS;
 }
 
 /*Update command line: appends boot information to the original commandline
@@ -577,6 +583,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     CmdLineLen += AsciiStrLen (AndroidSlotSuffix) + 2;
 
     CmdLineLen += AsciiStrLen (RootCmdLine);
+    CmdLineLen += AsciiStrLen (InitCmdline);
 
     if (!Recovery)
       CmdLineLen += AsciiStrLen (SkipRamFs);
@@ -610,6 +617,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   Param.AndroidSlotSuffix = AndroidSlotSuffix;
   Param.SkipRamFs = SkipRamFs;
   Param.RootCmdLine = RootCmdLine;
+  Param.InitCmdline = InitCmdline;
 
   Status = UpdateCmdLineParams (&Param, FinalCmdLine);
   if (Status != EFI_SUCCESS) {

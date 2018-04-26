@@ -120,6 +120,9 @@
   !if $(DISABLE_PARALLEL_DOWNLOAD_FLASH) == 1
       GCC:*_*_*_CC_FLAGS = -DDISABLE_PARALLEL_DOWNLOAD_FLASH
   !endif
+  !ifdef $(INIT_BIN)
+      GCC:*_*_*_CC_FLAGS = -DINIT_BIN='$(INIT_BIN)'
+  !endif
 
 [PcdsFixedAtBuild.common]
 
