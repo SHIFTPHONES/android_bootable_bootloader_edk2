@@ -106,6 +106,8 @@ STATIC CHAR8 StrBatterySocOk[MAX_RSP_SIZE];
 STATIC CHAR8 ChargeScreenEnable[MAX_RSP_SIZE];
 STATIC CHAR8 OffModeCharge[MAX_RSP_SIZE];
 STATIC CHAR8 StrSocVersion[MAX_RSP_SIZE];
+STATIC CHAR8 LogicalBlkSizeStr[MAX_RSP_SIZE];
+STATIC CHAR8 EraseBlkSizeStr[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
   CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -170,6 +172,8 @@ AcceptCmd (IN UINT64 Size, IN CHAR8 *Data);
 STATIC VOID
 AcceptCmdHandler (IN EFI_EVENT Event, IN VOID *Context);
 
+#define NAND_PAGES_PER_BLOCK 64
+
 #define UBI_HEADER_MAGIC "UBI#"
 #define UBI_NUM_IMAGES 1
 typedef struct UbiHeader {
@@ -180,6 +184,18 @@ typedef struct {
   UINT64 Size;
   VOID *Data;
 } CmdInfo;
+
+#ifdef DISABLE_PARALLEL_DOWNLOAD_FLASH
+BOOLEAN IsDisableParallelDownloadFlash (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsDisableParallelDownloadFlash (VOID)
+{
+  return FALSE;
+}
+#endif
 
 /* Clean up memory for the getvar variables during exit */
 STATIC EFI_STATUS FastbootUnInit (VOID)
@@ -1640,7 +1656,8 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     PartitionSize = (BlockIo->Media->LastBlock + 1)
                         * (BlockIo->Media->BlockSize);
 
-    if (PartitionSize > MAX_DOWNLOAD_SIZE) {
+    if ((PartitionSize > MAX_DOWNLOAD_SIZE) &&
+         !IsDisableParallelDownloadFlash ()) {
       Status = HandleUsbEventsInTimer ();
       if (EFI_ERROR (Status)) {
         DEBUG ((EFI_D_ERROR, "Failed to handle usb event: %r\n", Status));
@@ -1679,7 +1696,8 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   if ((sparse_header->magic != SPARSE_HEADER_MAGIC) ||
         (PartitionSize < MAX_DOWNLOAD_SIZE) ||
         ((PartitionSize > MAX_DOWNLOAD_SIZE) &&
-        (Status != EFI_SUCCESS))) {
+        (IsDisableParallelDownloadFlash () ||
+        (Status != EFI_SUCCESS)))) {
     if (EFI_ERROR (FlashResult)) {
       if (FlashResult == EFI_NOT_FOUND) {
         AsciiSPrint (FlashResultStr, MAX_RSP_SIZE, "(%s) No such partition",
@@ -2602,29 +2620,32 @@ AcceptCmd (IN UINT64 Size, IN CHAR8 *Data)
     Size = MAX_FASTBOOT_COMMAND_SIZE;
   Data[Size] = '\0';
 
-  /* Wait for flash finished before next command */
-  if (AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
-    StopUsbTimer ();
-    if (!IsFlashComplete) {
-      Status = AcceptCmdTimerInit (Size, Data);
-      if (Status == EFI_SUCCESS)
-        return;
-    }
-  }
-
   DEBUG ((EFI_D_INFO, "Handling Cmd: %a\n", Data));
 
-  /* Check last flash result */
-  if (FlashResult != EFI_SUCCESS) {
-    AsciiSPrint (FlashResultStr, MAX_RSP_SIZE, "%a : %r",
+  if (!IsDisableParallelDownloadFlash ()) {
+    /* Wait for flash finished before next command */
+    if (AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
+      StopUsbTimer ();
+      if (!IsFlashComplete) {
+        Status = AcceptCmdTimerInit (Size, Data);
+        if (Status == EFI_SUCCESS) {
+          return;
+        }
+      }
+    }
+
+    /* Check last flash result */
+    if (FlashResult != EFI_SUCCESS) {
+      AsciiSPrint (FlashResultStr, MAX_RSP_SIZE, "%a : %r",
                  "Error: Last flash failed", FlashResult);
 
-    DEBUG ((EFI_D_ERROR, "%a\n", FlashResultStr));
-    if (!AsciiStrnCmp (Data, "flash", AsciiStrLen ("flash")) ||
-        !AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
-      FastbootFail (FlashResultStr);
-      FlashResult = EFI_SUCCESS;
-      return;
+      DEBUG ((EFI_D_ERROR, "%a\n", FlashResultStr));
+      if (!AsciiStrnCmp (Data, "flash", AsciiStrLen ("flash")) ||
+          !AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
+        FastbootFail (FlashResultStr);
+        FlashResult = EFI_SUCCESS;
+        return;
+      }
     }
   }
 
@@ -2767,6 +2788,7 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   BOOLEAN BatterySocOk = FALSE;
   UINT32 BatteryVoltage = 0;
   BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+  MemCardType Type = UNKNOWN;
 
   mDataBuffer = base;
   mNumDataBytes = size;
@@ -2777,6 +2799,7 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
 
   /* Find all Software Partitions in the User Partition */
   UINT32 i;
+  UINT32 BlkSize = 0;
   DeviceInfo *DevInfoPtr = NULL;
 
   struct FastbootCmdDesc cmd_list[] = {
@@ -2853,6 +2876,16 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   AsciiSPrint (StrVariant, sizeof (StrVariant), "%a %a", HWPlatformBuf,
                DeviceType);
   FastbootPublishVar ("variant", StrVariant);
+  GetPageSize (&BlkSize);
+  AsciiSPrint (LogicalBlkSizeStr, sizeof (LogicalBlkSizeStr), " 0x%x", BlkSize);
+  FastbootPublishVar ("logical-block-size", LogicalBlkSizeStr);
+  Type = CheckRootDeviceType ();
+  if (Type == NAND) {
+    BlkSize = NAND_PAGES_PER_BLOCK * BlkSize;
+  }
+
+  AsciiSPrint (EraseBlkSizeStr, sizeof (EraseBlkSizeStr), " 0x%x", BlkSize);
+  FastbootPublishVar ("erase-block-size", EraseBlkSizeStr);
   GetDevInfo (&DevInfoPtr);
   FastbootPublishVar ("version-bootloader", DevInfoPtr->bootloader_version);
   FastbootPublishVar ("version-baseband", DevInfoPtr->radio_version);
