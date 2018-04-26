@@ -2058,7 +2058,8 @@ FastbootCmdsInit (VOID)
   /* Allocate buffer used to store images passed by the download command */
   Status =
         GetFastbootDeviceData ().UsbDeviceProtocol->AllocateTransferBuffer (
-               IsLEVariant () ? MAX_BUFFER_SIZE : (MAX_BUFFER_SIZE * 2),
+               (CheckRootDeviceType () == NAND) ?
+                      MAX_BUFFER_SIZE : (MAX_BUFFER_SIZE * 2),
                (VOID **)&FastBootBuffer);
 
   if (Status != EFI_SUCCESS) {
@@ -2773,7 +2774,8 @@ FastbootCommandSetup (IN VOID *base, IN UINT32 size)
   mFlashNumDataBytes = size;
   mUsbDataBuffer = base;
 
-  mFlashDataBuffer = IsLEVariant () ? base : (base + MAX_BUFFER_SIZE);
+  mFlashDataBuffer = (CheckRootDeviceType () == NAND) ?
+                           base : (base + MAX_BUFFER_SIZE);
 
   /* Find all Software Partitions in the User Partition */
   UINT32 i;
