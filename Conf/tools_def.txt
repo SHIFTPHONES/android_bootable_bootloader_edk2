@@ -194,6 +194,8 @@ DEFINE IASL_OUTFLAGS           = -p
 DEFINE MS_ASL_OUTFLAGS         = /Fo=
 DEFINE MS_ASL_FLAGS            =
 
+DEFINE __FORTIFY_SOURCE        =
+
 DEFINE DEFAULT_WIN_ASL_BIN      = DEF(WIN_IASL_BIN)
 DEFINE DEFAULT_WIN_ASL_FLAGS    = DEF(IASL_FLAGS)
 DEFINE DEFAULT_WIN_ASL_OUTFLAGS = DEF(IASL_OUTFLAGS)
@@ -4681,11 +4683,11 @@ RELEASE_GCC49_AARCH64_CC_FLAGS   = DEF(GCC49_AARCH64_CC_FLAGS) -Wno-unused-but-s
 DEFINE CLANG35_GCC_TOOLCHAIN = --gcc-toolchain=ENV(CLANG35_GCC_TOOLCHAIN)
 DEFINE CLANG35_SETTINGS_CC_FLAGS = -fcolor-diagnostics -fdiagnostics-format=vi
 DEFINE CLANG35_WARNING_OVERRIDES = -Wno-parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body
-DEFINE CLANG35_AARCH64_CC_FLAGS  = DEF(GCC_AARCH64_CC_FLAGS) DEF(CLANG35_GCC_TOOLCHAIN) -target aarch64-linux-gnu -mcmodel=small -mstrict-align DEF(CLANG35_WARNING_OVERRIDES)
+DEFINE CLANG35_AARCH64_CC_FLAGS  = DEF(GCC_AARCH64_CC_FLAGS) DEF(CLANG35_GCC_TOOLCHAIN) -target aarch64-linux-gnu -mcmodel=small -mstrict-align DEF(CLANG35_WARNING_OVERRIDES)  -D=__FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -O2
 
 DEFINE CLANG35_ARM_TARGET        = -target armv7-none-linux-gnueabi
 DEFINE CLANG35_ARM_WARNING_OVERRIDES = -Wno-parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-varargs -Wno-unused-function -Wno-bitwise-op-parentheses
-DEFINE CLANG35_ARM_CC_FLAGS      = DEF(QC_GCC_ARM_CC_FLAGS) DEF(CLANG35_ARM_TARGET) DEF(CLANG35_ARM_WARNING_OVERRIDES) -mstrict-align -fstack-protector -Xclang -target-feature -Xclang +no-movt
+DEFINE CLANG35_ARM_CC_FLAGS      = DEF(QC_GCC_ARM_CC_FLAGS) DEF(CLANG35_ARM_TARGET) DEF(CLANG35_ARM_WARNING_OVERRIDES) -mstrict-align -fstack-protector -Xclang -target-feature -Xclang +no-movt  -D=__FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -O2
 
 ##################
 # CLANG35 ARM definitions

@@ -119,7 +119,7 @@ InternalSafeStringNoAsciiStrOverlap (
 **/
 UINTN
 EFIAPI
-StrnLenS (
+__StrnLenS (
   IN CONST CHAR16              *String,
   IN UINTN                     MaxSize
   )
@@ -172,7 +172,7 @@ StrnLenS (
 **/
 RETURN_STATUS
 EFIAPI
-StrCpyS (
+__StrCpyS (
   OUT CHAR16       *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR16 *Source
@@ -252,7 +252,7 @@ StrCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-StrnCpyS (
+__StrnCpyS (
   OUT CHAR16       *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR16 *Source,
@@ -342,7 +342,7 @@ StrnCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-StrCatS (
+__StrCatS (
   IN OUT CHAR16       *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR16 *Source
@@ -440,7 +440,7 @@ StrCatS (
 **/
 RETURN_STATUS
 EFIAPI
-StrnCatS (
+__StrnCatS (
   IN OUT CHAR16       *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR16 *Source,
@@ -531,7 +531,7 @@ StrnCatS (
 **/
 UINTN
 EFIAPI
-AsciiStrnLenS (
+__AsciiStrnLenS (
   IN CONST CHAR8               *String,
   IN UINTN                     MaxSize
   )
@@ -580,7 +580,7 @@ AsciiStrnLenS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrCpyS (
+__AsciiStrCpyS (
   OUT CHAR8        *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR8  *Source
@@ -655,7 +655,7 @@ AsciiStrCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrnCpyS (
+__AsciiStrnCpyS (
   OUT CHAR8        *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR8  *Source,
@@ -740,7 +740,7 @@ AsciiStrnCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrCatS (
+__AsciiStrCatS (
   IN OUT CHAR8        *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR8  *Source
@@ -833,7 +833,7 @@ AsciiStrCatS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrnCatS (
+__AsciiStrnCatS (
   IN OUT CHAR8        *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR8  *Source,

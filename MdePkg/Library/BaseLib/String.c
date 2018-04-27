@@ -43,7 +43,7 @@
 **/
 CHAR16 *
 EFIAPI
-StrCpy (
+__StrCpy (
   OUT     CHAR16                    *Destination,
   IN      CONST CHAR16              *Source
   )
@@ -104,7 +104,7 @@ StrCpy (
 **/
 CHAR16 *
 EFIAPI
-StrnCpy (
+__StrnCpy (
   OUT     CHAR16                    *Destination,
   IN      CONST CHAR16              *Source,
   IN      UINTN                     Length
@@ -163,7 +163,7 @@ StrnCpy (
 **/
 UINTN
 EFIAPI
-StrLen (
+__StrLen (
   IN      CONST CHAR16              *String
   )
 {
@@ -204,7 +204,7 @@ StrLen (
 **/
 UINTN
 EFIAPI
-StrSize (
+__StrSize (
   IN      CONST CHAR16              *String
   )
 {
@@ -363,7 +363,7 @@ StrnCmp (
 **/
 CHAR16 *
 EFIAPI
-StrCat (
+__StrCat (
   IN OUT  CHAR16                    *Destination,
   IN      CONST CHAR16              *Source
   )
@@ -420,7 +420,7 @@ StrCat (
 **/
 CHAR16 *
 EFIAPI
-StrnCat (
+__StrnCat (
   IN OUT  CHAR16                    *Destination,
   IN      CONST CHAR16              *Source,
   IN      UINTN                     Length
@@ -1105,7 +1105,7 @@ UnicodeStrToAsciiStr (
 **/
 CHAR8 *
 EFIAPI
-AsciiStrCpy (
+__AsciiStrCpy (
   OUT     CHAR8                     *Destination,
   IN      CONST CHAR8               *Source
   )
@@ -1162,7 +1162,7 @@ AsciiStrCpy (
 **/
 CHAR8 *
 EFIAPI
-AsciiStrnCpy (
+__AsciiStrnCpy (
   OUT     CHAR8                     *Destination,
   IN      CONST CHAR8               *Source,
   IN      UINTN                     Length
@@ -1220,7 +1220,7 @@ AsciiStrnCpy (
 **/
 UINTN
 EFIAPI
-AsciiStrLen (
+__AsciiStrLen (
   IN      CONST CHAR8               *String
   )
 {
@@ -1259,7 +1259,7 @@ AsciiStrLen (
 **/
 UINTN
 EFIAPI
-AsciiStrSize (
+__AsciiStrSize (
   IN      CONST CHAR8               *String
   )
 {
@@ -1514,7 +1514,7 @@ AsciiStrnCmp (
 **/
 CHAR8 *
 EFIAPI
-AsciiStrCat (
+__AsciiStrCat (
   IN OUT CHAR8    *Destination,
   IN CONST CHAR8  *Source
   )
@@ -1569,7 +1569,7 @@ AsciiStrCat (
 **/
 CHAR8 *
 EFIAPI
-AsciiStrnCat (
+__AsciiStrnCat (
   IN OUT  CHAR8                     *Destination,
   IN      CONST CHAR8               *Source,
   IN      UINTN                     Length
@@ -1578,7 +1578,7 @@ AsciiStrnCat (
   UINTN   DestinationLen;
 
   DestinationLen = AsciiStrLen (Destination);
-  AsciiStrnCpy (Destination + DestinationLen, Source, Length);
+  __AsciiStrnCpy (Destination + DestinationLen, Source, Length);
   Destination[DestinationLen + Length] = '\0';
 
   //
@@ -2101,3 +2101,10 @@ BcdToDecimal8 (
   ASSERT ((Value & 0xf) < 0xa);
   return (UINT8) ((Value >> 4) * 10 + (Value & 0xf));
 }
+
+VOID FortifyFail (CONST CHAR8 *Name, CONST UINTN Line)
+{
+  DEBUG ((EFI_D_ERROR, "detected buffer overflow in %a, line %d\n",
+    Name, Line));
+}
+
