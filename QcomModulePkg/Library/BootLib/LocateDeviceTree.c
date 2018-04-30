@@ -510,12 +510,6 @@ DeviceTreeAppended (VOID *kernel,
       (EFI_D_ERROR,
        "DTB offset is incorrect, kernel image does not have appended DTB\n"));
 
-/*DEBUG((EFI_D_ERROR, "Device info 0x%08x/%08x/0x%08x/%u, pmic
-  0x%0x/0x%x/0x%x/0x%0x\n",
-  board_platform_id(), board_soc_version(),
-  board_target_id(), board_hardware_subtype(),
-  BoardPmicTarget(0), BoardPmicTarget(1),
-  BoardPmicTarget(2), BoardPmicTarget(3)));*/
 out:
   FreePool (dt_entry_queue);
   dt_entry_queue = NULL;
@@ -950,7 +944,7 @@ GetBoardDtb (BootInfo *Info, VOID *DtboImgBuffer)
   for (DtboCount = 0; DtboCount < DtboTableEntriesCount; DtboCount++) {
     if (CHECK_ADD64 ((UINT64)DtboImgBuffer,
                      fdt32_to_cpu (DtboTableEntry->DtOffset))) {
-      DEBUG ((EFI_D_ERROR, "Integer overflow deteced with Dtbo address\n"));
+      DEBUG ((EFI_D_ERROR, "Integer overflow detected with Dtbo address\n"));
       return NULL;
     }
     BoardDtb = DtboImgBuffer + fdt32_to_cpu (DtboTableEntry->DtOffset);

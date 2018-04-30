@@ -1575,7 +1575,7 @@ STATIC EFI_STATUS GetRecoveryDtboInfo (BootInfo *Info,
                      BootParamlistPtr->PageSize - 1);
 
   if (CHECK_ADD64 (RecoveryDtboOffset, RecoveryDtboSize)) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: RecoveryDtboOffset=%u "
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: RecoveryDtboOffset=%u "
            "RecoveryDtboSize=%u\n", RecoveryDtboOffset, RecoveryDtboSize));
     return EFI_BAD_BUFFER_SIZE;
   }

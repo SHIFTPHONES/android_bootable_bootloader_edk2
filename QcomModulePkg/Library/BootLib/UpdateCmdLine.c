@@ -386,71 +386,71 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
   }
 
   Src = Param->UsbSerialCmdLine;
-   --Dst;
-   STR_COPY (Dst, Src);
-   --Dst;
-   Src = Param->StrSerialNum;
-   STR_COPY (Dst, Src);
+  --Dst;
+  STR_COPY (Dst, Src);
+  --Dst;
+  Src = Param->StrSerialNum;
+  STR_COPY (Dst, Src);
 
-   if (Param->FfbmStr &&
-       (Param->FfbmStr[0] != '\0')) {
-     Src = Param->AndroidBootMode;
-     --Dst;
-     STR_COPY (Dst, Src);
+  if (Param->FfbmStr &&
+      (Param->FfbmStr[0] != '\0')) {
+    Src = Param->AndroidBootMode;
+    --Dst;
+    STR_COPY (Dst, Src);
 
-     Src = Param->FfbmStr;
-     --Dst;
-     STR_COPY (Dst, Src);
+    Src = Param->FfbmStr;
+    --Dst;
+    STR_COPY (Dst, Src);
 
-     Src = Param->LogLevel;
-     --Dst;
-     STR_COPY (Dst, Src);
-   } else if (Param->PauseAtBootUp) {
-     Src = Param->BatteryChgPause;
-     --Dst;
-     STR_COPY (Dst, Src);
-   } else if (Param->AlarmBoot) {
-     Src = Param->AlarmBootCmdLine;
-     --Dst;
-     STR_COPY (Dst, Src);
-   }
+    Src = Param->LogLevel;
+    --Dst;
+    STR_COPY (Dst, Src);
+  } else if (Param->PauseAtBootUp) {
+    Src = Param->BatteryChgPause;
+    --Dst;
+    STR_COPY (Dst, Src);
+  } else if (Param->AlarmBoot) {
+    Src = Param->AlarmBootCmdLine;
+    --Dst;
+    STR_COPY (Dst, Src);
+  }
 
-   Src = BOOT_BASE_BAND;
-   --Dst;
-   STR_COPY (Dst, Src);
-   --Dst;
+  Src = BOOT_BASE_BAND;
+  --Dst;
+  STR_COPY (Dst, Src);
+  --Dst;
 
-   gBS->SetMem (Param->ChipBaseBand, CHIP_BASE_BAND_LEN, 0);
-   AsciiStrnCpyS (Param->ChipBaseBand, CHIP_BASE_BAND_LEN,
-                  BoardPlatformChipBaseBand (),
-                  (CHIP_BASE_BAND_LEN - 1));
-   ToLower (Param->ChipBaseBand);
-   Src = Param->ChipBaseBand;
-   STR_COPY (Dst, Src);
+  gBS->SetMem (Param->ChipBaseBand, CHIP_BASE_BAND_LEN, 0);
+  AsciiStrnCpyS (Param->ChipBaseBand, CHIP_BASE_BAND_LEN,
+                 BoardPlatformChipBaseBand (),
+                 (CHIP_BASE_BAND_LEN - 1));
+  ToLower (Param->ChipBaseBand);
+  Src = Param->ChipBaseBand;
+  STR_COPY (Dst, Src);
 
-   Src = Param->DisplayCmdLine;
-   --Dst;
-   STR_COPY (Dst, Src);
+  Src = Param->DisplayCmdLine;
+  --Dst;
+  STR_COPY (Dst, Src);
 
-   if (Param->MdtpActive) {
-     Src = Param->MdtpActiveFlag;
-     --Dst;
-     STR_COPY (Dst, Src);
-   }
+  if (Param->MdtpActive) {
+    Src = Param->MdtpActiveFlag;
+    --Dst;
+    STR_COPY (Dst, Src);
+  }
 
-   if (Param->MultiSlotBoot &&
-      !IsBootDevImage ()) {
+  if (Param->MultiSlotBoot &&
+     !IsBootDevImage ()) {
      /* Slot suffix */
-     Src = Param->AndroidSlotSuffix;
-     --Dst;
-     STR_COPY (Dst, Src);
-     --Dst;
+    Src = Param->AndroidSlotSuffix;
+    --Dst;
+    STR_COPY (Dst, Src);
+    --Dst;
 
-     UnicodeStrToAsciiStr (GetCurrentSlotSuffix ().Suffix,
-                           Param->SlotSuffixAscii);
-     Src = Param->SlotSuffixAscii;
-     STR_COPY (Dst, Src);
-   }
+    UnicodeStrToAsciiStr (GetCurrentSlotSuffix ().Suffix,
+                          Param->SlotSuffixAscii);
+    Src = Param->SlotSuffixAscii;
+    STR_COPY (Dst, Src);
+  }
 
   if ((IsBuildAsSystemRootImage () &&
       (GetAVBVersion () == AVB_1) &&
@@ -464,12 +464,12 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
       STR_COPY (Dst, Src);
     }
 
-     /* Add root command line */
-     Src = Param->RootCmdLine;
-     --Dst;
-     STR_COPY (Dst, Src);
-   }
-   return EFI_SUCCESS;
+    /* Add root command line */
+    Src = Param->RootCmdLine;
+    --Dst;
+    STR_COPY (Dst, Src);
+  }
+  return EFI_SUCCESS;
 }
 
 /*Update command line: appends boot information to the original commandline
