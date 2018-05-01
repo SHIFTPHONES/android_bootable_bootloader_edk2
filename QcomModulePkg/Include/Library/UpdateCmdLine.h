@@ -47,6 +47,8 @@
 #define MAX_PATH_SIZE 72
 #define SERIAL_NUM_SIZE 64
 
+typedef struct BootInfo BootInfo;
+
 typedef struct UpdateCmdLineParamList {
   BOOLEAN Recovery;
   BOOLEAN MultiSlotBoot;
@@ -87,6 +89,6 @@ BOOLEAN
 TargetBatterySocOk (UINT32 *BatteryVoltage);
 
 UINT32
-GetSystemPath (CHAR8 **SysPath);
+GetSystemPath (CHAR8 **SysPath, BootInfo *Info);
 
 #endif
