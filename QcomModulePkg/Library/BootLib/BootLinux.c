@@ -334,7 +334,6 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
   } else {
     Kptr = (struct kernel64_hdr *)(BootParamlistPtr->ImageBuffer
                          + BootParamlistPtr->PageSize);
-    DEBUG ((EFI_D_INFO, "Uncompressed kernel in use\n"));
     /* Patch kernel support only for 64-bit */
     if (!AsciiStrnCmp ((char*)(BootParamlistPtr->ImageBuffer
                  + BootParamlistPtr->PageSize), PATCHED_KERNEL_MAGIC,
