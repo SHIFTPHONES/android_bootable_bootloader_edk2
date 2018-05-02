@@ -2687,11 +2687,72 @@ AcceptCmd (IN UINT64 Size, IN CHAR8 *Data)
   FastbootFail ("unknown command");
 }
 
+STATIC VOID
+CheckPartitionFsSignature (IN CHAR16 *PartName,
+                           OUT FS_SIGNATURE *FsSignature)
+{
+  EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
+  EFI_HANDLE *Handle = NULL;
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 BlkSz = 0;
+  CHAR8 *FsSuperBlk = NULL;
+  CHAR8 *FsSuperBlkBuffer = NULL;
+  UINT32 SuperBlkLba = 0;
+
+  *FsSignature = UNKNOWN_FS_SIGNATURE;
+
+  Status = PartitionGetInfo (PartName, &BlockIo, &Handle);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Failed to Info for %s partition\n", PartName));
+    return;
+  }
+  if (!BlockIo) {
+    DEBUG ((EFI_D_ERROR, "BlockIo for %s is corrupted\n", PartName));
+    return;
+  }
+
+  BlkSz = BlockIo->Media->BlockSize;
+  FsSuperBlkBuffer = AllocatePool (BlkSz);
+  if (!FsSuperBlkBuffer) {
+    DEBUG ((EFI_D_ERROR, "Failed to allocate buffer for superblock %s\n",
+                            PartName));
+    return;
+  }
+  FsSuperBlk = FsSuperBlkBuffer;
+  SuperBlkLba = (FS_SUPERBLOCK_OFFSET / BlkSz);
+
+  BlockIo->ReadBlocks (BlockIo, BlockIo->Media->MediaId,
+                           SuperBlkLba,
+                           BlkSz, FsSuperBlkBuffer);
+
+  /* If superblklba is 0, it means super block is part of first block read */
+  if (SuperBlkLba == 0) {
+    FsSuperBlk += FS_SUPERBLOCK_OFFSET;
+  }
+
+  if (*((UINT16 *)&FsSuperBlk[EXT_MAGIC_OFFSET_SB]) == (UINT16)EXT_FS_MAGIC) {
+    DEBUG ((EFI_D_VERBOSE, "%s Found EXT FS type\n", PartName));
+    *FsSignature = EXT_FS_SIGNATURE;
+  } else if (*((UINT32 *)&FsSuperBlk[F2FS_MAGIC_OFFSET_SB]) ==
+              (UINT32)F2FS_FS_MAGIC) {
+      DEBUG ((EFI_D_VERBOSE, "%s Found F2FS FS type\n", PartName));
+      *FsSignature = F2FS_FS_SIGNATURE;
+    } else {
+        DEBUG ((EFI_D_VERBOSE, "%s No Known FS type Found\n", PartName));
+  }
+
+  if (FsSuperBlkBuffer) {
+     FreePool (FsSuperBlkBuffer);
+  }
+  return;
+}
+
 STATIC EFI_STATUS
 GetPartitionType (IN CHAR16 *PartName, OUT CHAR8 * PartType)
 {
   UINT32 LoopCounter;
   CHAR8 AsciiPartName[MAX_GET_VAR_NAME_SIZE];
+  FS_SIGNATURE FsSignature;
 
   if (PartName == NULL ||
       PartType == NULL) {
@@ -2710,9 +2771,21 @@ GetPartitionType (IN CHAR16 *PartName, OUT CHAR8 * PartType)
     if (!AsciiStrnCmp ((CONST CHAR8 *) AsciiPartName,
                           part_info[LoopCounter].part_name,
                           AsciiStrLen (part_info[LoopCounter].part_name))) {
+      /* Check filesystem type present on partition */
+      CheckPartitionFsSignature (PartName, &FsSignature);
+      switch (FsSignature) {
+        case EXT_FS_SIGNATURE:
+          AsciiStrnCpy (PartType, EXT_FS_STR, AsciiStrLen (EXT_FS_STR));
+          break;
+        case F2FS_FS_SIGNATURE:
+          AsciiStrnCpy (PartType, F2FS_FS_STR, AsciiStrLen (F2FS_FS_STR));
+          break;
+        case UNKNOWN_FS_SIGNATURE:
+          /* Copy default hardcoded type in case unknown partition type */
           AsciiStrnCpyS (PartType, MAX_GET_VAR_NAME_SIZE,
                           part_info[LoopCounter].type_response,
                           AsciiStrLen (part_info[LoopCounter].type_response));
+      }
     }
   }
   return EFI_SUCCESS;

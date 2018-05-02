@@ -69,6 +69,19 @@
 
 /* Fs detection macros  and definitions */
 #define RAW_FS_STR "raw"
+#define EXT_FS_STR "ext4"
+#define F2FS_FS_STR "f2fs"
+#define FS_SUPERBLOCK_OFFSET 0x400
+#define EXT_MAGIC_OFFSET_SB 0x38
+#define EXT_FS_MAGIC 0xEF53
+#define F2FS_MAGIC_OFFSET_SB 0x0
+#define F2FS_FS_MAGIC 0xF2F52010
+
+typedef enum FsSignature {
+  EXT_FS_SIGNATURE = 1,
+  F2FS_FS_SIGNATURE,
+  UNKNOWN_FS_SIGNATURE
+} FS_SIGNATURE;
 
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 
