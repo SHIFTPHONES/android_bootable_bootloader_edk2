@@ -834,8 +834,10 @@ PatchGpt (UINT8 *Gpt,
                  (UINT64) (NumSectors - 33));
 
   /* Patch the last partition */
-  while (*(PrimaryGptHeader + BlkSz + TotalPart * PARTITION_ENTRY_SIZE) != 0)
+  while ((TotalPart < GptHeader->MaxPtCnt) &&
+    (*(PrimaryGptHeader + BlkSz + TotalPart * PARTITION_ENTRY_SIZE) != 0)) {
     TotalPart++;
+  }
 
   LastPartOffset =
       (TotalPart - 1) * PARTITION_ENTRY_SIZE + PARTITION_ENTRY_LAST_LBA;
