@@ -209,68 +209,68 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
           return EFI_NOT_FOUND;
         }
 
-         DEBUG ((EFI_D_VERBOSE, "Single appended DTB found\n"));
-         if (CHECK_ADD64 (BootParamlistPtr->DeviceTreeLoadAddr,
-                                 fdt_totalsize (SingleDtHdr))) {
-           DEBUG ((EFI_D_ERROR,
-             "Integer Overflow: in single dtb header addition\n"));
-         return EFI_BAD_BUFFER_SIZE;
-         }
+        DEBUG ((EFI_D_VERBOSE, "Single appended DTB found\n"));
+        if (CHECK_ADD64 (BootParamlistPtr->DeviceTreeLoadAddr,
+                                fdt_totalsize (SingleDtHdr))) {
+          DEBUG ((EFI_D_ERROR,
+            "Integer Overflow: in single dtb header addition\n"));
+          return EFI_BAD_BUFFER_SIZE;
+        }
 
-         gBS->CopyMem ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr,
-                       SingleDtHdr, fdt_totalsize (SingleDtHdr));
-       } else {
-         DEBUG ((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
-         return EFI_NOT_FOUND;
-       }
-     }
-   } else {
-     /*It is the case of DTB overlay Get the Soc specific dtb */
-      FinalDtbHdr = SocDtb =
-      GetSocDtb ((VOID *)(BootParamlistPtr->ImageBuffer +
+        gBS->CopyMem ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr,
+                      SingleDtHdr, fdt_totalsize (SingleDtHdr));
+      } else {
+        DEBUG ((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
+        return EFI_NOT_FOUND;
+      }
+    }
+  } else {
+    /*It is the case of DTB overlay Get the Soc specific dtb */
+    FinalDtbHdr = SocDtb =
+    GetSocDtb ((VOID *)(BootParamlistPtr->ImageBuffer +
                  BootParamlistPtr->PageSize +
                  BootParamlistPtr->PatchedKernelHdrSize),
                  BootParamlistPtr->KernelSize,
                  DtbOffset,
                  (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
-      if (!SocDtb) {
+    if (!SocDtb) {
+      DEBUG ((EFI_D_ERROR,
+                  "Error: Appended Soc Device Tree blob not found\n"));
+      return EFI_NOT_FOUND;
+    }
+
+    /*Check do we really need to gothrough DTBO or not*/
+    DtboCheckNeeded = GetDtboNeeded ();
+    if (DtboCheckNeeded == TRUE) {
+      BoardDtb = GetBoardDtb (Info, BootParamlistPtr->DtboImgBuffer);
+      if (!BoardDtb) {
+        DEBUG ((EFI_D_ERROR, "Error: Board Dtbo blob not found\n"));
+        return EFI_NOT_FOUND;
+      }
+      if (!pre_overlay_malloc ()) {
         DEBUG ((EFI_D_ERROR,
-                    "Error: Appended Soc Device Tree blob not found\n"));
+                "Error: Unable to Allocate Pre Buffer for Overlay\n"));
+        return EFI_OUT_OF_RESOURCES;
+      }
+
+      SocDtbHdr = ufdt_install_blob (SocDtb, fdt_totalsize (SocDtb));
+      if (!SocDtbHdr) {
+        DEBUG ((EFI_D_ERROR, "Error: Install blob failed\n"));
         return EFI_NOT_FOUND;
       }
 
-      /*Check do we really need to gothrough DTBO or not*/
-      DtboCheckNeeded = GetDtboNeeded ();
-      if (DtboCheckNeeded == TRUE) {
-        BoardDtb = GetBoardDtb (Info, BootParamlistPtr->DtboImgBuffer);
-        if (!BoardDtb) {
-          DEBUG ((EFI_D_ERROR, "Error: Board Dtbo blob not found\n"));
-          return EFI_NOT_FOUND;
-        }
-        if (!pre_overlay_malloc ()) {
-          DEBUG ((EFI_D_ERROR,
-                  "Error: Unable to Allocate Pre Buffer for Overlay\n"));
-          return EFI_OUT_OF_RESOURCES;
-        }
-
-        SocDtbHdr = ufdt_install_blob (SocDtb, fdt_totalsize (SocDtb));
-        if (!SocDtbHdr) {
-          DEBUG ((EFI_D_ERROR, "Error: Install blob failed\n"));
-          return EFI_NOT_FOUND;
-        }
-
-        FinalDtbHdr = ufdt_apply_overlay (SocDtbHdr,
-                                          fdt_totalsize (SocDtbHdr),
-                                          BoardDtb,
-                                          fdt_totalsize (BoardDtb));
-        if (!FinalDtbHdr) {
-          DEBUG ((EFI_D_ERROR, "ufdt apply overlay failed\n"));
-          return EFI_NOT_FOUND;
-        }
+      FinalDtbHdr = ufdt_apply_overlay (SocDtbHdr,
+                                        fdt_totalsize (SocDtbHdr),
+                                        BoardDtb,
+                                        fdt_totalsize (BoardDtb));
+      if (!FinalDtbHdr) {
+        DEBUG ((EFI_D_ERROR, "ufdt apply overlay failed\n"));
+        return EFI_NOT_FOUND;
       }
-      gBS->CopyMem ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr, FinalDtbHdr,
-                     fdt_totalsize (FinalDtbHdr));
-      post_overlay_free ();
+    }
+    gBS->CopyMem ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr, FinalDtbHdr,
+                   fdt_totalsize (FinalDtbHdr));
+    post_overlay_free ();
   }
   return EFI_SUCCESS;
 }
@@ -303,7 +303,7 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
 
     if (OutAvaiLen > MAX_UINT32) {
       DEBUG ((EFI_D_ERROR,
-              "Integer Oveflow: the length of decompressed data = %u\n",
+              "Integer Overflow: the length of decompressed data = %u\n",
       OutAvaiLen));
       return EFI_BAD_BUFFER_SIZE;
     }
@@ -334,7 +334,6 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
   } else {
     Kptr = (struct kernel64_hdr *)(BootParamlistPtr->ImageBuffer
                          + BootParamlistPtr->PageSize);
-    DEBUG ((EFI_D_INFO, "Uncompressed kernel in use\n"));
     /* Patch kernel support only for 64-bit */
     if (!AsciiStrnCmp ((char*)(BootParamlistPtr->ImageBuffer
                  + BootParamlistPtr->PageSize), PATCHED_KERNEL_MAGIC,
@@ -406,7 +405,7 @@ LoadAddrAndDTUpdate (BootParamlist *BootParamlistPtr)
 
   if (CHECK_ADD64 ((UINT64)BootParamlistPtr->ImageBuffer,
       BootParamlistPtr->RamdiskOffset)) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: ImageBuffer=%u, "
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: ImageBuffer=%u, "
                          "RamdiskOffset=%u\n",
                          BootParamlistPtr->ImageBuffer,
                          BootParamlistPtr->RamdiskOffset));
@@ -572,7 +571,7 @@ BootLinux (BootInfo *Info)
   BootParamlistPtr.RamdiskOffset = ADD_OF (BootParamlistPtr.PageSize,
                            BootParamlistPtr.KernelSizeActual);
   if (!BootParamlistPtr.RamdiskOffset) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: PageSize=%u, KernelSizeActual=%u\n",
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: PageSize=%u, KernelSizeActual=%u\n",
            BootParamlistPtr.PageSize, BootParamlistPtr.KernelSizeActual));
     return EFI_BAD_BUFFER_SIZE;
   }
@@ -735,19 +734,19 @@ CheckImageHeader (VOID *ImageHdrBuffer,
 
   KernelSizeActual = ROUND_TO_PAGE (KernelSize, *PageSize - 1);
   if (!KernelSizeActual) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: Kernel Size = %u\n", KernelSize));
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: Kernel Size = %u\n", KernelSize));
     return EFI_BAD_BUFFER_SIZE;
   }
 
   RamdiskSizeActual = ROUND_TO_PAGE (RamdiskSize, *PageSize - 1);
   if (RamdiskSize && !RamdiskSizeActual) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: Ramdisk Size = %u\n", RamdiskSize));
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: Ramdisk Size = %u\n", RamdiskSize));
     return EFI_BAD_BUFFER_SIZE;
   }
 
   *ImageSizeActual = ADD_OF (*PageSize, KernelSizeActual);
   if (!*ImageSizeActual) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: Actual Kernel size = %u\n",
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: Actual Kernel size = %u\n",
             KernelSizeActual));
     return EFI_BAD_BUFFER_SIZE;
   }
@@ -756,7 +755,7 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   *ImageSizeActual = ADD_OF (*ImageSizeActual, RamdiskSizeActual);
   if (!*ImageSizeActual) {
     DEBUG ((EFI_D_ERROR,
-            "Integer Oveflow: ImgSizeActual=%u, RamdiskActual=%u\n",
+            "Integer Overflow: ImgSizeActual=%u, RamdiskActual=%u\n",
             tempImgSize, RamdiskSizeActual));
     return EFI_BAD_BUFFER_SIZE;
   }
@@ -764,8 +763,8 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   tempImgSize = *ImageSizeActual;
   *ImageSizeActual = ADD_OF (*ImageSizeActual, DtSizeActual);
   if (!*ImageSizeActual) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: ImgSizeActual=%u, DtSizeActual=%u\n",
-            tempImgSize, DtSizeActual));
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSizeActual=%u,"
+           " DtSizeActual=%u\n", tempImgSize, DtSizeActual));
     return EFI_BAD_BUFFER_SIZE;
   }
 
@@ -807,7 +806,7 @@ LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
   GetPageSize (&ImageHdrSize);
 
   if (!ADD_OF (ImageHdrSize, ALIGNMENT_MASK_4KB - 1)) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: in ALIGNMENT_MASK_4KB addition\n"));
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: in ALIGNMENT_MASK_4KB addition\n"));
     return EFI_BAD_BUFFER_SIZE;
   }
 
@@ -836,12 +835,12 @@ LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
   ImageSize =
       ADD_OF (ROUND_TO_PAGE (*ImageSizeActual, (PageSize - 1)), PageSize);
   if (!ImageSize) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: ImgSize=%u\n", tempImgSize));
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSize=%u\n", tempImgSize));
     return EFI_BAD_BUFFER_SIZE;
   }
 
   if (!ADD_OF (ImageSize, ALIGNMENT_MASK_4KB - 1)) {
-    DEBUG ((EFI_D_ERROR, "Integer Oveflow: in ALIGNMENT_MASK_4KB addition\n"));
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: in ALIGNMENT_MASK_4KB addition\n"));
     return EFI_BAD_BUFFER_SIZE;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -155,7 +155,7 @@ UpdateSplashMemInfo (VOID *fdt)
 
   /* First, update the FBAddress */
   if (CHECK_ADD64 ((UINT64)Prop->data, sizeof (UINT32))) {
-    DEBUG ((EFI_D_ERROR, "ERROR: integer Oveflow while updating FBAddress"));
+    DEBUG ((EFI_D_ERROR, "ERROR: integer Overflow while updating FBAddress"));
     return EFI_BAD_BUFFER_SIZE;
   }
   tmp = (CHAR8 *)Prop->data + sizeof (UINT32);
@@ -164,7 +164,7 @@ UpdateSplashMemInfo (VOID *fdt)
 
   /* Next, update the FBSize */
   if (CHECK_ADD64 ((UINT64)tmp, (2 * sizeof (UINT32)))) {
-    DEBUG ((EFI_D_ERROR, "ERROR: integer Oveflow while updating FBSize"));
+    DEBUG ((EFI_D_ERROR, "ERROR: integer Overflow while updating FBSize"));
     return EFI_BAD_BUFFER_SIZE;
   }
   tmp += (2 * sizeof (UINT32));
@@ -368,7 +368,7 @@ UpdateDeviceTree (VOID *fdt,
   PaddSize = ADD_OF (fdt_totalsize (fdt),
                     DTB_PAD_SIZE + AsciiStrLen (cmdline));
   if (!PaddSize) {
-    DEBUG ((EFI_D_ERROR, "ERROR: Integer Oveflow: fdt size = %u\n",
+    DEBUG ((EFI_D_ERROR, "ERROR: Integer Overflow: fdt size = %u\n",
             fdt_totalsize (fdt)));
     return EFI_BAD_BUFFER_SIZE;
   }
