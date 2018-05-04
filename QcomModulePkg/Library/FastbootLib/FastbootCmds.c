@@ -506,9 +506,7 @@ WriteToDisk (IN EFI_BLOCK_IO_PROTOCOL *BlockIo,
              IN UINT64 Size,
              IN UINT64 offset)
 {
-  return BlockIo->WriteBlocks (
-      BlockIo, BlockIo->Media->MediaId, offset,
-      ROUND_TO_PAGE (Size, BlockIo->Media->BlockSize - 1), Image);
+  return WriteBlockToPartition (BlockIo, offset, Size, Image);
 }
 
 STATIC BOOLEAN
@@ -1032,9 +1030,12 @@ HandleRawImgFlash (IN CHAR16 *PartitionName,
 
     return EFI_VOLUME_FULL;
   }
-  Status = BlockIo->WriteBlocks (
-      BlockIo, BlockIo->Media->MediaId, 0,
-      ROUND_TO_PAGE (Size, BlockIo->Media->BlockSize - 1), Image);
+
+  Status = WriteBlockToPartition (BlockIo, 0, Size, Image);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Writing Block to partition Failure\n"));
+  }
+
   if (MultiSlotBoot && HasSlot &&
       !(StrnCmp (PartitionName, (CONST CHAR16 *)L"boot",
                  StrLen ((CONST CHAR16 *)L"boot"))))
