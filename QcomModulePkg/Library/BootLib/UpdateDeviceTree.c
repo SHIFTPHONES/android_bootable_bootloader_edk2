@@ -219,6 +219,35 @@ fdt_check_header_ext (VOID *fdt)
 }
 
 STATIC
+VOID
+UpdateGranuleInfo (VOID *fdt)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 GranuleNodeOffset;
+  UINT32 GranuleSize;
+  INT32 Ret;
+
+  Status = GetGranuleSize (&GranuleSize);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR,
+            "Update Granule Size failed!!! Status = %r\r\n",
+            Status));
+    return;
+  }
+
+  GranuleNodeOffset = fdt_path_offset (fdt, "/mem-offline");
+  if (GranuleNodeOffset < 0) {
+    DEBUG ((EFI_D_ERROR, "WARNING: Could not find mem-offline node.\n"));
+    return;
+  }
+
+  Ret = fdt_setprop_u32 (fdt, GranuleNodeOffset, "granule", GranuleSize);
+  if (Ret) {
+    DEBUG ((EFI_D_ERROR, "WARNING: Granule size update failed.\n"));
+  }
+}
+
+STATIC
 EFI_STATUS
 QueryMemoryCellSize (IN VOID *Fdt, OUT UINT32 *MemoryCellLen)
 {
@@ -338,11 +367,16 @@ target_dev_tree_mem (VOID *fdt, UINT32 MemNodeOffset, BOOLEAN BootWith32Bit)
 
   /* Get Available memory from partition table */
   Status = AddMemMap (fdt, MemNodeOffset, BootWith32Bit);
-  if (EFI_ERROR (Status))
+  if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR,
             "Invalid memory configuration, check memory partition table: %r\n",
             Status));
+    goto out;
+  }
 
+  UpdateGranuleInfo (fdt);
+
+out:
   return Status;
 }
 
