@@ -453,7 +453,6 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
   }
 
   if ((IsBuildAsSystemRootImage () &&
-      (GetAVBVersion () == AVB_1) &&
       !Param->MultiSlotBoot) ||
       (Param->MultiSlotBoot &&
       !IsBootDevImage ())) {
