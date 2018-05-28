@@ -491,6 +491,7 @@ GetNandMiscPartiGuid (EFI_GUID *Ptype)
 
 EFI_STATUS
 WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
+                   IN EFI_HANDLE *Handle,
                    IN UINT64 Offset,
                    IN UINT64 Size,
                    IN VOID *Image)
@@ -498,6 +499,7 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
   EFI_STATUS Status = EFI_SUCCESS;
   CHAR8 *ImageBuffer = NULL;
   UINT32 DivMsgBufSize;
+  UINT32 WriteBlockSize;
 
   if ((BlockIo == NULL) ||
     (Image == NULL)) {
@@ -505,14 +507,36 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
     return EFI_INVALID_PARAMETER;
   }
 
+  WriteBlockSize = BlockIo->Media->BlockSize;
+
   /* If the Size is not divisible by BlockSize.
     * Write the Image data to partition in twice.
     * First, write the divisible Image buffer size to partition
     * Second, malloc 1 BlockSize buffer for the rest Image data
     * and then write.
+    *
+    * NOTE: For NAND Targets, BlockSize would be EraseLengthGranularity
+    * aligned which is available in EFI_ERASE_BLOCK_PROTOCOL.
     */
-  DivMsgBufSize = (Size / BlockIo->Media->BlockSize) *
-                   BlockIo->Media->BlockSize;
+  if (CheckRootDeviceType () == NAND) {
+    if (Handle == NULL) {
+      DEBUG ((EFI_D_ERROR, "WriteBlockToPartition: Input Handle is Null.\n"));
+      return EFI_INVALID_PARAMETER;
+    }
+    EFI_ERASE_BLOCK_PROTOCOL *EraseProt = NULL;
+    Status = gBS->HandleProtocol (Handle, &gEfiEraseBlockProtocolGuid,
+                                  (VOID **)&EraseProt);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Unable to locate Erase block protocol handle:%r\n",
+              Status));
+      return Status;
+    }
+
+    WriteBlockSize = EraseProt->EraseLengthGranularity;
+  }
+
+  DivMsgBufSize = (Size / WriteBlockSize) * WriteBlockSize;
+
   if (DivMsgBufSize) {
     Status = BlockIo->WriteBlocks (BlockIo,
                                    BlockIo->Media->MediaId,
@@ -523,10 +547,11 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
       DEBUG ((EFI_D_ERROR, "Write the divisible Image failed :%r\n", Status));
       return Status;
     }
+    Offset += DivMsgBufSize / BlockIo->Media->BlockSize;
   }
 
   if (Size - DivMsgBufSize > 0) {
-    ImageBuffer = AllocateZeroPool (BlockIo->Media->BlockSize);
+    ImageBuffer = AllocateZeroPool (WriteBlockSize);
     if (ImageBuffer == NULL) {
       DEBUG ((EFI_D_ERROR, "Failed to allocate zero pool for ImageBuffer\n"));
       return EFI_OUT_OF_RESOURCES;
@@ -537,8 +562,8 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
      */
     Status = BlockIo->ReadBlocks (BlockIo,
                                  BlockIo->Media->MediaId,
-                                 Offset + Size / BlockIo->Media->BlockSize,
-                                 BlockIo->Media->BlockSize,
+                                 Offset,
+                                 WriteBlockSize,
                                  ImageBuffer);
 
     if (Status != EFI_SUCCESS) {
@@ -551,9 +576,13 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
     gBS->CopyMem (ImageBuffer, Image + DivMsgBufSize, Size - DivMsgBufSize);
     Status = BlockIo->WriteBlocks (BlockIo,
                                  BlockIo->Media->MediaId,
-                                 Offset+ Size / BlockIo->Media->BlockSize,
-                                 BlockIo->Media->BlockSize,
+                                 Offset,
+                                 WriteBlockSize,
                                  ImageBuffer);
+
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Writing single block failed :%r\n", Status));
+    }
 
     FreePool (ImageBuffer);
     ImageBuffer = NULL;
@@ -572,6 +601,7 @@ WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
   HandleInfo HandleInfoList[1];
   UINT32 MaxHandles;
   UINT32 BlkIOAttrib = 0;
+  EFI_HANDLE *Handle = NULL;
 
   if (Msg == NULL)
     return EFI_INVALID_PARAMETER;
@@ -604,7 +634,8 @@ WriteToPartition (EFI_GUID *Ptype, VOID *Msg, UINT32 MsgSize)
   }
 
   BlkIo = HandleInfoList[0].BlkIo;
-  Status = WriteBlockToPartition (BlkIo, 0, MsgSize, Msg);
+  Handle = HandleInfoList[0].Handle;
+  Status = WriteBlockToPartition (BlkIo, Handle, 0, MsgSize, Msg);
 
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR,
