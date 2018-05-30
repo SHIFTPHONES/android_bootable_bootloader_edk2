@@ -278,7 +278,7 @@ STATIC VOID GetDisplayCmdline (VOID)
  * Returns length = 0 when there is failure.
  */
 UINT32
-GetSystemPath (CHAR8 **SysPath)
+GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
 {
   INT32 Index;
   UINT32 Lun;
@@ -293,10 +293,20 @@ GetSystemPath (CHAR8 **SysPath)
     return 0;
   }
 
-  StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
+  if (IsLEVariant () &&
+      Info->BootIntoRecovery) {
+    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"recoveryfs",
+            StrLen ((CONST CHAR16 *)L"recoveryfs"));
+  } else {
+    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
             StrLen ((CONST CHAR16 *)L"system"));
-  StrnCatS (PartitionName, MAX_GPT_NAME_SIZE, CurSlot.Suffix,
+  }
+
+  /* Append slot info for A/B Variant */
+  if (Info->MultiSlotBoot) {
+     StrnCatS (PartitionName, MAX_GPT_NAME_SIZE, CurSlot.Suffix,
             StrLen (CurSlot.Suffix));
+  }
 
   Index = GetPartitionIndex (PartitionName);
   if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
