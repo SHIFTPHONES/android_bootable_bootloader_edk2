@@ -183,6 +183,24 @@ typedef struct {
 // String Services
 //
 
+VOID FortifyFail (CONST CHAR8 *Name,
+  CONST UINTN Line) __attribute__ ((__cold__));
+
+#ifdef __FORTIFY_SOURCE
+
+#define FORTIFY_CHECK_P1_L1(p1, l1) \
+  do { \
+    UINTN P1Size; \
+    P1Size = __builtin_object_size ((p1), 0); \
+    if ((P1Size != (UINTN) -1) && \
+      (P1Size < (l1))) { \
+        FortifyFail (__func__, __LINE__); \
+    } \
+  } while (0);
+
+#else
+#define FORTIFY_CHECK_P1_L1 (p1, l1)
+#endif
 
 /**
   Returns the length of a Null-terminated Unicode string.
@@ -200,10 +218,23 @@ typedef struct {
 **/
 UINTN
 EFIAPI
-StrnLenS (
+__StrnLenS (
   IN CONST CHAR16              *String,
   IN UINTN                     MaxSize
   );
+
+STATIC inline __attribute__ ((always_inline))
+UINTN
+EFIAPI
+StrnLenS (
+  IN CONST CHAR16              *String,
+  IN UINTN                     MaxSize
+  )
+{
+  FORTIFY_CHECK_P1_L1 (String, MaxSize * sizeof (CHAR16));
+  return __StrnLenS (String, MaxSize);
+}
+
 
 /**
   Copies the string pointed to by Source (including the terminating null char)
@@ -230,11 +261,25 @@ StrnLenS (
 **/
 RETURN_STATUS
 EFIAPI
-StrCpyS (
+__StrCpyS (
   OUT CHAR16       *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR16 *Source
   );
+
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+StrCpyS (
+  OUT CHAR16       *Destination,
+  IN  UINTN        DestMax,
+  IN  CONST CHAR16 *Source
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR16));
+  return __StrCpyS (Destination, DestMax, Source);
+}
+
 
 /**
   Copies not more than Length successive char from the string pointed to by
@@ -264,12 +309,29 @@ StrCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-StrnCpyS (
+__StrnCpyS (
   OUT CHAR16       *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR16 *Source,
   IN  UINTN        Length
   );
+
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+StrnCpyS (
+  OUT CHAR16       *Destination,
+  IN  UINTN        DestMax,
+  IN  CONST CHAR16 *Source,
+  IN  UINTN        Length
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR16));
+  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR16));
+
+  return __StrnCpyS (Destination, DestMax, Source, Length);
+}
+
 
 /**
   Appends a copy of the string pointed to by Source (including the terminating
@@ -299,11 +361,26 @@ StrnCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-StrCatS (
+__StrCatS (
   IN OUT CHAR16       *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR16 *Source
   );
+
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+StrCatS (
+  IN OUT CHAR16       *Destination,
+  IN     UINTN        DestMax,
+  IN     CONST CHAR16 *Source
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR16));
+
+  return __StrCatS (Destination, DestMax, Source);
+}
+
 
 /**
   Appends not more than Length successive char from the string pointed to by
@@ -336,12 +413,28 @@ StrCatS (
 **/
 RETURN_STATUS
 EFIAPI
-StrnCatS (
+__StrnCatS (
   IN OUT CHAR16       *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR16 *Source,
   IN     UINTN        Length
   );
+
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+StrnCatS (
+  IN OUT CHAR16       *Destination,
+  IN     UINTN        DestMax,
+  IN     CONST CHAR16 *Source,
+  IN     UINTN        Length
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR16));
+  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR16));
+  return __StrnCatS (Destination, DestMax, Source, Length);
+}
+
 
 /**
   Returns the length of a Null-terminated Ascii string.
@@ -357,10 +450,23 @@ StrnCatS (
 **/
 UINTN
 EFIAPI
-AsciiStrnLenS (
+__AsciiStrnLenS (
   IN CONST CHAR8               *String,
   IN UINTN                     MaxSize
   );
+
+STATIC inline __attribute__ ((always_inline))
+UINTN
+EFIAPI
+AsciiStrnLenS (
+  IN CONST CHAR8               *String,
+  IN UINTN                     MaxSize
+  )
+{
+  FORTIFY_CHECK_P1_L1 (String, MaxSize * sizeof (CHAR8));
+  return __AsciiStrnLenS (String, MaxSize);
+}
+
 
 /**
   Copies the string pointed to by Source (including the terminating null char)
@@ -385,11 +491,25 @@ AsciiStrnLenS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrCpyS (
+__AsciiStrCpyS (
   OUT CHAR8        *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR8  *Source
   );
+
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+AsciiStrCpyS (
+  OUT CHAR8        *Destination,
+  IN  UINTN        DestMax,
+  IN  CONST CHAR8  *Source
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR8));
+  return __AsciiStrCpyS (Destination, DestMax, Source);
+}
+
 
 /**
   Copies not more than Length successive char from the string pointed to by
@@ -417,12 +537,28 @@ AsciiStrCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrnCpyS (
+__AsciiStrnCpyS (
   OUT CHAR8        *Destination,
   IN  UINTN        DestMax,
   IN  CONST CHAR8  *Source,
   IN  UINTN        Length
   );
+
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+AsciiStrnCpyS (
+  OUT CHAR8        *Destination,
+  IN  UINTN        DestMax,
+  IN  CONST CHAR8  *Source,
+  IN  UINTN        Length
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR8));
+  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR8));
+  return __AsciiStrnCpyS (Destination, DestMax, Source, Length);
+}
+
 
 /**
   Appends a copy of the string pointed to by Source (including the terminating
@@ -450,11 +586,25 @@ AsciiStrnCpyS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrCatS (
+__AsciiStrCatS (
   IN OUT CHAR8        *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR8  *Source
   );
+
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+AsciiStrCatS (
+  IN OUT CHAR8        *Destination,
+  IN     UINTN        DestMax,
+  IN     CONST CHAR8  *Source
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR8));
+  return __AsciiStrCatS (Destination, DestMax, Source);
+}
+
 
 /**
   Appends not more than Length successive char from the string pointed to by
@@ -485,13 +635,27 @@ AsciiStrCatS (
 **/
 RETURN_STATUS
 EFIAPI
-AsciiStrnCatS (
+__AsciiStrnCatS (
   IN OUT CHAR8        *Destination,
   IN     UINTN        DestMax,
   IN     CONST CHAR8  *Source,
   IN     UINTN        Length
   );
 
+STATIC inline __attribute__ ((always_inline))
+RETURN_STATUS
+EFIAPI
+AsciiStrnCatS (
+  IN OUT CHAR8        *Destination,
+  IN     UINTN        DestMax,
+  IN     CONST CHAR8  *Source,
+  IN     UINTN        Length
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, DestMax * sizeof (CHAR8));
+  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR8));
+  return __AsciiStrnCatS (Destination, DestMax, Source, Length);
+}
 
 #ifndef DISABLE_NEW_DEPRECATED_INTERFACES
 
@@ -520,12 +684,29 @@ AsciiStrnCatS (
   @return Destination.
 
 **/
+
+CHAR16 *
+EFIAPI
+__StrCpy (
+  OUT     CHAR16                    *Destination,
+  IN      CONST CHAR16              *Source
+  );
+
+STATIC inline __attribute__ ((always_inline))
 CHAR16 *
 EFIAPI
 StrCpy (
   OUT     CHAR16                    *Destination,
   IN      CONST CHAR16              *Source
-  );
+  )
+{
+  UINTN SrSize = __builtin_object_size (Source, 0);
+
+  if ( SrSize != (UINTN) -1 ) {
+    FORTIFY_CHECK_P1_L1 (Destination, SrSize);
+  }
+  return __StrCpy (Destination, Source);
+}
 
 
 /**
@@ -560,13 +741,29 @@ StrCpy (
   @return Destination.
 
 **/
+
+CHAR16 *
+EFIAPI
+__StrnCpy (
+  OUT     CHAR16                    *Destination,
+  IN      CONST CHAR16              *Source,
+  IN      UINTN                     Length
+  );
+
+STATIC inline __attribute__ ((always_inline))
 CHAR16 *
 EFIAPI
 StrnCpy (
   OUT     CHAR16                    *Destination,
   IN      CONST CHAR16              *Source,
   IN      UINTN                     Length
-  );
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR16));
+  FORTIFY_CHECK_P1_L1 (Destination, Length * sizeof (CHAR16));
+  return __StrnCpy (Destination, Source, Length);
+}
+
 #endif
 
 /**
@@ -588,9 +785,22 @@ StrnCpy (
 **/
 UINTN
 EFIAPI
-StrLen (
+__StrLen (
   IN      CONST CHAR16              *String
   );
+
+STATIC inline __attribute__ ((always_inline))
+UINTN
+EFIAPI
+StrLen (
+  IN      CONST CHAR16              *String
+  )
+{
+  UINTN Realsize = __StrLen (String);
+
+  FORTIFY_CHECK_P1_L1 (String, (Realsize + 1) * sizeof (CHAR16));
+  return Realsize;
+}
 
 
 /**
@@ -613,10 +823,22 @@ StrLen (
 **/
 UINTN
 EFIAPI
-StrSize (
+__StrSize (
   IN      CONST CHAR16              *String
   );
 
+STATIC inline __attribute__ ((always_inline))
+UINTN
+EFIAPI
+StrSize (
+  IN      CONST CHAR16              *String
+  )
+{
+  UINTN Realsize = __StrSize (String);
+
+  FORTIFY_CHECK_P1_L1 (String, Realsize);
+  return Realsize;
+}
 
 /**
   Compares two Null-terminated Unicode strings, and returns the difference
@@ -733,11 +955,24 @@ StrnCmp (
 **/
 CHAR16 *
 EFIAPI
-StrCat (
+__StrCat (
   IN OUT  CHAR16                    *Destination,
   IN      CONST CHAR16              *Source
   );
 
+STATIC inline __attribute__ ((always_inline))
+CHAR16 *
+EFIAPI
+StrCat (
+  IN OUT  CHAR16                    *Destination,
+  IN      CONST CHAR16              *Source
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, (StrLen (Destination) +
+    StrLen (Source) + 1) * sizeof (CHAR16));
+
+  return __StrCat (Destination, Source);
+}
 
 /**
   [ATTENTION] This function is deprecated for security reason.
@@ -781,11 +1016,26 @@ StrCat (
 **/
 CHAR16 *
 EFIAPI
-StrnCat (
+__StrnCat (
   IN OUT  CHAR16                    *Destination,
   IN      CONST CHAR16              *Source,
   IN      UINTN                     Length
   );
+
+STATIC inline __attribute__ ((always_inline))
+CHAR16 *
+EFIAPI
+StrnCat (
+  IN OUT  CHAR16                    *Destination,
+  IN      CONST CHAR16              *Source,
+  IN      UINTN                     Length
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, (StrLen (Destination) +
+    StrnLenS (Source, Length) + 1) * sizeof (CHAR16));
+  return __StrnCat (Destination, Source, Length);
+}
+
 #endif
 
 /**
@@ -1052,10 +1302,27 @@ UnicodeStrToAsciiStr (
 **/
 CHAR8 *
 EFIAPI
-AsciiStrCpy (
+__AsciiStrCpy (
   OUT     CHAR8                     *Destination,
   IN      CONST CHAR8               *Source
   );
+
+STATIC inline __attribute__ ((always_inline))
+CHAR8 *
+EFIAPI
+AsciiStrCpy (
+  OUT     CHAR8                     *Destination,
+  IN      CONST CHAR8               *Source
+  )
+{
+  UINTN SrSize = __builtin_object_size (Source, 0);
+
+  if ( SrSize != (UINTN) -1 ) {
+    FORTIFY_CHECK_P1_L1 (Destination, SrSize);
+  }
+
+  return __AsciiStrCpy (Destination, Source);
+}
 
 
 /**
@@ -1089,11 +1356,27 @@ AsciiStrCpy (
 **/
 CHAR8 *
 EFIAPI
+__AsciiStrnCpy (
+ OUT     CHAR8                     *Destination,
+ IN      CONST CHAR8               *Source,
+ IN      UINTN                     Length
+ );
+
+STATIC inline __attribute__ ((always_inline))
+CHAR8 *
+EFIAPI
 AsciiStrnCpy (
   OUT     CHAR8                     *Destination,
   IN      CONST CHAR8               *Source,
   IN      UINTN                     Length
-  );
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR8));
+  FORTIFY_CHECK_P1_L1 (Destination, Length * sizeof (CHAR8));
+
+  return __AsciiStrnCpy (Destination, Source, Length);
+}
+
 #endif
 
 /**
@@ -1115,10 +1398,22 @@ AsciiStrnCpy (
 **/
 UINTN
 EFIAPI
-AsciiStrLen (
+__AsciiStrLen (
   IN      CONST CHAR8               *String
   );
 
+STATIC inline __attribute__ ((always_inline))
+UINTN
+EFIAPI
+AsciiStrLen (
+  IN      CONST CHAR8               *String
+  )
+{
+  UINTN Realsize = __AsciiStrLen (String);
+
+  FORTIFY_CHECK_P1_L1 (String, (Realsize + 1) * sizeof (CHAR8));
+  return Realsize;
+}
 
 /**
   Returns the size of a Null-terminated ASCII string in bytes, including the
@@ -1139,10 +1434,22 @@ AsciiStrLen (
 **/
 UINTN
 EFIAPI
-AsciiStrSize (
+__AsciiStrSize (
   IN      CONST CHAR8               *String
   );
 
+STATIC inline __attribute__ ((always_inline))
+UINTN
+EFIAPI
+AsciiStrSize (
+  IN      CONST CHAR8              *String
+  )
+{
+  UINTN Realsize = __AsciiStrSize (String);
+
+  FORTIFY_CHECK_P1_L1 (String, Realsize);
+  return Realsize;
+}
 
 /**
   Compares two Null-terminated ASCII strings, and returns the difference
@@ -1287,10 +1594,24 @@ AsciiStrnCmp (
 **/
 CHAR8 *
 EFIAPI
-AsciiStrCat (
+__AsciiStrCat (
   IN OUT CHAR8    *Destination,
   IN CONST CHAR8  *Source
   );
+
+STATIC inline __attribute__ ((always_inline))
+CHAR8 *
+EFIAPI
+AsciiStrCat (
+  IN OUT  CHAR8                    *Destination,
+  IN      CONST CHAR8              *Source
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, (AsciiStrLen (Destination) +
+    AsciiStrLen (Source) + 1) * sizeof (CHAR8));
+
+  return __AsciiStrCat (Destination, Source);
+}
 
 
 /**
@@ -1333,11 +1654,27 @@ AsciiStrCat (
 **/
 CHAR8 *
 EFIAPI
-AsciiStrnCat (
+__AsciiStrnCat (
   IN OUT  CHAR8                     *Destination,
   IN      CONST CHAR8               *Source,
   IN      UINTN                     Length
   );
+
+STATIC inline __attribute__ ((always_inline))
+CHAR8 *
+EFIAPI
+AsciiStrnCat (
+  IN OUT  CHAR8                     *Destination,
+  IN      CONST CHAR8               *Source,
+  IN      UINTN                     Length
+  )
+{
+  FORTIFY_CHECK_P1_L1 (Destination, (AsciiStrLen (Destination) +
+    AsciiStrnLenS (Source, Length) + 1) * sizeof (CHAR8));
+
+  return __AsciiStrnCat (Destination, Source, Length);
+}
+
 #endif
 
 /**
