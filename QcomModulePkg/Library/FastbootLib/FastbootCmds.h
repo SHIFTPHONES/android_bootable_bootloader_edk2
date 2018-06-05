@@ -50,6 +50,7 @@
 #define MAX_DOWNLOAD_SIZE_STR "536870912"
 #endif
 
+#define MAX_WRITE_SIZE (1024 * 1024)
 #define MAX_BUFFER_SIZE MAX_DOWNLOAD_SIZE
 #define MAX_RSP_SIZE 64
 #define ERASE_BUFF_SIZE 256 * 1024
@@ -174,4 +175,5 @@ EFI_STATUS
 UpdateDevInfo (CHAR16 *Pname, CHAR8 *ImgVersion);
 VOID
 GetDevInfo (DeviceInfo **DevinfoPtr);
+BOOLEAN IsUsbTimerStarted (VOID);
 #endif

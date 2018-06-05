@@ -29,6 +29,7 @@
 #include "LinuxLoaderLib.h"
 #include "AutoGen.h"
 #include <Library/BootLinux.h>
+#include <FastbootLib/FastbootCmds.h>
 
 /* Volume Label size 11 chars, round off to 16 */
 #define VOLUME_LABEL_SIZE 16
@@ -500,6 +501,9 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
   CHAR8 *ImageBuffer = NULL;
   UINT32 DivMsgBufSize;
   UINT32 WriteBlockSize;
+  UINT64 WriteUnitSize = MAX_WRITE_SIZE;
+  INT64 LeftSize = 0;
+  UINT32 WriteSize = 0;
 
   if ((BlockIo == NULL) ||
     (Image == NULL)) {
@@ -536,18 +540,33 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
   }
 
   DivMsgBufSize = (Size / WriteBlockSize) * WriteBlockSize;
-
+  WriteUnitSize = ROUND_TO_PAGE (WriteUnitSize, WriteBlockSize - 1);
   if (DivMsgBufSize) {
-    Status = BlockIo->WriteBlocks (BlockIo,
-                                   BlockIo->Media->MediaId,
-                                   Offset,
-                                   DivMsgBufSize,
-                                   Image);
-    if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR, "Write the divisible Image failed :%r\n", Status));
-      return Status;
+    /* The big image buffer may take a long flashing time which will block
+       parallel usb image download. It will cause the fastboot  protocol host
+       side timeout. So split the image into small writing units  to let usb
+       have chance to champ in and doing work in parallel.
+      */
+    if (!IsUsbTimerStarted ()) {
+      WriteUnitSize = DivMsgBufSize;
     }
-    Offset += DivMsgBufSize / BlockIo->Media->BlockSize;
+
+    LeftSize = DivMsgBufSize;
+    while (LeftSize > 0) {
+      WriteSize = LeftSize > WriteUnitSize? WriteUnitSize : LeftSize;
+      Status = BlockIo->WriteBlocks (BlockIo,
+                                     BlockIo->Media->MediaId,
+                                     Offset,
+                                     WriteSize,
+                                     Image + DivMsgBufSize - LeftSize);
+
+      if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "Write the divisible Image failed :%r\n", Status));
+        return Status;
+      }
+      Offset += WriteSize / BlockIo->Media->BlockSize;
+      LeftSize -= WriteSize;
+    }
   }
 
   if (Size - DivMsgBufSize > 0) {
