@@ -675,8 +675,10 @@ ResetDeviceState (VOID)
   QCOM_VERIFIEDBOOT_PROTOCOL *VbIntf;
 
   /* If verified boot is not enabled, return SUCCESS */
-  if (!VerifiedBootEnbled ())
+  if (!VerifiedBootEnbled () ||
+     (GetAVBVersion () == AVB_LE )) {
     return EFI_SUCCESS;
+  }
 
   Status = gBS->LocateProtocol (&gEfiQcomVerifiedBootProtocolGuid, NULL,
                                 (VOID **)&VbIntf);

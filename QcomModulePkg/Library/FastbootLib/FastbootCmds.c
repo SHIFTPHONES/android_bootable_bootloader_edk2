@@ -2398,7 +2398,6 @@ SetDeviceUnlock (UINT32 Type, BOOLEAN State)
          return;
     }
     FastbootOkay ("");
-    RebootDevice (RECOVERY_MODE);
   }
 }
 #endif
