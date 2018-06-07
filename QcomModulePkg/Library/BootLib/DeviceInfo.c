@@ -240,6 +240,7 @@ EFI_STATUS DeviceInfoInit (VOID)
 
   if (CompareMem (DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE)) {
     DEBUG ((EFI_D_ERROR, "Device Magic does not match\n"));
+    gBS->SetMem (&DevInfo, sizeof (DevInfo), 0);
     gBS->CopyMem (DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE);
     DevInfo.user_public_key_length = 0;
     gBS->SetMem (DevInfo.rollback_index, sizeof (DevInfo.rollback_index), 0);
