@@ -89,8 +89,8 @@ EFI_STATUS
 UfsGetSetBootLun (UINT32 *UfsBootlun, BOOLEAN IsGet);
 BOOLEAN BoardPlatformFusion (VOID);
 UINT32 BoardPlatformRawChipId (VOID);
-EFI_STATUS
-GetRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions);
-VOID
-GetPageSize (UINT32 *PageSize);
+EFI_STATUS GetRamPartitions (RamPartitionEntry **RamPartitions,
+                  UINT32 *NumPartitions);
+EFI_STATUS GetGranuleSize (UINT32 *MinPasrGranuleSize);
+VOID GetPageSize (UINT32 *PageSize);
 #endif

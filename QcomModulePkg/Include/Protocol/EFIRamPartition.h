@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, 2018 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,7 +38,7 @@ typedef struct _EFI_RAMPARTITION_PROTOCOL EFI_RAMPARTITION_PROTOCOL;
 /**
   Protocol version.
 */
-#define EFI_RAMPARTITION_PROTOCOL_REVISION 0x0000000000010000
+#define EFI_RAMPARTITION_PROTOCOL_REVISION 0x0000000000010001
 /** @} */ /* end_addtogroup efi_ramPartition_constants */
 
 /*  Protocol GUID definition */
@@ -119,6 +119,28 @@ typedef EFI_STATUS (EFIAPI *EFI_RAMPARTITION_GETHIGHESTBANKBIT) (
     OUT UINT32 *HighestBankBit);
 
 /* ============================================================================
+**  Function : EFI_RamPartition_GetMinPasrSize
+** ============================================================================
+*/
+/** @ingroup EFI_RamPartition_GetMinPasrSize
+  @par Summary
+  Gets the MinPasrSize
+
+  @param[in]   This         Pointer to the EFI_RAMPARTITION_PROTOCOL instance.
+  @param[out]  MinPasrSize  Pointer to MinPasrSize
+
+  @return
+  EFI_SUCCESS        -- Function completed successfully.
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *EFI_RAMPARTITION_GETMINPASRSIZE)(
+   IN EFI_RAMPARTITION_PROTOCOL *This,
+   OUT UINT32                *MinPasrSize
+   );
+
+/* ============================================================================
 **  Function : EFI_RamPartition_GetRamPartitions
 ** ============================================================================
 */
@@ -154,6 +176,7 @@ struct _EFI_RAMPARTITION_PROTOCOL {
   EFI_RAMPARTITION_GETRAMPARTITIONVERSION GetRamPartitionVersion;
   EFI_RAMPARTITION_GETHIGHESTBANKBIT GetHighestBankBit;
   EFI_RAMPARTITION_GETRAMPARTITIONS GetRamPartitions;
+  EFI_RAMPARTITION_GETMINPASRSIZE GetMinPasrSize;
 };
 
 #endif /* __EFIRAMPARTITION_H__ */
