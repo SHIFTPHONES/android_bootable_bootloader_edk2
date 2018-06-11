@@ -186,6 +186,13 @@ typedef struct {
   VOID *Data;
 } CmdInfo;
 
+STATIC BOOLEAN UsbTimerStarted;
+
+BOOLEAN IsUsbTimerStarted (VOID)
+{
+  return UsbTimerStarted;
+}
+
 #ifdef DISABLE_PARALLEL_DOWNLOAD_FLASH
 BOOLEAN IsDisableParallelDownloadFlash (VOID)
 {
@@ -1352,6 +1359,7 @@ STATIC VOID StopUsbTimer (VOID)
     gBS->CloseEvent (UsbTimerEvent);
     UsbTimerEvent = NULL;
   }
+  UsbTimerStarted = FALSE;
 }
 #else
 STATIC VOID StopUsbTimer (VOID)
@@ -1666,6 +1674,7 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
         IsFlashComplete = TRUE;
         StopUsbTimer ();
       } else {
+        UsbTimerStarted = TRUE;
         FastbootOkay ("");
       }
     }
