@@ -223,21 +223,21 @@ VOID
 UpdateGranuleInfo (VOID *fdt)
 {
   EFI_STATUS Status = EFI_SUCCESS;
-  UINT32 GranuleNodeOffset;
+  INT32 GranuleNodeOffset;
   UINT32 GranuleSize;
   INT32 Ret;
+
+  GranuleNodeOffset = fdt_path_offset (fdt, "/mem-offline");
+  if (GranuleNodeOffset < 0) {
+    DEBUG ((EFI_D_ERROR, "WARNING: Could not find mem-offline node.\n"));
+    return;
+  }
 
   Status = GetGranuleSize (&GranuleSize);
   if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR,
             "Update Granule Size failed!!! Status = %r\r\n",
             Status));
-    return;
-  }
-
-  GranuleNodeOffset = fdt_path_offset (fdt, "/mem-offline");
-  if (GranuleNodeOffset < 0) {
-    DEBUG ((EFI_D_ERROR, "WARNING: Could not find mem-offline node.\n"));
     return;
   }
 
