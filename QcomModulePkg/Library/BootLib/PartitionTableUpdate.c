@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -880,7 +880,7 @@ PatchGpt (UINT8 *Gpt,
   UINT8 *PartitionEntryArrStart;
   UINT32 CrcVal;
   EFI_STATUS Status;
-
+  UINT32 PtnEntryBlks = (MAX_PARTITION_ENTRIES_SZ / BlkSz) + GPT_HDR_BLOCKS;
   NumSectors = DeviceDensity / BlkSz;
 
   /* Update the primary and backup GPT header offset with the sector location */
@@ -889,16 +889,16 @@ PatchGpt (UINT8 *Gpt,
   PUT_LONG_LONG (PrimaryGptHeader + BACKUP_HEADER_OFFSET,
                  (UINT64) (NumSectors - 1));
   PUT_LONG_LONG (PrimaryGptHeader + LAST_USABLE_LBA_OFFSET,
-                 (UINT64) (NumSectors - 34));
+                 (UINT64) (NumSectors - (PtnEntryBlks + 1)));
 
   /* Patch Backup GPT */
   Offset = (2 * PartEntryArrSz);
   SecondaryGptHeader = Offset + BlkSz + PrimaryGptHeader;
   PUT_LONG_LONG (SecondaryGptHeader + PRIMARY_HEADER_OFFSET, (UINT64)1);
   PUT_LONG_LONG (SecondaryGptHeader + LAST_USABLE_LBA_OFFSET,
-                 (UINT64) (NumSectors - 34));
+                 (UINT64) (NumSectors - (PtnEntryBlks + 1)));
   PUT_LONG_LONG (SecondaryGptHeader + PARTITION_ENTRIES_OFFSET,
-                 (UINT64) (NumSectors - 33));
+                 (UINT64) (NumSectors - (PtnEntryBlks)));
 
   /* Patch the last partition */
   LastPartitionEntry = (UINT64 *)
@@ -917,9 +917,9 @@ PatchGpt (UINT8 *Gpt,
       (TotalPart - 1) * PARTITION_ENTRY_SIZE + PARTITION_ENTRY_LAST_LBA;
 
   PUT_LONG_LONG (PrimaryGptHeader + BlkSz + LastPartOffset,
-                 (UINT64) (NumSectors - 34));
+                 (UINT64) (NumSectors - (PtnEntryBlks + 1)));
   PUT_LONG_LONG (PrimaryGptHeader + BlkSz + LastPartOffset + PartEntryArrSz,
-                 (UINT64) (NumSectors - 34));
+                 (UINT64) (NumSectors - (PtnEntryBlks + 1)));
 
   /* Update CRC of the partition entry array for both headers */
   PartitionEntryArrStart = PrimaryGptHeader + BlkSz;
