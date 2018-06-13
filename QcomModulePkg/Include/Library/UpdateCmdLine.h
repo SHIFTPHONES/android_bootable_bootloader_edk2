@@ -76,6 +76,7 @@ typedef struct UpdateCmdLineParamList {
   CHAR8 *SkipRamFs;
   CHAR8 *RootCmdLine;
   CHAR8 *InitCmdline;
+  CHAR8 *DtboIdxStr;
 } UpdateCmdLineParamList;
 
 EFI_STATUS
