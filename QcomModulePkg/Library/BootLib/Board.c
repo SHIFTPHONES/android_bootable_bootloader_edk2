@@ -94,6 +94,11 @@ GetGranuleSize (UINT32 *MinPasrGranuleSize)
     return Status;
   }
 
+  if (pRamPartProtocol->Revision < EFI_RAMPARTITION_PROTOCOL_REVISION) {
+    DEBUG ((EFI_D_ERROR, "WARNING: Unsupported EFI_RAMPARTITION_PROTOCOL\n"));
+    return EFI_UNSUPPORTED;
+  }
+
   Status = pRamPartProtocol->GetMinPasrSize (pRamPartProtocol,
                                              MinPasrGranuleSize);
   if (EFI_ERROR (Status)) {
