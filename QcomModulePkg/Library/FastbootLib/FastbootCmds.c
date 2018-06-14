@@ -2200,11 +2200,9 @@ STATIC VOID CmdGetVarAll (VOID)
   CHAR8 GetVarAll[MAX_RSP_SIZE];
 
   for (Var = Varlist; Var; Var = Var->next) {
-    AsciiStrnCpyS (GetVarAll, sizeof (GetVarAll), Var->name,
-                   AsciiStrLen (Var->name));
+    AsciiStrnCpyS (GetVarAll, sizeof (GetVarAll), Var->name, MAX_RSP_SIZE);
     AsciiStrnCatS (GetVarAll, sizeof (GetVarAll), ":", AsciiStrLen (":"));
-    AsciiStrnCatS (GetVarAll, sizeof (GetVarAll), Var->value,
-                   AsciiStrLen (Var->value));
+    AsciiStrnCatS (GetVarAll, sizeof (GetVarAll), Var->value, MAX_RSP_SIZE);
     FastbootInfo (GetVarAll);
     /* Wait for the transfer to complete */
     WaitForTransferComplete ();
