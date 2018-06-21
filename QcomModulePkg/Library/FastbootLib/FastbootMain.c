@@ -14,7 +14,7 @@ found at
 
 **/
 
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -72,13 +72,14 @@ struct {
   EFI_USB_BOS_DESCRIPTOR BosDescriptor;
   EFI_USB_USB_20_EXTENSION_DESCRIPTOR Usb2ExtDescriptor;
   EFI_USB_SUPERSPEED_USB_DESCRIPTOR SsUsbDescriptor;
+  EFI_USB_SUPERSPEEDPLUS_USB_DESCRIPTOR SspUsbDescriptor;
 } BinaryObjectStore = {
     // BOS Descriptor
     {
         sizeof (EFI_USB_BOS_DESCRIPTOR), // Descriptor Size
         USB_DESC_TYPE_BOS,               // Descriptor Type
         sizeof (BinaryObjectStore),      // Total Length
-        2                                // Number of device capabilities
+        3                                // Number of device capabilities
     },
     // USB2 Extension Desc
     {
@@ -97,7 +98,19 @@ struct {
         0x01, // Functionality support
         0x07, // U1 Device Exit Latency
         0x65  // U2 Device Exit Latency
-    }};
+    },
+    // Super Speed Plus Device Capability Desc
+    {
+        sizeof (EFI_USB_SUPERSPEEDPLUS_USB_DESCRIPTOR), // Descriptor Size
+        USB_DESC_TYPE_DEVICE_CAPABILITY, // Device Capability Type descriptor
+        USB_DEV_CAP_TYPE_SUPERSPEEDPLUS_USB, //SuperSpeedPlus Device Capability
+        0x00, // Reserved
+        0x00000001, // Attributes
+        0x1100, // Functionality Support
+        0x00, // Reserved
+        {0x000A4030, 0x000A40B0}, // Sublink Speed Attribute
+    }
+};
 
 FastbootDeviceData GetFastbootDeviceData (VOID)
 {
@@ -113,6 +126,8 @@ DummyNotify (IN EFI_EVENT Event, IN VOID *Context)
 STATIC EFI_STATUS FastbootUsbDeviceStart (VOID)
 {
   EFI_STATUS Status;
+  EFI_USB_BUS_SPEED UsbMaxSupportSpeed;
+  UINTN UsbSpeedDataSize;
   USB_DEVICE_DESCRIPTOR *DevDesc;
   USB_DEVICE_DESCRIPTOR *SSDevDesc;
   VOID *Descriptors;
@@ -157,6 +172,17 @@ STATIC EFI_STATUS FastbootUsbDeviceStart (VOID)
 
   /* Build the descriptor for fastboot */
   BuildDefaultDescriptors (&DevDesc, &Descriptors, &SSDevDesc, &SSDescriptors);
+  UsbSpeedDataSize = sizeof (UsbMaxSupportSpeed);
+  Status = gRT->GetVariable ((CHAR16 *)L"UsbfnMaxSpeed",
+                             &gQcomTokenSpaceGuid,
+                             NULL,
+                             &UsbSpeedDataSize,
+                             &UsbMaxSupportSpeed);
+
+  if ((!EFI_ERROR (Status)) &&
+      (UsbMaxSupportSpeed == UsbBusSpeedSuperPlus)) {
+     SSDevDesc->BcdUSB = 0x0310;
+  }
 
   DescSet.DeviceDescriptor = DevDesc;
   DescSet.Descriptors = &Descriptors;
