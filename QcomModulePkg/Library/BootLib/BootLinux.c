@@ -270,6 +270,9 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
     }
     gBS->CopyMem ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr, FinalDtbHdr,
                    fdt_totalsize (FinalDtbHdr));
+    /* Clear out the old DTB magic so kernel doesn't find it */
+    *((UINT32 *)((BootParamlistPtr->ImageBuffer + BootParamlistPtr->PageSize +
+                 BootParamlistPtr->PatchedKernelHdrSize) + DtbOffset)) = 0;
     post_overlay_free ();
   }
   return EFI_SUCCESS;
