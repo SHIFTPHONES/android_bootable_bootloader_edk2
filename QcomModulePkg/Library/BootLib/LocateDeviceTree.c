@@ -42,6 +42,12 @@ platform_dt_match_best (struct dt_entry_node *dt_list);
 
 STATIC BOOLEAN DtboNeed = TRUE;
 
+STATIC INT32 DtboIdx = INVALID_PTN;
+INT32 GetDtboIdx (VOID)
+{
+   return DtboIdx;
+}
+
 BOOLEAN GetDtboNeeded (VOID)
 {
   return DtboNeed;
@@ -759,7 +765,7 @@ STATIC EFI_STATUS GetBoardMatchDtb (DtInfo *CurDtbInfo,
   |     |               | PmicLayerRev    | N     | Y    | N       |
   |     |               | PmicVariantRev  | N     | Y    | N       |
 */
-STATIC VOID
+STATIC BOOLEAN
 ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
 {
   EFI_STATUS Status;
@@ -775,6 +781,7 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   UINT32 Idx;
   UINT32 PmicEntCount;
   PmicIdInfo BestPmicInfo;
+  BOOLEAN FindBestMatch = FALSE;
 
   memset (&BestPmicInfo, 0, sizeof (PmicIdInfo));
   /*Ensure MatchVal to 0 initially*/
@@ -782,7 +789,7 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   RootOffset = fdt_path_offset (Dtb, "/");
   if (RootOffset < 0) {
     DEBUG ((EFI_D_ERROR, "Unable to locate root node\n"));
-    return;
+    return FALSE;
   }
 
   /* Get the msm-id prop from DTB */
@@ -827,11 +834,12 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   }
 
 cleanup:
-
   if (CurDtbInfo->DtMatchVal & BIT (ExactMatch)) {
     if (BestDtbInfo->DtMatchVal < CurDtbInfo->DtMatchVal) {
       gBS->CopyMem (BestDtbInfo, CurDtbInfo, sizeof (struct DtInfo));
+      FindBestMatch = TRUE;
     } else if (BestDtbInfo->DtMatchVal == CurDtbInfo->DtMatchVal) {
+      FindBestMatch = TRUE;
       if (BestDtbInfo->DtSocRev < CurDtbInfo->DtSocRev) {
         gBS->CopyMem (BestDtbInfo, CurDtbInfo, sizeof (struct DtInfo));
       } else if (BestDtbInfo->DtVariantMajor < CurDtbInfo->DtVariantMajor) {
@@ -846,9 +854,13 @@ cleanup:
         gBS->CopyMem (BestDtbInfo, CurDtbInfo, sizeof (struct DtInfo));
       } else if (BestDtbInfo->DtPmicRev[3] < CurDtbInfo->DtPmicRev[3]) {
         gBS->CopyMem (BestDtbInfo, CurDtbInfo, sizeof (struct DtInfo));
+      } else {
+        FindBestMatch = FALSE;
       }
     }
   }
+
+  return FindBestMatch;
 }
 
 VOID *
@@ -921,6 +933,7 @@ GetBoardDtb (BootInfo *Info, VOID *DtboImgBuffer)
   UINT32 FirstDtboTableEntryOffset = 0;
   DtInfo CurDtbInfo = {0};
   DtInfo BestDtbInfo = {0};
+  BOOLEAN FindBestDtb = FALSE;
 
   if (!DtboImgBuffer) {
     DEBUG ((EFI_D_ERROR, "Dtbo Img buffer is NULL\n"));
@@ -954,10 +967,15 @@ GetBoardDtb (BootInfo *Info, VOID *DtboImgBuffer)
     }
 
     CurDtbInfo.Dtb = BoardDtb;
-    ReadDtbFindMatch (&CurDtbInfo, &BestDtbInfo, VARIANT_MATCH);
+    FindBestDtb = ReadDtbFindMatch (&CurDtbInfo, &BestDtbInfo, VARIANT_MATCH);
     DEBUG ((EFI_D_VERBOSE, "Dtbo count = %u LocalBoardDtMatch = %x"
                            "\n",
             DtboCount, CurDtbInfo.DtMatchVal));
+
+    if (FindBestDtb) {
+      DtboIdx = DtboCount;
+    }
+
     DtboTableEntry++;
   }
 

@@ -603,18 +603,18 @@ BootLinux (BootInfo *Info)
     BootDevImage = TRUE;
   }
 
-  Status = UpdateCmdLine (BootParamlistPtr.CmdLine, FfbmStr, Recovery,
-                   AlarmBoot, Info->VBCmdLine, &BootParamlistPtr.FinalCmdLine);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Error updating cmdline. Device Error %r\n", Status));
-    return Status;
-  }
-
   Info->HeaderVersion = ((boot_img_hdr *)
                          (BootParamlistPtr.ImageBuffer))->header_version;
   Status = DTBImgCheckAndAppendDT (Info, &BootParamlistPtr,
                                    DtbOffset);
   if (Status != EFI_SUCCESS) {
+    return Status;
+  }
+
+  Status = UpdateCmdLine (BootParamlistPtr.CmdLine, FfbmStr, Recovery,
+                   AlarmBoot, Info->VBCmdLine, &BootParamlistPtr.FinalCmdLine);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Error updating cmdline. Device Error %r\n", Status));
     return Status;
   }
 

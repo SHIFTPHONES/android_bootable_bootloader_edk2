@@ -269,5 +269,5 @@ int
 DeviceTreeValidate (UINT8 *DeviceTreeBuff,
                     UINT32 PageSize,
                     UINT32 *DeviceTreeSize);
-
+INT32 GetDtboIdx (VOID);
 #endif
