@@ -2100,6 +2100,10 @@ FastbootCmdsInit (VOID)
     return Status;
   }
 
+  /* Clear allocated buffer */
+  gBS->SetMem ((VOID *)FastBootBuffer, (CheckRootDeviceType () == NAND) ?
+                              MAX_BUFFER_SIZE : (MAX_BUFFER_SIZE * 2), 0x0);
+
   FastbootCommandSetup ((void *)FastBootBuffer, MAX_BUFFER_SIZE);
   return EFI_SUCCESS;
 }
