@@ -1219,7 +1219,7 @@ HandleMetaImgFlash (IN CHAR16 *PartitionName,
     }
     AsciiStrToUnicodeStr (img_header_entry[i].ptn_name, PartitionNameFromMeta);
     Status = HandleRawImgFlash (
-        PartitionNameFromMeta, sizeof (PartitionNameFromMeta),
+        PartitionNameFromMeta, ARRAY_SIZE (PartitionNameFromMeta),
         (void *)Image + img_header_entry[i].start_offset,
         img_header_entry[i].size);
     if (Status != EFI_SUCCESS) {
@@ -1649,7 +1649,8 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
 
     MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
     if (MultiSlotBoot) {
-      HasSlot = GetPartitionHasSlot (PartitionName, sizeof (PartitionName),
+      HasSlot = GetPartitionHasSlot (PartitionName,
+                                     ARRAY_SIZE (PartitionName),
                                      SlotSuffix, MAX_SLOT_SUFFIX_SZ);
       if (HasSlot) {
         DEBUG ((EFI_D_VERBOSE, "Partition %s has slot\n", PartitionName));
@@ -1679,23 +1680,26 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
       }
     }
 
-    FlashResult = HandleSparseImgFlash (PartitionName, sizeof (PartitionName),
+    FlashResult = HandleSparseImgFlash (PartitionName,
+                                        ARRAY_SIZE (PartitionName),
                                         mFlashDataBuffer, mFlashNumDataBytes);
 
     IsFlashComplete = TRUE;
     StopUsbTimer ();
   } else if (!AsciiStrnCmp (UbiHeader->HdrMagic, UBI_HEADER_MAGIC, 4)) {
     FlashResult = HandleUbiImgFlash (PartitionName,
-                                     sizeof (PartitionName),
+                                     ARRAY_SIZE (PartitionName),
                                      mFlashDataBuffer,
                                      mFlashNumDataBytes);
   } else if (meta_header->magic == META_HEADER_MAGIC) {
 
-    FlashResult = HandleMetaImgFlash (PartitionName, sizeof (PartitionName),
+    FlashResult = HandleMetaImgFlash (PartitionName,
+                                      ARRAY_SIZE (PartitionName),
                                       mFlashDataBuffer, mFlashNumDataBytes);
   } else {
 
-    FlashResult = HandleRawImgFlash (PartitionName, sizeof (PartitionName),
+    FlashResult = HandleRawImgFlash (PartitionName,
+                                     ARRAY_SIZE (PartitionName),
                                      mFlashDataBuffer, mFlashNumDataBytes);
   }
 
@@ -1796,7 +1800,7 @@ CmdErase (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
    * implementation
    */
   if (MultiSlotBoot)
-    HasSlot = GetPartitionHasSlot (PartitionName, sizeof (PartitionName),
+    HasSlot = GetPartitionHasSlot (PartitionName, ARRAY_SIZE (PartitionName),
                                    SlotSuffix, MAX_SLOT_SUFFIX_SZ);
 
   // Build output string
