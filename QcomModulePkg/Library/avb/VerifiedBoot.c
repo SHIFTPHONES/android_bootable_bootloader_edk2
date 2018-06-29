@@ -122,9 +122,11 @@ NoAVBLoadDtboImage (BootInfo *Info, VOID **DtboImage,
 {
   EFI_STATUS Status = EFI_SUCCESS;
   Slot CurrentSlot;
+  UINT64 PartSize = 0;
+  AvbIOResult AvbStatus;
+  AvbOpsUserData *UserData = NULL;
+  AvbOps *Ops = NULL;
 
-  *DtboSize = (UINT32) DTBO_MAX_SIZE_ALLOWED;
-  *DtboImage = AllocatePool (DTBO_MAX_SIZE_ALLOWED);
   GUARD ( StrnCpyS (Pname,
               (UINTN)MAX_GPT_NAME_SIZE,
               (CONST CHAR16 *)L"dtbo",
@@ -135,7 +137,58 @@ NoAVBLoadDtboImage (BootInfo *Info, VOID **DtboImage,
       GUARD ( StrnCatS (Pname, MAX_GPT_NAME_SIZE,
                   CurrentSlot.Suffix, StrLen (CurrentSlot.Suffix)));
   }
+  if (GetPartitionIndex (Pname) == INVALID_PTN) {
+    Status = EFI_NO_MEDIA;
+    goto out;
+  }
+
+  /* Get Partition size & compare with MAX supported size
+   * If Partition size > DTBO_MAX_SIZE_ALLOWED return
+   * Allocate Partition size memory otherwise
+   */
+  UserData = avb_calloc (sizeof (AvbOpsUserData));
+  if (UserData == NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to allocate AvbOpsUserData\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+  Ops = AvbOpsNew (UserData);
+  if (Ops == NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to allocate AvbOps\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+  AvbStatus = Ops->get_size_of_partition (Ops,
+                                          (CONST CHAR8 *)Pname,
+                                          &PartSize);
+  if (AvbStatus != AVB_IO_RESULT_OK ||
+      PartSize == 0 ||
+      PartSize > DTBO_MAX_SIZE_ALLOWED) {
+    DEBUG ((EFI_D_ERROR, "VB: Failed to get partition size "
+                         "(or) DTBO size is too big: 0x%x\n", PartSize));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+
+  DEBUG ((EFI_D_VERBOSE, "VB: Trying to allocate memory "
+                         "for DTBO: 0x%x\n", PartSize));
+  *DtboSize = (UINT32) PartSize;
+  *DtboImage = AllocatePool (PartSize);
+
+  if (*DtboImage == NULL) {
+    DEBUG ((EFI_D_ERROR, "VB: Unable to allocate memory for DTBO\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
   Status = LoadImageFromPartition (*DtboImage, DtboSize, Pname);
+
+out:
+  if (Ops != NULL) {
+    AvbOpsFree (Ops);
+  }
+  if (UserData != NULL) {
+    avb_free (UserData);
+  }
   return Status;
 }
 
@@ -226,13 +279,17 @@ load_dtbo:
           (UINT32 *)&(Info->Images[1].ImageSize), Pname);
   if (Status == EFI_NO_MEDIA) {
       DEBUG ((EFI_D_ERROR, "No dtbo partition is found, Skip dtbo\n"));
-      FreePool (Info->Images[1].ImageBuffer);
+      if (Info->Images[1].ImageBuffer != NULL) {
+        FreePool (Info->Images[1].ImageBuffer);
+      }
       return EFI_SUCCESS;
   }
   else if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR,
                   "ERROR: Failed to load dtbo from partition: %r\n", Status));
-      FreePool (Info->Images[1].ImageBuffer);
+      if (Info->Images[1].ImageBuffer != NULL) {
+        FreePool (Info->Images[1].ImageBuffer);
+      }
       return EFI_LOAD_ERROR;
   }
   Info-> NumLoadedImages = 2;
