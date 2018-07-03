@@ -989,6 +989,20 @@ DisplayVerifiedBootScreen (BootInfo *Info)
   default:
     break;
   }
+
+  /* dm-verity warning */
+  if (!IsEnforcing () &&
+     !Info->BootIntoRecovery) {
+    Status = DisplayVerifiedBootMenu (DISPLAY_MENU_EIO);
+      if (Status == EFI_SUCCESS) {
+        WaitForExitKeysDetection ();
+      } else {
+        DEBUG ((EFI_D_INFO, "The dm-verity is not started in restart mode." \
+              "\nWait for 30 seconds before proceeding\n"));
+        MicroSecondDelay (30000000);
+      }
+  }
+
   return EFI_SUCCESS;
 }
 
