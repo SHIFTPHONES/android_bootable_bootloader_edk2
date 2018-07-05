@@ -100,6 +100,7 @@ typedef enum {
         IMG_DTBO,
         IMG_VBMETA,
         IMG_RECOVERY,
+        IMG_VMLINUX,
         IMG_MAX
 } img_type;
 

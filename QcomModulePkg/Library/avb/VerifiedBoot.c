@@ -48,7 +48,8 @@ static CHAR8 *avb_verify_partition_name[] = {
      "boot",
      "dtbo",
      "vbmeta",
-     "recovery"
+     "recovery",
+     "vm-linux"
 };
 
 STATIC struct verified_boot_verity_mode VbVm[] = {
@@ -760,6 +761,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   CHAR8 *RequestedPartitionAll[MAX_NUM_REQ_PARTITION] = {NULL};
   CHAR8 **RequestedPartition = NULL;
   UINTN NumRequestedPartition = 0;
+  INT32 Index = INVALID_PTN;
   UINT32 ImageHdrSize = 0;
   UINT32 PageSize = 0;
   UINT32 ImageSizeActual = 0;
@@ -857,6 +859,16 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     }
     AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
     NumRequestedPartition += 1;
+    if (IsVmEnabled ()) {
+      Index = GetPartitionIndex ((CHAR16 *)L"vm-linux");
+    }
+    if (Index == INVALID_PTN ||
+               Index >= MAX_NUM_PARTITIONS) {
+      DEBUG ((EFI_D_ERROR, "Invalid vm-linux partition\n"));
+    } else {
+      AddRequestedPartition (RequestedPartitionAll, IMG_VMLINUX);
+      NumRequestedPartition += 1;
+    }
     Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
                 SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
   }
