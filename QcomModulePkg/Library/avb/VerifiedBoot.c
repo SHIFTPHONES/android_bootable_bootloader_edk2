@@ -122,6 +122,7 @@ NoAVBLoadDtboImage (BootInfo *Info, VOID **DtboImage,
 {
   EFI_STATUS Status = EFI_SUCCESS;
   Slot CurrentSlot;
+  CHAR8 *AsciiPname = NULL;
   UINT64 PartSize = 0;
   AvbIOResult AvbStatus;
   AvbOpsUserData *UserData = NULL;
@@ -158,8 +159,16 @@ NoAVBLoadDtboImage (BootInfo *Info, VOID **DtboImage,
     Status = EFI_OUT_OF_RESOURCES;
     goto out;
   }
+  AsciiPname = avb_calloc (MAX_GPT_NAME_SIZE);
+  if (AsciiPname == NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to allocate AsciiPname\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+  UnicodeStrToAsciiStr (Pname, AsciiPname);
+
   AvbStatus = Ops->get_size_of_partition (Ops,
-                                          (CONST CHAR8 *)Pname,
+                                          AsciiPname,
                                           &PartSize);
   if (AvbStatus != AVB_IO_RESULT_OK ||
       PartSize == 0 ||
@@ -188,6 +197,9 @@ out:
   }
   if (UserData != NULL) {
     avb_free (UserData);
+  }
+  if (AsciiPname != NULL) {
+    avb_free (AsciiPname);
   }
   return Status;
 }
