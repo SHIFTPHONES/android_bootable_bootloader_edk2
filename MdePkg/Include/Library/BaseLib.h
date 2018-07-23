@@ -759,7 +759,6 @@ StrnCpy (
   IN      UINTN                     Length
   )
 {
-  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR16));
   FORTIFY_CHECK_P1_L1 (Destination, Length * sizeof (CHAR16));
   return __StrnCpy (Destination, Source, Length);
 }
@@ -1371,7 +1370,6 @@ AsciiStrnCpy (
   IN      UINTN                     Length
   )
 {
-  FORTIFY_CHECK_P1_L1 (Source, Length * sizeof (CHAR8));
   FORTIFY_CHECK_P1_L1 (Destination, Length * sizeof (CHAR8));
 
   return __AsciiStrnCpy (Destination, Source, Length);
