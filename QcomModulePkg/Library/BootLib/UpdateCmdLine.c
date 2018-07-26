@@ -68,17 +68,6 @@ STATIC UINTN DisplayCmdLineLen = sizeof (DisplayCmdLine);
 #define MAX_DTBO_IDX_STR 64
 STATIC CHAR8 *AndroidBootDtboIdx = " androidboot.dtbo_idx=";
 
-#define STR_COPY(Dst, Src)                                               \
-  {                                                                      \
-     while (*Src) {                                                      \
-       *Dst = *Src;                                                      \
-       ++Src;                                                            \
-       ++Dst;                                                            \
-    }                                                                    \
-    *Dst = 0;                                                            \
-    ++Dst;                                                               \
-  }
-
 STATIC EFI_STATUS
 TargetPauseForBatteryCharge (BOOLEAN *BatteryStatus)
 {
@@ -359,80 +348,64 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
 {
   CONST CHAR8 *Src;
   CHAR8 *Dst;
+  UINT32 MaxCmdLineLen = Param->CmdLineLen;
 
-  Dst = AllocatePool (Param->CmdLineLen + 4);
+  Dst = AllocatePool (MaxCmdLineLen);
   if (!Dst) {
     DEBUG ((EFI_D_ERROR, "CMDLINE: Failed to allocate destination buffer\n"));
     return EFI_OUT_OF_RESOURCES;
   }
 
-  gBS->SetMem (Dst, Param->CmdLineLen + 4, 0x0);
+  gBS->SetMem (Dst, MaxCmdLineLen, 0x0);
 
   /* Save start ptr for debug print */
   *FinalCmdLine = Dst;
 
   if (Param->HaveCmdLine) {
     Src = Param->CmdLine;
-    STR_COPY (Dst, Src);
+    AsciiStrCpyS (Dst, MaxCmdLineLen, Src);
   }
 
   if (Param->VBCmdLine != NULL) {
     Src = Param->VBCmdLine;
-    if (Param->HaveCmdLine) {
-      --Dst;
-    }
-    Param->HaveCmdLine = 1;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
 
   if (Param->BootDevBuf) {
     Src = Param->BootDeviceCmdLine;
-    if (Param->HaveCmdLine) {
-      --Dst;
-    }
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
     Src = Param->BootDevBuf;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
     FreePool (Param->BootDevBuf);
     Param->BootDevBuf = NULL;
   }
 
   Src = Param->UsbSerialCmdLine;
-  --Dst;
-  STR_COPY (Dst, Src);
-  --Dst;
+  AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   Src = Param->StrSerialNum;
-  STR_COPY (Dst, Src);
+  AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
   if (Param->FfbmStr &&
       (Param->FfbmStr[0] != '\0')) {
     Src = Param->AndroidBootMode;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
     Src = Param->FfbmStr;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
     Src = Param->LogLevel;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   } else if (Param->PauseAtBootUp) {
     Src = Param->BatteryChgPause;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   } else if (Param->AlarmBoot) {
     Src = Param->AlarmBootCmdLine;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
 
   Src = BOOT_BASE_BAND;
-  --Dst;
-  STR_COPY (Dst, Src);
-  --Dst;
+  AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
   gBS->SetMem (Param->ChipBaseBand, CHIP_BASE_BAND_LEN, 0);
   AsciiStrnCpyS (Param->ChipBaseBand, CHIP_BASE_BAND_LEN,
@@ -440,30 +413,26 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
                  (CHIP_BASE_BAND_LEN - 1));
   ToLower (Param->ChipBaseBand);
   Src = Param->ChipBaseBand;
-  STR_COPY (Dst, Src);
+  AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
   Src = Param->DisplayCmdLine;
-  --Dst;
-  STR_COPY (Dst, Src);
+  AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
   if (Param->MdtpActive) {
     Src = Param->MdtpActiveFlag;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
 
   if (Param->MultiSlotBoot &&
      !IsBootDevImage ()) {
      /* Slot suffix */
     Src = Param->AndroidSlotSuffix;
-    --Dst;
-    STR_COPY (Dst, Src);
-    --Dst;
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
     UnicodeStrToAsciiStr (GetCurrentSlotSuffix ().Suffix,
                           Param->SlotSuffixAscii);
     Src = Param->SlotSuffixAscii;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
 
   if ((IsBuildAsSystemRootImage () &&
@@ -473,25 +442,21 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     /* Skip Initramfs*/
     if (!Param->Recovery) {
       Src = Param->SkipRamFs;
-      --Dst;
-      STR_COPY (Dst, Src);
+      AsciiStrCatS (Dst, MaxCmdLineLen, Src);
     }
 
      /* Add root command line */
      Src = Param->RootCmdLine;
-     --Dst;
-     STR_COPY (Dst, Src);
+     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
      /* Add init value*/
      Src = Param->InitCmdline;
-     --Dst;
-     STR_COPY (Dst, Src);
+     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
    }
 
   if (Param->DtboIdxStr != NULL) {
     Src = Param->DtboIdxStr;
-    --Dst;
-    STR_COPY (Dst, Src);
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
    return EFI_SUCCESS;
 }
