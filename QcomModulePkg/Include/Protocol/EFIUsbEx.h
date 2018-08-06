@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016,2018 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -94,6 +94,21 @@ typedef struct {
 } USB_SUPERSPEED_USB_DESCRIPTOR;
 
 ///
+/// Standard Device Capability Descriptor, SuperSpeedPlus USB
+/// USB 3.1 spec, Section 9.6.2.5
+///
+typedef struct {
+  UINT8           Length;
+  UINT8           DescriptorType;
+  UINT8           DevCapabilityType;
+  UINT8           Reserved;
+  UINT32          Attributes;
+  UINT16          FunctionalitySupport;
+  UINT16          Reserved2;
+  UINT32          SublinkSpeedAttr[2];
+} USB_SUPERSPEEDPLUS_USB_DESCRIPTOR;
+
+///
 /// Standard Device Capability Descriptor, Container ID
 /// USB 3.0 spec, Section 9.6.2.3
 ///
@@ -161,6 +176,7 @@ typedef enum {
   USB_DEV_CAP_TYPE_USB_20_EXTENSION = 0x02,
   USB_DEV_CAP_TYPE_SUPERSPEED_USB = 0x03,
   USB_DEV_CAP_TYPE_CONTAINER_ID = 0x04,
+  USB_DEV_CAP_TYPE_SUPERSPEEDPLUS_USB     = 0x0A,
 
   //
   // Features to be cleared by CLEAR_FEATURE requests
@@ -181,6 +197,8 @@ typedef USB_DEVICE_CAPABILITY_DESCRIPTOR EFI_USB_DEVICE_CAPABILITY_DESCRIPTOR;
 typedef USB_USB_20_EXTENSION_DESCRIPTOR EFI_USB_USB_20_EXTENSION_DESCRIPTOR;
 /** USB Super-speed USB Device Capability descriptor. **/
 typedef USB_SUPERSPEED_USB_DESCRIPTOR EFI_USB_SUPERSPEED_USB_DESCRIPTOR;
+/** USB Super-Speed-Plus USB Device Capability descriptor. **/
+typedef USB_SUPERSPEEDPLUS_USB_DESCRIPTOR EFI_USB_SUPERSPEEDPLUS_USB_DESCRIPTOR;
 /** USB Container ID Device Capability descriptor. **/
 typedef USB_CONTAINER_ID_DESCRIPTOR EFI_USB_CONTAINER_ID_DESCRIPTOR;
 /** USB Interface Association descriptor. **/
