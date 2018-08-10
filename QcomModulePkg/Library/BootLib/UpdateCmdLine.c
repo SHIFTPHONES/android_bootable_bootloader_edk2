@@ -565,7 +565,8 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
 
   MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
   if (MultiSlotBoot) {
-    CmdLineLen += AsciiStrLen (AndroidSlotSuffix) + 2;
+    /* Add additional length for slot suffix */
+    CmdLineLen += AsciiStrLen (AndroidSlotSuffix) + MAX_SLOT_SUFFIX_SZ;
 
     CmdLineLen += AsciiStrLen (RootCmdLine);
     CmdLineLen += AsciiStrLen (InitCmdline);
