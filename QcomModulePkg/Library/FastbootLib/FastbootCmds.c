@@ -1736,7 +1736,6 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
 
 out:
   if (!AsciiStrnCmp (arg, "system", AsciiStrLen ("system")) &&
-    GetAVBVersion () == AVB_1 &&
     !IsEnforcing () &&
     (FlashResult == EFI_SUCCESS)) {
      // reset dm_verity mode to enforcing
