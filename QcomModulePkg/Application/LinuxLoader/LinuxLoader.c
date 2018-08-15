@@ -150,6 +150,10 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   BOOLEAN MultiSlotBoot;
 
   DEBUG ((EFI_D_INFO, "Loader Build Info: %a %a\n", __DATE__, __TIME__));
+  DEBUG ((EFI_D_VERBOSE, "LinuxLoader Load Address to debug ABL: 0x%llx\n",
+         (UINTN)LinuxLoaderEntry & (~ (0xFFF))));
+  DEBUG ((EFI_D_VERBOSE, "LinuxLoaderEntry Address: 0x%llx\n",
+         (UINTN)LinuxLoaderEntry));
 
   Status = AllocateUnSafeStackPtr ();
   if (Status != EFI_SUCCESS) {
