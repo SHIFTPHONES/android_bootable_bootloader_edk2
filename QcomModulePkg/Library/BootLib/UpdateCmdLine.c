@@ -542,7 +542,9 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     CmdLineLen += AsciiStrLen (FfbmStr);
     /* reduce kernel console messages to speed-up boot */
     CmdLineLen += AsciiStrLen (LogLevel);
-  } else if (BatteryStatus && IsChargingScreenEnable ()) {
+  } else if (BatteryStatus &&
+             IsChargingScreenEnable () &&
+             !Recovery) {
     DEBUG ((EFI_D_INFO, "Device will boot into off mode charging mode\n"));
     PauseAtBootUp = 1;
     CmdLineLen += AsciiStrLen (BatteryChgPause);
