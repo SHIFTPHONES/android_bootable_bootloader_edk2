@@ -131,7 +131,7 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 	AvbIOResult Result = AVB_IO_RESULT_OK;
 	EFI_STATUS Status = EFI_SUCCESS;
 	VOID *Page = NULL;
-	UINT32 Offset = 0;
+        UINTN Offset = 0;
 	HandleInfo InfoList[1];
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	UINTN PartitionSize = 0;
