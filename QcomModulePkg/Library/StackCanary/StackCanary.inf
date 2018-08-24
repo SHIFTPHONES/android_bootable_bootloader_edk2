@@ -57,6 +57,9 @@
 [LibraryClasses]
 	DebugPrintErrorLevelLib
 
+[Guids]
+        gEfiRNGAlgRawGuid
+
 [Protocols]
 	gQcomRngProtocolGuid
 

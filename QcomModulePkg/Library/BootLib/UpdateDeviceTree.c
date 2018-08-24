@@ -67,8 +67,6 @@ GetKaslrSeed (UINT64 *KaslrSeed)
 {
   EFI_QCOM_RNG_PROTOCOL *RngIf;
   EFI_STATUS Status;
-  EFI_GUID AlgoId;
-  UINTN AlgoIdSize = sizeof (EFI_GUID);
 
   Status = gBS->LocateProtocol (&gQcomRngProtocolGuid, NULL, (VOID **)&RngIf);
   if (Status != EFI_SUCCESS) {
@@ -78,18 +76,12 @@ GetKaslrSeed (UINT64 *KaslrSeed)
     return Status;
   }
 
-  Status = RngIf->GetInfo (RngIf, &AlgoIdSize, &AlgoId);
+  Status = RngIf->GetRNG (RngIf,
+                          &gEfiRNGAlgRawGuid,
+                          sizeof (UINTN),
+                          (UINT8 *)KaslrSeed);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_VERBOSE,
-            "Error GetInfo for PRNG failed. Fail to generate Kaslr seed:%r\n",
-            Status));
-    return Status;
-  }
-
-  Status = RngIf->GetRNG (RngIf, &AlgoId, sizeof (UINTN), (UINT8 *)KaslrSeed);
-  if (Status != EFI_SUCCESS) {
-    DEBUG (
-        (EFI_D_VERBOSE,
          "Error getting PRNG random number. Fail to generate Kaslr seed:%r\n",
          Status));
     *KaslrSeed = 0;

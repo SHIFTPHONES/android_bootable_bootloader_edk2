@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,8 +36,6 @@ VOID StackGuardChkSetup (VOID)
 {
   EFI_QCOM_RNG_PROTOCOL *RngIf;
   EFI_STATUS Status;
-  EFI_GUID AlgoId;
-  UINTN AlgoIdSize = sizeof (EFI_GUID);
 
   Status = gBS->LocateProtocol (&gQcomRngProtocolGuid, NULL, (VOID **)&RngIf);
   if (Status != EFI_SUCCESS) {
@@ -47,13 +45,7 @@ VOID StackGuardChkSetup (VOID)
     return;
   }
 
-  Status = RngIf->GetInfo (RngIf, &AlgoIdSize, &AlgoId);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Error GetInfo for PRNG failed: %r\n", Status));
-    return;
-  }
-
-  Status = RngIf->GetRNG (RngIf, &AlgoId, sizeof (UINTN),
+  Status = RngIf->GetRNG (RngIf, &gEfiRNGAlgRawGuid, sizeof (UINTN),
                           (UINT8 *)&__stack_chk_guard);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR,
