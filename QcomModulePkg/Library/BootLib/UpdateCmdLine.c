@@ -68,6 +68,18 @@ STATIC UINTN DisplayCmdLineLen = sizeof (DisplayCmdLine);
 #define MAX_DTBO_IDX_STR 64
 STATIC CHAR8 *AndroidBootDtboIdx = " androidboot.dtbo_idx=";
 
+#if VERITY_LE
+STATIC BOOLEAN IsLEVerity (VOID)
+{
+  return TRUE;
+}
+#else
+STATIC BOOLEAN IsLEVerity (VOID)
+{
+  return FALSE;
+}
+#endif
+
 STATIC EFI_STATUS
 TargetPauseForBatteryCharge (BOOLEAN *BatteryStatus)
 {
@@ -302,7 +314,7 @@ GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
 
   Index = GetPartitionIndex (PartitionName);
   if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
-    DEBUG ((EFI_D_ERROR, "System partition does not exit\n"));
+    DEBUG ((EFI_D_ERROR, "System partition does not exist\n"));
     FreePool (*SysPath);
     *SysPath = NULL;
     return 0;
@@ -461,6 +473,91 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
    return EFI_SUCCESS;
 }
 
+STATIC
+EFI_STATUS
+GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine)
+{
+  BOOLEAN MultiSlotBoot;
+  EFI_STATUS Status = EFI_SUCCESS;
+  CHAR8 *SysPathIndex = NULL;
+  CHAR8 *ReplaceStr = NULL;
+  CHAR8 *Destination = NULL;
+  CHAR8 *LeSearchStr = " /dev/mmcblk0p";
+  CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
+  CHAR16 MaxDestSize;
+  INT32 Index;
+
+  MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+  SysPathIndex = AllocateZeroPool (sizeof (CHAR8) * MAX_PATH_SIZE);
+  if (!SysPathIndex) {
+    DEBUG ((EFI_D_ERROR, "Failed to allocate memory for System path query\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+
+  StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
+          StrLen ((CONST CHAR16 *)L"system"));
+  if (MultiSlotBoot) {
+    StrnCatS (PartitionName, MAX_GPT_NAME_SIZE, GetCurrentSlotSuffix ().Suffix,
+            StrLen (GetCurrentSlotSuffix ().Suffix));
+    DEBUG ((EFI_D_VERBOSE, "Partition name:%s\n", PartitionName));
+  }
+  Index = GetPartitionIndex (PartitionName);
+
+  if (Index == INVALID_PTN) {
+    DEBUG ((EFI_D_ERROR, "System partition does not exist\n"));
+    Status = EFI_NOT_FOUND;
+    goto out;
+  }
+
+  AsciiSPrint (SysPathIndex, MAX_PATH_SIZE, "%d", Index);
+
+  ReplaceStr = AsciiStrStr (SourceCmdLine, LeSearchStr);
+
+  if (!ReplaceStr) {
+    DEBUG ((EFI_D_ERROR, "Verity String is not found in CmdLine\n"));
+    Status = EFI_NOT_FOUND;
+    goto out;
+  }
+  ReplaceStr += AsciiStrLen (LeSearchStr);
+
+  /*  Adding syspath index twice to SourceCmdLine, to manage the destination
+   length also adding 1Byte extra to detect NULL  */
+  MaxDestSize =  AsciiStrLen (SourceCmdLine) +
+         (2 * AsciiStrLen (SysPathIndex)) + 1;
+
+  Destination  = AllocateZeroPool (MaxDestSize);
+
+  if (!Destination) {
+    DEBUG ((EFI_D_ERROR, "Failed to allocated memory for Verity Cmdline\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+  /*  logic: copying source string to destination with appending system
+   index value to kernel command line argument*/
+  AsciiStrnCpyS (Destination, MaxDestSize, SourceCmdLine,
+         (ReplaceStr - SourceCmdLine));
+
+  AsciiStrCat (Destination, SysPathIndex);
+  AsciiStrCat (Destination, LeSearchStr);
+  AsciiStrCat (Destination, SysPathIndex);
+  ReplaceStr += AsciiStrLen (LeSearchStr);
+  AsciiStrCat (Destination, ReplaceStr);
+
+  AsciiStrnCpyS ((CHAR8 *)SourceCmdLine, MaxDestSize,
+         (CONST CHAR8 *)Destination, MaxDestSize);
+
+out:
+  if (SysPathIndex != NULL) {
+    FreePool (SysPathIndex);
+  }
+  if (Destination != NULL) {
+    FreePool (Destination);
+  }
+
+  return Status;
+}
+
 /*Update command line: appends boot information to the original commandline
  *that is taken from boot image header*/
 EFI_STATUS
@@ -493,6 +590,12 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   }
 
   if (CmdLine && CmdLine[0]) {
+    if (IsLEVerity ()) {
+      Status = GetLEVerityCmdLine (CmdLine);
+      if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "Error While checking verity: %x\n", Status));
+      }
+    }
     CmdLineLen = AsciiStrLen (CmdLine);
     HaveCmdLine = 1;
   }
