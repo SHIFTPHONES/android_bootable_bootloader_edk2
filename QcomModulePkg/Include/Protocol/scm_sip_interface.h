@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017 - 2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1642,6 +1642,28 @@
 #define TZ_INFO_GET_SECURE_STATE_LEGACY_PARAM_ID                               \
   TZ_SYSCALL_CREATE_PARAM_ID_2 (TZ_SYSCALL_PARAM_TYPE_BUF_RW,                  \
                                 TZ_SYSCALL_PARAM_TYPE_VAL)
+
+/**
+   @ingroup hyp_info_get_hyp_dtb_address
+   Syscall trapped by hypervisor and will provide the address of the
+   HypBootInfo structure. If syscall reaches to TZ, TZ will return
+   syacll not found.
+
+   @smc_id
+     0x02000609
+
+   @param_id
+     0x00000000
+
+   @return
+     Return E-SUCCESS & HypBootInfo address if sucess / failure.
+*/
+
+#define HYP_INFO_GET_HYP_DTB_ADDRESS_ID                \
+  TZ_SYSCALL_CREATE_SMC_ID (TZ_OWNER_SIP, TZ_SVC_INFO, 0x09)
+
+#define HYP_INFO_GET_HYP_DTB_ADDRESS_ID_PARAM_ID \
+  TZ_SYSCALL_CREATE_PARAM_ID_0
 
 /**
    @ingroup decrypt_image
@@ -4678,6 +4700,8 @@ typedef struct hyp_memprot_dstVM_perm_info_s {
   UINT64 ctx; /**< destination VM specific Context information */
 
   UINT64 ctxsize; /**< size of ctx buffer in bytes */
+
+  UINT64 reserved;
 
 } __attribute__ ((packed)) hyp_memprot_dstVM_perm_info_t;
 
