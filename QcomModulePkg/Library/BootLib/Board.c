@@ -145,6 +145,8 @@ GetChipInfo (struct BoardInfo *platform_board_info)
 {
   EFI_STATUS Status;
   EFI_CHIPINFO_PROTOCOL *pChipInfoProtocol;
+  EFIChipInfoModemType ModemType;
+
   Status = gBS->LocateProtocol (&gEfiChipInfoProtocolGuid, NULL,
                                 (VOID **)&pChipInfoProtocol);
   if (EFI_ERROR (Status))
@@ -161,11 +163,22 @@ GetChipInfo (struct BoardInfo *platform_board_info)
                                             &platform_board_info->FoundryId);
   if (EFI_ERROR (Status))
     return Status;
-  Status = pChipInfoProtocol->GetChipIdString (
-      pChipInfoProtocol, platform_board_info->ChipBaseBand,
-      EFICHIPINFO_MAX_ID_LENGTH);
+  Status = pChipInfoProtocol->GetModemSupport (
+      pChipInfoProtocol, &ModemType);
   if (EFI_ERROR (Status))
     return Status;
+
+  if (BoardPlatformFusion ()) {
+    AsciiSPrint ((CHAR8 *)platform_board_info->ChipBaseBand,
+                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_MDM);
+  } else if (ModemType == 0) {
+    AsciiSPrint ((CHAR8 *)platform_board_info->ChipBaseBand,
+                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_APQ);
+  } else {
+    AsciiSPrint ((CHAR8 *)platform_board_info->ChipBaseBand,
+                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_MSM);
+  }
+
   DEBUG ((EFI_D_VERBOSE, "Raw Chip Id   : 0x%x\n",
           platform_board_info->RawChipId));
   DEBUG ((EFI_D_VERBOSE, "Chip Version  : 0x%x\n",
@@ -587,9 +600,6 @@ EFIChipInfoFoundryIdType BoardPlatformFoundryId (VOID)
 
 CHAR8 *BoardPlatformChipBaseBand (VOID)
 {
-  if (BoardPlatformFusion ()) {
-    return "mdm";
-  }
   return platform_board_info.ChipBaseBand;
 }
 
