@@ -33,6 +33,7 @@
 #include <Library/MenuKeysDetection.h>
 #include <Library/VerifiedBootMenu.h>
 #include <Library/LEOEMCertificate.h>
+#include <Library/HypervisorMvCalls.h>
 
 STATIC CONST CHAR8 *VerityMode = " androidboot.veritymode=";
 STATIC CONST CHAR8 *VerifiedState = " androidboot.verifiedbootstate=";
@@ -331,7 +332,11 @@ LoadImageNoAuthWrapper (BootInfo *Info)
   GUARD (LoadImageNoAuth (Info));
 
   if (!IsRootCmdLineUpdated (Info)) {
-    SystemPathLen = GetSystemPath (&SystemPath, Info);
+    SystemPathLen = GetSystemPath (&SystemPath,
+                                   Info->MultiSlotBoot,
+                                   Info->BootIntoRecovery,
+                                   (CHAR16 *)L"system",
+                                   (CHAR8 *)"root");
     if (SystemPathLen == 0 || SystemPath == NULL) {
       DEBUG ((EFI_D_ERROR, "GetSystemPath failed!\n"));
       return EFI_LOAD_ERROR;
@@ -394,7 +399,11 @@ LoadImageAndAuthVB1 (BootInfo *Info)
   }
 
   if (!IsRootCmdLineUpdated (Info)) {
-    SystemPathLen = GetSystemPath (&SystemPath, Info);
+    SystemPathLen = GetSystemPath (&SystemPath,
+                                   Info->MultiSlotBoot,
+                                   Info->BootIntoRecovery,
+                                   (CHAR16 *)L"system",
+                                   (CHAR8 *)"root");
     if (SystemPathLen == 0 || SystemPath == NULL) {
       DEBUG ((EFI_D_ERROR, "GetSystemPath failed!\n"));
       return EFI_LOAD_ERROR;
@@ -1160,7 +1169,11 @@ STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
 
 skip_verification:
     if (!IsRootCmdLineUpdated (Info)) {
-        SystemPathLen = GetSystemPath (&SystemPath, Info);
+        SystemPathLen = GetSystemPath (&SystemPath,
+                                       Info->MultiSlotBoot,
+                                       Info->BootIntoRecovery,
+                                       (CHAR16 *)L"system",
+                                       (CHAR8 *)"root");
         if (SystemPathLen == 0 ||
             SystemPath == NULL) {
             return EFI_LOAD_ERROR;
