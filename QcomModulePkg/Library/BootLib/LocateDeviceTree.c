@@ -1424,3 +1424,52 @@ platform_dt_match_best (struct dt_entry_node *dt_list)
 
   return NULL;
 }
+
+BOOLEAN
+AppendToDtList (struct fdt_entry_node **DtList,
+                UINT64 Address,
+                UINT64 Size) {
+  struct fdt_entry_node *Current = *DtList;
+
+  if (*DtList == NULL) {
+    DEBUG ((EFI_D_VERBOSE, "DTs list: NULL\n"));
+    Current = AllocatePool (sizeof (struct fdt_entry_node));
+    if (!Current) {
+      return FALSE;
+    }
+
+    Current->address = Address;
+    Current->size = Size;
+    Current->next = NULL;
+    *DtList = Current;
+    return TRUE;
+  } else {
+
+    while (Current->next != NULL) {
+      Current = Current->next;
+    }
+
+    Current->next = AllocatePool (sizeof (struct fdt_entry_node));
+    if (!Current->next) {
+      return FALSE;
+    }
+    Current->next->address = Address;
+    Current->next->size = Size;
+    Current->next->next = NULL;
+    return TRUE;
+  }
+}
+
+VOID DeleteDtList (struct fdt_entry_node** DtList)
+{
+  struct fdt_entry_node *Current = *DtList;
+  struct fdt_entry_node *Next;
+
+  while (Current != NULL) {
+    Next = Current->next;
+    FreePool (Current);
+    Current = Next;
+  }
+
+  *DtList = NULL;
+}

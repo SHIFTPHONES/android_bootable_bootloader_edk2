@@ -161,7 +161,7 @@ CheckMDTPStatus (CHAR16 *PartitionName, BootInfo *Info)
 STATIC EFI_STATUS
 ApplyOverlay (BootParamlist *BootParamlistPtr,
               VOID *AppendedDtHdr,
-              VOID *OverlayDtHdr)
+              struct fdt_entry_node *DtsList)
 {
   VOID *FinalDtbHdr = AppendedDtHdr;
   VOID *TmpDtbHdr = NULL;
@@ -171,7 +171,7 @@ ApplyOverlay (BootParamlist *BootParamlistPtr,
     DEBUG ((EFI_D_ERROR, "ApplyOverlay: Invalid input parameters\n"));
     return EFI_INVALID_PARAMETER;
   }
-  if (OverlayDtHdr == NULL) {
+  if (DtsList == NULL) {
     DEBUG ((EFI_D_VERBOSE, "ApplyOverlay: Overlay DT is NULL\n"));
     goto out;
   }
@@ -188,10 +188,10 @@ ApplyOverlay (BootParamlist *BootParamlistPtr,
     return EFI_NOT_FOUND;
   }
 
-  FinalDtbHdr = ufdt_apply_overlay (TmpDtbHdr,
+  FinalDtbHdr = ufdt_apply_multi_overlay (TmpDtbHdr,
                                     fdt_totalsize (TmpDtbHdr),
-                                    OverlayDtHdr,
-                                    fdt_totalsize (OverlayDtHdr));
+                                    DtsList);
+  DeleteDtList (&DtsList);
   if (!FinalDtbHdr) {
     DEBUG ((EFI_D_ERROR, "ApplyOverlay: ufdt apply overlay failed\n"));
     return EFI_NOT_FOUND;
@@ -228,6 +228,7 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
   VOID *Dtb;
   BOOLEAN DtboCheckNeeded = FALSE;
   BOOLEAN DtboImgInvalid = FALSE;
+  struct fdt_entry_node *DtsList = NULL;
   EFI_STATUS Status;
 
   if (Info == NULL ||
@@ -306,22 +307,39 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
         DEBUG ((EFI_D_ERROR, "Error: Board Dtbo blob not found\n"));
         return EFI_NOT_FOUND;
       }
+
+      if (!AppendToDtList (&DtsList,
+                         (fdt64_t)BoardDtb,
+                         fdt_totalsize (BoardDtb))) {
+        DEBUG ((EFI_D_ERROR,
+              "Unable to Allocate buffer for Overlay DT\n"));
+        DeleteDtList (&DtsList);
+        return EFI_OUT_OF_RESOURCES;
+      }
     }
+
+    if (IsVmEnabled ()) {
+      if ((VOID *)BootParamlistPtr->HypDtboAddr == NULL) {
+        DEBUG ((EFI_D_ERROR, "Error: HypOverlay DT is NULL\n"));
+        return EFI_NOT_FOUND;
+      }
+
+      if (!AppendToDtList (&DtsList,
+                           (fdt64_t)BootParamlistPtr->HypDtboAddr,
+                           fdt_totalsize (BootParamlistPtr->HypDtboAddr))) {
+        DEBUG ((EFI_D_ERROR,
+                "Unable to Allocate buffer for HypOverlay DT\n"));
+        DeleteDtList (&DtsList);
+        return EFI_OUT_OF_RESOURCES;
+      }
+    }
+
     Status = ApplyOverlay (BootParamlistPtr,
-                           SocDtb, BoardDtb);
+                           SocDtb,
+                           DtsList);
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "Error: Dtb overlay failed\n"));
       return Status;
-    }
-    if (IsVmEnabled ()) {
-      /* Apply Hyp Overlay */
-      Status = ApplyOverlay (BootParamlistPtr,
-                             (VOID *)BootParamlistPtr->DeviceTreeLoadAddr,
-                             (VOID *)BootParamlistPtr->HypDtboAddr);
-      if (Status != EFI_SUCCESS) {
-        DEBUG ((EFI_D_ERROR, "Error: Hyp Dtb overlay failed\n"));
-        return Status;
-      }
     }
   }
   return EFI_SUCCESS;
@@ -640,6 +658,7 @@ CheckAndLoadComputeVM (BootInfo *Info,
   UINT32 DtbOffset = 0;
   VOID *SingleDtHdr = NULL;
   VOID *MlVmDtHdr = (VOID *)CvmBootParamList->HypDtboAddr;
+  struct fdt_entry_node *DtsList = NULL;
   IsVmComputed = FALSE;
   CHAR16 VmPartName[MAX_GPT_NAME_SIZE];
   CHAR8 VmPartNameAscii[MAX_GPT_NAME_SIZE] = {0};
@@ -733,9 +752,20 @@ CheckAndLoadComputeVM (BootInfo *Info,
                              "\nContinue with appended DTB\n"));
       MlVmDtHdr = NULL;
     }
+
+    if (MlVmDtHdr != NULL) {
+      if (!AppendToDtList (&DtsList,
+                           (fdt64_t)MlVmDtHdr,
+                           fdt_totalsize (MlVmDtHdr))) {
+        DEBUG ((EFI_D_ERROR,
+                "Unable to Allocate buffer for HypOverlay DT\n"));
+        DeleteDtList (&DtsList);
+        return EFI_OUT_OF_RESOURCES;
+      }
+    }
     Status = ApplyOverlay (CvmBootParamList,
                            SingleDtHdr,
-                           MlVmDtHdr);
+                           DtsList);
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "VM DT Overlay Failed: %r\n", Status));
       return Status;
