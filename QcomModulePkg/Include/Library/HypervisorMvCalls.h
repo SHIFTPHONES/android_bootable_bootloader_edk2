@@ -133,3 +133,4 @@ UINT32 HvcSysPipeControl (UINT32 PipeId, UINT32 Control);
 /* SCM call related functions */
 HypBootInfo *GetVmData (VOID);
 BOOLEAN IsVmEnabled (VOID);
+EFI_STATUS HypUnmapMemory (UINT64 RegionAddr, UINT64 RegionSize);

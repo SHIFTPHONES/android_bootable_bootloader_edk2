@@ -926,7 +926,18 @@ BootLinux (BootInfo *Info)
     if (EFI_ERROR (Status)) {
       DEBUG ((EFI_D_ERROR, "Compute VM Not Loaded - %r\n", Status));
     }
+
+    /* Un-map MLVM memory from HLOS S2 */
+    if (IsVmComputed) {
+      Status = HypUnmapMemory (CvmBootParamList.BaseMemory,
+                               CvmBootParamList.MemorySize);
+      if (EFI_ERROR (Status)) {
+        DEBUG ((EFI_D_ERROR, "Error: ML-VM unmap falied: %r\n", Status));
+        return Status;
+      }
+    }
   }
+
   FreeVerifiedBootResource (Info);
 
   /* Free the boot logo blt buffer before starting kernel */

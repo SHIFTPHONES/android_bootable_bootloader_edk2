@@ -4681,9 +4681,26 @@ typedef enum {
                           VM */
   AC_VM_MSS_MSA,       /* This is MSA=1 view */
   AC_VM_MSS_NONMSA,    /* IPA not equal PA */
+  AC_VM_GUEST_OS_MLVM = 45,
   AC_VM_LAST,
   AC_VM_MAX = 0x7FFFFFFF,
 } ACVirtualMachineId;
+
+// permission
+typedef enum
+{
+  VM_PERM_X      = 0x1,
+  VM_PERM_W      = 0x2,
+  VM_PERM_R      = 0x4,
+  VM_PERM_RWX    = VM_PERM_R | VM_PERM_W | VM_PERM_X,
+  VM_PERM_RW     = VM_PERM_R | VM_PERM_W,
+  VM_PERM_RX     = VM_PERM_R | VM_PERM_X,
+  VM_PERM_WX     = VM_PERM_W | VM_PERM_X,
+  // user stage 1 or RWX
+  VM_PERM_DEFAULT= VM_PERM_RWX,
+
+  VM_PERM_FORCE_ENUM_32_BIT = 0x7FFFFFFF  /* Force to 32 bit enum */
+} VMPerm_t;
 
 /** @} */ /* end_addtogroup tz_datatypes */
 
@@ -4692,16 +4709,16 @@ typedef enum {
 @{
 */
 typedef struct hyp_memprot_dstVM_perm_info_s {
-  UINT64 dstVM; /**< Destination VM defined by ACVirtualMachineId*/
+  UINT32 dstVM; /**< Destination VM defined by ACVirtualMachineId*/
 
-  UINT64 dstVMperm; /**< Permissions of IPA to be mapped to VM, bitwise OR of
+  UINT32 dstVMperm; /**< Permissions of IPA to be mapped to VM, bitwise OR of
                        AC_PERM_* */
 
   UINT64 ctx; /**< destination VM specific Context information */
 
-  UINT64 ctxsize; /**< size of ctx buffer in bytes */
+  UINT32 ctxsize; /**< size of ctx buffer in bytes */
 
-  UINT64 reserved;
+  UINT32 reserved;
 
 } __attribute__ ((packed)) hyp_memprot_dstVM_perm_info_t;
 
