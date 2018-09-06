@@ -51,6 +51,7 @@
 
 STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
 STATIC BOOLEAN BootDevImage;
+STATIC BOOLEAN IsVmComputed = FALSE;
 
 STATIC EFI_STATUS
 SwitchTo32bitModeBooting (UINT64 KernelLoadAddr, UINT64 DeviceTreeLoadAddr)
@@ -510,6 +511,48 @@ LoadAddrAndDTUpdate (BootParamlist *BootParamlistPtr)
 }
 
 STATIC
+VOID *GetMlvmAppendedDtb (BootParamlist *CvmBootParamList,
+                          UINT32 DtbOffset) {
+  UINTN KernelEnd = (UINTN)(CvmBootParamList->ImageBuffer +
+                                     CvmBootParamList->PageSize) +
+                                     CvmBootParamList->KernelSize;
+  VOID *Dtb = CvmBootParamList->ImageBuffer +
+                 CvmBootParamList->PageSize +
+                 DtbOffset;
+  INT32 RootOffset;
+  INT32 Len;
+  CONST VOID *Prop;
+
+  /* Pick the DTB if the value of "compatible" property in node "/"
+     is "linux,dummy-virt"
+   */
+  while (((UINTN)Dtb + sizeof (struct fdt_header)) <
+         (UINTN)KernelEnd) {
+    if (fdt_check_header (Dtb) != 0 ||
+        fdt_check_header_ext (Dtb) != 0 ||
+        ((UINTN)Dtb + (UINTN)fdt_totalsize (Dtb) < (UINTN)Dtb) ||
+        ((UINTN)Dtb + (UINTN)fdt_totalsize (Dtb) > (UINTN)KernelEnd)) {
+      DEBUG ((EFI_D_VERBOSE, "MLVM DT Sanity check failed\n"));
+      return NULL;
+    }
+    RootOffset = fdt_path_offset (Dtb, "/");
+    if (RootOffset < 0) {
+      DEBUG ((EFI_D_VERBOSE, "Root Node is not found\n"));
+      return NULL;
+    }
+    Prop = fdt_getprop (Dtb, RootOffset, "compatible", &Len);
+    if (Prop &&
+        (Len > 0)) {
+      if (!AsciiStrnCmp (Prop, "linux,dummy-virt", Len)) {
+        return Dtb;
+      }
+    }
+    Dtb += fdt_totalsize (Dtb);
+  }
+  return NULL;
+}
+
+STATIC
 EFI_STATUS
 UpdateMemRegions (BootParamlist *BootParamlistPtr,
                   BootParamlist *CvmBootParamList,
@@ -586,6 +629,115 @@ UpdateMemRegions (BootParamlist *BootParamlistPtr,
 
   return EFI_SUCCESS;
 }
+
+STATIC
+EFI_STATUS
+CheckAndLoadComputeVM (BootInfo *Info,
+                       BootParamlist *CvmBootParamList)
+{
+  EFI_STATUS Status;
+  UINTN CvmImageSize;
+  UINT32 DtbOffset = 0;
+  VOID *SingleDtHdr = NULL;
+  VOID *MlVmDtHdr = (VOID *)CvmBootParamList->HypDtboAddr;
+  IsVmComputed = FALSE;
+
+  /* Call GetImage here.*/
+  Status = GetImage (Info,
+                     &CvmBootParamList->ImageBuffer,
+                     &CvmImageSize,
+                     "vm-linux");
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Couldnt load ComputeVM\n"));
+    return Status;
+  }
+
+  CvmBootParamList->KernelSize =
+                ((boot_img_hdr *)(CvmBootParamList->ImageBuffer))->kernel_size;
+  CvmBootParamList->RamdiskSize =
+               ((boot_img_hdr *)(CvmBootParamList->ImageBuffer))->ramdisk_size;
+  CvmBootParamList->SecondSize =
+                ((boot_img_hdr *)(CvmBootParamList->ImageBuffer))->second_size;
+  CvmBootParamList->PageSize =
+                ((boot_img_hdr *)(CvmBootParamList->ImageBuffer))->page_size;
+  CvmBootParamList->CmdLine =
+    (CHAR8 *)&(((boot_img_hdr *) (CvmBootParamList->ImageBuffer))->cmdline[0]);
+
+  Status = GZipPkgCheck (CvmBootParamList, &DtbOffset,
+                         &CvmBootParamList->KernelLoadAddr,
+                         &CvmBootParamList->BootingWith32BitKernel);
+  if (Status != EFI_SUCCESS) {
+    return Status;
+  }
+
+  CvmBootParamList->KernelSizeActual = LOCAL_ROUND_TO_PAGE (
+                                        CvmBootParamList->KernelSize,
+                                        CvmBootParamList->PageSize);
+
+  DEBUG ((EFI_D_VERBOSE, "Compute Kernel Load Address: 0x%x\n",
+                                        CvmBootParamList->KernelLoadAddr));
+  DEBUG ((EFI_D_VERBOSE, "Compute Kernel Size Actual: 0x%x\n",
+                                      CvmBootParamList->KernelSizeActual));
+  DEBUG ((EFI_D_VERBOSE, "Compute Device Tree Load Address: 0x%x\n",
+                             CvmBootParamList->DeviceTreeLoadAddr));
+  DEBUG ((EFI_D_VERBOSE, "Compute Device Tree Offset: 0x%x\n", DtbOffset));
+  DEBUG ((EFI_D_VERBOSE, "Compute Ramdisk Load Address: 0x%x\n",
+                                       CvmBootParamList->RamdiskLoadAddr));
+  DEBUG ((EFI_D_VERBOSE, "Compute Ramdisk Offset: 0x%x\n",
+                                       CvmBootParamList->RamdiskOffset));
+
+  /*No Ram disk loading and command line update support for Compute VM*/
+  if (DtbOffset >= CvmBootParamList->KernelSize) {
+    DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the kernel size\n"));
+    return EFI_BAD_BUFFER_SIZE;
+  }
+
+  SingleDtHdr = GetMlvmAppendedDtb (CvmBootParamList, DtbOffset);
+  if (!SingleDtHdr) {
+    DEBUG ((EFI_D_ERROR,
+            "Error: Appended Mlvm Device Tree blob not found\n"));
+    return EFI_NOT_FOUND;
+  }
+
+  if (!fdt_check_header (SingleDtHdr)) {
+    DEBUG ((EFI_D_VERBOSE, "Dtb header found.\n"));
+
+    if ((CvmBootParamList->KernelSize - DtbOffset) <
+                  fdt_totalsize (SingleDtHdr)) {
+      DEBUG ((EFI_D_ERROR, "Dtb Size overflow.\n"));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    if (CHECK_ADD64 (CvmBootParamList->DeviceTreeLoadAddr,
+                     fdt_totalsize (SingleDtHdr))) {
+      DEBUG ((EFI_D_ERROR,
+              "Integer Overflow: in single dtb header addition\n"));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    DEBUG ((EFI_D_VERBOSE, "Loading Compute VM DT - Start\n"));
+    if (!MlVmDtHdr ||
+        fdt_check_header (MlVmDtHdr)) {
+      DEBUG ((EFI_D_VERBOSE, "VM overlay DT Addr is NULL or Bad DT Header"
+                             "\nContinue with appended DTB\n"));
+      MlVmDtHdr = NULL;
+    }
+    Status = ApplyOverlay (CvmBootParamList,
+                           SingleDtHdr,
+                           MlVmDtHdr);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "VM DT Overlay Failed: %r\n", Status));
+      return Status;
+    }
+    DEBUG ((EFI_D_VERBOSE, "Loading Compute VM DT- Complete\n"));
+  } else {
+    DEBUG ((EFI_D_ERROR, "Compute DT is not appended/found\n"));
+    return EFI_NOT_FOUND;
+  }
+  IsVmComputed = TRUE;
+  return Status;
+}
+
 EFI_STATUS
 BootLinux (BootInfo *Info)
 {
@@ -607,6 +759,9 @@ BootLinux (BootInfo *Info)
 
   BootParamlist BootParamlistPtr = {0};
   BootParamlist CvmBootParamList = {0};
+  HypMsg Msg = {0};
+  UINT32 RetVal;
+
   HypBootInfo *HypInfo = GetVmData ();
   if (IsVmEnabled () &&
       HypInfo == NULL) {
@@ -765,6 +920,13 @@ BootLinux (BootInfo *Info)
        return Status;
   }
 
+  if ((!Recovery) &&
+      (IsVmEnabled ())) {
+    Status = CheckAndLoadComputeVM (Info, &CvmBootParamList);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((EFI_D_ERROR, "Compute VM Not Loaded - %r\n", Status));
+    }
+  }
   FreeVerifiedBootResource (Info);
 
   /* Free the boot logo blt buffer before starting kernel */
@@ -790,6 +952,52 @@ BootLinux (BootInfo *Info)
   PreparePlatformHardware ();
 
   BootStatsSetTimeStamp (BS_KERNEL_ENTRY);
+
+  if (IsVmEnabled ()) {
+    /* Call into Hypervisor if MLVM needs to loaded */
+    UINT32 PipeId = GET_PIPE_ID_SEND (HypInfo->pipe_id);
+    RetVal = HvcSysPipeControl (PipeId, CONTROL_STATE);
+    if (RetVal) {
+      DEBUG ((EFI_D_ERROR, "Error: Pipe Ctrl %d, Boot in Fastboot\n", RetVal));
+      return EFI_NOT_STARTED;
+    }
+
+    if (!Recovery &&
+       IsVmComputed) {
+      Msg.MsgId = BOOT_MGR_START_CLIENT;
+      Msg.HypBootMgr.StartParams.EntryAddr = CvmBootParamList.KernelLoadAddr;
+      Msg.HypBootMgr.StartParams.DtbAddr =
+        CvmBootParamList.DeviceTreeLoadAddr;
+      Msg.HypBootMgr.StartParams.Is64BitMode =
+        (!CvmBootParamList.BootingWith32BitKernel);
+
+      RetVal = HvcSysPipeSend (PipeId,
+                              (UINT32) sizeof (struct HypMsg),
+                              (UINT8 *)(&Msg));
+      if (RetVal) {
+        DEBUG ((EFI_D_ERROR, "Error: ML-VM %d, Boot into Fastboot\n", RetVal));
+        return EFI_NOT_STARTED;
+      }
+    }
+
+    Msg.MsgId = BOOT_MGR_START_SELF;
+    Msg.HypBootMgr.StartParams.EntryAddr = BootParamlistPtr.KernelLoadAddr;
+    Msg.HypBootMgr.StartParams.DtbAddr = BootParamlistPtr.DeviceTreeLoadAddr;
+    Msg.HypBootMgr.StartParams.Is64BitMode =
+                                    (!BootParamlistPtr.BootingWith32BitKernel);
+
+    RetVal = HvcSysPipeSend (PipeId,
+                             (UINT32)sizeof (struct HypMsg),
+                             (UINT8 *)(&Msg));
+    if (RetVal) {
+      DEBUG ((EFI_D_ERROR, "Error: Kernel %d, Boot into Fastboot\n", RetVal));
+      return EFI_NOT_STARTED;
+    }
+
+    DEBUG ((EFI_D_ERROR, "After Life support not available\n"));
+    goto Exit;
+  }
+
   //
   // Start the Linux Kernel
   //
