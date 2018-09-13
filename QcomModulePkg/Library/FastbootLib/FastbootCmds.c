@@ -135,6 +135,8 @@ STATIC CHAR8 CurrentSlotFB[MAX_SLOT_SUFFIX_SZ];
     } while (i < MAX_SLOT_SUFFIX_SZ - 1);                                      \
   } while (0);
 
+#define MAX_DISPLAY_PANEL_OVERRIDE 256
+
 /*This variable is used to skip populating the FastbootVar
  * When PopulateMultiSlotInfo called while flashing each Lun
  */
@@ -2519,14 +2521,55 @@ CmdOemSelectDisplayPanel (CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
   EFI_STATUS Status;
   CHAR8 resp[MAX_RSP_SIZE] = "Selecting Panel: ";
+  CHAR8 DisplayPanelStr[MAX_DISPLAY_PANEL_OVERRIDE] = "";
+  INTN Pos = 0;
+  UINTN CurStrLen = 0;
+  UINTN TotalStrLen = 0;
+  BOOLEAN Append = FALSE;
 
-  AsciiStrnCatS (resp, sizeof (resp), arg, AsciiStrLen (arg));
+  for (Pos = 0; Pos < AsciiStrLen (arg); Pos++) {
+      if (arg[Pos] == ' ') {
+          arg++;
+          Pos--;
+      } else if (arg[Pos] == ':') {
+          Append = TRUE;
+      } else {
+          break;
+      }
+  }
+
+  if (Append) {
+      Status = gRT->GetVariable ((CHAR16 *)L"DisplayPanelOverride",
+              &gQcomTokenSpaceGuid, NULL, &CurStrLen, NULL);
+      TotalStrLen = CurStrLen + AsciiStrLen (arg);
+      if ((Status != EFI_BUFFER_TOO_SMALL) ||
+              (!CurStrLen) ||
+              (TotalStrLen >= MAX_DISPLAY_PANEL_OVERRIDE))
+          Append = FALSE;
+  }
+
+  if (Append) {
+      Status = gRT->GetVariable ((CHAR16 *)L"DisplayPanelOverride",
+              &gQcomTokenSpaceGuid, NULL,
+              &CurStrLen, (VOID *)DisplayPanelStr);
+      if (Status != EFI_SUCCESS) {
+          DEBUG ((EFI_D_ERROR, "Get panel name failed, %r\n", Status));
+      } else {
+          DEBUG ((EFI_D_INFO, "existing panel name (%a)\n", DisplayPanelStr));
+          AsciiStrnCatS (DisplayPanelStr,
+                  MAX_DISPLAY_PANEL_OVERRIDE, arg, AsciiStrLen (arg));
+          DEBUG ((EFI_D_INFO, "resultant panel name (%a)\n", DisplayPanelStr));
+      }
+  } else {
+      AsciiStrnCatS (DisplayPanelStr,
+              MAX_DISPLAY_PANEL_OVERRIDE, arg, AsciiStrLen (arg));
+  }
 
   /* Update the environment variable with the selected panel */
   Status = gRT->SetVariable (
       (CHAR16 *)L"DisplayPanelOverride", &gQcomTokenSpaceGuid,
       EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
-      AsciiStrLen (arg), (VOID *)arg);
+      AsciiStrLen (DisplayPanelStr), (VOID *)DisplayPanelStr);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Failed to set panel name, %r\n", Status));
     AsciiStrnCatS (resp, sizeof (resp), ": failed", AsciiStrLen (": failed"));
