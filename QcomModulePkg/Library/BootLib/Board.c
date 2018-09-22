@@ -141,11 +141,11 @@ BaseMem (UINT64 *BaseMemory)
 }
 
 STATIC EFI_STATUS
-GetChipInfo (struct BoardInfo *platform_board_info)
+GetChipInfo (struct BoardInfo *platform_board_info,
+             EFIChipInfoModemType *ModemType)
 {
   EFI_STATUS Status;
   EFI_CHIPINFO_PROTOCOL *pChipInfoProtocol;
-  EFIChipInfoModemType ModemType;
 
   Status = gBS->LocateProtocol (&gEfiChipInfoProtocolGuid, NULL,
                                 (VOID **)&pChipInfoProtocol);
@@ -164,31 +164,10 @@ GetChipInfo (struct BoardInfo *platform_board_info)
   if (EFI_ERROR (Status))
     return Status;
   Status = pChipInfoProtocol->GetModemSupport (
-      pChipInfoProtocol, &ModemType);
+      pChipInfoProtocol, ModemType);
   if (EFI_ERROR (Status))
     return Status;
 
-  if (BoardPlatformFusion ()) {
-    AsciiSPrint ((CHAR8 *)platform_board_info->ChipBaseBand,
-                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_MDM);
-  } else if (ModemType == 0) {
-    AsciiSPrint ((CHAR8 *)platform_board_info->ChipBaseBand,
-                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_APQ);
-  } else {
-    AsciiSPrint ((CHAR8 *)platform_board_info->ChipBaseBand,
-                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_MSM);
-  }
-
-  DEBUG ((EFI_D_VERBOSE, "Raw Chip Id   : 0x%x\n",
-          platform_board_info->RawChipId));
-  DEBUG ((EFI_D_VERBOSE, "Chip Version  : 0x%x\n",
-          platform_board_info->ChipVersion));
-  DEBUG ((EFI_D_VERBOSE, "Foundry Id    : 0x%x\n",
-          platform_board_info->FoundryId));
-  DEBUG ((EFI_D_VERBOSE, "Chip BaseBand    : %a\n",
-          platform_board_info->ChipBaseBand));
-  DEBUG ((EFI_D_VERBOSE, "Fusion Value    : %d\n",
-          platform_board_info->PlatformInfo.fusion));
   return Status;
 }
 
@@ -475,12 +454,37 @@ BoardPmicTarget (UINT32 PmicDeviceIndex)
 EFI_STATUS BoardInit (VOID)
 {
   EFI_STATUS Status;
-  Status = GetChipInfo (&platform_board_info);
+  EFIChipInfoModemType ModemType;
+
+  Status = GetChipInfo (&platform_board_info, &ModemType);
   if (EFI_ERROR (Status))
     return Status;
+
   Status = GetPlatformInfo (&platform_board_info);
   if (EFI_ERROR (Status))
     return Status;
+
+  if (BoardPlatformFusion ()) {
+    AsciiSPrint ((CHAR8 *)platform_board_info.ChipBaseBand,
+                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_MDM);
+  } else if (ModemType == 0) {
+    AsciiSPrint ((CHAR8 *)platform_board_info.ChipBaseBand,
+                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_APQ);
+  } else {
+    AsciiSPrint ((CHAR8 *)platform_board_info.ChipBaseBand,
+                  CHIP_BASE_BAND_LEN, "%a", CHIP_BASE_BAND_MSM);
+  }
+
+  DEBUG ((EFI_D_VERBOSE, "Raw Chip Id   : 0x%x\n",
+          platform_board_info.RawChipId));
+  DEBUG ((EFI_D_VERBOSE, "Chip Version  : 0x%x\n",
+          platform_board_info.ChipVersion));
+  DEBUG ((EFI_D_VERBOSE, "Foundry Id    : 0x%x\n",
+          platform_board_info.FoundryId));
+  DEBUG ((EFI_D_VERBOSE, "Chip BaseBand    : %a\n",
+          platform_board_info.ChipBaseBand));
+  DEBUG ((EFI_D_VERBOSE, "Fusion Value    : %d\n",
+          platform_board_info.PlatformInfo.fusion));
 
   return Status;
 }
