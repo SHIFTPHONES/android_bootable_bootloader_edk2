@@ -780,8 +780,10 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   VOID *Dtb = CurDtbInfo->Dtb;
   UINT32 Idx;
   UINT32 PmicEntCount;
+  UINT32 MsmDataCount;
   PmicIdInfo BestPmicInfo;
   BOOLEAN FindBestMatch = FALSE;
+  DtInfo TempDtbInfo = *CurDtbInfo;
 
   memset (&BestPmicInfo, 0, sizeof (PmicIdInfo));
   /*Ensure MatchVal to 0 initially*/
@@ -795,10 +797,44 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
   /* Get the msm-id prop from DTB */
   PlatProp = (CONST CHAR8 *)fdt_getprop (Dtb, RootOffset, "qcom,msm-id",
                                          &LenPlatId);
-  Status = GetPlatformMatchDtb (CurDtbInfo, PlatProp, LenPlatId, MinPlatIdLen);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_VERBOSE, "Platform dt prop search failed.\n"));
-    goto cleanup;
+  if (PlatProp &&
+      (LenPlatId > 0) &&
+      (!(LenPlatId % MinPlatIdLen))) {
+    /*
+     For Multiple soc-id's, save the best SocRev match DT in temp and search
+     for the exact match. If exact match is not found, use best match DT from
+     temp.
+    */
+    MsmDataCount = (LenPlatId / MinPlatIdLen);
+
+    /* Ensure to reset the match value */
+    TempDtbInfo.DtMatchVal = NONE_MATCH;
+
+    for (Idx = 0; Idx < MsmDataCount; Idx++) {
+      /* Ensure MatchVal should be 0 for every match */
+      CurDtbInfo->DtMatchVal = NONE_MATCH;
+      Status = GetPlatformMatchDtb (CurDtbInfo,
+                                    PlatProp,
+                                    LenPlatId,
+                                    MinPlatIdLen);
+      if (Status == EFI_SUCCESS &&
+          CurDtbInfo->DtMatchVal > TempDtbInfo.DtMatchVal) {
+        TempDtbInfo = *CurDtbInfo;
+      }
+      LenPlatId -= PLAT_ID_SIZE;
+      PlatProp += PLAT_ID_SIZE;
+    }
+
+    *CurDtbInfo = TempDtbInfo;
+
+    if (CurDtbInfo->DtMatchVal == NONE_MATCH) {
+      DEBUG ((EFI_D_VERBOSE, "Platform dt prop search failed.\n"));
+      goto cleanup;
+    }
+  } else {
+    DEBUG ((EFI_D_VERBOSE, "qcom, msm-id does not exist (or) is"
+                           " (%d) not a multiple of (%d)\n",
+            LenPlatId, MinPlatIdLen));
   }
 
   /* Get the properties like variant id, subtype from Dtb then compare the
