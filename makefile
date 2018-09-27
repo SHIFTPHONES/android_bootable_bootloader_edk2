@@ -123,7 +123,7 @@ cleanall:
 
 EDK_TOOLS_BIN:
 	@. ./edksetup.sh BaseTools && \
-	$(MAKE) -C $(EDK_TOOLS) -j1
+	$(MAKE) -C $(EDK_TOOLS) $(PREBUILT_HOST_TOOLS) -j1
 
 ABL_FV_IMG: EDK_TOOLS_BIN
 	@. ./edksetup.sh BaseTools && \
