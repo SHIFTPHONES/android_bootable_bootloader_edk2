@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -75,6 +75,11 @@ void *avb_memset(void *dest, const int c, size_t n)
 int avb_strcmp(const char *s1, const char *s2)
 {
 	return AsciiStrCmp(s1, s2);
+}
+
+int Avb_StrnCmp (CONST CHAR8 *s1, CONST CHAR8 *s2, UINTN Len)
+{
+       return AsciiStrnCmp (s1, s2, Len);
 }
 
 size_t avb_strlen(const char *str)
