@@ -265,6 +265,10 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
     return Status;
   }
 
+  DEBUG ((EFI_D_INFO, "KeyPress:%u, BootReason:%u\n", KeyPressed, BootReason));
+  DEBUG ((EFI_D_INFO, "Fastboot=%d, Recovery:%d\n",
+                                          BootIntoFastboot, BootIntoRecovery));
+
   if (!BootIntoFastboot) {
     BootInfo Info = {0};
     Info.MultiSlotBoot = MultiSlotBoot;
