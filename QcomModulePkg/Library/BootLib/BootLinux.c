@@ -641,12 +641,23 @@ CheckAndLoadComputeVM (BootInfo *Info,
   VOID *SingleDtHdr = NULL;
   VOID *MlVmDtHdr = (VOID *)CvmBootParamList->HypDtboAddr;
   IsVmComputed = FALSE;
+  CHAR16 VmPartName[MAX_GPT_NAME_SIZE];
+  CHAR8 VmPartNameAscii[MAX_GPT_NAME_SIZE] = {0};
+
+  Status = StrnCpyS (VmPartName, (UINTN)MAX_GPT_NAME_SIZE,
+                    (CONST CHAR16 *)L"vm-linux", (UINTN)StrLen (L"vm-linux"));
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Failed to update VM Partition Name\n"));
+    return Status;
+  }
+
+  UnicodeStrToAsciiStr (VmPartName, VmPartNameAscii);
 
   /* Call GetImage here.*/
   Status = GetImage (Info,
                      &CvmBootParamList->ImageBuffer,
                      &CvmImageSize,
-                     "vm-linux");
+                     VmPartNameAscii);
   if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR, "Couldnt load ComputeVM\n"));
     return Status;

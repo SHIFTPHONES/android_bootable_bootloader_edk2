@@ -128,8 +128,8 @@ AppendVBCommonCmdLine (BootInfo *Info)
 }
 
 STATIC EFI_STATUS
-NoAVBLoadDtboImage (BootInfo *Info, VOID **DtboImage,
-        UINT32 *DtboSize, CHAR16 *Pname)
+NoAVBLoadReqImage (BootInfo *Info, VOID **DtboImage,
+        UINT32 *DtboSize, CHAR16 *Pname, CHAR16 *RequestedPartition)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   Slot CurrentSlot;
@@ -141,8 +141,8 @@ NoAVBLoadDtboImage (BootInfo *Info, VOID **DtboImage,
 
   GUARD ( StrnCpyS (Pname,
               (UINTN)MAX_GPT_NAME_SIZE,
-              (CONST CHAR16 *)L"dtbo",
-              StrLen (L"dtbo")));
+              (CONST CHAR16 *)RequestedPartition,
+              StrLen (RequestedPartition)));
 
   if (Info->MultiSlotBoot) {
       CurrentSlot = GetCurrentSlotSuffix ();
@@ -182,10 +182,16 @@ NoAVBLoadDtboImage (BootInfo *Info, VOID **DtboImage,
                                           AsciiPname,
                                           &PartSize);
   if (AvbStatus != AVB_IO_RESULT_OK ||
-      PartSize == 0 ||
-      PartSize > DTBO_MAX_SIZE_ALLOWED) {
+      PartSize == 0) {
     DEBUG ((EFI_D_ERROR, "VB: Failed to get partition size "
                          "(or) DTBO size is too big: 0x%x\n", PartSize));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+
+  if ((AsciiStrStr (AsciiPname, "dtbo")) &&
+      (PartSize > DTBO_MAX_SIZE_ALLOWED)) {
+    DEBUG ((EFI_D_ERROR, "DTBO size is too big: 0x%x\n", PartSize));
     Status = EFI_OUT_OF_RESOURCES;
     goto out;
   }
@@ -298,8 +304,8 @@ LoadImageNoAuth (BootInfo *Info)
 
 load_dtbo:
   /*load dt overlay when avb is disabled*/
-  Status = NoAVBLoadDtboImage (Info, (VOID **)&(Info->Images[1].ImageBuffer),
-          (UINT32 *)&(Info->Images[1].ImageSize), Pname);
+  Status = NoAVBLoadReqImage (Info, (VOID **)&(Info->Images[1].ImageBuffer),
+          (UINT32 *)&(Info->Images[1].ImageSize), Pname, L"dtbo");
   if (Status == EFI_NO_MEDIA) {
       DEBUG ((EFI_D_ERROR, "No dtbo partition is found, Skip dtbo\n"));
       if (Info->Images[1].ImageBuffer != NULL) {
@@ -318,6 +324,33 @@ load_dtbo:
   Info-> NumLoadedImages = 2;
   Info-> Images[1].Name = AllocatePool (StrLen (Pname) + 1);
   UnicodeStrToAsciiStr (Pname, Info->Images[1].Name);
+
+  /* Load vm-linux if Verified boot is disabled */
+  if (IsVmEnabled ()) {
+    Status = NoAVBLoadReqImage (Info, (VOID **)&(Info->Images[2].ImageBuffer),
+                                (UINT32 *)&(Info->Images[2].ImageSize), Pname,
+                                L"vm-linux");
+    if (Status == EFI_NO_MEDIA) {
+      DEBUG ((EFI_D_ERROR, "No vm-linux partition is found, Skip..\n"));
+      if (Info->Images[2].ImageBuffer != NULL) {
+        FreePool (Info->Images[2].ImageBuffer);
+      }
+
+      return EFI_SUCCESS;
+     } else if (Status != EFI_SUCCESS) {
+       DEBUG ((EFI_D_ERROR,
+               "ERROR: Failed to load vm-linux from partition: %r\n", Status));
+       if (Info->Images[2].ImageBuffer != NULL) {
+         FreePool (Info->Images[2].ImageBuffer);
+       }
+
+      return EFI_LOAD_ERROR;
+     }
+
+     Info-> NumLoadedImages = 3;
+     Info-> Images[2].Name = AllocatePool (StrLen (Pname) + 1);
+     UnicodeStrToAsciiStr (Pname, Info->Images[2].Name);
+  }
 
   return Status;
 }
@@ -860,7 +893,19 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
     NumRequestedPartition += 1;
     if (IsVmEnabled ()) {
-      Index = GetPartitionIndex ((CHAR16 *)L"vm-linux");
+      CHAR16 PartiName[MAX_GPT_NAME_SIZE];
+      Slot CurrentSlot;
+
+      GUARD (StrnCpyS (PartiName, (UINTN)MAX_GPT_NAME_SIZE,
+                        (CONST CHAR16 *)L"vm-linux", StrLen (L"vm-linux")));
+
+      if (Info->MultiSlotBoot) {
+        CurrentSlot = GetCurrentSlotSuffix ();
+        GUARD (StrnCatS (PartiName, MAX_GPT_NAME_SIZE,
+                         CurrentSlot.Suffix, StrLen (CurrentSlot.Suffix)));
+      }
+
+      Index = GetPartitionIndex (PartiName);
     }
     if (Index == INVALID_PTN ||
                Index >= MAX_NUM_PARTITIONS) {
