@@ -65,6 +65,7 @@
 	DeviceInfo.c
 	Rtic.c
 	PartialGoods.c
+	LECmdLine.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
