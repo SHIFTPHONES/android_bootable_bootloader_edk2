@@ -13,10 +13,17 @@ ifneq ($(wildcard $(SDCLANG_PATH)),)
   ABL_USE_SDLLVM := true
 endif
 
+# LD is not available for older Android versions
+ifeq (1,$(filter 1,$(shell echo "$$(( $(PLATFORM_SDK_VERSION) > 27 ))" )))
+LDOPT="-fuse-ld=$(ANDROID_TOP)/$(SOONG_LLVM_PREBUILTS_PATH)/ld.lld"
+endif
+
 # Use host tools from prebuilts. Partner should determine the correct host tools to use
-PREBUILT_HOST_TOOLS := CC=$(ANDROID_TOP)/$(HOST_CC)\ \
-		       CXX=$(ANDROID_TOP)/$(HOST_CXX)\ \
+PREBUILT_HOST_TOOLS := CC=$(ANDROID_TOP)/$(CLANG)\ \
+		       CXX=$(ANDROID_TOP)/$(CLANG_CXX)\ \
+		       LDPATH=$(LDOPT)\ \
 		       AR=$(ANDROID_TOP)/$(HOST_AR)
+PREBUILT_PYTHON_PATH=$(ANDROID_TOP)/prebuilts/python/linux-x86/2.7.5/bin/python2
 
 DISABLE_PARALLEL_DOWNLOAD_FLASH := DISABLE_PARALLEL_DOWNLOAD_FLASH=0
 ifeq ($(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SUPPORTS_VERITY),true)
@@ -98,6 +105,7 @@ $(TARGET_ABL): abl_clean | $(ABL_OUT) $(INSTALLED_KEYSTOREIMAGE_TARGET)
 		BOOTLOADER_OUT=../../../$(ABL_OUT) \
 		all \
 		PREBUILT_HOST_TOOLS=$(PREBUILT_HOST_TOOLS) \
+		PREBUILT_PYTHON_PATH=$(PREBUILT_PYTHON_PATH) \
 		$(BUILD_SYSTEM_ROOT_IMAGE) \
 		$(VERIFIED_BOOT) \
 		$(VERIFIED_BOOT_2) \

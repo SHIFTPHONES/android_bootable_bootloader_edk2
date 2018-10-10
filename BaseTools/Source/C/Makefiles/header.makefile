@@ -26,7 +26,9 @@ CXX ?= g++
 AS ?= gcc
 AR ?= ar
 LD ?= ld
-LINKER ?= $(CC)
+
+LINKER ?= $(CC) $(LDPATH)
+
 ifeq ($(ARCH), IA32)
 ARCH_INCLUDE = -I $(MAKEROOT)/Include/Ia32/
 endif
@@ -47,9 +49,9 @@ INCLUDE = $(TOOL_INCLUDE) -I $(MAKEROOT) -I $(MAKEROOT)/Include/Common -I $(MAKE
 CPPFLAGS = $(INCLUDE)
 ifeq ($(DARWIN),Darwin)
 # assume clang or clang compatible flags on OS X
-CFLAGS = -MD -fshort-wchar -fno-strict-aliasing -Wall -Werror -Wno-deprecated-declarations -Wno-self-assign -nostdlib -c -g
+CFLAGS = -MD -fshort-wchar -fno-strict-aliasing -Wall -Werror -Wno-deprecated-declarations -Wno-shift-negative-value -Wno-self-assign -nostdlib -c -g
 else
-CFLAGS = -MD -fshort-wchar -fno-strict-aliasing -Wall -Werror -Wno-deprecated-declarations -nostdlib -c -g
+CFLAGS = -MD -fshort-wchar -fno-strict-aliasing -Wall -Werror -Wno-deprecated-declarations -Wno-shift-negative-value -nostdlib -c -g
 endif
 LFLAGS =
 

@@ -125,7 +125,7 @@ OBJ = dlg_p.o dlg_a.o main.o err.o set.o support.o output.o \
         relabel.o automata.o
 
 $(BIN_DIR)/dlg : $(OBJ) $(SRC)
-		$(CC) $(CFLAGS) -o $(BIN_DIR)/dlg $(OBJ)
+		$(CC) $(CFLAGS) -o $(BIN_DIR)/dlg $(OBJ) $(LDPATH)
 
 SRC = dlg_p.c dlg_a.c main.c err.c $(SET)/set.c support.c output.c \
         relabel.c automata.c
