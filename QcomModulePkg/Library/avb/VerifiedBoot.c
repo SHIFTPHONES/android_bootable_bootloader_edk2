@@ -41,6 +41,15 @@ STATIC CONST CHAR8 *DmVerityCmd = " root=/dev/dm-0 dm=\"system none ro,0 1 "
                                     "android-verity";
 STATIC CONST CHAR8 *Space = " ";
 
+#define MAX_NUM_REQ_PARTITION    8
+
+static CHAR8 *avb_verify_partition_name[] = {
+     "boot",
+     "dtbo",
+     "vbmeta",
+     "recovery"
+};
+
 STATIC struct verified_boot_verity_mode VbVm[] = {
     {FALSE, "logging"},
     {TRUE, "enforcing"},
@@ -701,6 +710,31 @@ exit:
     return Status;
 }
 
+static BOOLEAN GetHeaderVersion (AvbSlotVerifyData *SlotData)
+{
+  BOOLEAN HeaderVersion = 0;
+  UINTN LoadedIndex = 0;
+  for (LoadedIndex = 0; LoadedIndex < SlotData->num_loaded_partitions;
+         LoadedIndex++) {
+    if (avb_strcmp (SlotData->loaded_partitions[LoadedIndex].partition_name,
+      "recovery") == 0 )
+      return ( (boot_img_hdr *)
+        (SlotData->loaded_partitions[LoadedIndex].data))->header_version;
+  }
+  return HeaderVersion;
+}
+
+static VOID AddRequestedPartition (CHAR8 **RequestedPartititon, UINT32 Index)
+{
+  UINTN PartIndex = 0;
+  for (PartIndex = 0; PartIndex < MAX_NUM_REQ_PARTITION; PartIndex++) {
+    if (RequestedPartititon[PartIndex] == NULL) {
+      RequestedPartititon[PartIndex] =
+        avb_verify_partition_name[Index];
+      break;
+    }
+  }
+}
 
 STATIC EFI_STATUS
 LoadImageAndAuthVB2 (BootInfo *Info)
@@ -714,9 +748,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   CHAR8 PnameAscii[MAX_GPT_NAME_SIZE] = {0};
   CHAR8 *SlotSuffix = NULL;
   BOOLEAN AllowVerificationError = IsUnlocked ();
-  CONST CHAR8 *RequestedPartitionMission[] = {"boot", "dtbo", NULL};
-  CONST CHAR8 *RequestedPartitionRecovery[] = {"recovery", "dtbo", NULL};
-  CONST CHAR8 *CONST *RequestedPartition = NULL;
+  CHAR8 *RequestedPartitionAll[MAX_NUM_REQ_PARTITION] = {NULL};
+  CHAR8 **RequestedPartition = NULL;
   UINTN NumRequestedPartition = 0;
   UINT32 ImageHdrSize = 0;
   UINT32 PageSize = 0;
@@ -765,38 +798,54 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   DEBUG ((EFI_D_VERBOSE, "Slot: %a, allow verification error: %a\n", SlotSuffix,
           BooleanString[AllowVerificationError].name));
 
-  if ((!Info->MultiSlotBoot) &&
-           Info->BootIntoRecovery) {
-     RequestedPartition = RequestedPartitionRecovery;
-     NumRequestedPartition = ARRAY_SIZE (RequestedPartitionRecovery) - 1;
-     if (Info->NumLoadedImages) {
-       /* fastboot boot option, skip Index 0, as boot image already
-        * loaded */
-       RequestedPartition = &RequestedPartitionRecovery[1];
-     }
-  } else {
-     RequestedPartition = RequestedPartitionMission;
-     NumRequestedPartition = ARRAY_SIZE (RequestedPartitionMission) - 1;
-     if (Info->NumLoadedImages) {
-       /* fastboot boot option, skip Index 0, as boot image already
-        * loaded */
-       RequestedPartition = &RequestedPartitionMission[1];
-     }
-  }
-
-  if (Info->NumLoadedImages) {
-    NumRequestedPartition--;
-  }
-
   if (FixedPcdGetBool (AllowEio)) {
     VerityFlags = IsEnforcing () ? AVB_HASHTREE_ERROR_MODE_RESTART
                                  : AVB_HASHTREE_ERROR_MODE_EIO;
   } else {
     VerityFlags = AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE;
   }
+  RequestedPartition = RequestedPartitionAll;
 
-  Result = avb_slot_verify (Ops, RequestedPartition, SlotSuffix, VerifyFlags,
-                            VerityFlags, &SlotData);
+  if ((!Info->MultiSlotBoot) &&
+           Info->BootIntoRecovery) {
+    AddRequestedPartition (RequestedPartitionAll, IMG_RECOVERY);
+    NumRequestedPartition += 1;
+    Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
+               SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
+    if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Device State %a,AvbSlotVerify returned %a\n",
+             AllowVerificationError ? "Unlocked" : "Locked",
+            avb_slot_verify_result_to_string (Result)));
+      Status = EFI_LOAD_ERROR;
+      Info->BootState = RED;
+      goto out;
+    }
+    if (SlotData == NULL) {
+      Status = EFI_LOAD_ERROR;
+      Info->BootState = RED;
+      goto out;
+    }
+    BOOLEAN HeaderVersion = GetHeaderVersion (SlotData);
+    DEBUG ( (EFI_D_VERBOSE, "Recovery HeaderVersion %d \n", HeaderVersion));
+    if (!HeaderVersion) {
+       AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
+       NumRequestedPartition += 1;
+       if (SlotData != NULL) {
+          avb_slot_verify_data_free (SlotData);
+       }
+       Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
+                  SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
+    }
+  } else {
+    if (!Info->NumLoadedImages) {
+      AddRequestedPartition (RequestedPartitionAll, IMG_BOOT);
+      NumRequestedPartition += 1;
+    }
+    AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
+    NumRequestedPartition += 1;
+    Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
+                SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
+  }
 
   if (SlotData == NULL) {
     Status = EFI_LOAD_ERROR;
