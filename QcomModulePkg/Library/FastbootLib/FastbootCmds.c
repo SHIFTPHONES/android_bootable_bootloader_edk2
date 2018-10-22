@@ -1891,7 +1891,7 @@ CmdSetActive (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 
   StrnCpyS (NewSlot.Suffix, ARRAY_SIZE (NewSlot.Suffix), InputSlotInUnicode,
             StrLen (InputSlotInUnicode));
-  Status = SetActiveSlot (&NewSlot);
+  Status = SetActiveSlot (&NewSlot, TRUE);
   if (Status != EFI_SUCCESS) {
     FastbootFail ("set_active failed");
     return;
