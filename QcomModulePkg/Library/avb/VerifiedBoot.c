@@ -1089,6 +1089,11 @@ STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
     GUARD (VBCommonInit (Info));
     GUARD (LoadImageNoAuth (Info));
 
+    if (!TargetBuildVariantUser ()) {
+       DEBUG ((EFI_D_INFO, "VB: verification skipped for debug builds\n"));
+       goto skip_verification;
+    }
+
     /* Initialize Verified Boot*/
     device_info_vb_t DevInfo_vb;
     DevInfo_vb.is_unlocked = IsUnlocked ();
@@ -1148,6 +1153,7 @@ STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
     }
     DEBUG ((EFI_D_INFO, "VB: LoadImageAndAuthForLE complete!\n"));
 
+skip_verification:
     if (!IsRootCmdLineUpdated (Info)) {
         SystemPathLen = GetSystemPath (&SystemPath, Info);
         if (SystemPathLen == 0 ||
