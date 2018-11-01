@@ -60,7 +60,7 @@ AllocateUnSafeStackPtr (VOID)
 
   EFI_STATUS Status = EFI_SUCCESS;
 
-  UnSafeStackPtr = AllocatePool (BOOT_LOADER_MAX_UNSAFE_STACK_SIZE);
+  UnSafeStackPtr = AllocateZeroPool (BOOT_LOADER_MAX_UNSAFE_STACK_SIZE);
   if (UnSafeStackPtr == NULL) {
     DEBUG ((EFI_D_ERROR, "Failed to Allocate memory for UnSafeStack \n"));
     Status = EFI_OUT_OF_RESOURCES;

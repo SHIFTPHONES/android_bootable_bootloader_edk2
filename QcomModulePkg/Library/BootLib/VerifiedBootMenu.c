@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -550,7 +550,7 @@ VerifiedBootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo,
 
       /* Each bytes needs two characters to be shown on display */
       DisplayStrLen = FingerPrintLen * 2;
-      DisplayStr = AllocatePool (DisplayStrLen);
+      DisplayStr = AllocateZeroPool (DisplayStrLen);
       if (DisplayStr == NULL) {
         return EFI_OUT_OF_RESOURCES;
       }

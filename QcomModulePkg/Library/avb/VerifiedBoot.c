@@ -199,7 +199,7 @@ NoAVBLoadReqImage (BootInfo *Info, VOID **DtboImage,
   DEBUG ((EFI_D_VERBOSE, "VB: Trying to allocate memory "
                          "for DTBO: 0x%x\n", PartSize));
   *DtboSize = (UINT32) PartSize;
-  *DtboImage = AllocatePool (PartSize);
+  *DtboImage = AllocateZeroPool (PartSize);
 
   if (*DtboImage == NULL) {
     DEBUG ((EFI_D_ERROR, "VB: Unable to allocate memory for DTBO\n"));
@@ -248,7 +248,7 @@ VBAllocateCmdLine (BootInfo *Info)
   EFI_STATUS Status = EFI_SUCCESS;
 
   /* allocate VB command line*/
-  Info->VBCmdLine = AllocatePool (DTB_PAD_SIZE);
+  Info->VBCmdLine = AllocateZeroPool (DTB_PAD_SIZE);
   if (Info->VBCmdLine == NULL) {
     DEBUG ((EFI_D_ERROR, "VB CmdLine allocation failed!\n"));
     Status = EFI_OUT_OF_RESOURCES;
@@ -298,7 +298,7 @@ LoadImageNoAuth (BootInfo *Info)
     return EFI_LOAD_ERROR;
   }
   Info->NumLoadedImages = 1;
-  Info->Images[0].Name = AllocatePool (StrLen (Info->Pname) + 1);
+  Info->Images[0].Name = AllocateZeroPool (StrLen (Info->Pname) + 1);
   UnicodeStrToAsciiStr (Info->Pname, Info->Images[0].Name);
 
 
@@ -322,7 +322,7 @@ load_dtbo:
       return EFI_LOAD_ERROR;
   }
   Info-> NumLoadedImages = 2;
-  Info-> Images[1].Name = AllocatePool (StrLen (Pname) + 1);
+  Info-> Images[1].Name = AllocateZeroPool (StrLen (Pname) + 1);
   UnicodeStrToAsciiStr (Pname, Info->Images[1].Name);
 
   /* Load vm-linux if Verified boot is disabled */
@@ -348,7 +348,7 @@ load_dtbo:
      }
 
      Info-> NumLoadedImages = 3;
-     Info-> Images[2].Name = AllocatePool (StrLen (Pname) + 1);
+     Info-> Images[2].Name = AllocateZeroPool (StrLen (Pname) + 1);
      UnicodeStrToAsciiStr (Pname, Info->Images[2].Name);
   }
 
@@ -641,13 +641,13 @@ STATIC EFI_STATUS LEVerifyHashWithRSASignature (
         goto exit;
     }
 
-    Key.N = AllocatePool (sizeof (S_BIGINT));
+    Key.N = AllocateZeroPool (sizeof (S_BIGINT));
     if (Key.N == NULL) {
         DEBUG ((EFI_D_ERROR,
                 "VB: LEVerifySignature: mem allocation err for Key.N\n"));
         goto exit;
     }
-    Key.e = AllocatePool (sizeof (S_BIGINT));
+    Key.e = AllocateZeroPool (sizeof (S_BIGINT));
     if (Key.e == NULL) {
         DEBUG ((EFI_D_ERROR,
                 "VB: LEVerifySignature: mem allocation err for Key.e\n"));
@@ -1198,7 +1198,7 @@ STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
     HashAlgorithm = VB_SHA256;
     HashSize = VB_SHA256_SIZE;
     ImgSize = Info->Images[0].ImageSize;
-    ImgHash = AllocatePool (HashSize);
+    ImgHash = AllocateZeroPool (HashSize);
     if (ImgHash == NULL) {
         DEBUG ((EFI_D_ERROR, "kernel image hash buffer allocation failed!\n"));
         Status = EFI_OUT_OF_RESOURCES;

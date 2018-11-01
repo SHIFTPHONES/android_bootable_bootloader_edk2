@@ -78,7 +78,7 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
     return EFI_OUT_OF_RESOURCES;
   }
 
-  *Msg = AllocatePool (MsgSize);
+  *Msg = AllocateZeroPool (MsgSize);
   if (!(*Msg)) {
     DEBUG (
         (EFI_D_ERROR, "Error allocating memory for reading from Partition\n"));

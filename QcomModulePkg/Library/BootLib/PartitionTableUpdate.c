@@ -242,13 +242,12 @@ VOID UpdatePartitionAttributes (VOID)
     MaxGptPartEntrySzBytes = (GPT_HDR_BLOCKS + PartEntriesblocks) * BlkSz;
     CardSizeSec = (DeviceDensity) / BlkSz;
     Offset = PRIMARY_HDR_LBA;
-    GptHdr = AllocatePool (MaxGptPartEntrySzBytes);
+    GptHdr = AllocateZeroPool (MaxGptPartEntrySzBytes);
     if (!GptHdr) {
       DEBUG ((EFI_D_ERROR, "Unable to Allocate Memory for GptHdr \n"));
       return;
     }
 
-    gBS->SetMem ((VOID *)GptHdr, MaxGptPartEntrySzBytes, 0);
     GptHdrPtr = GptHdr;
 
     /* This loop iterates twice to update both primary and backup Gpt*/
@@ -429,7 +428,7 @@ STATIC EFI_STATUS GetMultiSlotPartsList (VOID)
           SearchString, Len - 1) &&
           (StrStr (SearchString, (CONST CHAR16 *)L"_a") ||
           StrStr (SearchString, (CONST CHAR16 *)L"_b"))) {
-        TempNode = AllocatePool (sizeof (struct BootPartsLinkedList));
+        TempNode = AllocateZeroPool (sizeof (struct BootPartsLinkedList));
         if (TempNode) {
           /*Skip _a/_b from partition name*/
           StrnCpyS (TempNode->PartName, sizeof (TempNode->PartName),

@@ -361,13 +361,11 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
   CHAR8 *Dst;
   UINT32 MaxCmdLineLen = Param->CmdLineLen;
 
-  Dst = AllocatePool (MaxCmdLineLen);
+  Dst = AllocateZeroPool (MaxCmdLineLen);
   if (!Dst) {
     DEBUG ((EFI_D_ERROR, "CMDLINE: Failed to allocate destination buffer\n"));
     return EFI_OUT_OF_RESOURCES;
   }
-
-  gBS->SetMem (Dst, MaxCmdLineLen, 0x0);
 
   /* Save start ptr for debug print */
   *FinalCmdLine = Dst;
@@ -552,7 +550,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     }
   }
 
-  BootDevBuf = AllocatePool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
+  BootDevBuf = AllocateZeroPool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
   if (BootDevBuf == NULL) {
     DEBUG ((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
     return EFI_OUT_OF_RESOURCES;

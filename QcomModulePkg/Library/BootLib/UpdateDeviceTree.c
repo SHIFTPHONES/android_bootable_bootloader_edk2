@@ -581,7 +581,7 @@ UpdateFstabNode (VOID *fdt)
           fdt_get_name (fdt, ParentOffset, NULL)));
 
   /* Get boot device type */
-  BootDevBuf = AllocatePool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
+  BootDevBuf = AllocateZeroPool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
   if (BootDevBuf == NULL) {
     DEBUG ((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
     return EFI_OUT_OF_RESOURCES;

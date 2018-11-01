@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -325,14 +325,14 @@ BuildDefaultDescriptors (OUT USB_DEVICE_DESCRIPTOR **DevDesc,
   *SSDevDesc = &SSDeviceDescriptor;
   NumCfg = DeviceDescriptor.NumConfigurations;
 
-  *Descriptors = AllocatePool (NumCfg * sizeof (struct _CfgDescTree *));
+  *Descriptors = AllocateZeroPool (NumCfg * sizeof (struct _CfgDescTree *));
   if (*Descriptors == NULL) {
     DEBUG (
         (EFI_D_ERROR, "Error Allocating memory for HS config descriptors\n"));
     return;
   }
 
-  *SSDescriptors = AllocatePool (NumCfg * sizeof (struct _SSCfgDescTree *));
+  *SSDescriptors = AllocateZeroPool (NumCfg * sizeof (struct _SSCfgDescTree *));
   if (*SSDescriptors == NULL) {
     DEBUG (
         (EFI_D_ERROR, "Error Allocating memory for SS config descriptors\n"));

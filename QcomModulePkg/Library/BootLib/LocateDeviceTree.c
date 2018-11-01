@@ -60,7 +60,7 @@ static struct dt_entry_node *dt_entry_list_init (VOID)
   struct dt_entry_node *dt_node_member = NULL;
 
   dt_node_member =
-      (struct dt_entry_node *)AllocatePool (sizeof (struct dt_entry_node));
+      (struct dt_entry_node *)AllocateZeroPool (sizeof (struct dt_entry_node));
 
   if (!dt_node_member) {
     DEBUG ((EFI_D_ERROR, "Failed to allocate memory for dt_node_member\n"));
@@ -69,7 +69,7 @@ static struct dt_entry_node *dt_entry_list_init (VOID)
 
   list_clear_node (&dt_node_member->node);
   dt_node_member->dt_entry_m =
-      (struct dt_entry *)AllocatePool (sizeof (struct dt_entry));
+      (struct dt_entry *)AllocateZeroPool (sizeof (struct dt_entry));
   if (!dt_node_member->dt_entry_m) {
     DEBUG ((EFI_D_ERROR,
             "Failed to allocate memory for dt_node_member->dt_entry_m\n"));
@@ -78,7 +78,6 @@ static struct dt_entry_node *dt_entry_list_init (VOID)
     return NULL;
   }
 
-  memset (dt_node_member->dt_entry_m, 0, sizeof (struct dt_entry));
   return dt_node_member;
 }
 
@@ -136,7 +135,7 @@ DeviceTreeCompatible (VOID *dtb,
 
   prop = fdt_getprop (dtb, root_offset, "model", &len);
   if (prop && len > 0) {
-    model = (char *)AllocatePool (sizeof (char) * len);
+    model = (char *)AllocateZeroPool (sizeof (char) * len);
     if (!model) {
       DEBUG ((EFI_D_ERROR, "Failed to allocate memory for model\n"));
       return FALSE;
@@ -197,21 +196,21 @@ DeviceTreeCompatible (VOID *dtb,
      * the DTB
      *  If we are using dtb v2.0, then we have split board & msmdata in the DTB
      */
-    board_data = (struct board_id *)AllocatePool (
+    board_data = (struct board_id *)AllocateZeroPool (
         sizeof (struct board_id) * (len_board_id / BOARD_ID_SIZE));
     if (!board_data) {
       DEBUG ((EFI_D_ERROR, "Failed to allocate memory for board_data\n"));
       goto Exit;
     }
 
-    platform_data = (struct plat_id *)AllocatePool (
+    platform_data = (struct plat_id *)AllocateZeroPool (
         sizeof (struct plat_id) * (len_plat_id / PLAT_ID_SIZE));
     if (!platform_data) {
       DEBUG ((EFI_D_ERROR, "Failed to allocate memory for platform_data\n"));
       goto Exit;
     }
     if (dtb_ver == DEV_TREE_VERSION_V3) {
-      pmic_data = (struct pmic_id *)AllocatePool (sizeof (struct pmic_id) *
+      pmic_data = (struct pmic_id *)AllocateZeroPool (sizeof (struct pmic_id) *
                                                   (len_pmic_id / PMIC_ID_SIZE));
       if (!pmic_data) {
         DEBUG ((EFI_D_ERROR, "Failed to allocate memory for pmic_data\n"));
@@ -282,8 +281,9 @@ DeviceTreeCompatible (VOID *dtb,
       NumEntries = (uint64_t)msm_data_count * board_data_count;
     }
 
-    dt_entry_array = (struct dt_entry *)AllocatePool (sizeof (struct dt_entry) *
-                                                      NumEntries);
+    dt_entry_array = (struct dt_entry *)AllocateZeroPool (
+                                                  sizeof (struct dt_entry) *
+                                                  NumEntries);
     if (!dt_entry_array) {
       DEBUG ((EFI_D_ERROR, "Failed to allocate memory for dt_entry_array\n"));
       goto Exit;
@@ -407,13 +407,12 @@ DeviceTreeAppended (VOID *kernel,
 
   /* Initialize the dtb entry node*/
   dt_entry_queue =
-      (struct dt_entry_node *)AllocatePool (sizeof (struct dt_entry_node));
+      (struct dt_entry_node *)AllocateZeroPool (sizeof (struct dt_entry_node));
   if (!dt_entry_queue) {
     DEBUG ((EFI_D_ERROR, "Out of memory\n"));
     return NULL;
   }
 
-  memset (dt_entry_queue, 0, sizeof (struct dt_entry_node));
   list_initialize (&dt_entry_queue->node);
 
   if (!dtb_offset) {
@@ -1433,7 +1432,7 @@ AppendToDtList (struct fdt_entry_node **DtList,
 
   if (*DtList == NULL) {
     DEBUG ((EFI_D_VERBOSE, "DTs list: NULL\n"));
-    Current = AllocatePool (sizeof (struct fdt_entry_node));
+    Current = AllocateZeroPool (sizeof (struct fdt_entry_node));
     if (!Current) {
       return FALSE;
     }
@@ -1449,7 +1448,7 @@ AppendToDtList (struct fdt_entry_node **DtList,
       Current = Current->next;
     }
 
-    Current->next = AllocatePool (sizeof (struct fdt_entry_node));
+    Current->next = AllocateZeroPool (sizeof (struct fdt_entry_node));
     if (!Current->next) {
       return FALSE;
     }
