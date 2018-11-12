@@ -812,7 +812,12 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     NumRequestedPartition += 1;
     Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
                SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
-    if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
+    if (AllowVerificationError &&
+               ResultShouldContinue (Result)) {
+      DEBUG ((EFI_D_ERROR, "State: Unlocked, AvbSlotVerify returned "
+                          "%a, continue boot\n",
+              avb_slot_verify_result_to_string (Result)));
+    } else if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
       DEBUG ((EFI_D_ERROR, "ERROR: Device State %a,AvbSlotVerify returned %a\n",
              AllowVerificationError ? "Unlocked" : "Locked",
             avb_slot_verify_result_to_string (Result)));
