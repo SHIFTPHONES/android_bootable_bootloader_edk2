@@ -1,0 +1,229 @@
+/** @file LECmdLine.c
+ *
+ * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of The Linux Foundation nor
+ *       the names of its contributors may be used to endorse or promote
+ *       products derived from this software without specific prior written
+ *       permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NON-INFRINGEMENT ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ **/
+
+#include <Library/PartitionTableUpdate.h>
+#include "LECmdLine.h"
+#include <Library/MemoryAllocationLib.h>
+
+/* verity command line related structures */
+#define MAX_VERITY_CMD_LINE 256
+#define MAX_VERITY_SECTOR_LEN 12
+#define MAX_VERITY_HASH_LEN 65
+STATIC CONST CHAR8 *VeritySystemPartitionStr = "/dev/mmcblk0p";
+STATIC CONST CHAR8 *VerityName = "verity";
+STATIC CONST CHAR8 *VerityAppliedOn = "system";
+STATIC CONST CHAR8 *VerityEncriptionName = "sha256";
+STATIC CONST CHAR8 *VeritySalt =
+    "aee087a5be3b982978c923f566a94613496b417f2af592639bc80d141e34dfe7";
+STATIC CONST CHAR8 *VerityBlockSize = "4096";
+STATIC CONST CHAR8 *VerityRoot = "root=/dev/dm-0";
+
+#if VERITY_LE
+BOOLEAN IsLEVerity (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsLEVerity (VOID)
+{
+  return FALSE;
+}
+#endif
+
+/**
+   This function copies 'word' from a Null-terminated ASCII string
+   to another Null-terminated ASCII string with a maximum length,
+   And returns the size of a Null-terminated ASCII string in bytes,
+   including the Null terminator.
+   @param[in]   String   Pointer to a Null-terminated ASCII string.
+   @param[out]  String   Pointer to a Null-terminated ASCII string.
+   @param[out]  UINT32*  Number of bytes copied including NULL terminator.
+                         0 if no 'word' found or error.
+ **/
+STATIC EFI_STATUS
+LEVerityWordnCpy ( CHAR8 *DstCmdLine,
+                   UINT32 MaxLen,
+                   CHAR8 *SrcCmdLine,
+                   UINT32 *Len )
+{
+  UINT32 Loop = 0;
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if ((DstCmdLine == NULL) ||
+      (SrcCmdLine == NULL)) {
+    *Len = 0;
+    Status = EFI_NOT_FOUND;
+    goto ErrWordnCpyOut;
+  }
+
+  if ((!MaxLen) &&
+      (MaxLen >= MAX_VERITY_CMD_LINE)) {
+    *Len = 0;
+    Status = EFI_BAD_BUFFER_SIZE;
+    goto ErrWordnCpyOut;
+  }
+
+  for (Loop = 0; Loop < MaxLen; Loop++) {
+    /* if space or NULL found, assign NULL, making it a string */
+    if ((SrcCmdLine[Loop]==' ') ||
+        (SrcCmdLine[Loop]=='\0')) {
+      DstCmdLine[Loop]='\0';
+      Loop++;
+      break;
+    }
+    else {
+      DstCmdLine[Loop]=SrcCmdLine[Loop];
+      if (Loop == (MaxLen - 1)) {
+        *Len = 0;
+        Status = EFI_NOT_FOUND;
+        goto ErrWordnCpyOut;
+      }
+    }
+  }
+  *Len = Loop;
+
+ErrWordnCpyOut:
+  return Status;
+}
+
+/**
+   This function gets verity build time parameters passed in SourceCmdLine, and
+   constructs complete verity command line into LEVerityCmdLine.
+   @param[in]   String   Pointer to a Null-terminated ASCII string.
+   @param[out]  String   Pointer to a Null-terminated ASCII string.
+   @param[out]  UINT32*  String length of LEVerityCmdLine including NULL
+                         terminator.
+   @retval  EFI_SUCCESS  Verity command line is constructed successfully.
+   @retval  other        Failed to construct Verity command line.
+ **/
+EFI_STATUS
+GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
+                    CHAR8 **LEVerityCmdLine,
+                    UINT32 *Len)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  CHAR8 DMTemp[MAX_VERITY_CMD_LINE];
+  UINT32 Length = 0;
+  CHAR8 SectorSize[MAX_VERITY_SECTOR_LEN];
+  CHAR8 DataSize[MAX_VERITY_SECTOR_LEN];
+  INT32 HashSize = 0;
+  CHAR8 Hash[MAX_VERITY_HASH_LEN];
+  CHAR8 *DMDataStr = NULL;
+  BOOLEAN MultiSlotBoot = FALSE;
+  CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
+  INT32 Index = 0;
+
+  /* Get verity command line from SourceCmdLine */
+  DMDataStr = AsciiStrStr (SourceCmdLine, "verity=");
+
+  if (DMDataStr != NULL) {
+
+    DMDataStr += AsciiStrLen ("verity=\"");
+
+    /* Get Sector Size, Data Size, and Hash from verity specific command line */
+    Status = LEVerityWordnCpy ((CHAR8 *) &SectorSize[0],
+                               MAX_VERITY_SECTOR_LEN, DMDataStr, &Length);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "GetLEVerityCmdLine: Sector Size error \n"));
+      goto ErrLEVerityout;
+    }
+    DMDataStr += Length;
+    Status = LEVerityWordnCpy ((CHAR8 *) &DataSize[0],
+                               MAX_VERITY_SECTOR_LEN, DMDataStr, &Length);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "GetLEVerityCmdLine: Data Size error \n"));
+      goto ErrLEVerityout;
+    }
+    DMDataStr += Length;
+    Status = LEVerityWordnCpy ((CHAR8 *) &Hash[0],
+                               MAX_VERITY_HASH_LEN, DMDataStr, &Length);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "GetLEVerityCmdLine: Hash error \n"));
+      goto ErrLEVerityout;
+    }
+
+    /* Get HashSize which is always greater by 8 bytes to DataSize */
+    HashSize = AsciiStrDecimalToUintn ((CHAR8 *) &DataSize[0]) + 8;
+
+    /* Get system partition index */
+    MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+
+    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
+          StrLen ((CONST CHAR16 *)L"system"));
+    if (MultiSlotBoot) {
+      StrnCatS (PartitionName, MAX_GPT_NAME_SIZE,
+            GetCurrentSlotSuffix ().Suffix,
+            StrLen (GetCurrentSlotSuffix ().Suffix));
+      DEBUG ((EFI_D_VERBOSE, "Partition name:%s\n", PartitionName));
+    }
+    Index = GetPartitionIndex (PartitionName);
+
+    if (Index == INVALID_PTN) {
+      DEBUG ((EFI_D_ERROR,
+              "GetLEVerityCmdLine: System partition does not exist \n"));
+      Status = EFI_DEVICE_ERROR;
+      goto ErrLEVerityout;
+    }
+
+    /* Construct complete verity command line */
+    AsciiSPrint (
+    DMTemp,
+    MAX_VERITY_CMD_LINE,
+    " %a dm=\"%a none ro,0 %a %a 1 %a%d %a%d %a %a %a %d %a %a %a\"",
+    VerityRoot, VerityAppliedOn, SectorSize, VerityName,
+    VeritySystemPartitionStr, Index, VeritySystemPartitionStr, Index,
+    VerityBlockSize, VerityBlockSize, DataSize, HashSize, VerityEncriptionName,
+    Hash, VeritySalt
+    );
+
+    Length = AsciiStrLen (DMTemp) + 1; /* 1 extra byte for NULL */
+
+    *LEVerityCmdLine = AllocateZeroPool (Length);
+
+    if (!*LEVerityCmdLine) {
+      DEBUG ((EFI_D_ERROR, "LEVerityCmdLine buffer: Out of resources\n"));
+      Status = EFI_OUT_OF_RESOURCES;
+      goto ErrLEVerityout;
+    }
+
+    AsciiStrCpyS (*LEVerityCmdLine, Length, DMTemp);
+    *Len = Length;
+
+    DEBUG ((EFI_D_VERBOSE, "LEVerityCmdLine - %a - of length = %d \n",
+    *LEVerityCmdLine, *Len));
+  }
+  else {
+    DEBUG ((EFI_D_ERROR, "No verity command line found\n"));
+    Status = EFI_NOT_FOUND;
+  }
+
+ErrLEVerityout:
+  return Status;
+}
