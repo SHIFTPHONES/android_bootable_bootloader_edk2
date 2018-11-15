@@ -348,7 +348,7 @@ StrAlignLeft (CHAR8 *Msg,
 
   if (Max_x / factor > AsciiStrLen (Msg)) {
     diff = Max_x / factor - AsciiStrLen (Msg);
-    StrSourceTemp = AllocateZeroPool (diff);
+    StrSourceTemp = AllocateZeroPool (MAX_MSG_SIZE);
     if (StrSourceTemp == NULL) {
       DEBUG ((EFI_D_ERROR,
              "Failed to allocate zero pool for StrSourceTemp.\n"));
@@ -358,7 +358,8 @@ StrAlignLeft (CHAR8 *Msg,
     for (i = 0; i < diff; i++) {
       AsciiStrnCatS (StrSourceTemp, MAX_MSG_SIZE, FilledChar, 1);
     }
-    AsciiStrnCatS (Msg, MaxMsgSize, StrSourceTemp, diff);
+    AsciiStrnCatS (Msg, MaxMsgSize,
+                   StrSourceTemp, AsciiStrLen (StrSourceTemp));
     FreePool (StrSourceTemp);
   }
 }
