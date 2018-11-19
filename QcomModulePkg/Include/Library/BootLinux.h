@@ -100,6 +100,7 @@ typedef enum {
         IMG_DTBO,
         IMG_VBMETA,
         IMG_RECOVERY,
+        IMG_VMLINUX,
         IMG_MAX
 } img_type;
 
@@ -144,6 +145,8 @@ typedef struct BootLinuxParamlist {
   VOID *ImageBuffer;
   UINT64 ImageSize;
   VOID *DtboImgBuffer;
+  UINT64 HypDtboAddr;
+  UINT64 MemorySize;
 } BootParamlist;
 
 EFI_STATUS

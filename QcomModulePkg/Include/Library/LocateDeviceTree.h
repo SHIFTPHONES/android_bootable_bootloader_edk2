@@ -270,4 +270,8 @@ DeviceTreeValidate (UINT8 *DeviceTreeBuff,
                     UINT32 PageSize,
                     UINT32 *DeviceTreeSize);
 INT32 GetDtboIdx (VOID);
+VOID DeleteDtList (struct fdt_entry_node** DtList);
+BOOLEAN AppendToDtList (struct fdt_entry_node **DtList,
+                UINT64 Address,
+                UINT64 Size);
 #endif

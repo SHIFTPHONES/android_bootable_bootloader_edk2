@@ -42,6 +42,7 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/ShutdownServices.h>
 #include <Library/StackCanary.h>
+#include <Library/HypervisorMvCalls.h>
 
 #define MAX_APP_STR_LEN 64
 #define MAX_NUM_FS 10
@@ -268,6 +269,9 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   DEBUG ((EFI_D_INFO, "KeyPress:%u, BootReason:%u\n", KeyPressed, BootReason));
   DEBUG ((EFI_D_INFO, "Fastboot=%d, Recovery:%d\n",
                                           BootIntoFastboot, BootIntoRecovery));
+  if (!GetVmData ()) {
+    DEBUG ((EFI_D_ERROR, "VM Hyp calls not present\n"));
+  }
 
   if (!BootIntoFastboot) {
     BootInfo Info = {0};

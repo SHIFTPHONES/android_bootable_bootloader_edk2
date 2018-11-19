@@ -78,6 +78,12 @@ struct fdt_reserve_entry {
 	fdt64_t size;
 };
 
+struct fdt_entry_node {
+        fdt64_t address;
+        fdt64_t size;
+        struct fdt_entry_node *next;
+};
+
 struct fdt_node_header {
 	fdt32_t tag;
 	char name[0];

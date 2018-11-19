@@ -126,6 +126,9 @@
   !ifdef $(INIT_BIN)
       GCC:*_*_*_CC_FLAGS = -DINIT_BIN='$(INIT_BIN)'
   !endif
+  !if $(TARGET_ARCH_ARM64)
+      GCC:*_*_*_CC_FLAGS = -DTARGET_ARCH_ARM64
+  !endif
 
 [PcdsFixedAtBuild.common]
 

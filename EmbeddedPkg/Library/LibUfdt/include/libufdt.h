@@ -431,4 +431,5 @@ void ufdt_node_map(struct ufdt_node *node, struct ufdt_node_closure closure);
  */
 void ufdt_map(struct ufdt *tree, struct ufdt_node_closure closure);
 
+struct static_phandle_table build_phandle_table(struct ufdt *tree);
 #endif /* LIBUFDT_H */
