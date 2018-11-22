@@ -4661,7 +4661,7 @@ RELEASE_GCC49_AARCH64_CC_FLAGS   = DEF(GCC49_AARCH64_CC_FLAGS) -Wno-unused-but-s
 ####################################################################################
 *_CLANG35_*_*_FAMILY             = GCC
 
-*_CLANG35_*_MAKE_PATH            = make
+*_CLANG35_*_MAKE_PATH            = ENV(MAKEPATH)make
 *_CLANG35_*_*_DLL                = ENV(CLANG35_DLL)
 *_CLANG35_*_ASL_PATH             = DEF(UNIX_IASL_BIN)
 
