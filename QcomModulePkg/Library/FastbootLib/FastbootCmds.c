@@ -2595,7 +2595,8 @@ CmdOemSelectDisplayPanel (CONST CHAR8 *arg, VOID *data, UINT32 sz)
   /* Update the environment variable with the selected panel */
   Status = gRT->SetVariable (
       (CHAR16 *)L"DisplayPanelOverride", &gQcomTokenSpaceGuid,
-      EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
+      EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS
+                                  | EFI_VARIABLE_NON_VOLATILE,
       AsciiStrLen (DisplayPanelStr), (VOID *)DisplayPanelStr);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Failed to set panel name, %r\n", Status));
