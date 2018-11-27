@@ -42,16 +42,7 @@
 #define ENDPOINT_IN 0x01
 #define ENDPOINT_OUT 0x81
 
-#ifdef ENABLE_LE_VARIANT
-#define MAX_DOWNLOAD_SIZE (1024 * 1024 * 150)
-#define MAX_DOWNLOAD_SIZE_STR "157286400"
-#else
-#define MAX_DOWNLOAD_SIZE (1024 * 1024 * 512)
-#define MAX_DOWNLOAD_SIZE_STR "536870912"
-#endif
-
 #define MAX_WRITE_SIZE (1024 * 1024)
-#define MAX_BUFFER_SIZE MAX_DOWNLOAD_SIZE
 #define MAX_RSP_SIZE 64
 #define ERASE_BUFF_SIZE 256 * 1024
 #define ERASE_BUFF_BLOCKS 256 * 2
@@ -77,6 +68,13 @@
 #define EXT_FS_MAGIC 0xEF53
 #define F2FS_MAGIC_OFFSET_SB 0x0
 #define F2FS_FS_MAGIC 0xF2F52010
+
+/* Divide allocatable free Memory to 3/4th */
+#define EFI_FREE_MEM_DIVISOR(BYTES) (((BYTES) * 3) / 4)
+/* 64MB */
+#define MIN_BUFFER_SIZE (67108864)
+/* 1.5GB */
+#define MAX_BUFFER_SIZE (1610612736)
 
 typedef enum FsSignature {
   EXT_FS_SIGNATURE = 1,
