@@ -1010,8 +1010,8 @@ BootLinux (BootInfo *Info)
     UINT32 PipeId = GET_PIPE_ID_SEND (HypInfo->pipe_id);
     RetVal = HvcSysPipeControl (PipeId, CONTROL_STATE);
     if (RetVal) {
-      DEBUG ((EFI_D_ERROR, "Error: Pipe Ctrl %d, Boot in Fastboot\n", RetVal));
-      return EFI_NOT_STARTED;
+      DEBUG ((EFI_D_ERROR, "Error: Hyp Pipe Ctrl failed: %d\n", RetVal));
+      goto Exit;
     }
 
     if (!Recovery &&
@@ -1027,8 +1027,8 @@ BootLinux (BootInfo *Info)
                               (UINT32) sizeof (struct HypMsg),
                               (UINT8 *)(&Msg));
       if (RetVal) {
-        DEBUG ((EFI_D_ERROR, "Error: ML-VM %d, Boot into Fastboot\n", RetVal));
-        return EFI_NOT_STARTED;
+        DEBUG ((EFI_D_ERROR, "Error: PipeSend failed for ML-VM: %d\n", RetVal));
+        goto Exit;
       }
     }
 
@@ -1042,8 +1042,8 @@ BootLinux (BootInfo *Info)
                              (UINT32)sizeof (struct HypMsg),
                              (UINT8 *)(&Msg));
     if (RetVal) {
-      DEBUG ((EFI_D_ERROR, "Error: Kernel %d, Boot into Fastboot\n", RetVal));
-      return EFI_NOT_STARTED;
+      DEBUG ((EFI_D_ERROR, "Error: PipeSend failed for Kernel: %d\n", RetVal));
+      goto Exit;
     }
 
     DEBUG ((EFI_D_ERROR, "After Life support not available\n"));
@@ -1059,7 +1059,9 @@ BootLinux (BootInfo *Info)
       Status = SwitchTo32bitModeBooting (
                      (UINT64)BootParamlistPtr.KernelLoadAddr,
                      (UINT64)BootParamlistPtr.DeviceTreeLoadAddr);
-      return Status;
+      if (EFI_ERROR (Status)) {
+        goto Exit;
+      }
     }
 
     // Booting into 32 bit kernel.
@@ -1079,6 +1081,7 @@ BootLinux (BootInfo *Info)
 
 Exit:
   // Only be here if we fail to start Linux
+  CpuDeadLoop ();
   return EFI_NOT_STARTED;
 }
 
