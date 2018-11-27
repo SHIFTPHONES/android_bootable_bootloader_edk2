@@ -146,7 +146,7 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   EFI_STATUS Status;
 
   UINT32 BootReason = NORMAL_MODE;
-  UINT32 KeyPressed;
+  UINT32 KeyPressed = SCAN_NULL;
   /* MultiSlot Boot */
   BOOLEAN MultiSlotBoot;
 
