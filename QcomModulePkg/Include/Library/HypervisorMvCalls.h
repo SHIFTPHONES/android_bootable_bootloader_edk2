@@ -74,7 +74,7 @@ DDR regions.
 typedef struct vm_mem_region {
     UINT64 base;
     UINT64 size;
-}VmMemRegion  __attribute__ ((packed));
+} __attribute__ ((packed)) VmMemRegion;
 
 typedef struct hyp_boot_info {
     UINT32 hyp_bootinfo_magic;
@@ -109,7 +109,7 @@ typedef struct hyp_boot_info {
         /* (areas valid for loading the kernel/dtb/initramfs) */
         struct vm_mem_region ddr_region[8];
     } vm[];
-}HypBootInfo __attribute__ ((packed));
+} __attribute__ ((packed)) HypBootInfo;
 
 typedef struct HypBootMgrStartParams {
   UINT64 EntryAddr; /* Physical load address / entry point of Linux */
