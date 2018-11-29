@@ -53,6 +53,111 @@ STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
 STATIC BOOLEAN BootDevImage;
 STATIC BOOLEAN IsVmComputed = FALSE;
 
+/* To set load addresses, callers should make sure to initialize the
+ * BootParamlistPtr before calling this function */
+UINT64 SetandGetLoadAddr (BootParamlist *BootParamlistPtr, AddrType Type)
+{
+  STATIC UINT64 KernelLoadAddr;
+  STATIC UINT64 RamdiskLoadAddr;
+
+  if (BootParamlistPtr) {
+    KernelLoadAddr = BootParamlistPtr->KernelLoadAddr;
+    RamdiskLoadAddr = BootParamlistPtr->RamdiskLoadAddr;
+  } else {
+    switch (Type) {
+      case LOAD_ADDR_KERNEL:
+        return KernelLoadAddr;
+        break;
+      case LOAD_ADDR_RAMDISK:
+        return RamdiskLoadAddr;
+        break;
+      default:
+        DEBUG ((EFI_D_ERROR, "Invalid Type to GetLoadAddr():%d\n",
+                Type));
+        break;
+    }
+  }
+
+  return 0;
+}
+
+STATIC BOOLEAN QueryBootParams (BootParamlist *BootParamlistPtr)
+{
+  EFI_STATUS Status;
+  EFI_STATUS SizeStatus;
+  UINTN DataSize = 0;
+
+  DataSize = sizeof (BootParamlistPtr->KernelLoadAddr);
+  Status = gRT->GetVariable ((CHAR16 *)L"KernelBaseAddr", &gQcomTokenSpaceGuid,
+                          NULL, &DataSize, &BootParamlistPtr->KernelLoadAddr);
+
+  DataSize = sizeof (BootParamlistPtr->KernelSizeReserved);
+  SizeStatus = gRT->GetVariable ((CHAR16 *)L"KernelSize", &gQcomTokenSpaceGuid,
+                              NULL, &DataSize,
+                              &BootParamlistPtr->KernelSizeReserved);
+
+
+  return (Status == EFI_SUCCESS &&
+          SizeStatus == EFI_SUCCESS);
+}
+
+STATIC VOID UpdateBootParams (BootParamlist *BootParamlistPtr, KernelMode Mode)
+{
+  /* The three regions Kernel, Ramdisk and DT should be reserved in memory map
+   * Query the kernel load address and size from UEFI core, if it's not
+   * successful use the predefined load addresses */
+
+  if (QueryBootParams (BootParamlistPtr)) {
+
+   BootParamlistPtr->KernelEndAddr = BootParamlistPtr->KernelLoadAddr +
+                                      BootParamlistPtr->KernelSizeReserved;
+   switch (Mode) {
+      case KERNEL_32BIT:
+        BootParamlistPtr->KernelLoadAddr += KERNEL_32BIT_LOAD_OFFSET;
+        break;
+      case KERNEL_64BIT:
+        BootParamlistPtr->KernelLoadAddr += KERNEL_64BIT_LOAD_OFFSET;
+        break;
+      default:
+        DEBUG ((EFI_D_ERROR, "Invalid kernel Mode to UpdateBootParams():%d\n",
+                Mode));
+        break;
+    }
+
+    BootParamlistPtr->RamdiskLoadAddr = BootParamlistPtr->KernelEndAddr -
+                                        RAMDISK_SIZE_8MB;
+    BootParamlistPtr->DeviceTreeLoadAddr = BootParamlistPtr->RamdiskLoadAddr -
+                                           DT_SIZE_2MB;
+  } else {
+      DEBUG ((EFI_D_INFO, "Using predefined load addresses, GetVariable \
+                           support is not present for them \n"));
+
+      switch (Mode) {
+        case KERNEL_32BIT:
+          BootParamlistPtr->KernelLoadAddr =
+            (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                    PcdGet32 (KernelLoadAddress32));
+          break;
+        case KERNEL_64BIT:
+          BootParamlistPtr->KernelLoadAddr =
+            (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                    PcdGet32 (KernelLoadAddress));
+                  break;
+        default:
+          DEBUG ((EFI_D_ERROR, "Invalid kernel Mode to UpdateBootParams():%d\n",
+                  Mode));
+          break;
+      }
+
+      BootParamlistPtr->RamdiskLoadAddr =
+        (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                PcdGet32 (RamdiskLoadAddress));
+      BootParamlistPtr->DeviceTreeLoadAddr =
+        (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                PcdGet32 (TagsAddress));
+  }
+}
+
 STATIC EFI_STATUS
 SwitchTo32bitModeBooting (UINT64 KernelLoadAddr, UINT64 DeviceTreeLoadAddr)
 {
@@ -424,9 +529,8 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
     }
 
     if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
-      *KernelLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
-      PcdGet32 (KernelLoadAddress32));
+      UpdateBootParams (BootParamlistPtr, KERNEL_32BIT);
+      SetandGetLoadAddr (BootParamlistPtr, LOAD_ADDR_NONE);
       if (BootParamlistPtr->KernelSize <=
           DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR) {
         DEBUG ((EFI_D_ERROR, "DTB offset goes beyond kernel size.\n"));
@@ -464,9 +568,14 @@ LoadAddrAndDTUpdate (BootParamlist *BootParamlistPtr)
 
   }
 
-  RamdiskEndAddr =
+  if (BootParamlistPtr->KernelSizeReserved != 0) {
+    RamdiskEndAddr = BootParamlistPtr->KernelEndAddr;
+  } else {
+    RamdiskEndAddr =
     (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
                               PcdGet32 (RamdiskEndAddress));
+  }
+
   if (RamdiskEndAddr - BootParamlistPtr->RamdiskLoadAddr <
                        BootParamlistPtr->RamdiskSize) {
     DEBUG ((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
@@ -875,18 +984,11 @@ BootLinux (BootInfo *Info)
       DEBUG ((EFI_D_ERROR, "Base memory not found!!! Status:%r\n", Status));
       return Status;
     }
-
-    // These three regions should be reserved in memory map.
-    BootParamlistPtr.KernelLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr.BaseMemory |
-                              PcdGet32 (KernelLoadAddress));
-    BootParamlistPtr.RamdiskLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr.BaseMemory |
-                              PcdGet32 (RamdiskLoadAddress));
-    BootParamlistPtr.DeviceTreeLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr.BaseMemory |
-                              PcdGet32 (TagsAddress));
   }
+
+  UpdateBootParams (&BootParamlistPtr, KERNEL_64BIT);
+  SetandGetLoadAddr (&BootParamlistPtr, LOAD_ADDR_NONE);
+
   Status = GZipPkgCheck (&BootParamlistPtr, &DtbOffset,
                          &BootParamlistPtr.KernelLoadAddr,
                          &BootParamlistPtr.BootingWith32BitKernel);
