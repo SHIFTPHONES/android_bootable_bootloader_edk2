@@ -89,6 +89,7 @@
 	gEfiVbmetaPartitionGuid
 	gEfiBootImgPartitionGuid
 	gEfiDtboPartitionGuid
+	gEfiVmLinuxPartitionGuid
 	gEfiRecoveryImgPartitionGuid
 
 [Protocols]

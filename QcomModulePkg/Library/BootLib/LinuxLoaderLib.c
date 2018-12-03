@@ -409,7 +409,7 @@ LaunchApp (IN UINT32 Argc, IN CHAR8 **Argv)
 
       /* Need WideChar string as CmdLineArgs */
       ImageInfo->LoadOptionsSize = 2 * (UINT32)AsciiStrSize (Argv[1]);
-      ImageInfo->LoadOptions = AllocatePool (ImageInfo->LoadOptionsSize);
+      ImageInfo->LoadOptions = AllocateZeroPool (ImageInfo->LoadOptionsSize);
       if (ImageInfo->LoadOptions == NULL)
         return EFI_OUT_OF_RESOURCES;
       AsciiStrToUnicodeStr (Argv[1], ImageInfo->LoadOptions);

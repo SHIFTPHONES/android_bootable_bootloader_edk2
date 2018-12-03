@@ -242,13 +242,12 @@ VOID UpdatePartitionAttributes (VOID)
     MaxGptPartEntrySzBytes = (GPT_HDR_BLOCKS + PartEntriesblocks) * BlkSz;
     CardSizeSec = (DeviceDensity) / BlkSz;
     Offset = PRIMARY_HDR_LBA;
-    GptHdr = AllocatePool (MaxGptPartEntrySzBytes);
+    GptHdr = AllocateZeroPool (MaxGptPartEntrySzBytes);
     if (!GptHdr) {
       DEBUG ((EFI_D_ERROR, "Unable to Allocate Memory for GptHdr \n"));
       return;
     }
 
-    gBS->SetMem ((VOID *)GptHdr, MaxGptPartEntrySzBytes, 0);
     GptHdrPtr = GptHdr;
 
     /* This loop iterates twice to update both primary and backup Gpt*/
@@ -429,7 +428,7 @@ STATIC EFI_STATUS GetMultiSlotPartsList (VOID)
           SearchString, Len - 1) &&
           (StrStr (SearchString, (CONST CHAR16 *)L"_a") ||
           StrStr (SearchString, (CONST CHAR16 *)L"_b"))) {
-        TempNode = AllocatePool (sizeof (struct BootPartsLinkedList));
+        TempNode = AllocateZeroPool (sizeof (struct BootPartsLinkedList));
         if (TempNode) {
           /*Skip _a/_b from partition name*/
           StrnCpyS (TempNode->PartName, sizeof (TempNode->PartName),
@@ -1237,7 +1236,7 @@ GetActiveSlot (Slot *ActiveSlot)
 }
 
 EFI_STATUS
-SetActiveSlot (Slot *NewSlot)
+SetActiveSlot (Slot *NewSlot, BOOLEAN ResetSuccessBit)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   Slot CurrentSlot = {{0}};
@@ -1273,8 +1272,13 @@ SetActiveSlot (Slot *NewSlot)
   BootEntry->PartEntry.Attributes |=
       (PART_ATT_PRIORITY_VAL | PART_ATT_ACTIVE_VAL |
        PART_ATT_MAX_RETRY_COUNT_VAL);
-  BootEntry->PartEntry.Attributes &=
-      (~PART_ATT_SUCCESSFUL_VAL & ~PART_ATT_UNBOOTABLE_VAL);
+
+  BootEntry->PartEntry.Attributes &= (~PART_ATT_UNBOOTABLE_VAL);
+
+  if (ResetSuccessBit &&
+      (BootEntry->PartEntry.Attributes & PART_ATT_SUCCESSFUL_VAL)) {
+    BootEntry->PartEntry.Attributes &= (~PART_ATT_SUCCESSFUL_VAL);
+  }
 
   /* Reduce the priority and clear the active flag for alternate slot*/
   BootEntry = GetBootPartitionEntry (AlternateSlot);
@@ -1379,7 +1383,7 @@ EFI_STATUS HandleActiveSlotUnbootable (VOID)
   if (Unbootable == 0 && BootSuccess == 1) {
     DEBUG (
         (EFI_D_INFO, "Alternate Slot %s is bootable\n", AlternateSlot->Suffix));
-    GUARD (SetActiveSlot (AlternateSlot));
+    GUARD (SetActiveSlot (AlternateSlot, FALSE));
 
     DEBUG ((EFI_D_INFO, "HandleActiveSlotUnbootable: Rebooting\n"));
     gRT->ResetSystem (EfiResetCold, EFI_SUCCESS, 0, NULL);

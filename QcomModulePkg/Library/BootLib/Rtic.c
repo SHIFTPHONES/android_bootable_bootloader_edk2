@@ -113,7 +113,7 @@ GetRticDtb (VOID *Dtb)
     return FALSE;
   }
 
-  MpData = (UINT8 *)AllocatePool (LenMpData);
+  MpData = (UINT8 *)AllocateZeroPool (LenMpData);
   if (!MpData) {
     DEBUG ((EFI_D_ERROR, "Failed to allocate memory for MP Data\n"));
     return FALSE;

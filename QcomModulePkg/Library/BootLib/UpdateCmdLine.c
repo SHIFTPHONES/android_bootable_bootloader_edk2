@@ -40,11 +40,13 @@
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/EFIPmicPon.h>
 #include <Protocol/Print2.h>
+#include <Library/HypervisorMvCalls.h>
 
 #include "AutoGen.h"
 #include <DeviceInfo.h>
 #include "UpdateCmdLine.h"
 #include "Recovery.h"
+#include "LECmdLine.h"
 
 STATIC CONST CHAR8 *BootDeviceCmdLine = " androidboot.bootdevice=";
 STATIC CONST CHAR8 *UsbSerialCmdLine = " androidboot.serialno=";
@@ -67,18 +69,6 @@ STATIC UINTN DisplayCmdLineLen = sizeof (DisplayCmdLine);
 
 #define MAX_DTBO_IDX_STR 64
 STATIC CHAR8 *AndroidBootDtboIdx = " androidboot.dtbo_idx=";
-
-#if VERITY_LE
-STATIC BOOLEAN IsLEVerity (VOID)
-{
-  return TRUE;
-}
-#else
-STATIC BOOLEAN IsLEVerity (VOID)
-{
-  return FALSE;
-}
-#endif
 
 STATIC EFI_STATUS
 TargetPauseForBatteryCharge (BOOLEAN *BatteryStatus)
@@ -282,7 +272,8 @@ STATIC VOID GetDisplayCmdline (VOID)
  * Returns length = 0 when there is failure.
  */
 UINT32
-GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
+GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
+               BOOLEAN BootIntoRecovery, CHAR16 *ReqPartition, CHAR8 *Key)
 {
   INT32 Index;
   UINT32 Lun;
@@ -291,6 +282,12 @@ GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
   CHAR8 LunCharMapping[] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
   CHAR8 RootDevStr[BOOT_DEV_NAME_SIZE_MAX];
 
+  if (ReqPartition == NULL ||
+      Key == NULL) {
+    DEBUG ((EFI_D_ERROR, "Invalid parameters: NULL\n"));
+    return 0;
+  }
+
   *SysPath = AllocateZeroPool (sizeof (CHAR8) * MAX_PATH_SIZE);
   if (!*SysPath) {
     DEBUG ((EFI_D_ERROR, "Failed to allocated memory for System path query\n"));
@@ -298,23 +295,23 @@ GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
   }
 
   if (IsLEVariant () &&
-      Info->BootIntoRecovery) {
+      BootIntoRecovery) {
     StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"recoveryfs",
-            StrLen ((CONST CHAR16 *)L"recoveryfs"));
+              StrLen ((CONST CHAR16 *)L"recoveryfs"));
   } else {
-    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
-            StrLen ((CONST CHAR16 *)L"system"));
+    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, ReqPartition,
+              StrLen (ReqPartition));
   }
 
   /* Append slot info for A/B Variant */
-  if (Info->MultiSlotBoot) {
+  if (MultiSlotBoot) {
      StrnCatS (PartitionName, MAX_GPT_NAME_SIZE, CurSlot.Suffix,
             StrLen (CurSlot.Suffix));
   }
 
   Index = GetPartitionIndex (PartitionName);
   if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
-    DEBUG ((EFI_D_ERROR, "System partition does not exist\n"));
+    DEBUG ((EFI_D_ERROR, "%s partition does not exist\n", PartitionName));
     FreePool (*SysPath);
     *SysPath = NULL;
     return 0;
@@ -329,7 +326,7 @@ GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
   }
 
   if (!AsciiStrCmp ("EMMC", RootDevStr)) {
-    AsciiSPrint (*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", Index);
+    AsciiSPrint (*SysPath, MAX_PATH_SIZE, " %a=/dev/mmcblk0p%d", Key, Index);
   } else if (!AsciiStrCmp ("NAND", RootDevStr)) {
     /* NAND is being treated as GPT partition, hence reduce the index by 1 as
      * PartitionIndex (0) should be ignored for correct mapping of partition.
@@ -339,7 +336,9 @@ GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
           " rootfstype=ubifs rootflags=bulk_read root=ubi0:rootfs ubi.mtd=%d",
           (Index - 1));
   } else if (!AsciiStrCmp ("UFS", RootDevStr)) {
-    AsciiSPrint (*SysPath, MAX_PATH_SIZE, " root=/dev/sd%c%d",
+    AsciiSPrint (*SysPath, MAX_PATH_SIZE,
+                 " %a=/dev/sd%c%d",
+                 Key,
                  LunCharMapping[Lun],
                  GetPartitionIdxInLun (PartitionName, Lun));
   } else {
@@ -362,13 +361,11 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
   CHAR8 *Dst;
   UINT32 MaxCmdLineLen = Param->CmdLineLen;
 
-  Dst = AllocatePool (MaxCmdLineLen);
+  Dst = AllocateZeroPool (MaxCmdLineLen);
   if (!Dst) {
     DEBUG ((EFI_D_ERROR, "CMDLINE: Failed to allocate destination buffer\n"));
     return EFI_OUT_OF_RESOURCES;
   }
-
-  gBS->SetMem (Dst, MaxCmdLineLen, 0x0);
 
   /* Save start ptr for debug print */
   *FinalCmdLine = Dst;
@@ -470,92 +467,20 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     Src = Param->DtboIdxStr;
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
-   return EFI_SUCCESS;
-}
 
-STATIC
-EFI_STATUS
-GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine)
-{
-  BOOLEAN MultiSlotBoot;
-  EFI_STATUS Status = EFI_SUCCESS;
-  CHAR8 *SysPathIndex = NULL;
-  CHAR8 *ReplaceStr = NULL;
-  CHAR8 *Destination = NULL;
-  CHAR8 *LeSearchStr = " /dev/mmcblk0p";
-  CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
-  CHAR16 MaxDestSize;
-  INT32 Index;
-
-  MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
-  SysPathIndex = AllocateZeroPool (sizeof (CHAR8) * MAX_PATH_SIZE);
-  if (!SysPathIndex) {
-    DEBUG ((EFI_D_ERROR, "Failed to allocate memory for System path query\n"));
-    Status = EFI_OUT_OF_RESOURCES;
-    goto out;
+  if (Param->LEVerityCmdLine != NULL) {
+    Src = Param->LEVerityCmdLine;
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+    FreePool (Param->LEVerityCmdLine);
+    Param->LEVerityCmdLine = NULL;
   }
 
-  StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
-          StrLen ((CONST CHAR16 *)L"system"));
-  if (MultiSlotBoot) {
-    StrnCatS (PartitionName, MAX_GPT_NAME_SIZE, GetCurrentSlotSuffix ().Suffix,
-            StrLen (GetCurrentSlotSuffix ().Suffix));
-    DEBUG ((EFI_D_VERBOSE, "Partition name:%s\n", PartitionName));
+  /* Update commandline for VM System partition */
+  if (Param->CvmSystemPtnCmdLine) {
+    Src = Param->CvmSystemPtnCmdLine;
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
-  Index = GetPartitionIndex (PartitionName);
-
-  if (Index == INVALID_PTN) {
-    DEBUG ((EFI_D_ERROR, "System partition does not exist\n"));
-    Status = EFI_NOT_FOUND;
-    goto out;
-  }
-
-  AsciiSPrint (SysPathIndex, MAX_PATH_SIZE, "%d", Index);
-
-  ReplaceStr = AsciiStrStr (SourceCmdLine, LeSearchStr);
-
-  if (!ReplaceStr) {
-    DEBUG ((EFI_D_ERROR, "Verity String is not found in CmdLine\n"));
-    Status = EFI_NOT_FOUND;
-    goto out;
-  }
-  ReplaceStr += AsciiStrLen (LeSearchStr);
-
-  /*  Adding syspath index twice to SourceCmdLine, to manage the destination
-   length also adding 1Byte extra to detect NULL  */
-  MaxDestSize =  AsciiStrLen (SourceCmdLine) +
-         (2 * AsciiStrLen (SysPathIndex)) + 1;
-
-  Destination  = AllocateZeroPool (MaxDestSize);
-
-  if (!Destination) {
-    DEBUG ((EFI_D_ERROR, "Failed to allocated memory for Verity Cmdline\n"));
-    Status = EFI_OUT_OF_RESOURCES;
-    goto out;
-  }
-  /*  logic: copying source string to destination with appending system
-   index value to kernel command line argument*/
-  AsciiStrnCpyS (Destination, MaxDestSize, SourceCmdLine,
-         (ReplaceStr - SourceCmdLine));
-
-  AsciiStrCat (Destination, SysPathIndex);
-  AsciiStrCat (Destination, LeSearchStr);
-  AsciiStrCat (Destination, SysPathIndex);
-  ReplaceStr += AsciiStrLen (LeSearchStr);
-  AsciiStrCat (Destination, ReplaceStr);
-
-  AsciiStrnCpyS ((CHAR8 *)SourceCmdLine, MaxDestSize,
-         (CONST CHAR8 *)Destination, MaxDestSize);
-
-out:
-  if (SysPathIndex != NULL) {
-    FreePool (SysPathIndex);
-  }
-  if (Destination != NULL) {
-    FreePool (Destination);
-  }
-
-  return Status;
+  return EFI_SUCCESS;
 }
 
 /*Update command line: appends boot information to the original commandline
@@ -579,9 +504,12 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   BOOLEAN BatteryStatus;
   CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
   BOOLEAN MdtpActive = FALSE;
+  CHAR8 *CvmSystemPtnCmdLine = NULL;
   UpdateCmdLineParamList Param = {0};
   CHAR8 DtboIdxStr[MAX_DTBO_IDX_STR] = "\0";
   INT32 DtboIdx = INVALID_PTN;
+  CHAR8 *LEVerityCmdLine = NULL;
+  UINT32 LEVerityCmdLineLen = 0;
 
   Status = BoardSerialNum (StrSerialNum, sizeof (StrSerialNum));
   if (Status != EFI_SUCCESS) {
@@ -590,12 +518,6 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   }
 
   if (CmdLine && CmdLine[0]) {
-    if (IsLEVerity ()) {
-      Status = GetLEVerityCmdLine (CmdLine);
-      if (Status != EFI_SUCCESS) {
-        DEBUG ((EFI_D_ERROR, "Error While checking verity: %x\n", Status));
-      }
-    }
     CmdLineLen = AsciiStrLen (CmdLine);
     HaveCmdLine = 1;
   }
@@ -617,7 +539,18 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     CmdLineLen += AsciiStrLen (VBCmdLine);
   }
 
-  BootDevBuf = AllocatePool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
+  if (HaveCmdLine) {
+    if (IsLEVerity ()) {
+      Status = GetLEVerityCmdLine (CmdLine, &LEVerityCmdLine,
+                                   &LEVerityCmdLineLen);
+      if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "Failed to get LEVerityCmdLine: %r\n", Status));
+      }
+      CmdLineLen += LEVerityCmdLineLen;
+    }
+  }
+
+  BootDevBuf = AllocateZeroPool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
   if (BootDevBuf == NULL) {
     DEBUG ((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
     return EFI_OUT_OF_RESOURCES;
@@ -700,6 +633,14 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   /* 1 extra byte for NULL */
   CmdLineLen += 1;
 
+  if (IsVmEnabled ()) {
+    CmdLineLen += GetSystemPath (&CvmSystemPtnCmdLine,
+                                 MultiSlotBoot,
+                                 Recovery,
+                                 (CHAR16 *)L"vm-system",
+                                 (CHAR8 *)"vm_system");
+  }
+
   Param.Recovery = Recovery;
   Param.MultiSlotBoot = MultiSlotBoot;
   Param.AlarmBoot = AlarmBoot;
@@ -727,6 +668,8 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   Param.RootCmdLine = RootCmdLine;
   Param.InitCmdline = InitCmdline;
   Param.DtboIdxStr = DtboIdxStr;
+  Param.LEVerityCmdLine = LEVerityCmdLine;
+  Param.CvmSystemPtnCmdLine = CvmSystemPtnCmdLine;
 
   Status = UpdateCmdLineParams (&Param, FinalCmdLine);
   if (Status != EFI_SUCCESS) {

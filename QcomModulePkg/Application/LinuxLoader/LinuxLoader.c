@@ -42,6 +42,7 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/ShutdownServices.h>
 #include <Library/StackCanary.h>
+#include <Library/HypervisorMvCalls.h>
 
 #define MAX_APP_STR_LEN 64
 #define MAX_NUM_FS 10
@@ -59,7 +60,7 @@ AllocateUnSafeStackPtr (VOID)
 
   EFI_STATUS Status = EFI_SUCCESS;
 
-  UnSafeStackPtr = AllocatePool (BOOT_LOADER_MAX_UNSAFE_STACK_SIZE);
+  UnSafeStackPtr = AllocateZeroPool (BOOT_LOADER_MAX_UNSAFE_STACK_SIZE);
   if (UnSafeStackPtr == NULL) {
     DEBUG ((EFI_D_ERROR, "Failed to Allocate memory for UnSafeStack \n"));
     Status = EFI_OUT_OF_RESOURCES;
@@ -145,7 +146,7 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   EFI_STATUS Status;
 
   UINT32 BootReason = NORMAL_MODE;
-  UINT32 KeyPressed;
+  UINT32 KeyPressed = SCAN_NULL;
   /* MultiSlot Boot */
   BOOLEAN MultiSlotBoot;
 
@@ -268,6 +269,9 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   DEBUG ((EFI_D_INFO, "KeyPress:%u, BootReason:%u\n", KeyPressed, BootReason));
   DEBUG ((EFI_D_INFO, "Fastboot=%d, Recovery:%d\n",
                                           BootIntoFastboot, BootIntoRecovery));
+  if (!GetVmData ()) {
+    DEBUG ((EFI_D_ERROR, "VM Hyp calls not present\n"));
+  }
 
   if (!BootIntoFastboot) {
     BootInfo Info = {0};

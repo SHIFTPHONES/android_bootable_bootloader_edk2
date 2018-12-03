@@ -113,7 +113,7 @@ void avb_printv(const char *message, ...)
 
 void *avb_malloc_(size_t size)
 {
-	return AllocatePool(size);
+        return AllocateZeroPool (size);
 }
 
 void avb_free(void *ptr)

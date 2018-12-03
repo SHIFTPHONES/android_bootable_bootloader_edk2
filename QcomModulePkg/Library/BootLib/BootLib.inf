@@ -40,7 +40,7 @@
 	GCC:*_*_*_CC_FLAGS = $(LLVM_ENABLE_SAFESTACK) $(LLVM_SAFESTACK_USE_PTR) $(LLVM_SAFESTACK_COLORING)
 
 [BuildOptions.AARCH64]
-	GCC:*_*_*_CC_FLAGS = -O2 $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT)
+	GCC:*_*_*_CC_FLAGS = -O2 $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT) -Wno-asm-operand-widths
 	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_UNDEFINED)
 	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_ALIGNMENT)
 
@@ -65,6 +65,8 @@
 	DeviceInfo.c
 	Rtic.c
 	PartialGoods.c
+	LECmdLine.c
+	HypervisorMvCalls.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec

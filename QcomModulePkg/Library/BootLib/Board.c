@@ -59,7 +59,8 @@ GetRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions)
   Status = pRamPartProtocol->GetRamPartitions (pRamPartProtocol, NULL,
                                                NumPartitions);
   if (Status == EFI_BUFFER_TOO_SMALL) {
-    *RamPartitions = AllocatePool (*NumPartitions * sizeof (RamPartitionEntry));
+    *RamPartitions = AllocateZeroPool (
+                         *NumPartitions * sizeof (RamPartitionEntry));
     if (*RamPartitions == NULL)
       return EFI_OUT_OF_RESOURCES;
 

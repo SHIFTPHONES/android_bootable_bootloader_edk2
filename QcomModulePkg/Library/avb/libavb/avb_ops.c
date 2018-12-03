@@ -122,6 +122,7 @@ static AvbPartitionDetails SupportedPartitions[] =
   { "vbmeta", &gEfiVbmetaPartitionGuid },
   { "boot", &gEfiBootImgPartitionGuid },
   { "dtbo", &gEfiDtboPartitionGuid },
+  { "vm-linux", &gEfiVmLinuxPartitionGuid },
   { "recovery", &gEfiRecoveryImgPartitionGuid} ,
 };
 

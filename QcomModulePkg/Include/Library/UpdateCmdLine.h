@@ -77,6 +77,8 @@ typedef struct UpdateCmdLineParamList {
   CHAR8 *RootCmdLine;
   CHAR8 *InitCmdline;
   CHAR8 *DtboIdxStr;
+  CHAR8 *LEVerityCmdLine;
+  CHAR8 *CvmSystemPtnCmdLine;
 } UpdateCmdLineParamList;
 
 EFI_STATUS
@@ -90,6 +92,6 @@ BOOLEAN
 TargetBatterySocOk (UINT32 *BatteryVoltage);
 
 UINT32
-GetSystemPath (CHAR8 **SysPath, BootInfo *Info);
-
+GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
+               BOOLEAN BootIntoRecovery, CHAR16 *ReqPartition, CHAR8 *Key);
 #endif

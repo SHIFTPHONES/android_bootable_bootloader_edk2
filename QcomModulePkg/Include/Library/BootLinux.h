@@ -95,6 +95,15 @@ typedef VOID (*LINUX_KERNEL) (UINT64 ParametersBase,
                               UINT64 Reserved2);
 typedef VOID (*LINUX_KERNEL32) (UINT32 Zero, UINT32 Arch, UINTN ParametersBase);
 
+typedef enum {
+        IMG_BOOT = 0,
+        IMG_DTBO,
+        IMG_VBMETA,
+        IMG_RECOVERY,
+        IMG_VMLINUX,
+        IMG_MAX
+} img_type;
+
 typedef struct {
   CHAR8 *Name;
   VOID *ImageBuffer;
@@ -136,6 +145,8 @@ typedef struct BootLinuxParamlist {
   VOID *ImageBuffer;
   UINT64 ImageSize;
   VOID *DtboImgBuffer;
+  UINT64 HypDtboAddr;
+  UINT64 MemorySize;
 } BootParamlist;
 
 EFI_STATUS
