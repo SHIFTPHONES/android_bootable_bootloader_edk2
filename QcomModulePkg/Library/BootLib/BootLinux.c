@@ -1025,7 +1025,7 @@ BootLinux (BootInfo *Info)
 
       RetVal = HvcSysPipeSend (PipeId,
                               (UINT32) sizeof (struct HypMsg),
-                              (UINT8 *)(&Msg));
+                              (UINTN *)(&Msg));
       if (RetVal) {
         DEBUG ((EFI_D_ERROR, "Error: PipeSend failed for ML-VM: %d\n", RetVal));
         goto Exit;
@@ -1038,13 +1038,11 @@ BootLinux (BootInfo *Info)
     Msg.HypBootMgr.StartParams.Is64BitMode =
                                     (!BootParamlistPtr.BootingWith32BitKernel);
 
-    RetVal = HvcSysPipeSend (PipeId,
+    do {
+      RetVal = HvcSysPipeSend (PipeId,
                              (UINT32)sizeof (struct HypMsg),
-                             (UINT8 *)(&Msg));
-    if (RetVal) {
-      DEBUG ((EFI_D_ERROR, "Error: PipeSend failed for Kernel: %d\n", RetVal));
-      goto Exit;
-    }
+                             (UINTN *)(&Msg));
+    } while (RetVal != 0);
 
     DEBUG ((EFI_D_ERROR, "After Life support not available\n"));
     goto Exit;

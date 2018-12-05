@@ -128,7 +128,7 @@ typedef struct HypMsg {
 
 #define CONTROL_STATE 3
 /* hypervisor calls */
-UINT32 HvcSysPipeSend (UINT32 PipeId, UINT32 Size, CONST UINT8 *Data);
+UINT32 HvcSysPipeSend (UINT32 PipeId, UINT32 Size, UINTN *Data);
 UINT32 HvcSysPipeControl (UINT32 PipeId, UINT32 Control);
 /* SCM call related functions */
 HypBootInfo *GetVmData (VOID);
