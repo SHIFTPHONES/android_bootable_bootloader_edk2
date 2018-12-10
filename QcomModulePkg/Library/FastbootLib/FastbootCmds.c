@@ -2308,7 +2308,8 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   // Setup page size information for nv storage
   GetPageSize (&ImageHdrSize);
 
-  Status = CheckImageHeader (Data, ImageHdrSize, &ImageSizeActual, &PageSize);
+  Status = CheckImageHeader (Data, ImageHdrSize, &ImageSizeActual,
+                             &PageSize, FALSE);
   if (Status != EFI_SUCCESS) {
     AsciiSPrint (Resp, sizeof (Resp), "Invalid Boot image Header: %r", Status);
     FastbootFail (Resp);

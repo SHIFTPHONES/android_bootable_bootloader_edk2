@@ -290,7 +290,9 @@ LoadImageNoAuth (BootInfo *Info)
     goto load_dtbo;
   }
 
-  Status = LoadImage (Info->Pname, (VOID **)&(Info->Images[0].ImageBuffer),
+  Status = LoadImage (Info->BootIntoRecovery,
+                      Info->Pname,
+                      (VOID **)&(Info->Images[0].ImageBuffer),
                       (UINT32 *)&(Info->Images[0].ImageSize));
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image from partition: %r\n",
@@ -997,7 +999,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
                      "recovery" : "boot"));
 
   Status = CheckImageHeader (ImageBuffer, ImageHdrSize,
-        &ImageSizeActual, &PageSize);
+        &ImageSizeActual, &PageSize, Info->BootIntoRecovery);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
     goto out;
