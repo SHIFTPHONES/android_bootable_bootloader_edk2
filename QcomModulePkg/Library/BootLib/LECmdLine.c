@@ -33,7 +33,7 @@
 #include <Library/MemoryAllocationLib.h>
 
 /* verity command line related structures */
-#define MAX_VERITY_CMD_LINE 256
+#define MAX_VERITY_CMD_LINE 512
 #define MAX_VERITY_SECTOR_LEN 12
 #define MAX_VERITY_HASH_LEN 65
 STATIC CONST CHAR8 *VeritySystemPartitionStr = "/dev/mmcblk0p";
@@ -44,7 +44,14 @@ STATIC CONST CHAR8 *VeritySalt =
     "aee087a5be3b982978c923f566a94613496b417f2af592639bc80d141e34dfe7";
 STATIC CONST CHAR8 *VerityBlockSize = "4096";
 STATIC CONST CHAR8 *VerityRoot = "root=/dev/dm-0";
+STATIC CONST CHAR8 *OptionalParam0 = "restart_on_corruption";
+STATIC CONST CHAR8 *OptionalParam1 = "ignore_zero_blocks";
+STATIC CONST CHAR8 *UseFec = "use_fec_from_device";
+STATIC CONST CHAR8 *FecRoot = "fec_roots";
+STATIC CONST CHAR8 *FecBlock = "fec_blocks";
+STATIC CONST CHAR8 *FecStart = "fec_start";
 
+#define FEATUREARGS 10
 #if VERITY_LE
 BOOLEAN IsLEVerity (VOID)
 {
@@ -129,12 +136,13 @@ GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
                     UINT32 *Len)
 {
   EFI_STATUS Status = EFI_SUCCESS;
-  CHAR8 DMTemp[MAX_VERITY_CMD_LINE];
+  CHAR8 *DMTemp = NULL;
   UINT32 Length = 0;
-  CHAR8 SectorSize[MAX_VERITY_SECTOR_LEN];
-  CHAR8 DataSize[MAX_VERITY_SECTOR_LEN];
+  CHAR8 *SectorSize = NULL;
+  CHAR8 *DataSize = NULL;
   INT32 HashSize = 0;
-  CHAR8 Hash[MAX_VERITY_HASH_LEN];
+  CHAR8 *Hash = NULL;
+  CHAR8 *FecOff = NULL;
   CHAR8 *DMDataStr = NULL;
   BOOLEAN MultiSlotBoot = FALSE;
   CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
@@ -147,6 +155,12 @@ GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
 
     DMDataStr += AsciiStrLen ("verity=\"");
 
+    SectorSize = AllocateZeroPool (sizeof (CHAR8) * MAX_VERITY_SECTOR_LEN);
+    if (!SectorSize) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate memory for SectorSize\n"));
+      Status = EFI_OUT_OF_RESOURCES;
+      goto ErrLEVerityout;
+    }
     /* Get Sector Size, Data Size, and Hash from verity specific command line */
     Status = LEVerityWordnCpy ((CHAR8 *) &SectorSize[0],
                                MAX_VERITY_SECTOR_LEN, DMDataStr, &Length);
@@ -155,6 +169,14 @@ GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
       goto ErrLEVerityout;
     }
     DMDataStr += Length;
+
+    DataSize = AllocateZeroPool (sizeof (CHAR8) * MAX_VERITY_SECTOR_LEN);
+    if (!DataSize) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate memory for DataSize\n"));
+      Status = EFI_OUT_OF_RESOURCES;
+      goto ErrLEVerityout;
+    }
+
     Status = LEVerityWordnCpy ((CHAR8 *) &DataSize[0],
                                MAX_VERITY_SECTOR_LEN, DMDataStr, &Length);
     if (Status != EFI_SUCCESS) {
@@ -162,10 +184,33 @@ GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
       goto ErrLEVerityout;
     }
     DMDataStr += Length;
+
+    Hash = AllocateZeroPool (sizeof (CHAR8) * MAX_VERITY_HASH_LEN);
+    if (!Hash) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate memory for Hash\n"));
+      Status = EFI_OUT_OF_RESOURCES;
+      goto ErrLEVerityout;
+    }
+
     Status = LEVerityWordnCpy ((CHAR8 *) &Hash[0],
                                MAX_VERITY_HASH_LEN, DMDataStr, &Length);
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "GetLEVerityCmdLine: Hash error \n"));
+      goto ErrLEVerityout;
+    }
+    DMDataStr += Length;
+
+    FecOff = AllocateZeroPool (sizeof (CHAR8) * MAX_VERITY_SECTOR_LEN);
+    if (!FecOff) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate memory for FecOff\n"));
+      Status = EFI_OUT_OF_RESOURCES;
+      goto ErrLEVerityout;
+    }
+
+    Status = LEVerityWordnCpy ((CHAR8 *) &FecOff[0],
+                               MAX_VERITY_SECTOR_LEN, DMDataStr, &Length);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "GetLEVerityCmdLine: Fec Offset error \n"));
       goto ErrLEVerityout;
     }
 
@@ -192,16 +237,37 @@ GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
       goto ErrLEVerityout;
     }
 
+    DMTemp = AllocateZeroPool (sizeof (CHAR8) * MAX_VERITY_CMD_LINE);
+    if (!DMTemp) {
+      DEBUG ((EFI_D_ERROR, "Failed to allocate memory for DMTemp\n"));
+      Status = EFI_OUT_OF_RESOURCES;
+      goto ErrLEVerityout;
+    }
+
     /* Construct complete verity command line */
-    AsciiSPrint (
-    DMTemp,
-    MAX_VERITY_CMD_LINE,
-    " %a dm=\"%a none ro,0 %a %a 1 %a%d %a%d %a %a %a %d %a %a %a\"",
-    VerityRoot, VerityAppliedOn, SectorSize, VerityName,
-    VeritySystemPartitionStr, Index, VeritySystemPartitionStr, Index,
-    VerityBlockSize, VerityBlockSize, DataSize, HashSize, VerityEncriptionName,
-    Hash, VeritySalt
-    );
+    if (AsciiStrCmp (FecOff, "0") == 0) {
+        AsciiSPrint (
+        DMTemp,
+        MAX_VERITY_CMD_LINE,
+        " %a dm=\"%a none ro,0 %a %a 1 %a%d %a%d %a %a %a %d %a %a %a\"",
+        VerityRoot, VerityAppliedOn, SectorSize, VerityName,
+        VeritySystemPartitionStr, Index, VeritySystemPartitionStr, Index,
+        VerityBlockSize, VerityBlockSize, DataSize, HashSize, VerityEncriptionName,
+        Hash, VeritySalt
+        );
+    }
+    else {
+        AsciiSPrint (
+        DMTemp,
+        MAX_VERITY_CMD_LINE,
+        " %a dm=\"%a none ro,0 %a %a 1 %a%d %a%d %a %a %a %d %a %a %a %d %a %a %a %a%d %a 2 %a %a %a %a\"",
+        VerityRoot, VerityAppliedOn, SectorSize, VerityName,
+        VeritySystemPartitionStr, Index, VeritySystemPartitionStr, Index,
+        VerityBlockSize, VerityBlockSize, DataSize, HashSize, VerityEncriptionName,
+        Hash, VeritySalt, FEATUREARGS, OptionalParam0, OptionalParam1, UseFec,
+        VeritySystemPartitionStr, Index, FecRoot, FecBlock, FecOff, FecStart, FecOff
+        );
+    }
 
     Length = AsciiStrLen (DMTemp) + 1; /* 1 extra byte for NULL */
 
@@ -212,7 +278,6 @@ GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
       Status = EFI_OUT_OF_RESOURCES;
       goto ErrLEVerityout;
     }
-
     AsciiStrCpyS (*LEVerityCmdLine, Length, DMTemp);
     *Len = Length;
 
@@ -225,5 +290,25 @@ GetLEVerityCmdLine (CONST CHAR8 *SourceCmdLine,
   }
 
 ErrLEVerityout:
+  if (SectorSize != NULL) {
+    FreePool (SectorSize);
+    SectorSize = NULL;
+  }
+  if (DataSize != NULL) {
+    FreePool (DataSize);
+    DataSize = NULL;
+  }
+  if (Hash != NULL) {
+    FreePool (Hash);
+    Hash = NULL;
+  }
+  if (FecOff != NULL) {
+    FreePool (FecOff);
+    FecOff = NULL;
+  }
+  if (DMTemp != NULL) {
+    FreePool (DMTemp);
+    DMTemp = NULL;
+  }
   return Status;
 }
