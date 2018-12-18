@@ -187,8 +187,8 @@ out:
 UINT32 HvcSysPipeControl (UINT32 PipeId, UINT32 Control)
 {
 #if TARGET_ARCH_ARM64
-    register UINT32 x0 __asm__ ("x0") = (UINT32) PipeId;
-    register UINT32 x1 __asm__ ("x1") = (UINT32) Control;
+    register UINTN x0 __asm__ ("x0") = PipeId;
+    register UINTN x1 __asm__ ("x1") = Control;
     __asm__ __volatile__ (
         __asmeq ("%0", "x0")
         __asmeq ("%1", "x1")
@@ -218,12 +218,12 @@ UINT32 HvcSysPipeControl (UINT32 PipeId, UINT32 Control)
  *    The returned error code.
  *
  */
-UINT32 HvcSysPipeSend (UINT32 PipeId, UINT32 Size, CONST UINT8 *Data)
+UINT32 HvcSysPipeSend (UINT32 PipeId, UINT32 Size, UINTN *Data)
 {
 #if TARGET_ARCH_ARM64
-    register UINT32 x0 __asm__ ("x0") = (UINT32) PipeId;
-    register UINT32 x1 __asm__ ("x1") = (UINT32) Size;
-    register UINT32 x2 __asm__ ("x2") = (UINT32)(UINTN) Data;
+    register UINTN x0 __asm__ ("x0") = PipeId;
+    register UINTN x1 __asm__ ("x1") = Size;
+    register UINTN x2 __asm__ ("x2") = (UINTN) Data;
     __asm__ __volatile__ (
         __asmeq ("%0", "x0")
         __asmeq ("%1", "x1")

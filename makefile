@@ -7,6 +7,7 @@ export $(BOOTLOADER_OUT)
 
 BUILDDIR=$(shell pwd)
 export WRAPPER := $(PREBUILT_PYTHON_PATH) $(BUILDDIR)/clang-wrapper.py
+export MAKEPATH := $(MAKEPATH)
 
 export CLANG35_BIN := $(CLANG_BIN)
 export CLANG35_GCC_TOOLCHAIN := $(CLANG35_GCC_TOOLCHAIN)
