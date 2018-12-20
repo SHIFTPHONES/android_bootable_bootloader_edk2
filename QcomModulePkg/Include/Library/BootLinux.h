@@ -189,9 +189,11 @@ EFI_STATUS
 CheckImageHeader (VOID *ImageHdrBuffer,
                   UINT32 ImageHdrSize,
                   UINT32 *ImageSizeActual,
-                  UINT32 *PageSize);
+                  UINT32 *PageSize,
+                  BOOLEAN BootIntoRecovery);
 EFI_STATUS
-LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
+LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
+           VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS
 LaunchApp (IN UINT32 Argc, IN CHAR8 **Argv);
 BOOLEAN TargetBuildVariantUser (VOID);

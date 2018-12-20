@@ -1200,7 +1200,8 @@ EFI_STATUS
 CheckImageHeader (VOID *ImageHdrBuffer,
                   UINT32 ImageHdrSize,
                   UINT32 *ImageSizeActual,
-                  UINT32 *PageSize)
+                  UINT32 *PageSize,
+                  BOOLEAN BootIntoRecovery)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   UINT32 KernelSizeActual = 0;
@@ -1276,6 +1277,42 @@ CheckImageHeader (VOID *ImageHdrBuffer,
     return EFI_BAD_BUFFER_SIZE;
   }
 
+  if (BootIntoRecovery &&
+      HeaderVersion == BOOT_HEADER_VERSION_ONE) {
+    struct boot_img_hdr_v1 *Hdr1 =
+        (struct boot_img_hdr_v1 *) (ImageHdrBuffer + sizeof (boot_img_hdr));
+    UINT32 RecoveryDtboActual = 0;
+
+    RecoveryDtboActual = ROUND_TO_PAGE (Hdr1->recovery_dtbo_size,
+                                        *PageSize - 1);
+    if ((Hdr1->header_size !=
+         sizeof (struct boot_img_hdr_v1) + sizeof (boot_img_hdr))) {
+      DEBUG ((EFI_D_ERROR,
+              "Invalid boot image header: %d\n", Hdr1->header_size));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    if (RecoveryDtboActual > DTBO_MAX_SIZE_ALLOWED) {
+      DEBUG ((EFI_D_ERROR, "Recovery Dtbo Size too big %x, Allowed size %x\n",
+              RecoveryDtboActual, DTBO_MAX_SIZE_ALLOWED));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    if (CHECK_ADD64 (Hdr1->recovery_dtbo_offset, RecoveryDtboActual)) {
+      DEBUG ((EFI_D_ERROR, "Integer Overflow: RecoveryDtboOffset=%u "
+             "RecoveryDtboActual=%u\n",
+             Hdr1->recovery_dtbo_offset, RecoveryDtboActual));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    tempImgSize = *ImageSizeActual;
+    *ImageSizeActual = ADD_OF (*ImageSizeActual, RecoveryDtboActual);
+    if (!*ImageSizeActual) {
+      DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSizeActual=%u,"
+              " RecoveryDtboActual=%u\n", tempImgSize, RecoveryDtboActual));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+  }
   DEBUG ((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 1            : 0x%x\n", KernelSize));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 2            : 0x%x\n", SecondSize));
@@ -1295,7 +1332,8 @@ buffer.
   @retval     other           Failed to Load image from partition.
 **/
 EFI_STATUS
-LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
+LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
+           VOID **ImageBuffer, UINT32 *ImageSizeActual)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   VOID *ImageHdrBuffer;
@@ -1333,7 +1371,7 @@ LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
   // Add check for boot image header and kernel page size
   // ensure kernel command line is terminated
   Status = CheckImageHeader (ImageHdrBuffer, ImageHdrSize, ImageSizeActual,
-                             &PageSize);
+                             &PageSize, BootIntoRecovery);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
     return Status;
