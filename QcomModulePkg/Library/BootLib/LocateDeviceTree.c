@@ -492,8 +492,7 @@ DeviceTreeAppended (VOID *kernel,
       goto out;
     }
 
-    RamdiskLoadAddr =
-        (EFI_PHYSICAL_ADDRESS) (BaseMemory | PcdGet32 (RamdiskLoadAddress));
+    RamdiskLoadAddr = SetandGetLoadAddr (NULL, LOAD_ADDR_RAMDISK);
     if ((RamdiskLoadAddr - (UINT64)tags) > RamdiskLoadAddr) {
       DEBUG ((EFI_D_ERROR, "Tags address is not valid\n"));
       goto out;

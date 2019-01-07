@@ -53,6 +53,111 @@ STATIC QCOM_SCM_MODE_SWITCH_PROTOCOL *pQcomScmModeSwitchProtocol = NULL;
 STATIC BOOLEAN BootDevImage;
 STATIC BOOLEAN IsVmComputed = FALSE;
 
+/* To set load addresses, callers should make sure to initialize the
+ * BootParamlistPtr before calling this function */
+UINT64 SetandGetLoadAddr (BootParamlist *BootParamlistPtr, AddrType Type)
+{
+  STATIC UINT64 KernelLoadAddr;
+  STATIC UINT64 RamdiskLoadAddr;
+
+  if (BootParamlistPtr) {
+    KernelLoadAddr = BootParamlistPtr->KernelLoadAddr;
+    RamdiskLoadAddr = BootParamlistPtr->RamdiskLoadAddr;
+  } else {
+    switch (Type) {
+      case LOAD_ADDR_KERNEL:
+        return KernelLoadAddr;
+        break;
+      case LOAD_ADDR_RAMDISK:
+        return RamdiskLoadAddr;
+        break;
+      default:
+        DEBUG ((EFI_D_ERROR, "Invalid Type to GetLoadAddr():%d\n",
+                Type));
+        break;
+    }
+  }
+
+  return 0;
+}
+
+STATIC BOOLEAN QueryBootParams (BootParamlist *BootParamlistPtr)
+{
+  EFI_STATUS Status;
+  EFI_STATUS SizeStatus;
+  UINTN DataSize = 0;
+
+  DataSize = sizeof (BootParamlistPtr->KernelLoadAddr);
+  Status = gRT->GetVariable ((CHAR16 *)L"KernelBaseAddr", &gQcomTokenSpaceGuid,
+                          NULL, &DataSize, &BootParamlistPtr->KernelLoadAddr);
+
+  DataSize = sizeof (BootParamlistPtr->KernelSizeReserved);
+  SizeStatus = gRT->GetVariable ((CHAR16 *)L"KernelSize", &gQcomTokenSpaceGuid,
+                              NULL, &DataSize,
+                              &BootParamlistPtr->KernelSizeReserved);
+
+
+  return (Status == EFI_SUCCESS &&
+          SizeStatus == EFI_SUCCESS);
+}
+
+STATIC VOID UpdateBootParams (BootParamlist *BootParamlistPtr, KernelMode Mode)
+{
+  /* The three regions Kernel, Ramdisk and DT should be reserved in memory map
+   * Query the kernel load address and size from UEFI core, if it's not
+   * successful use the predefined load addresses */
+
+  if (QueryBootParams (BootParamlistPtr)) {
+
+   BootParamlistPtr->KernelEndAddr = BootParamlistPtr->KernelLoadAddr +
+                                      BootParamlistPtr->KernelSizeReserved;
+   switch (Mode) {
+      case KERNEL_32BIT:
+        BootParamlistPtr->KernelLoadAddr += KERNEL_32BIT_LOAD_OFFSET;
+        break;
+      case KERNEL_64BIT:
+        BootParamlistPtr->KernelLoadAddr += KERNEL_64BIT_LOAD_OFFSET;
+        break;
+      default:
+        DEBUG ((EFI_D_ERROR, "Invalid kernel Mode to UpdateBootParams():%d\n",
+                Mode));
+        break;
+    }
+
+    BootParamlistPtr->RamdiskLoadAddr = BootParamlistPtr->KernelEndAddr -
+                                        RAMDISK_SIZE_8MB;
+    BootParamlistPtr->DeviceTreeLoadAddr = BootParamlistPtr->RamdiskLoadAddr -
+                                           DT_SIZE_2MB;
+  } else {
+      DEBUG ((EFI_D_INFO, "Using predefined load addresses, GetVariable \
+                           support is not present for them \n"));
+
+      switch (Mode) {
+        case KERNEL_32BIT:
+          BootParamlistPtr->KernelLoadAddr =
+            (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                    PcdGet32 (KernelLoadAddress32));
+          break;
+        case KERNEL_64BIT:
+          BootParamlistPtr->KernelLoadAddr =
+            (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                    PcdGet32 (KernelLoadAddress));
+                  break;
+        default:
+          DEBUG ((EFI_D_ERROR, "Invalid kernel Mode to UpdateBootParams():%d\n",
+                  Mode));
+          break;
+      }
+
+      BootParamlistPtr->RamdiskLoadAddr =
+        (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                PcdGet32 (RamdiskLoadAddress));
+      BootParamlistPtr->DeviceTreeLoadAddr =
+        (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
+                                PcdGet32 (TagsAddress));
+  }
+}
+
 STATIC EFI_STATUS
 SwitchTo32bitModeBooting (UINT64 KernelLoadAddr, UINT64 DeviceTreeLoadAddr)
 {
@@ -424,9 +529,8 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
     }
 
     if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
-      *KernelLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
-      PcdGet32 (KernelLoadAddress32));
+      UpdateBootParams (BootParamlistPtr, KERNEL_32BIT);
+      SetandGetLoadAddr (BootParamlistPtr, LOAD_ADDR_NONE);
       if (BootParamlistPtr->KernelSize <=
           DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR) {
         DEBUG ((EFI_D_ERROR, "DTB offset goes beyond kernel size.\n"));
@@ -464,9 +568,14 @@ LoadAddrAndDTUpdate (BootParamlist *BootParamlistPtr)
 
   }
 
-  RamdiskEndAddr =
+  if (BootParamlistPtr->KernelSizeReserved != 0) {
+    RamdiskEndAddr = BootParamlistPtr->KernelEndAddr;
+  } else {
+    RamdiskEndAddr =
     (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
                               PcdGet32 (RamdiskEndAddress));
+  }
+
   if (RamdiskEndAddr - BootParamlistPtr->RamdiskLoadAddr <
                        BootParamlistPtr->RamdiskSize) {
     DEBUG ((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
@@ -875,18 +984,11 @@ BootLinux (BootInfo *Info)
       DEBUG ((EFI_D_ERROR, "Base memory not found!!! Status:%r\n", Status));
       return Status;
     }
-
-    // These three regions should be reserved in memory map.
-    BootParamlistPtr.KernelLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr.BaseMemory |
-                              PcdGet32 (KernelLoadAddress));
-    BootParamlistPtr.RamdiskLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr.BaseMemory |
-                              PcdGet32 (RamdiskLoadAddress));
-    BootParamlistPtr.DeviceTreeLoadAddr =
-      (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr.BaseMemory |
-                              PcdGet32 (TagsAddress));
   }
+
+  UpdateBootParams (&BootParamlistPtr, KERNEL_64BIT);
+  SetandGetLoadAddr (&BootParamlistPtr, LOAD_ADDR_NONE);
+
   Status = GZipPkgCheck (&BootParamlistPtr, &DtbOffset,
                          &BootParamlistPtr.KernelLoadAddr,
                          &BootParamlistPtr.BootingWith32BitKernel);
@@ -1098,7 +1200,8 @@ EFI_STATUS
 CheckImageHeader (VOID *ImageHdrBuffer,
                   UINT32 ImageHdrSize,
                   UINT32 *ImageSizeActual,
-                  UINT32 *PageSize)
+                  UINT32 *PageSize,
+                  BOOLEAN BootIntoRecovery)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   UINT32 KernelSizeActual = 0;
@@ -1174,6 +1277,42 @@ CheckImageHeader (VOID *ImageHdrBuffer,
     return EFI_BAD_BUFFER_SIZE;
   }
 
+  if (BootIntoRecovery &&
+      HeaderVersion == BOOT_HEADER_VERSION_ONE) {
+    struct boot_img_hdr_v1 *Hdr1 =
+        (struct boot_img_hdr_v1 *) (ImageHdrBuffer + sizeof (boot_img_hdr));
+    UINT32 RecoveryDtboActual = 0;
+
+    RecoveryDtboActual = ROUND_TO_PAGE (Hdr1->recovery_dtbo_size,
+                                        *PageSize - 1);
+    if ((Hdr1->header_size !=
+         sizeof (struct boot_img_hdr_v1) + sizeof (boot_img_hdr))) {
+      DEBUG ((EFI_D_ERROR,
+              "Invalid boot image header: %d\n", Hdr1->header_size));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    if (RecoveryDtboActual > DTBO_MAX_SIZE_ALLOWED) {
+      DEBUG ((EFI_D_ERROR, "Recovery Dtbo Size too big %x, Allowed size %x\n",
+              RecoveryDtboActual, DTBO_MAX_SIZE_ALLOWED));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    if (CHECK_ADD64 (Hdr1->recovery_dtbo_offset, RecoveryDtboActual)) {
+      DEBUG ((EFI_D_ERROR, "Integer Overflow: RecoveryDtboOffset=%u "
+             "RecoveryDtboActual=%u\n",
+             Hdr1->recovery_dtbo_offset, RecoveryDtboActual));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    tempImgSize = *ImageSizeActual;
+    *ImageSizeActual = ADD_OF (*ImageSizeActual, RecoveryDtboActual);
+    if (!*ImageSizeActual) {
+      DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSizeActual=%u,"
+              " RecoveryDtboActual=%u\n", tempImgSize, RecoveryDtboActual));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+  }
   DEBUG ((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 1            : 0x%x\n", KernelSize));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 2            : 0x%x\n", SecondSize));
@@ -1193,7 +1332,8 @@ buffer.
   @retval     other           Failed to Load image from partition.
 **/
 EFI_STATUS
-LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
+LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
+           VOID **ImageBuffer, UINT32 *ImageSizeActual)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   VOID *ImageHdrBuffer;
@@ -1231,7 +1371,7 @@ LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual)
   // Add check for boot image header and kernel page size
   // ensure kernel command line is terminated
   Status = CheckImageHeader (ImageHdrBuffer, ImageHdrSize, ImageSizeActual,
-                             &PageSize);
+                             &PageSize, BootIntoRecovery);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
     return Status;

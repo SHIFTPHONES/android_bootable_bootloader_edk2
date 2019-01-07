@@ -89,6 +89,26 @@
  * a uncompressed kernel + appended dtb */
 #define PATCHED_KERNEL_MAGIC "UNCOMPRESSED_IMG"
 
+/* Size reserved for the ramdisk and dt images,
+ * the load address for each of them computed as
+ * kernel load address + reserved kernel size - reserved size of ramdisk/dt */
+#define RAMDISK_SIZE_8MB (8 * 1024 * 1024)
+#define DT_SIZE_2MB      (2 * 1024 * 1024)
+
+#define KERNEL_32BIT_LOAD_OFFSET 0x8000
+#define KERNEL_64BIT_LOAD_OFFSET 0x80000
+
+typedef enum {
+  KERNEL_32BIT = 0,
+  KERNEL_64BIT
+} KernelMode;
+
+typedef enum {
+ LOAD_ADDR_NONE = 0,
+ LOAD_ADDR_KERNEL,
+ LOAD_ADDR_RAMDISK
+} AddrType;
+
 typedef VOID (*LINUX_KERNEL) (UINT64 ParametersBase,
                               UINT64 Reserved0,
                               UINT64 Reserved1,
@@ -128,25 +148,39 @@ typedef struct BootInfo {
 } BootInfo;
 
 typedef struct BootLinuxParamlist {
-  UINT32 PageSize;
-  UINT32 KernelSize;
-  UINT32 SecondSize;
+  //Read this from RAM partition table
   UINT64 BaseMemory;
-  UINT64 DeviceTreeLoadAddr;
-  UINT64 KernelLoadAddr;
-  UINT64 RamdiskLoadAddr;
-  UINT32 RamdiskSize;
-  UINT32 RamdiskOffset;
-  UINT32 PatchedKernelHdrSize;
-  CHAR8 *FinalCmdLine;
-  CHAR8 *CmdLine;
-  BOOLEAN BootingWith32BitKernel;
-  UINT32 KernelSizeActual;
+
   VOID *ImageBuffer;
   UINT64 ImageSize;
   VOID *DtboImgBuffer;
+
+  /* Load addresses for kernel, ramdisk, dt
+   * These addresses are either predefined or get from UEFI core */
+  UINT64 KernelLoadAddr;
+  UINT64 KernelEndAddr;
+  UINT64 RamdiskLoadAddr;
+  UINT64 DeviceTreeLoadAddr;
+
+  // Reserved kernel size queried from UEFI Core
+  UINT64 KernelSizeReserved;
+
   UINT64 HypDtboAddr;
   UINT64 MemorySize;
+ //Get the below fields info from the bootimage header
+  UINT32 PageSize;
+  UINT32 KernelSize;
+  UINT32 SecondSize;
+  UINT32 RamdiskSize;
+  UINT32 RamdiskOffset;
+  UINT32 PatchedKernelHdrSize;
+
+  //Kernel size rounded off based on the page size
+  UINT32 KernelSizeActual;
+
+  CHAR8 *FinalCmdLine;
+  CHAR8 *CmdLine;
+  BOOLEAN BootingWith32BitKernel;
 } BootParamlist;
 
 EFI_STATUS
@@ -155,9 +189,11 @@ EFI_STATUS
 CheckImageHeader (VOID *ImageHdrBuffer,
                   UINT32 ImageHdrSize,
                   UINT32 *ImageSizeActual,
-                  UINT32 *PageSize);
+                  UINT32 *PageSize,
+                  BOOLEAN BootIntoRecovery);
 EFI_STATUS
-LoadImage (CHAR16 *Pname, VOID **ImageBuffer, UINT32 *ImageSizeActual);
+LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
+           VOID **ImageBuffer, UINT32 *ImageSizeActual);
 EFI_STATUS
 LaunchApp (IN UINT32 Argc, IN CHAR8 **Argv);
 BOOLEAN TargetBuildVariantUser (VOID);
@@ -174,4 +210,5 @@ LoadAndValidateDtboImg (BootInfo *Info,
 VOID SetBootDevImage (VOID);
 VOID ResetBootDevImage (VOID);
 BOOLEAN IsBootDevImage (VOID);
+UINT64 SetandGetLoadAddr (BootParamlist *BootParamlistPtr, AddrType Type);
 #endif
