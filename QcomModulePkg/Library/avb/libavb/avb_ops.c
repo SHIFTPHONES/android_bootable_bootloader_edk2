@@ -137,10 +137,10 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 	EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
 	UINTN PartitionSize = 0;
 	UINT32 PageSize = 0;
-	UINT32 StartBlock = 0;
-	UINT32 LastBlock = 0;
-	UINT32 FullBlock = 0;
-	UINTN StartPageReadSize = 0;
+        UINT64 StartBlock = 0;
+        UINT64 LastBlock = 0;
+        UINT64 FullBlock = 0;
+        UINT64 StartPageReadSize = 0;
         UINT32 BlkIOAttrib = 0;
         PartiSelectFilter HandleFilter;
         UINT32 MaxHandles = 0;
@@ -255,7 +255,7 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 
 	if (Offset % PageSize != 0) {
 		/* Offset not aligned to PageSize*/
-		UINT32 StartPageReadOffset = Offset - (StartBlock * PageSize);
+                UINT64 StartPageReadOffset = Offset - (StartBlock * PageSize);
 
 		if (StartBlock == LastBlock) {
 			/* Offset & Offset + NumBytes are in same block */
@@ -266,15 +266,15 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 		}
 
 		DEBUG((EFI_D_VERBOSE,
-		       "StartBlock 0x%x, ReadOffset 0x%x, read_size 0x%x\n",
+                       "StartBlock 0x%llx, ReadOffset 0x%llx, read_size 0x%x\n",
 		       StartBlock, StartPageReadOffset, StartPageReadSize));
 		if (StartPageReadSize <= 0 || StartPageReadOffset >= PageSize ||
 		    StartPageReadSize > PageSize - StartPageReadOffset ||
 		    StartPageReadSize > NumBytes ||
 		    StartBlock > BlockIo->Media->LastBlock) {
 			DEBUG((EFI_D_ERROR,
-			       "StartBlock 0x%x, ReadOffset 0x%x, read_size "
-			       "0x%x outside range.\n",
+                               "StartBlock 0x%llx, ReadOffset 0x%llx,"
+                                "read_size 0x%x outside range.\n",
 			       StartBlock, StartPageReadOffset, StartPageReadSize));
 			Result = AVB_IO_RESULT_ERROR_RANGE_OUTSIDE_PARTITION;
 			goto out;
@@ -296,18 +296,19 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 		/* NumBytes + Offset not aligned to PageSize*/
 		/* Offset for last block is always zero, start at Page boundary
 		 */
-		UINT32 LastPageReadOffset = 0;
-		UINTN LastPageReadSize = (Offset + NumBytes) - (LastBlock * PageSize);
+                UINT64 LastPageReadOffset = 0;
+                UINT64 LastPageReadSize =
+                       (Offset + NumBytes) - (LastBlock * PageSize);
 
 		DEBUG((EFI_D_VERBOSE,
-		       "LastBlock 0x%x, ReadOffset 0x%x, read_size 0x%x\n",
+                       "LastBlock 0x%llx, ReadOffset 0x%llx, read_size 0x%x\n",
 		       LastBlock, LastPageReadOffset, LastPageReadSize));
 
 		if (LastPageReadSize <= 0 || LastPageReadSize >= PageSize ||
 		    LastPageReadSize > (NumBytes - *OutNumRead) ||
 		    LastBlock > BlockIo->Media->LastBlock) {
 			DEBUG((EFI_D_ERROR,
-			       "LastBlock 0x%x, ReadOffset 0x%x, read_size "
+                               "LastBlock 0x%llx, ReadOffset 0x%llx, read_size "
 			       "0x%x outside range.\n",
 			       LastBlock, LastPageReadOffset, LastPageReadSize));
 			Result = AVB_IO_RESULT_ERROR_RANGE_OUTSIDE_PARTITION;
@@ -329,13 +330,13 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
 
 	if (*OutNumRead < NumBytes) {
 		/* full block reads */
-		UINTN FillPageReadSize = NumBytes - *OutNumRead;
+                UINT64 FillPageReadSize = NumBytes - *OutNumRead;
 
 		if ((FillPageReadSize % PageSize) != 0 ||
 		    FullBlock > BlockIo->Media->LastBlock ||
 		    (NumBytes - StartPageReadSize) < FillPageReadSize) {
 			DEBUG((EFI_D_ERROR,
-			       "FullBlock 0x%x, ReadOffset 0x%x, read_size "
+                               "FullBlock 0x%llx, ReadOffset 0x%x, read_size "
 			       "0x%x outside range.\n",
 			       FullBlock, 0, FillPageReadSize));
 			Result = AVB_IO_RESULT_ERROR_RANGE_OUTSIDE_PARTITION;
