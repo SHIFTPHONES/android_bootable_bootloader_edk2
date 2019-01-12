@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -403,7 +403,10 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
 
   ret = AVB_SLOT_VERIFY_RESULT_OK;
 
-  avb_assert(slot_data);
+  if (slot_data == NULL) {
+    ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_ARGUMENT;
+    goto out;
+  }
 
   /* Since we allow top-level vbmeta in 'boot', use
    * rollback_index_location to determine whether we're the main
