@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+# * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
 # *
 # * Redistribution and use in source and binary forms, with or without
 # * modification, are permitted provided that the following conditions are
@@ -105,6 +105,9 @@
   !endif
   !if $(VERIFIED_BOOT_LE)
       GCC:*_*_*_CC_FLAGS = -DVERIFIED_BOOT_LE
+  !endif
+  !if $(AB_RETRYCOUNT_DISABLE)
+      GCC:*_*_*_CC_FLAGS = -DAB_RETRYCOUNT_DISABLE
   !endif
   !if $(VERITY_LE)
       GCC:*_*_*_CC_FLAGS = -DVERITY_LE
