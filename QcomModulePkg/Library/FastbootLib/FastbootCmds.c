@@ -18,7 +18,7 @@ found at
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015 - 2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -2105,7 +2105,13 @@ GetMaxAllocatableMemory (
     Allocate some additional memory as returned by MemMapSize,
     and query current memory map.
   */
-  MemMap = AllocateZeroPool (MemMapSize + EFI_PAGE_SIZE);
+  if (CHECK_ADD64 (MemMapSize, EFI_PAGE_SIZE)) {
+    DEBUG ((EFI_D_ERROR, "ERROR: integer Overflow while adding additional"
+                         "memory to MemMapSize"));
+    return;
+  }
+  MemMapSize = MemMapSize + EFI_PAGE_SIZE;
+  MemMap = AllocateZeroPool (MemMapSize);
   if (!MemMap) {
     DEBUG ((EFI_D_ERROR,
                     "ERROR: Failed to allocate memory for memory map\n"));
