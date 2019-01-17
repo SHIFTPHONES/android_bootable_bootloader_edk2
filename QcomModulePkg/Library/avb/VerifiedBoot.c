@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1156,15 +1156,23 @@ STATIC EFI_STATUS LoadImageAndAuthForLE (BootInfo *Info)
     UINT32 SigSize = 0;
     CHAR8 *SystemPath = NULL;
     UINT32 SystemPathLen = 0;
-
+    BOOLEAN SecureDevice = FALSE;
     /*Load image*/
     GUARD (VBAllocateCmdLine (Info));
     GUARD (VBCommonInit (Info));
     GUARD (LoadImageNoAuth (Info));
 
-    if (!TargetBuildVariantUser ()) {
-       DEBUG ((EFI_D_INFO, "VB: verification skipped for debug builds\n"));
-       goto skip_verification;
+    Status = IsSecureDevice (&SecureDevice);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR, "VB: Failed read device state: %r\n", Status));
+        return Status;
+    }
+
+    if (!SecureDevice) {
+        if (!TargetBuildVariantUser () ) {
+            DEBUG ((EFI_D_INFO, "VB: verification skipped for debug builds\n"));
+            goto skip_verification;
+        }
     }
 
     /* Initialize Verified Boot*/
