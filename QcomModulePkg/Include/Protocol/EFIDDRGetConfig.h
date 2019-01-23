@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -40,7 +40,7 @@ typedef struct _EFI_DDRGETINFO_PROTOCOL EFI_DDRGETINFO_PROTOCOL;
 /**
   Protocol version.
 */
-#define EFI_DDRGETINFO_PROTOCOL_REVISION 0x0000000000020000
+#define EFI_DDRGETINFO_PROTOCOL_REVISION 0x0000000000030000
 
 /*Both the protocl version and the structure version should be same */
 #if (EFI_DDRGETINFO_PROTOCOL_REVISION != DDR_DETAILS_STRUCT_VERSION)
@@ -94,6 +94,72 @@ typedef EFI_STATUS (EFIAPI *EFI_DDRGETINFO_GETDDRDETAILS) (
     IN EFI_DDRGETINFO_PROTOCOL *This,
     OUT struct ddr_details_entry_info *DetailsEntry);
 
+/* ============================================================================
+**  Function : EFI_DDRGetInfo_GetDDRFreqTable
+** ============================================================================
+*/
+/** @ingroup EFI_DDRGetInfo_GetDDRFreqTable
+  @par Summary
+  Gets the DDR Clock plan table
+
+  @param[in]   This            Pointer to the EFI_DDRGETINFO_PROTOCOL instance.
+  @param[out]  ClkPlanTable    Pointer to DDR clock plan Table
+
+  @return
+  EFI_SUCCESS        -- Function completed successfully. \n
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *EFI_DDRGETINFO_GETDDRFREQTABLE)(
+   IN EFI_DDRGETINFO_PROTOCOL *This,
+   OUT struct ddr_freq_plan_entry_info   *clk_plan_tbl
+   );
+
+/* ============================================================================
+**  Function : EFI_DDRGetInfo_GetDDRFreq
+** ============================================================================
+*/
+/** @ingroup EFI_DDRGetInfo_GetDDRFreq
+  @par Summary
+  Gets the Current DDR Freq
+
+  @param[in]   This            Pointer to the EFI_DDRGETINFO_PROTOCOL instance.
+  @param[out]  ddr_freq        Pointer to Current DDR clock frequency
+
+  @return
+  EFI_SUCCESS        -- Function completed successfully. \n
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *EFI_DDRGETINFO_GETDDRFREQ)(
+   IN EFI_DDRGETINFO_PROTOCOL *This,
+   OUT UINT32                 *ddr_freq
+   );
+
+/* ============================================================================
+**  Function : EFI_DDRGetInfo_SetDDRFreq
+** ============================================================================
+*/
+/** @ingroup EFI_DDRGETINFO_SETDDRFREQ
+  @par Summary
+  Gets the DDR Details
+
+  @param[in]   This            Pointer to the EFI_DDRGETINFO_PROTOCOL instance.
+  @param[in]   ddr_freq        DDR freq to be set in the system.
+
+  @return
+  EFI_SUCCESS        -- Function completed successfully. \n
+  EFI_PROTOCOL_ERROR -- Error occurred during the operation.
+*/
+typedef
+EFI_STATUS
+(EFIAPI *EFI_DDRGETINFO_SETDDRFREQ)(
+   IN EFI_DDRGETINFO_PROTOCOL *This,
+   IN UINT32                   ddr_freq
+   );
+
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -104,8 +170,11 @@ typedef EFI_STATUS (EFIAPI *EFI_DDRGETINFO_GETDDRDETAILS) (
   @par Parameters
 */
 struct _EFI_DDRGETINFO_PROTOCOL {
-  UINT64 Revision;
-  EFI_DDRGETINFO_GETDDRDETAILS GetDDRDetails;
+   UINT64                                Revision;
+   EFI_DDRGETINFO_GETDDRDETAILS          GetDDRDetails;
+   EFI_DDRGETINFO_GETDDRFREQTABLE        GetDDRFreqTable;
+   EFI_DDRGETINFO_GETDDRFREQ             GetDDRFreq;
+   EFI_DDRGETINFO_SETDDRFREQ             SetDDRFreq;
 };
 
 #endif /* __EFIDDRGETINFO_H__ */

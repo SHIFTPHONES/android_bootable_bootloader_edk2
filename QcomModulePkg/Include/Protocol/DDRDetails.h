@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,8 +30,20 @@
 #define DDRDETAILS_H
 
 #define MAX_IDX 8
+#define MAX_NUM_CLOCK_PLAN 13
 
-#define DDR_DETAILS_STRUCT_VERSION 0x0000000000020000
+#define DDR_DETAILS_STRUCT_VERSION 0x0000000000030000
+
+struct ddr_freq_table {
+   UINT32 freq_khz;
+   UINT8  enable;
+};
+
+typedef struct ddr_freq_plan_entry_info {
+  struct ddr_freq_table ddr_freq[MAX_NUM_CLOCK_PLAN];
+  UINT8  num_ddr_freqs;
+  UINT32* clk_period_address;
+} ddr_freq_plan_entry;
 
 struct ddr_part_details {
 
@@ -45,8 +57,8 @@ typedef struct ddr_details_entry_info {
   UINT8 manufacturer_id;
   UINT8 device_type;
   struct ddr_part_details ddr_params[MAX_IDX];
+  ddr_freq_plan_entry     ddr_freq_tbl;
   UINT8 num_channels;
-  UINT8 reserved[65];
 } ddr_details_entry;
 
 #endif /* DDRDETAILS_H */
