@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -102,6 +102,8 @@ RecoveryInit (BOOLEAN *BootIntoRecovery)
   struct RecoveryMessage *Msg = NULL;
   EFI_GUID Ptype = gEfiMiscPartitionGuid;
   MemCardType CardType = UNKNOWN;
+  VOID *PartitionData = NULL;
+  UINT32 PageSize;
 
   CardType = CheckRootDeviceType ();
   if (CardType == NAND) {
@@ -111,17 +113,27 @@ RecoveryInit (BOOLEAN *BootIntoRecovery)
     }
   }
 
-  Status = ReadFromPartition (&Ptype, (VOID **)&Msg,
-                              sizeof (struct RecoveryMessage));
+  GetPageSize (&PageSize);
+
+  /* Get the first 2 pages of the misc partition.
+   * If the device type is NAND then read the recovery message from page 1,
+   * Else read from the page 0
+   */
+  Status = ReadFromPartition (&Ptype, (VOID **)&PartitionData, (PageSize * 2));
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Error Reading from misc partition: %r\n", Status));
     return Status;
   }
 
-  if (!Msg) {
-    DEBUG ((EFI_D_ERROR, "Error in loading Msg from misc partition\n"));
+  if (!PartitionData) {
+    DEBUG ((EFI_D_ERROR, "Error in loading Data from misc partition\n"));
     return EFI_INVALID_PARAMETER;
   }
+
+  Msg = (CardType == NAND) ?
+           (struct RecoveryMessage *) ((CHAR8 *) PartitionData + PageSize) :
+           (struct RecoveryMessage *) PartitionData;
+
   // Ensure NULL termination
   Msg->command[sizeof (Msg->command) - 1] = '\0';
   if (Msg->command[0] != 0 && Msg->command[0] != 255)
@@ -132,7 +144,8 @@ RecoveryInit (BOOLEAN *BootIntoRecovery)
                      AsciiStrLen ("boot-recovery")))
     *BootIntoRecovery = TRUE;
 
-  FreePool (Msg);
+  FreePool (PartitionData);
+  PartitionData = NULL;
   Msg = NULL;
 
   return Status;
