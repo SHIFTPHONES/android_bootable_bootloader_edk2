@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1485,3 +1485,16 @@ BOOLEAN IsBootDevImage (VOID)
 {
   return BootDevImage;
 }
+
+#ifdef AB_RETRYCOUNT_DISABLE
+BOOLEAN IsABRetryCountDisabled (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsABRetryCountDisabled (VOID)
+{
+  return FALSE;
+}
+#endif
+

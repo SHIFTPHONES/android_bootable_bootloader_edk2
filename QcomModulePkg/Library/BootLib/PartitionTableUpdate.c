@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1520,7 +1520,8 @@ FindBootableSlot (Slot *BootableSlot)
     DEBUG (
         (EFI_D_VERBOSE, "Active Slot %s is bootable\n", BootableSlot->Suffix));
   } else if (Unbootable == 0 && BootSuccess == 0 && RetryCount > 0) {
-    if (!IsBootDevImage ()) {
+    if (!IsABRetryCountDisabled () &&
+        !IsBootDevImage ()) {
       RetryCount--;
       BootEntry->PartEntry.Attributes &= ~PART_ATT_MAX_RETRY_COUNT_VAL;
       BootEntry->PartEntry.Attributes |= RetryCount
@@ -1528,6 +1529,8 @@ FindBootableSlot (Slot *BootableSlot)
       UpdatePartitionAttributes ();
       DEBUG ((EFI_D_INFO, "Active Slot %s is bootable, retry count %ld\n",
               BootableSlot->Suffix, RetryCount));
+    } else {
+      DEBUG ((EFI_D_INFO, "A/B retry count NOT decremented\n"));
     }
   } else {
     DEBUG ((EFI_D_INFO, "Slot %s is unbootable, trying alternate slot\n",
