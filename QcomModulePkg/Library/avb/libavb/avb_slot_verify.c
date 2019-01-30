@@ -105,6 +105,8 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     const AvbDescriptor* descriptor,
     AvbSlotVerifyData* slot_data) {
   AvbHashDescriptor hash_desc;
+  AvbSHA256Ctx sha256_ctx;
+  AvbSHA512Ctx sha512_ctx;
   const uint8_t* desc_partition_name = NULL;
   const uint8_t* desc_salt;
   const uint8_t* desc_digest;
@@ -211,7 +213,6 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 
   if (Avb_StrnCmp ( (CONST CHAR8*)hash_desc.hash_algorithm, "sha256",
                  avb_strlen ("sha256")) == 0) {
-    AvbSHA256Ctx sha256_ctx;
     avb_sha256_init(&sha256_ctx);
     avb_sha256_update(&sha256_ctx, desc_salt, hash_desc.salt_len);
     avb_sha256_update(&sha256_ctx, image_buf, hash_desc.image_size);
@@ -219,7 +220,6 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     digest_len = AVB_SHA256_DIGEST_SIZE;
   } else if (Avb_StrnCmp ( (CONST CHAR8*)hash_desc.hash_algorithm, "sha512",
                   avb_strlen ("sha512")) == 0) {
-    AvbSHA512Ctx sha512_ctx;
     avb_sha512_init(&sha512_ctx);
     avb_sha512_update(&sha512_ctx, desc_salt, hash_desc.salt_len);
     avb_sha512_update(&sha512_ctx, image_buf, hash_desc.image_size);
