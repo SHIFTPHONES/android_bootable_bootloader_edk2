@@ -148,6 +148,7 @@
 	gQcomMdtpProtocolGuid
 	gQcomScmProtocolGuid
 	gEfiNandPartiGuidProtocolGuid
+	gEfiDDRGetInfoProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
