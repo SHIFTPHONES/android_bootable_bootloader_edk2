@@ -330,6 +330,7 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
   VOID *NextDtHdr = NULL;
   VOID *BoardDtb = NULL;
   VOID *SocDtb = NULL;
+  VOID *OverrideDtb = NULL;
   VOID *Dtb;
   BOOLEAN DtboCheckNeeded = FALSE;
   BOOLEAN DtboImgInvalid = FALSE;
@@ -434,6 +435,21 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
                            fdt_totalsize (BootParamlistPtr->HypDtboAddr))) {
         DEBUG ((EFI_D_ERROR,
                 "Unable to Allocate buffer for HypOverlay DT\n"));
+        DeleteDtList (&DtsList);
+        return EFI_OUT_OF_RESOURCES;
+      }
+    }
+
+    // Only enabled to debug builds.
+    if (!TargetBuildVariantUser ()) {
+      Status = GetOvrdDtb (&OverrideDtb);
+      if (Status == EFI_SUCCESS &&
+           OverrideDtb &&
+          !AppendToDtList (&DtsList,
+                              (fdt64_t)OverrideDtb,
+                              fdt_totalsize (OverrideDtb))) {
+        DEBUG ((EFI_D_ERROR,
+                "Unable to allocate buffer for Override DT\n"));
         DeleteDtList (&DtsList);
         return EFI_OUT_OF_RESOURCES;
       }

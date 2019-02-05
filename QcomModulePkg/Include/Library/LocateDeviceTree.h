@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -262,6 +262,8 @@ GetSocDtb (void *kernel, UINT32 kernel_size, UINT32 dtb_offset, void *tags);
 BOOLEAN GetDtboNeeded (VOID);
 VOID *
 GetBoardDtb (BootInfo *Info, VOID *DtboImgBuffer);
+EFI_STATUS
+GetOvrdDtb (VOID **DtboImgBuffer);
 VOID
 PopulateBoardParams ();
 
