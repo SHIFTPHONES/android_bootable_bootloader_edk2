@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017,2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -494,6 +494,8 @@ UINT32 ReadSecurityState ()
 EFI_STATUS IsSecureDevice (bool *is_secure)
 {
   EFI_STATUS Status = EFI_SUCCESS;
+  bool secure_value= false;
+
   if (is_secure == NULL) {
     DEBUG ((EFI_D_ERROR, "Invalid parameter is_secure\n"));
     Status = EFI_INVALID_PARAMETER;
@@ -506,15 +508,20 @@ EFI_STATUS IsSecureDevice (bool *is_secure)
     return Status;
   }
   *is_secure = false;
-  /* Check for secure device: Bit#0 = 0,
-     Bit#1 = 0 Bit#2 = 0 , Bit#5 = 0 , Bit#6 = 1 */
-  if (!CHECK_BIT (SecureState, SECBOOT_FUSE) &&
-      !CHECK_BIT (SecureState, SHK_FUSE) &&
-      !CHECK_BIT (SecureState, DEBUG_DISABLED_FUSE) &&
-      !CHECK_BIT (SecureState, RPMB_ENABLED_FUSE) &&
-      CHECK_BIT (SecureState, DEBUG_RE_ENABLED_FUSE)) {
+
+  secure_value = !CHECK_BIT (SecureState, SECBOOT_FUSE) &&
+                 !CHECK_BIT (SecureState, SHK_FUSE) &&
+                 !CHECK_BIT (SecureState, DEBUG_DISABLED_FUSE) &&
+                 CHECK_BIT (SecureState, DEBUG_RE_ENABLED_FUSE);
+
+  if (!(CheckRootDeviceType () == NAND)) {
+    secure_value = secure_value && !CHECK_BIT (SecureState, RPMB_ENABLED_FUSE);
+  }
+
+  if (secure_value) {
     *is_secure = true;
   }
+
   return Status;
 }
 

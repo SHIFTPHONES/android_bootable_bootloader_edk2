@@ -35,6 +35,7 @@
 #include "AutoGen.h"
 #include <Library/UpdateDeviceTree.h>
 #include <Protocol/EFIChipInfoTypes.h>
+#include <Protocol/EFIDDRGetConfig.h>
 #include <Protocol/EFIRng.h>
 
 #define DTB_PAD_SIZE 2048
@@ -60,6 +61,32 @@ PrintSplashMemInfo (CONST CHAR8 *data, INT32 datalen)
 
   DEBUG ((EFI_D_VERBOSE, "reg = <0x%08x 0x%08x 0x%08x 0x%08x>\n", val[0],
           val[1], val[2], val[3]));
+}
+
+STATIC EFI_STATUS
+GetDDRInfo (UINT8 *DdrDeviceType)
+{
+  EFI_DDRGETINFO_PROTOCOL *DdrInfoIf;
+  struct ddr_details_entry_info DdrInfo;
+  EFI_STATUS Status;
+
+  Status = gBS->LocateProtocol (&gEfiDDRGetInfoProtocolGuid, NULL,
+                                (VOID **)&DdrInfoIf);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_VERBOSE,
+            "Error locating DDR Info protocol. Fail to get DDR type:%r\n",
+            Status));
+    return Status;
+  }
+
+  Status = DdrInfoIf->GetDDRDetails (DdrInfoIf, &DdrInfo);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "GetDDR details failed\n"));
+  }
+
+  *DdrDeviceType = DdrInfo.device_type;
+  DEBUG ((EFI_D_VERBOSE, "DDR deviceType:%d", *DdrDeviceType));
+  return Status;
 }
 
 STATIC EFI_STATUS
@@ -446,6 +473,7 @@ UpdateDeviceTree (VOID *fdt,
   UINT32 offset;
   UINT32 PaddSize = 0;
   UINT64 KaslrSeed = 0;
+  UINT8 DdrDeviceType;
   EFI_STATUS Status;
 
   /* Check the device tree header */
@@ -481,6 +509,22 @@ UpdateDeviceTree (VOID *fdt,
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "ERROR: Cannot update memory node\n"));
     return Status;
+  }
+
+  Status = GetDDRInfo (&DdrDeviceType);
+  if (Status == EFI_SUCCESS) {
+    ret = fdt_appendprop_u32 (fdt, offset, (CONST char *)"ddr_device_type",
+                              (UINT32)DdrDeviceType);
+    if (ret) {
+      DEBUG ((EFI_D_ERROR,
+              "ERROR: Cannot update memory node [ddr_device_type] - 0x%x\n",
+              ret));
+    } else {
+      DEBUG ((EFI_D_VERBOSE, "ddr_device_type is added to memory node\n"));
+    }
+  } else {
+    DEBUG (
+        (EFI_D_ERROR, "ERROR: Cannot update ddr_device_type - %r\n", Status));
   }
 
   UpdateSplashMemInfo (fdt);
