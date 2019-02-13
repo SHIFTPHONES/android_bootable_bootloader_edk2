@@ -1337,7 +1337,7 @@ LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
 {
   EFI_STATUS Status = EFI_SUCCESS;
   VOID *ImageHdrBuffer;
-  UINT32 ImageHdrSize = 0;
+  UINT32 ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
   UINT32 ImageSize = 0;
   UINT32 PageSize = 0;
   UINT32 tempImgSize = 0;
@@ -1347,9 +1347,6 @@ LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
     return EFI_INVALID_PARAMETER;
   else
     *ImageBuffer = NULL;
-
-  // Setup page size information for nv storage
-  GetPageSize (&ImageHdrSize);
 
   if (!ADD_OF (ImageHdrSize, ALIGNMENT_MASK_4KB - 1)) {
     DEBUG ((EFI_D_ERROR, "Integer Overflow: in ALIGNMENT_MASK_4KB addition\n"));
