@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017,2019 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -211,7 +211,9 @@ FindNodeAndUpdateProperty (VOID *fdt,
     }
 
     /* Replace the property value based on the property */
-    if (AsciiStrnCmp (SNode->PropertyStr, Prop->data, Prop->len)) {
+    if (AsciiStrnCmp (SNode->PropertyStr,
+                         Prop->data,
+                         fdt32_to_cpu (Prop->len))) {
       DEBUG ((EFI_D_VERBOSE, "Property string mismatch (%a) with (%a)\n",
               SNode->PropertyStr, Prop->data));
       continue;

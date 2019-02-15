@@ -3,7 +3,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -209,7 +209,7 @@ TargetBatterySocOk (UINT32 *BatteryVoltage)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   EFI_CHARGER_EX_PROTOCOL *ChgDetectProtocol = NULL;
-  EFI_CHARGER_EX_FLASH_INFO FlashInfo;
+  EFI_CHARGER_EX_FLASH_INFO FlashInfo = {0};
   BOOLEAN BatteryPresent = FALSE;
   BOOLEAN ChargerPresent = FALSE;
 
@@ -240,7 +240,12 @@ TargetBatterySocOk (UINT32 *BatteryVoltage)
     *BatteryVoltage = FlashInfo.BattCurrVoltage;
     if (!(FlashInfo.bCanFlash) ||
         (*BatteryVoltage < FlashInfo.BattRequiredVoltage))
+    {
+      DEBUG ((EFI_D_ERROR, "Error battery voltage: %d "
+        "Requireed voltage: %d, can flash: %d\n", *BatteryVoltage,
+        FlashInfo.BattRequiredVoltage, FlashInfo.bCanFlash));
       return FALSE;
+    }
     return TRUE;
   } else {
     Status = TargetCheckBatteryStatus (&BatteryPresent, &ChargerPresent,
@@ -252,6 +257,8 @@ TargetBatterySocOk (UINT32 *BatteryVoltage)
       return TRUE;
     }
 
+    DEBUG ((EFI_D_ERROR, "Error battery check status: %r voltage: %d\n",
+        Status, *BatteryVoltage));
     return FALSE;
   }
 }
