@@ -984,8 +984,9 @@ BootLinux (BootInfo *Info)
   Status = GetImage (Info,
                      &BootParamlistPtr.ImageBuffer,
                      (UINTN *)&BootParamlistPtr.ImageSize,
-                     (!Info->MultiSlotBoot &&
-                      Recovery)? "recovery" : "boot");
+                     ((!Info->MultiSlotBoot ||
+                        IsDynamicPartitionSupport ()) &&
+                        Recovery)? "recovery" : "boot");
   if (Status != EFI_SUCCESS ||
       BootParamlistPtr.ImageBuffer == NULL ||
       BootParamlistPtr.ImageSize <= 0) {

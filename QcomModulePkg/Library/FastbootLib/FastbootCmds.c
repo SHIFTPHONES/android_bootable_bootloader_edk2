@@ -82,6 +82,7 @@ found at
 #include "LinuxLoaderLib.h"
 #include "MetaFormat.h"
 #include "SparseFormat.h"
+#include "Recovery.h"
 
 STATIC struct GetVarPartitionInfo part_info[] = {
     {"system", "partition-size:", "partition-type:", "", "ext4"},
@@ -2251,6 +2252,45 @@ CmdReboot (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   FastbootFail ("Failed to reboot");
 }
 
+#if DYNAMIC_PARTITION_SUPPORT
+STATIC VOID
+CmdRebootRecovery (IN CONST CHAR8 *Arg, IN VOID *Data, IN UINT32 Size)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  Status = WriteRecoveryMessage (RECOVERY_BOOT_RECOVERY);
+  if (Status != EFI_SUCCESS) {
+    FastbootFail ("Failed to reboot to recovery mode");
+    return;
+  }
+  DEBUG ((EFI_D_INFO, "rebooting the device to recovery\n"));
+  FastbootOkay ("");
+
+  RebootDevice (NORMAL_MODE);
+
+  // Shouldn't get here
+  FastbootFail ("Failed to reboot");
+}
+
+STATIC VOID
+CmdRebootFastboot (IN CONST CHAR8 *Arg, IN VOID *Data, IN UINT32 Size)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  Status = WriteRecoveryMessage (RECOVERY_BOOT_FASTBOOT);
+  if (Status != EFI_SUCCESS) {
+    FastbootFail ("Failed to reboot to fastboot mode");
+    return;
+  }
+  DEBUG ((EFI_D_INFO, "rebooting the device to fastbootd\n"));
+  FastbootOkay ("");
+
+  RebootDevice (NORMAL_MODE);
+
+  // Shouldn't get here
+  FastbootFail ("Failed to reboot");
+}
+#endif
+
 STATIC VOID
 CmdContinue (IN CONST CHAR8 *Arg, IN VOID *Data, IN UINT32 Size)
 {
@@ -3193,6 +3233,10 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
       {"oem device-info", CmdOemDevinfo},
       {"continue", CmdContinue},
       {"reboot", CmdReboot},
+#ifdef DYNAMIC_PARTITION_SUPPORT
+      {"reboot-recovery", CmdRebootRecovery},
+      {"reboot-fastboot", CmdRebootFastboot},
+#endif
       {"reboot-bootloader", CmdRebootBootloader},
       {"getvar:", CmdGetVar},
       {"download:", CmdDownload},
@@ -3209,6 +3253,11 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
   AsciiSPrint (MaxDownloadSizeStr,
                   sizeof (MaxDownloadSizeStr), "%ld", MaxDownLoadSize);
   FastbootPublishVar ("max-download-size", MaxDownloadSizeStr);
+
+  if (IsDynamicPartitionSupport ()) {
+    FastbootPublishVar ("is-userspace", "no");
+  }
+
   AsciiSPrint (FullProduct, sizeof (FullProduct), "%a", PRODUCT_NAME);
   FastbootPublishVar ("product", FullProduct);
   FastbootPublishVar ("serialno", StrSerialNum);

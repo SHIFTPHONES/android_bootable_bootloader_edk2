@@ -367,7 +367,8 @@ LoadImageNoAuthWrapper (BootInfo *Info)
   GUARD (VBAllocateCmdLine (Info));
   GUARD (LoadImageNoAuth (Info));
 
-  if (!IsRootCmdLineUpdated (Info)) {
+   if (!IsDynamicPartitionSupport () &&
+        !IsRootCmdLineUpdated (Info)) {
     SystemPathLen = GetSystemPath (&SystemPath,
                                    Info->MultiSlotBoot,
                                    Info->BootIntoRecovery,
@@ -1282,8 +1283,17 @@ LoadImageAndAuth (BootInfo *Info)
       return EFI_LOAD_ERROR;
     }
 
-    GUARD (StrnCpyS (Info->Pname, ARRAY_SIZE (Info->Pname), L"boot",
+    if (IsDynamicPartitionSupport () &&
+          Info->BootIntoRecovery) {
+      DEBUG ((EFI_D_INFO, "Booting Into Recovery Mode\n"));
+      StrnCpyS (Info->Pname, ARRAY_SIZE (Info->Pname), L"recovery",
+                     StrLen (L"recovery"));
+    } else {
+      DEBUG ((EFI_D_INFO, "Booting Into Mission Mode\n"));
+      GUARD (StrnCpyS (Info->Pname, ARRAY_SIZE (Info->Pname), L"boot",
                      StrLen (L"boot")));
+    }
+
     GUARD (StrnCatS (Info->Pname, ARRAY_SIZE (Info->Pname), CurrentSlot.Suffix,
                      StrLen (CurrentSlot.Suffix)));
   }
