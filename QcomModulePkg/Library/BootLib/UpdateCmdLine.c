@@ -48,7 +48,10 @@
 #include "Recovery.h"
 #include "LECmdLine.h"
 
+STATIC CONST CHAR8 *DynamicBootDeviceCmdLine =
+                                      " androidboot.boot_devices=soc/";
 STATIC CONST CHAR8 *BootDeviceCmdLine = " androidboot.bootdevice=";
+
 STATIC CONST CHAR8 *UsbSerialCmdLine = " androidboot.serialno=";
 STATIC CONST CHAR8 *AndroidBootMode = " androidboot.mode=";
 STATIC CONST CHAR8 *LogLevel = " quite";
@@ -393,6 +396,16 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
 
     Src = Param->BootDevBuf;
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+
+    /* Dynamic partition append boot_devices for super partition */
+    if (IsDynamicPartitionSupport ()) {
+      Src = DynamicBootDeviceCmdLine;
+      AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+
+      Src = Param->BootDevBuf;
+      AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+    }
+
     FreePool (Param->BootDevBuf);
     Param->BootDevBuf = NULL;
   }
@@ -455,11 +468,13 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
       !Param->MultiSlotBoot) ||
       (Param->MultiSlotBoot &&
       !IsBootDevImage ())) {
-    /* Skip Initramfs*/
-    if (!Param->Recovery) {
-      Src = Param->SkipRamFs;
-      AsciiStrCatS (Dst, MaxCmdLineLen, Src);
-    }
+
+       /* Skip Initramfs*/
+       if (!IsDynamicPartitionSupport () &&
+           !Param->Recovery) {
+         Src = Param->SkipRamFs;
+         AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+       }
 
      /* Add root command line */
      Src = Param->RootCmdLine;
@@ -571,6 +586,10 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   } else {
     CmdLineLen += AsciiStrLen (BootDeviceCmdLine);
     CmdLineLen += AsciiStrLen (BootDevBuf);
+    if (IsDynamicPartitionSupport ()) {
+      CmdLineLen += AsciiStrLen (DynamicBootDeviceCmdLine);
+      CmdLineLen += AsciiStrLen (BootDevBuf);
+    }
   }
 
   CmdLineLen += AsciiStrLen (UsbSerialCmdLine);
@@ -622,8 +641,9 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     CmdLineLen += AsciiStrLen (RootCmdLine);
     CmdLineLen += AsciiStrLen (InitCmdline);
 
-    if (!Recovery)
-      CmdLineLen += AsciiStrLen (SkipRamFs);
+       if (!IsDynamicPartitionSupport () &&
+           !Recovery)
+         CmdLineLen += AsciiStrLen (SkipRamFs);
   }
 
   GetDisplayCmdline ();

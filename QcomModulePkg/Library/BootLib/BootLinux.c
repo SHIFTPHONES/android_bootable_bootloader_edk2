@@ -1544,12 +1544,12 @@ BOOLEAN IsABRetryCountDisabled (VOID)
 #endif
 
 #if DYNAMIC_PARTITION_SUPPORT
-BOOLEAN IsDyanamicPartitionSupport (VOID)
+BOOLEAN IsDynamicPartitionSupport (VOID)
 {
   return TRUE;
 }
 #else
-BOOLEAN IsDyanamicPartitionSupport (VOID)
+BOOLEAN IsDynamicPartitionSupport (VOID)
 {
   return FALSE;
 }
