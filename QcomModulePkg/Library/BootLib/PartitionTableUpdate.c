@@ -1425,8 +1425,8 @@ ValidateSlotGuids (Slot *BootableSlot)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   struct PartitionEntry *BootEntry = NULL;
-  CHAR16 SystemPartitionName[] = L"system_x";
-  CONST struct PartitionEntry *SystemEntry = NULL;
+  CHAR16 PartitionName[] = L"abl_x";
+  CONST struct PartitionEntry *PartEntry = NULL;
   CHAR8 BootDeviceType[BOOT_DEV_NAME_SIZE_MAX];
   UINT32 UfsBootLun = 0;
 
@@ -1438,25 +1438,25 @@ ValidateSlotGuids (Slot *BootableSlot)
     return EFI_NOT_FOUND;
   }
 
-  SystemPartitionName[StrLen (SystemPartitionName) - 1] =
+  PartitionName[StrLen (PartitionName) - 1] =
       BootableSlot->Suffix[StrLen (BootableSlot->Suffix) - 1];
-  SystemEntry = GetPartitionEntry (SystemPartitionName);
-  if (SystemEntry == NULL) {
+  PartEntry = GetPartitionEntry (PartitionName);
+  if (PartEntry == NULL) {
     DEBUG ((EFI_D_ERROR, "ValidateSlotGuids: No partition entry for %s\n",
-            SystemPartitionName));
+            PartitionName));
     return EFI_NOT_FOUND;
   }
 
   if (CompareMem (&BootEntry->PartEntry.PartitionTypeGUID,
-                  &SystemEntry->PartEntry.PartitionTypeGUID,
+                  &PartEntry->PartEntry.PartitionTypeGUID,
                   sizeof (EFI_GUID)) == 0) {
     DEBUG ((EFI_D_ERROR, "ValidateSlotGuids: BootableSlot %s does "
                          "not have valid guids\n",
             BootableSlot->Suffix));
     DEBUG ((EFI_D_INFO, "Boot GUID %g\n",
             &BootEntry->PartEntry.PartitionTypeGUID));
-    DEBUG ((EFI_D_INFO, "System GUID %g\n",
-            &SystemEntry->PartEntry.PartitionTypeGUID));
+    DEBUG ((EFI_D_INFO, "%s GUID %g\n",
+            PartitionName, &PartEntry->PartEntry.PartitionTypeGUID));
     return EFI_DEVICE_ERROR;
   }
 
@@ -1632,7 +1632,8 @@ LoadAndValidateDtboImg (BootInfo *Info,
   EFI_STATUS Status = EFI_SUCCESS;
   struct DtboTableHdr *DtboTableHdr = NULL;
 
-  if (!Info->MultiSlotBoot &&
+  if ((!Info->MultiSlotBoot ||
+      IsDynamicPartitionSupport ()) &&
       Info->BootIntoRecovery &&
       Info->HeaderVersion > BOOT_HEADER_VERSION_ZERO) {
     Status = GetRecoveryDtboInfo (Info, BootParamlistPtr, &DtboImgSize);
