@@ -1543,3 +1543,14 @@ BOOLEAN IsABRetryCountDisabled (VOID)
 }
 #endif
 
+#if DYNAMIC_PARTITION_SUPPORT
+BOOLEAN IsDyanamicPartitionSupport (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsDyanamicPartitionSupport (VOID)
+{
+  return FALSE;
+}
+#endif
