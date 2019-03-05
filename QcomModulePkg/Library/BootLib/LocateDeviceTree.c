@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -954,6 +954,112 @@ GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)
   }
 
   return BestDtbInfo.Dtb;
+}
+
+/*
+  Function to extract Dtb from user dtbo partition.
+*/
+EFI_STATUS
+GetOvrdDtb ( VOID **DtboImgBuffer)
+{
+  struct DtboTableHdr *DtboTableHdr = NULL;
+  struct DtboTableEntry *DtboTableEntry = NULL;
+  VOID *OvrdDtb = NULL;
+  UINT32 DtboTableEntriesCount = 0;
+  UINT32 DtboTableEntryOffset = 0;
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 DtboImgSz = 0;
+  CHAR16 PtnName[MAX_GPT_NAME_SIZE] = {0};
+
+  /** Get size of user_dtbo partition **/
+  UINT32 BlkIOAttrib = 0;
+  PartiSelectFilter HandleFilter;
+  UINT32 MaxHandles = 1;
+  EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
+  HandleInfo HandleInfoList[1];
+
+  GUARD ( StrnCpyS (PtnName,
+              MAX_GPT_NAME_SIZE,
+              (CONST CHAR16 *)L"user_dtbo",
+              (UINTN)StrLen (L"user_dtbo")));
+
+  BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_MBR;
+  BlkIOAttrib |= BLK_IO_SEL_PARTITIONED_GPT;
+  BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
+  BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_LABEL;
+
+  HandleFilter.RootDeviceType = NULL;
+  HandleFilter.PartitionLabel = NULL;
+  HandleFilter.VolumeName = NULL;
+  HandleFilter.PartitionLabel = PtnName;
+
+  Status =
+     GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
+  if (Status != EFI_SUCCESS ||
+       MaxHandles != 1) {
+    DEBUG ((EFI_D_ERROR,
+                "Override DTB: GetBlkIOHandles failed loading user_dtbo!\n"));
+    Status = EFI_LOAD_ERROR;
+    goto err;
+  }
+
+  BlockIo = HandleInfoList[0].BlkIo;
+  DtboImgSz = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+  *DtboImgBuffer = AllocateZeroPool (DtboImgSz);
+  if (*DtboImgBuffer == NULL) {
+    DEBUG ((EFI_D_ERROR, "Override DTB: Buffer allocation failure\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto err;
+  }
+
+  /** Load user_dtbo image. **/
+  Status = LoadImageFromPartition (*DtboImgBuffer, &DtboImgSz, PtnName);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Override DTB: DtboImgBuffer loading falied\n"));
+    return Status;
+  }
+
+  DtboTableHdr = (struct DtboTableHdr *)*DtboImgBuffer;
+  DtboTableEntryOffset = fdt32_to_cpu (DtboTableHdr->DtEntryOffset);
+  if (CHECK_ADD64 ((UINT64)*DtboImgBuffer, DtboTableEntryOffset)) {
+    DEBUG ((EFI_D_ERROR,
+                "Override DTB: Integer overflow detected Dtbo address\n"));
+    Status = EFI_INVALID_PARAMETER;
+    goto err;
+  }
+
+  DtboTableEntry =
+      (struct DtboTableEntry *)(*DtboImgBuffer + DtboTableEntryOffset);
+  if (!DtboTableEntry) {
+    DEBUG ((EFI_D_ERROR, "Override DTB: No proper DtTable\n"));
+    Status = EFI_INVALID_PARAMETER;
+    goto err;
+  }
+
+  // Support only one dtb in user dtbo image.
+  DtboTableEntriesCount = fdt32_to_cpu (DtboTableHdr->DtEntryCount);
+  if (DtboTableEntriesCount > 1) {
+    DEBUG ((EFI_D_ERROR,
+             "Override DTB: Exceeding maximum supported dtb count in Image\n"));
+    Status = EFI_INVALID_PARAMETER;
+    goto err;
+  }
+
+  OvrdDtb = *DtboImgBuffer + fdt32_to_cpu (DtboTableEntry->DtOffset);
+  if (fdt_check_header (OvrdDtb) ||
+      fdt_check_header_ext (OvrdDtb)) {
+    DEBUG ((EFI_D_ERROR, "Override DTB: No Valid DTB in image\n"));
+    Status = EFI_INVALID_PARAMETER;
+    goto err;
+  }
+  *DtboImgBuffer = OvrdDtb;
+  return Status;
+
+err:
+  if (*DtboImgBuffer) {
+    FreePool (*DtboImgBuffer);
+  }
+  return Status;
 }
 
 VOID *
