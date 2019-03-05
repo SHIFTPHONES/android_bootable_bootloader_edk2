@@ -1000,8 +1000,9 @@ BootLinux (BootInfo *Info)
   Status = GetImage (Info,
                      &BootParamlistPtr.ImageBuffer,
                      (UINTN *)&BootParamlistPtr.ImageSize,
-                     (!Info->MultiSlotBoot &&
-                      Recovery)? "recovery" : "boot");
+                     ((!Info->MultiSlotBoot ||
+                        IsDynamicPartitionSupport ()) &&
+                        Recovery)? "recovery" : "boot");
   if (Status != EFI_SUCCESS ||
       BootParamlistPtr.ImageBuffer == NULL ||
       BootParamlistPtr.ImageSize <= 0) {
@@ -1560,12 +1561,12 @@ BOOLEAN IsABRetryCountDisabled (VOID)
 #endif
 
 #if DYNAMIC_PARTITION_SUPPORT
-BOOLEAN IsDyanamicPartitionSupport (VOID)
+BOOLEAN IsDynamicPartitionSupport (VOID)
 {
   return TRUE;
 }
 #else
-BOOLEAN IsDyanamicPartitionSupport (VOID)
+BOOLEAN IsDynamicPartitionSupport (VOID)
 {
   return FALSE;
 }
