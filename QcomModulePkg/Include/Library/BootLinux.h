@@ -89,10 +89,7 @@
  * a uncompressed kernel + appended dtb */
 #define PATCHED_KERNEL_MAGIC "UNCOMPRESSED_IMG"
 
-/* Size reserved for the ramdisk and dt images,
- * the load address for each of them computed as
- * kernel load address + reserved kernel size - reserved size of ramdisk/dt */
-#define RAMDISK_SIZE_8MB (8 * 1024 * 1024)
+// Size reserved for DT image
 #define DT_SIZE_2MB      (2 * 1024 * 1024)
 
 #define KERNEL_32BIT_LOAD_OFFSET 0x8000
@@ -211,5 +208,6 @@ VOID SetBootDevImage (VOID);
 VOID ResetBootDevImage (VOID);
 BOOLEAN IsBootDevImage (VOID);
 BOOLEAN IsABRetryCountDisabled (VOID);
+BOOLEAN IsDyanamicPartitionSupport (VOID);
 UINT64 SetandGetLoadAddr (BootParamlist *BootParamlistPtr, AddrType Type);
 #endif

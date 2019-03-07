@@ -2384,7 +2384,7 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   boot_img_hdr *hdr = Data;
   EFI_STATUS Status = EFI_SUCCESS;
   UINT32 ImageSizeActual = 0;
-  UINT32 ImageHdrSize = 0;
+  UINT32 ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
   UINT32 PageSize = 0;
   UINT32 SigActual = SIGACTUAL;
   CHAR8 Resp[MAX_RSP_SIZE];
@@ -2414,9 +2414,6 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 
   hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
   SetBootDevImage ();
-
-  // Setup page size information for nv storage
-  GetPageSize (&ImageHdrSize);
 
   Status = CheckImageHeader (Data, ImageHdrSize, &ImageSizeActual,
                              &PageSize, FALSE);

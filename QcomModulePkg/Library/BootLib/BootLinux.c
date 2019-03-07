@@ -101,8 +101,16 @@ STATIC BOOLEAN QueryBootParams (BootParamlist *BootParamlistPtr)
           SizeStatus == EFI_SUCCESS);
 }
 
-STATIC VOID UpdateBootParams (BootParamlist *BootParamlistPtr, KernelMode Mode)
+STATIC EFI_STATUS UpdateBootParams (BootParamlist *BootParamlistPtr, KernelMode
+                                    Mode, UINT32 KernelImageSize)
 {
+
+  if (Mode > KERNEL_64BIT) {
+    DEBUG ((EFI_D_ERROR, "Invalid kernel Mode to UpdateBootParams():%d\n",
+            Mode));
+    return EFI_UNSUPPORTED;
+  }
+
   /* The three regions Kernel, Ramdisk and DT should be reserved in memory map
    * Query the kernel load address and size from UEFI core, if it's not
    * successful use the predefined load addresses */
@@ -124,10 +132,26 @@ STATIC VOID UpdateBootParams (BootParamlist *BootParamlistPtr, KernelMode Mode)
         break;
     }
 
-    BootParamlistPtr->RamdiskLoadAddr = BootParamlistPtr->KernelEndAddr -
-                                        RAMDISK_SIZE_8MB;
-    BootParamlistPtr->DeviceTreeLoadAddr = BootParamlistPtr->RamdiskLoadAddr -
-                                           DT_SIZE_2MB;
+    /* Add pagesize as a buffer space */
+    BootParamlistPtr->DeviceTreeLoadAddr = BootParamlistPtr->KernelLoadAddr +
+                                           KernelImageSize +
+                                           BootParamlistPtr->PageSize;
+
+    if (BootParamlistPtr->DeviceTreeLoadAddr >=
+        BootParamlistPtr->KernelEndAddr) {
+        DEBUG ((EFI_D_ERROR,
+           "DTB Load address exceeded the reserved space\n"));
+        return EFI_UNSUPPORTED;
+    }
+
+    BootParamlistPtr->RamdiskLoadAddr = BootParamlistPtr->DeviceTreeLoadAddr +
+                                        DT_SIZE_2MB;
+    if (BootParamlistPtr->RamdiskLoadAddr >=
+        BootParamlistPtr->KernelEndAddr) {
+        DEBUG ((EFI_D_ERROR,
+           "Ramdisk Load address exceeded the reserved space\n"));
+        return EFI_UNSUPPORTED;
+    }
   } else {
       DEBUG ((EFI_D_INFO, "Using predefined load addresses, GetVariable \
                            support is not present for them \n"));
@@ -155,7 +179,11 @@ STATIC VOID UpdateBootParams (BootParamlist *BootParamlistPtr, KernelMode Mode)
       BootParamlistPtr->DeviceTreeLoadAddr =
         (EFI_PHYSICAL_ADDRESS) (BootParamlistPtr->BaseMemory |
                                 PcdGet32 (TagsAddress));
+      BootParamlistPtr->KernelSizeReserved =
+        BootParamlistPtr->DeviceTreeLoadAddr -
+        BootParamlistPtr->KernelLoadAddr;
   }
+  return EFI_SUCCESS;
 }
 
 STATIC EFI_STATUS
@@ -459,6 +487,7 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
   UINT32 OutLen = 0;
   UINT64 OutAvaiLen = 0;
   struct kernel64_hdr *Kptr = NULL;
+  EFI_STATUS Status;
 
   if (BootParamlistPtr == NULL ||
       DtbOffset == NULL ||
@@ -473,8 +502,7 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
                         BootParamlistPtr->PageSize),
                         BootParamlistPtr->KernelSize)) {
 
-    OutAvaiLen = BootParamlistPtr->DeviceTreeLoadAddr -
-                                     *KernelLoadAddr;
+    OutAvaiLen = BootParamlistPtr->KernelSizeReserved;
 
     if (OutAvaiLen > MAX_UINT32) {
       DEBUG ((EFI_D_ERROR,
@@ -506,6 +534,11 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
                          GetTimerCountms ()));
 
     Kptr = (struct kernel64_hdr *)*KernelLoadAddr;
+    Status = UpdateBootParams (BootParamlistPtr, KERNEL_64BIT, Kptr->ImageSize);
+    if (Status != EFI_SUCCESS) {
+      return Status;
+    }
+    SetandGetLoadAddr (BootParamlistPtr, LOAD_ADDR_NONE);
   } else {
     Kptr = (struct kernel64_hdr *)(BootParamlistPtr->ImageBuffer
                          + BootParamlistPtr->PageSize);
@@ -529,7 +562,11 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
     }
 
     if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
-      UpdateBootParams (BootParamlistPtr, KERNEL_32BIT);
+      Status = UpdateBootParams (BootParamlistPtr, KERNEL_32BIT,
+                                 Kptr->ImageSize);
+      if (Status != EFI_SUCCESS) {
+        return Status;
+      }
       SetandGetLoadAddr (BootParamlistPtr, LOAD_ADDR_NONE);
       if (BootParamlistPtr->KernelSize <=
           DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR) {
@@ -539,6 +576,13 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr,
       gBS->CopyMem ((VOID *)DtbOffset,
            ((VOID *)Kptr + DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR),
            sizeof (DtbOffset));
+    } else {
+        Status = UpdateBootParams (BootParamlistPtr, KERNEL_64BIT,
+                                   Kptr->ImageSize);
+        if (Status != EFI_SUCCESS) {
+          return Status;
+        }
+        SetandGetLoadAddr (BootParamlistPtr, LOAD_ADDR_NONE);
     }
   }
 
@@ -986,7 +1030,11 @@ BootLinux (BootInfo *Info)
     }
   }
 
-  UpdateBootParams (&BootParamlistPtr, KERNEL_64BIT);
+  Status = UpdateBootParams (&BootParamlistPtr, KERNEL_64BIT,
+                             BootParamlistPtr.KernelSize);
+  if (Status != EFI_SUCCESS) {
+    return Status;
+  }
   SetandGetLoadAddr (&BootParamlistPtr, LOAD_ADDR_NONE);
 
   Status = GZipPkgCheck (&BootParamlistPtr, &DtbOffset,
@@ -1337,7 +1385,7 @@ LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
 {
   EFI_STATUS Status = EFI_SUCCESS;
   VOID *ImageHdrBuffer;
-  UINT32 ImageHdrSize = 0;
+  UINT32 ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
   UINT32 ImageSize = 0;
   UINT32 PageSize = 0;
   UINT32 tempImgSize = 0;
@@ -1347,9 +1395,6 @@ LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
     return EFI_INVALID_PARAMETER;
   else
     *ImageBuffer = NULL;
-
-  // Setup page size information for nv storage
-  GetPageSize (&ImageHdrSize);
 
   if (!ADD_OF (ImageHdrSize, ALIGNMENT_MASK_4KB - 1)) {
     DEBUG ((EFI_D_ERROR, "Integer Overflow: in ALIGNMENT_MASK_4KB addition\n"));
@@ -1498,3 +1543,14 @@ BOOLEAN IsABRetryCountDisabled (VOID)
 }
 #endif
 
+#if DYNAMIC_PARTITION_SUPPORT
+BOOLEAN IsDyanamicPartitionSupport (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsDyanamicPartitionSupport (VOID)
+{
+  return FALSE;
+}
+#endif
