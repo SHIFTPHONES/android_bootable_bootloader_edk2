@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -41,7 +41,7 @@
 /**
   Protocol version.
 */
-#define DISPLAY_UTILS_REVISION 0x0000000000010001
+#define DISPLAY_UTILS_REVISION 0x0000000000020000
 
 /** @} */ /* end_addtogroup efi_displayUtils_constants */
 
@@ -246,6 +246,57 @@ EFI_STATUS (EFIAPI *EFI_DISPLAY_UTILS_SET_MODE)(
   IN UINT32                            Flags
 );
 
+
+/* EFI_DISPLAY_UTILS_SET_VARIABLE */
+/** @ingroup efi_displayUtils_control
+  @par Summary
+  Variable set function implementation.
+
+  @param[in]  pVariableName              The variable name that need to set.
+  @param[in]  pVariableValue             The variable value.
+  @param[in]  uDataSize                  The size of the variable value.
+  @param[in]  uFlags                     The flag to set variable.
+
+  @return
+  EFI_SUCCESS              : Function returned successfully.
+  EFI_INVALID_PARAMETER    : Parameter passed is incorrect.
+  EFI_UNSUPPORTED          : Parameter passed is not supported.
+  EFI_DEVICE_ERROR         : Physical device reported an error.
+*/
+typedef
+EFI_STATUS (EFIAPI *EFI_DISPLAY_UTILS_SET_VARIABLE)(
+  CHAR16                          *pVariableName,
+  UINT8                           *pVariableValue,
+  UINTN                            uDataSize,
+  UINTN                            uFlags
+);
+
+
+/* EFI_DISPLAY_UTILS_GET_VARIABLE */
+/** @ingroup efi_displayUtils_control
+  @par Summary
+  Variable get function implementation.
+
+  @param[in]   pVariableName              The variable name that need to get.
+  @param[out]  pVariableValue             The variable value.
+  @param[out]  pDataSize                  The size of the variable value.
+  @param[in]   uFlags                     The flag to get variable.
+
+  @return
+  EFI_SUCCESS              : Function returned successfully.
+  EFI_INVALID_PARAMETER    : Parameter passed is incorrect.
+  EFI_UNSUPPORTED          : Parameter passed is not supported.
+  EFI_DEVICE_ERROR         : Physical device reported an error.
+*/
+typedef
+EFI_STATUS (EFIAPI *EFI_DISPLAY_UTILS_GET_VARIABLE)(
+  CHAR16                          *pVariableName,
+  UINT8                           *pVariableValue,
+  UINTN                           *pDataSize,
+  UINTN                            uFlags
+);
+
+
 /*===========================================================================
   PROTOCOL INTERFACE
 ===========================================================================*/
@@ -263,6 +314,8 @@ struct _EFI_QCOM_DISPLAY_UTILS_PROTOCOL
   EFI_DISPLAY_UTILS_GET_PROPERTY                   DisplayUtilsGetProperty;
   EFI_DISPLAY_UTILS_RENDER_LOGO                    DisplayUtilsRenderLogo;
   EFI_DISPLAY_UTILS_SET_MODE                       DisplayUtilsSetMode;
+  EFI_DISPLAY_UTILS_SET_VARIABLE                   DisplayUtilsSetVariable;
+  EFI_DISPLAY_UTILS_GET_VARIABLE                   DisplayUtilsGetVariable;
 };
 
 #endif  /* __EFIDISPLAYUTILS_H__ */
