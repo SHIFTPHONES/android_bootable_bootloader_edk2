@@ -32,6 +32,7 @@
 #include <Library/BootLinux.h>
 #include <Library/LinuxLoaderLib.h>
 #include <Library/UefiLib.h>
+#include <Library/DebugLib.h>
 #include <Uefi.h>
 #include <Uefi/UefiSpec.h>
 #include <VerifiedBoot.h>
@@ -43,6 +44,7 @@ struct PartitionEntry PtnEntries[MAX_NUM_PARTITIONS];
 STATIC UINT32 MaxLuns;
 STATIC UINT32 PartitionCount;
 STATIC BOOLEAN FirstBoot;
+STATIC struct PartitionEntry PtnEntriesBak[MAX_NUM_PARTITIONS];
 
 STATIC struct BootPartsLinkedList *HeadNode;
 STATIC EFI_STATUS
@@ -129,6 +131,8 @@ VOID UpdatePartitionEntries (VOID)
       PtnEntries[Index].lun = i;
     }
   }
+  /* Back up the ptn entries */
+  gBS->CopyMem (PtnEntriesBak, PtnEntries, sizeof (PtnEntries));
 }
 
 INT32
@@ -183,7 +187,15 @@ GetStorageHandle (INT32 Lun, HandleInfo *BlockIoHandle, UINT32 *MaxHandles)
   return Status;
 }
 
-VOID UpdatePartitionAttributes (VOID)
+STATIC BOOLEAN IsUpdatePartitionAttributes ()
+{
+  if (CompareMem (PtnEntries, PtnEntriesBak, sizeof (PtnEntries))) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+VOID UpdatePartitionAttributes (UINT32 UpdateType)
 {
   UINT32 BlkSz;
   UINT8 *GptHdr = NULL;
@@ -211,6 +223,13 @@ VOID UpdatePartitionAttributes (VOID)
   UINT64 Attr;
   struct PartitionEntry *InMemPtnEnt;
 
+  /* The PtnEntries is the same as PtnEntriesBak by default
+   *  It needs to update attributes or GUID when PtnEntries is changed
+   */
+  if (!IsUpdatePartitionAttributes ()) {
+    return;
+  }
+
   GetRootDeviceType (BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
   for (Lun = 0; Lun < MaxLuns; Lun++) {
 
@@ -225,7 +244,8 @@ VOID UpdatePartitionAttributes (VOID)
 
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR,
-              "Failed to get BlkIo for device. MaxHandles:%d - %r\n", Status));
+              "Failed to get BlkIo for device. MaxHandles:%d - %r\n",
+              MaxHandles, Status));
       return;
     }
     if (MaxHandles != 1) {
@@ -292,16 +312,47 @@ VOID UpdatePartitionAttributes (VOID)
             continue;
         }
         Attr = GET_LLWORD_FROM_BYTE (&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET]);
-        if ((Attr != PtnEntries[i].PartEntry.Attributes) ||
-            memcmp (&InMemPtnEnt->PartEntry.PartitionTypeGUID,
-            &PtnEntries[i].PartEntry.PartitionTypeGUID, sizeof (EFI_GUID))) {
-          /* Update the partition attributes  and partiton GUID values */
-          PUT_LONG_LONG (&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET],
-                         PtnEntries[i].PartEntry.Attributes);
-          gBS->CopyMem ((VOID *)PtnEntriesPtr,
+        if (UpdateType & PARTITION_GUID_MASK) {
+          if (CompareMem (&InMemPtnEnt->PartEntry.PartitionTypeGUID,
+              &PtnEntries[i].PartEntry.PartitionTypeGUID,
+              sizeof (EFI_GUID))) {
+            /* Update the partition GUID values */
+            gBS->CopyMem ((VOID *)PtnEntriesPtr,
+                          (VOID *)&PtnEntries[i].PartEntry.PartitionTypeGUID,
+                          GUID_SIZE);
+            /* Update the PtnEntriesBak for next comparison */
+            gBS->CopyMem (
+                        (VOID *)&PtnEntriesBak[i].PartEntry.PartitionTypeGUID,
                         (VOID *)&PtnEntries[i].PartEntry.PartitionTypeGUID,
                         GUID_SIZE);
-          SkipUpdation = FALSE;
+            SkipUpdation = FALSE;
+          }
+        }
+
+        if (UpdateType & PARTITION_ATTRIBUTES_MASK) {
+          /*  If GUID is not present, then it is back up GPT, update it
+           *  If GUID is present,  and the GUID is matched, update it
+           */
+          if (!(InMemPtnEnt->PartEntry.PartitionTypeGUID.Data1) ||
+              !CompareMem (&InMemPtnEnt->PartEntry.PartitionTypeGUID,
+              &PtnEntries[i].PartEntry.PartitionTypeGUID,
+              sizeof (EFI_GUID))) {
+            if (Attr != PtnEntries[i].PartEntry.Attributes) {
+              /* Update the partition attributes */
+              PUT_LONG_LONG (&PtnEntriesPtr[ATTRIBUTE_FLAG_OFFSET],
+                              PtnEntries[i].PartEntry.Attributes);
+              /* Update the PtnEntriesBak for next comparison */
+              PtnEntriesBak[i].PartEntry.Attributes =
+                              PtnEntries[i].PartEntry.Attributes;
+              SkipUpdation = FALSE;
+            }
+          } else {
+            if (InMemPtnEnt->PartEntry.PartitionTypeGUID.Data1) {
+              DEBUG ((EFI_D_ERROR,
+                    "Error in GPT header, GUID is not match!\n"));
+              continue;
+            }
+          }
         }
 
         /* point to the next partition entry */
@@ -384,7 +435,7 @@ MarkPtnActive (CHAR16 *ActiveSlot)
   }
 
   /* Update the partition table */
-  UpdatePartitionAttributes ();
+  UpdatePartitionAttributes (PARTITION_ATTRIBUTES);
 }
 
 STATIC VOID
@@ -526,6 +577,8 @@ SwitchPtnSlots (CONST CHAR16 *SetActive)
     }
     UfsGetSetBootLun (&UfsBootLun, UfsSet);
   }
+
+  UpdatePartitionAttributes (PARTITION_GUID);
 }
 
 EFI_STATUS
@@ -1215,7 +1268,7 @@ GetActiveSlot (Slot *ActiveSlot)
 
       GUARD (StrnCpyS (ActiveSlot->Suffix, ARRAY_SIZE (ActiveSlot->Suffix),
                        Slots[0].Suffix, StrLen (Slots[0].Suffix)));
-      UpdatePartitionAttributes ();
+      UpdatePartitionAttributes (PARTITION_ATTRIBUTES);
       FirstBoot = TRUE;
       return EFI_SUCCESS;
     }
@@ -1293,6 +1346,7 @@ SetActiveSlot (Slot *NewSlot, BOOLEAN ResetSuccessBit)
   BootEntry->PartEntry.Attributes |=
       (((UINT64)MAX_PRIORITY - 1) << PART_ATT_PRIORITY_BIT);
 
+  UpdatePartitionAttributes (PARTITION_ATTRIBUTES);
   if (StrnCmp (CurrentSlot.Suffix, NewSlot->Suffix,
                StrLen (CurrentSlot.Suffix)) == 0) {
     DEBUG ((EFI_D_INFO, "SetActiveSlot: %s already active slot\n",
@@ -1324,9 +1378,6 @@ SetActiveSlot (Slot *NewSlot, BOOLEAN ResetSuccessBit)
     SwitchPtnSlots (NewSlot->Suffix);
     MarkPtnActive (NewSlot->Suffix);
   }
-
-  UpdatePartitionAttributes ();
-
   return EFI_SUCCESS;
 }
 
@@ -1356,7 +1407,7 @@ EFI_STATUS HandleActiveSlotUnbootable (VOID)
   } else {
     BootEntry->PartEntry.Attributes |=
         (PART_ATT_UNBOOTABLE_VAL) & (~PART_ATT_SUCCESSFUL_VAL);
-    UpdatePartitionAttributes ();
+    UpdatePartitionAttributes (PARTITION_ATTRIBUTES);
   }
 
   if (StrnCmp (ActiveSlot.Suffix, Slots[0].Suffix, StrLen (Slots[0].Suffix)) ==
@@ -1416,7 +1467,7 @@ EFI_STATUS ClearUnbootable (VOID)
     return EFI_NOT_FOUND;
   }
   BootEntry->PartEntry.Attributes &= ~PART_ATT_UNBOOTABLE_VAL;
-  UpdatePartitionAttributes ();
+  UpdatePartitionAttributes (PARTITION_ATTRIBUTES);
   return EFI_SUCCESS;
 }
 
@@ -1526,7 +1577,7 @@ FindBootableSlot (Slot *BootableSlot)
       BootEntry->PartEntry.Attributes &= ~PART_ATT_MAX_RETRY_COUNT_VAL;
       BootEntry->PartEntry.Attributes |= RetryCount
                                          << PART_ATT_MAX_RETRY_CNT_BIT;
-      UpdatePartitionAttributes ();
+      UpdatePartitionAttributes (PARTITION_ATTRIBUTES);
       DEBUG ((EFI_D_INFO, "Active Slot %s is bootable, retry count %ld\n",
               BootableSlot->Suffix, RetryCount));
     } else {
