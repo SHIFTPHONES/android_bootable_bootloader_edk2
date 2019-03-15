@@ -135,6 +135,9 @@
   !if $(TARGET_ARCH_ARM64)
       GCC:*_*_*_CC_FLAGS = -DTARGET_ARCH_ARM64
   !endif
+  !if $(NAND_SQUASHFS_SUPPORT)
+      GCC:*_*_*_CC_FLAGS = -DNAND_SQUASHFS_SUPPORT
+  !endif
 
 [PcdsFixedAtBuild.common]
 
