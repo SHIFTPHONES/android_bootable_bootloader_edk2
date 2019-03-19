@@ -96,6 +96,59 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
 }
 
 EFI_STATUS
+WriteRecoveryMessage (CHAR8 *Command)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  struct RecoveryMessage * Msg = NULL;
+  EFI_GUID Ptype = gEfiMiscPartitionGuid;
+  MemCardType CardType = UNKNOWN;
+  VOID *PartitionData = NULL;
+  UINT32 PageSize;
+
+  CardType = CheckRootDeviceType ();
+  if (CardType == NAND) {
+    Status = GetNandMiscPartiGuid (&Ptype);
+    if (Status != EFI_SUCCESS) {
+      return Status;
+    }
+  }
+
+  GetPageSize (&PageSize);
+
+  /* Get the first 2 pages of the misc partition */
+  Status = ReadFromPartition (&Ptype, (VOID **)&PartitionData, (PageSize * 2));
+
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error Reading from misc partition: %r\n", Status));
+    return Status;
+  }
+
+  if (!PartitionData) {
+    DEBUG ((EFI_D_ERROR, "Error in loading Data from misc partition\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  /* If the device type is NAND then write the recovery message into page 1,
+   * Else write into the page 0
+   */
+
+  Msg = (CardType == NAND) ?
+           (struct RecoveryMessage *) ((CHAR8 *) PartitionData + PageSize) :
+           (struct RecoveryMessage *) PartitionData;
+
+  Status = AsciiStrnCpyS (Msg->command, sizeof (Msg->command),
+                                  Command, AsciiStrLen (Command));
+  if (Status == EFI_SUCCESS) {
+    Status =
+       WriteToPartition (&Ptype, Msg, sizeof (struct RecoveryMessage));
+   }
+
+  FreePool (PartitionData);
+  PartitionData = NULL;
+  return Status;
+}
+
+EFI_STATUS
 RecoveryInit (BOOLEAN *BootIntoRecovery)
 {
   EFI_STATUS Status;
@@ -140,9 +193,17 @@ RecoveryInit (BOOLEAN *BootIntoRecovery)
     DEBUG ((EFI_D_INFO, "Recovery command: %d %a\n", sizeof (Msg->command),
             Msg->command));
 
-  if (!AsciiStrnCmp (Msg->command, "boot-recovery",
-                     AsciiStrLen ("boot-recovery")))
+  if (!AsciiStrnCmp (Msg->command, RECOVERY_BOOT_RECOVERY,
+                       AsciiStrLen (RECOVERY_BOOT_RECOVERY))) {
     *BootIntoRecovery = TRUE;
+  }
+
+  /* Boot recovery partition to start userspace fastboot */
+  if ( IsDynamicPartitionSupport () &&
+       !AsciiStrnCmp (Msg->command, RECOVERY_BOOT_FASTBOOT,
+                          AsciiStrLen (RECOVERY_BOOT_FASTBOOT))) {
+    *BootIntoRecovery = TRUE;
+  }
 
   FreePool (PartitionData);
   PartitionData = NULL;

@@ -122,6 +122,12 @@ STATIC EFI_STATUS UpdateBootParams (BootParamlist *BootParamlistPtr, KernelMode
    switch (Mode) {
       case KERNEL_32BIT:
         BootParamlistPtr->KernelLoadAddr += KERNEL_32BIT_LOAD_OFFSET;
+        // Allocate kernel relocation buffer based on Ramdisk size and dt size
+        KernelImageSize = ((UINT32) (BootParamlistPtr->KernelSizeReserved) -
+                               (DT_SIZE_2MB +
+                                BootParamlistPtr->RamdiskSize +
+                                2 * BootParamlistPtr->PageSize +
+                                KERNEL_32BIT_LOAD_OFFSET));
         break;
       case KERNEL_64BIT:
         BootParamlistPtr->KernelLoadAddr += KERNEL_64BIT_LOAD_OFFSET;
@@ -358,6 +364,7 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
   VOID *NextDtHdr = NULL;
   VOID *BoardDtb = NULL;
   VOID *SocDtb = NULL;
+  VOID *OverrideDtb = NULL;
   VOID *Dtb;
   BOOLEAN DtboCheckNeeded = FALSE;
   BOOLEAN DtboImgInvalid = FALSE;
@@ -462,6 +469,21 @@ DTBImgCheckAndAppendDT (BootInfo *Info,
                            fdt_totalsize (BootParamlistPtr->HypDtboAddr))) {
         DEBUG ((EFI_D_ERROR,
                 "Unable to Allocate buffer for HypOverlay DT\n"));
+        DeleteDtList (&DtsList);
+        return EFI_OUT_OF_RESOURCES;
+      }
+    }
+
+    // Only enabled to debug builds.
+    if (!TargetBuildVariantUser ()) {
+      Status = GetOvrdDtb (&OverrideDtb);
+      if (Status == EFI_SUCCESS &&
+           OverrideDtb &&
+          !AppendToDtList (&DtsList,
+                              (fdt64_t)OverrideDtb,
+                              fdt_totalsize (OverrideDtb))) {
+        DEBUG ((EFI_D_ERROR,
+                "Unable to allocate buffer for Override DT\n"));
         DeleteDtList (&DtsList);
         return EFI_OUT_OF_RESOURCES;
       }
@@ -984,8 +1006,9 @@ BootLinux (BootInfo *Info)
   Status = GetImage (Info,
                      &BootParamlistPtr.ImageBuffer,
                      (UINTN *)&BootParamlistPtr.ImageSize,
-                     (!Info->MultiSlotBoot &&
-                      Recovery)? "recovery" : "boot");
+                     ((!Info->MultiSlotBoot ||
+                        IsDynamicPartitionSupport ()) &&
+                        Recovery)? "recovery" : "boot");
   if (Status != EFI_SUCCESS ||
       BootParamlistPtr.ImageBuffer == NULL ||
       BootParamlistPtr.ImageSize <= 0) {
@@ -1544,12 +1567,12 @@ BOOLEAN IsABRetryCountDisabled (VOID)
 #endif
 
 #if DYNAMIC_PARTITION_SUPPORT
-BOOLEAN IsDyanamicPartitionSupport (VOID)
+BOOLEAN IsDynamicPartitionSupport (VOID)
 {
   return TRUE;
 }
 #else
-BOOLEAN IsDyanamicPartitionSupport (VOID)
+BOOLEAN IsDynamicPartitionSupport (VOID)
 {
   return FALSE;
 }

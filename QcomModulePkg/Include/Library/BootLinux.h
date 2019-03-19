@@ -208,6 +208,6 @@ VOID SetBootDevImage (VOID);
 VOID ResetBootDevImage (VOID);
 BOOLEAN IsBootDevImage (VOID);
 BOOLEAN IsABRetryCountDisabled (VOID);
-BOOLEAN IsDyanamicPartitionSupport (VOID);
+BOOLEAN IsDynamicPartitionSupport (VOID);
 UINT64 SetandGetLoadAddr (BootParamlist *BootParamlistPtr, AddrType Type);
 #endif
