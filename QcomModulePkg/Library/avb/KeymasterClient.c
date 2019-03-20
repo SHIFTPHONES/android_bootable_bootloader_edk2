@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -49,9 +49,6 @@ typedef struct {
 #define KEYMASTER_UTILS_CMD_ID 0x200UL
 #define GK_CMD_ID 0x1000UL
 #define TZ_FVER_QSEE 10 /**< QSEE application layer. */
-#ifdef FEATURE_SOTER
-#define KEYMASTER_CMD_ID_SOTER 0x10000UL
-#endif /* FEATURE_SOTER */
 
 typedef enum {
   /*
@@ -89,27 +86,14 @@ typedef enum {
   KEYMASTER_SET_VERSION = (KEYMASTER_UTILS_CMD_ID + 7UL),
   KEYMASTER_SET_BOOT_STATE = (KEYMASTER_UTILS_CMD_ID + 8UL),
   KEYMASTER_PROVISION_ATTEST_KEY = (KEYMASTER_UTILS_CMD_ID + 9UL),
-
-  GK_ENROLL = (GK_CMD_ID + 1UL),
-  GK_VERIFY = (GK_CMD_ID + 2UL),
-  GK_DELETE_USER = (GK_CMD_ID + 3UL),
-  GK_DELETE_ALL_USERS = (GK_CMD_ID + 4UL),
-
-  KEYMASTER_GENERATE_KEY_OLD = (KEYMASTER_CMD_ID_OLD + 1UL),
-  KEYMASTER_IMPORT_KEY_OLD = (KEYMASTER_CMD_ID_OLD + 2UL),
-  KEYMASTER_SIGN_DATA_OLD = (KEYMASTER_CMD_ID_OLD + 3UL),
-  KEYMASTER_VERIFY_DATA_OLD = (KEYMASTER_CMD_ID_OLD + 4UL),
-
-#ifdef FEATURE_SOTER
-  KEYMASTER_SOTER_GENERATE_ATTK = (KEYMASTER_CMD_ID_SOTER + 1UL),
-  KEYMASTER_SOTER_VERIFY_ATTK = (KEYMASTER_CMD_ID_SOTER + 2UL),
-  KEYMASTER_SOTER_EXPORT_ATTK_PUBLIC = (KEYMASTER_CMD_ID_SOTER + 3UL),
-  KEYMASTER_SOTER_GET_DEVICE_ID = (KEYMASTER_CMD_ID_SOTER + 4UL),
-  KEYMASTER_SOTER_EXPORT_SOTER = (KEYMASTER_CMD_ID_SOTER + 5UL),
-#endif /* FEATURE_SOTER */
+  KEYMASTER_SET_VBH = (KEYMASTER_UTILS_CMD_ID + 17UL),
 
   KEYMASTER_LAST_CMD_ENTRY = (int)0xFFFFFFFFULL
 } KeyMasterCmd;
+
+typedef enum {
+  KM_ERROR_INVALID_TAG = -40,
+} KeyMasterError;
 
 typedef struct {
   UINT32 CmdId;
@@ -153,6 +137,17 @@ typedef struct {
   UINT32 AppMajor;
   UINT32 AppMinor;
 } __attribute__ ((packed)) KMGetVersionRsp;
+
+typedef struct
+{
+  UINT32 CmdId;
+  CHAR8 Vbh[AVB_SHA256_DIGEST_SIZE];
+} __attribute__ ((packed)) KMSetVbhReq;
+
+typedef struct
+{
+  INT32 Status;
+} __attribute__ ((packed)) KMSetVbhRsp;
 
 EFI_STATUS
 KeyMasterStartApp (KMHandle *Handle)
@@ -338,4 +333,41 @@ KeyMasterSetRotAndBootState (KMRotAndBootState *BootState)
 
   DEBUG ((EFI_D_VERBOSE, "KeyMasterSetRotAndBootState success\n"));
   return Status;
+}
+
+EFI_STATUS
+SetVerifiedBootHash (CONST CHAR8 *Vbh, UINTN VbhSize)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  KMSetVbhReq VbhReq = {0};
+  KMSetVbhRsp VbhRsp = {0};
+  KMHandle Handle = {NULL};
+
+  if (!Vbh ||
+      VbhSize != sizeof (VbhReq.Vbh)) {
+    DEBUG ((EFI_D_ERROR, "Vbh input params invalid\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  /* Load KeyMaster App */
+  GUARD (KeyMasterStartApp (&Handle));
+  VbhReq.CmdId = KEYMASTER_SET_VBH;
+  CopyMem (VbhReq.Vbh, Vbh, VbhSize);
+
+  Status = Handle.QseeComProtocol->QseecomSendCmd (
+      Handle.QseeComProtocol, Handle.AppId, (UINT8 *)&VbhReq,
+      sizeof (VbhReq), (UINT8 *)&VbhRsp, sizeof (VbhRsp));
+  if (Status != EFI_SUCCESS ||
+                VbhRsp.Status != 0) {
+    DEBUG ((EFI_D_ERROR, "Set Vbh Error, "
+                         "Status: %r, response status: %d\n",
+            Status, VbhRsp.Status));
+    if (Status == EFI_SUCCESS &&
+                VbhRsp.Status == KM_ERROR_INVALID_TAG) {
+      DEBUG ((EFI_D_ERROR, "VBH not supported in keymaster\n"));
+      return EFI_SUCCESS;
+    }
+    return EFI_LOAD_ERROR;
+  }
+  return EFI_SUCCESS;
 }
