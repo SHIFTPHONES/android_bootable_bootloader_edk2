@@ -272,14 +272,14 @@ FastbootAck (IN CONST CHAR8 *code, CONST CHAR8 *Reason)
   if (Reason == NULL)
     Reason = "";
 
-  AsciiSPrint (GetFastbootDeviceData ().gTxBuffer, MAX_RSP_SIZE, "%a%a", code,
+  AsciiSPrint (GetFastbootDeviceData ()->gTxBuffer, MAX_RSP_SIZE, "%a%a", code,
                Reason);
-  GetFastbootDeviceData ().UsbDeviceProtocol->Send (
-      ENDPOINT_OUT, AsciiStrLen (GetFastbootDeviceData ().gTxBuffer),
-      GetFastbootDeviceData ().gTxBuffer);
+  GetFastbootDeviceData ()->UsbDeviceProtocol->Send (
+      ENDPOINT_OUT, AsciiStrLen (GetFastbootDeviceData ()->gTxBuffer),
+      GetFastbootDeviceData ()->gTxBuffer);
   DEBUG ((EFI_D_VERBOSE, "Sending %d:%a\n",
-          AsciiStrLen (GetFastbootDeviceData ().gTxBuffer),
-          GetFastbootDeviceData ().gTxBuffer));
+          AsciiStrLen (GetFastbootDeviceData ()->gTxBuffer),
+          GetFastbootDeviceData ()->gTxBuffer));
 }
 
 VOID
@@ -1315,14 +1315,14 @@ CmdDownload (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   AsciiStrnCpyS (Response + InitStrLen, sizeof (Response) - InitStrLen,
                  NumBytesString, AsciiStrLen (NumBytesString));
 
-  gBS->CopyMem (GetFastbootDeviceData ().gTxBuffer, Response,
+  gBS->CopyMem (GetFastbootDeviceData ()->gTxBuffer, Response,
                 sizeof (Response));
   mState = ExpectDataState;
   mBytesReceivedSoFar = 0;
-  GetFastbootDeviceData ().UsbDeviceProtocol->Send (
-      ENDPOINT_OUT, sizeof (Response), GetFastbootDeviceData ().gTxBuffer);
+  GetFastbootDeviceData ()->UsbDeviceProtocol->Send (
+      ENDPOINT_OUT, sizeof (Response), GetFastbootDeviceData ()->gTxBuffer);
   DEBUG ((EFI_D_VERBOSE, "CmdDownload: Send 12 %a\n",
-          GetFastbootDeviceData ().gTxBuffer));
+          GetFastbootDeviceData ()->gTxBuffer));
 }
 
 #ifdef ENABLE_UPDATE_PARTITIONS_CMDS
@@ -2009,7 +2009,7 @@ AcceptData (IN UINT64 Size, IN VOID *Data)
     FastbootOkayDelay ();
     mState = ExpectCmdState;
   } else {
-    GetFastbootDeviceData ().UsbDeviceProtocol->Send (
+    GetFastbootDeviceData ()->UsbDeviceProtocol->Send (
         ENDPOINT_IN, GetXfrSize (), (Data + mBytesReceivedSoFar));
     DEBUG ((EFI_D_VERBOSE, "AcceptData: Send %d\n", GetXfrSize ()));
   }
@@ -2053,7 +2053,7 @@ FastbootCmdsUnInit (VOID)
   EFI_STATUS Status;
 
   if (mDataBuffer) {
-    Status = GetFastbootDeviceData ().UsbDeviceProtocol->FreeTransferBuffer (
+    Status = GetFastbootDeviceData ()->UsbDeviceProtocol->FreeTransferBuffer (
         (VOID *)mDataBuffer);
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "Failed to free up fastboot buffer\n"));
@@ -2061,7 +2061,7 @@ FastbootCmdsUnInit (VOID)
     }
   }
   FastbootUnInit ();
-  GetFastbootDeviceData ().UsbDeviceProtocol->Stop ();
+  GetFastbootDeviceData ()->UsbDeviceProtocol->Stop ();
   return EFI_SUCCESS;
 }
 
@@ -2199,7 +2199,7 @@ FastbootCmdsInit (VOID)
     }
 
     Status =
-        GetFastbootDeviceData ().UsbDeviceProtocol->AllocateTransferBuffer (
+        GetFastbootDeviceData ()->UsbDeviceProtocol->AllocateTransferBuffer (
                                       MaxDownLoadSize,
                                       (VOID **)&FastBootBuffer);
   }while (EFI_ERROR (Status));
@@ -2342,8 +2342,8 @@ STATIC VOID WaitForTransferComplete (VOID)
 
   /* Wait for the transfer to complete */
   while (1) {
-    GetFastbootDeviceData ().UsbDeviceProtocol->HandleEvent (&Msg, &PayloadSize,
-                                                             &Payload);
+    GetFastbootDeviceData ()->UsbDeviceProtocol->HandleEvent (&Msg,
+            &PayloadSize, &Payload);
     if (UsbDeviceEventTransferNotification == Msg) {
       if (1 == USB_INDEX_TO_EP (Payload.TransferOutcome.EndpointIndex)) {
         if (USB_ENDPOINT_DIRECTION_IN ==
