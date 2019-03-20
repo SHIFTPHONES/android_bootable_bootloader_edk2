@@ -853,7 +853,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   }
   RequestedPartition = RequestedPartitionAll;
 
-  if ((!Info->MultiSlotBoot) &&
+  if ( ( (!Info->MultiSlotBoot) ||
+           IsDynamicPartitionSupport ()) &&
            Info->BootIntoRecovery) {
     AddRequestedPartition (RequestedPartitionAll, IMG_RECOVERY);
     NumRequestedPartition += 1;
@@ -994,7 +995,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   Info->VBData = (VOID *)VBData;
 
   GUARD_OUT (GetImage (Info, &ImageBuffer, &ImageSize,
-                    ((!Info->MultiSlotBoot) &&
+                    ( (!Info->MultiSlotBoot ||
+                     IsDynamicPartitionSupport ()) &&
                      Info->BootIntoRecovery) ?
                      "recovery" : "boot"));
 
