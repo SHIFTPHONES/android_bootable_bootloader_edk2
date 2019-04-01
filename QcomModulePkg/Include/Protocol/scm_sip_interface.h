@@ -1,4 +1,4 @@
-/* Copyright (c) 2017 - 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017 - 2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -677,6 +677,27 @@
   TZ_SYSCALL_CREATE_SMC_ID (TZ_OWNER_SIP, TZ_SVC_BOOT, 0x13)
 
 #define TZ_GET_IMAGE_ENTRY_POINT_PARAM_ID TZ_SYSCALL_CREATE_PARAM_ID_0
+
+/**
+   @ingroup update_rollback_version
+
+   Subroutine used by HLOS (UEFI) to indicate that rollback
+   version can be updated
+
+   @smc_id
+     0x0200011E
+
+   @param_id
+     0x00000000
+
+   @return
+     E_SUCCESS on success; an error code otherwise.
+*/
+#define TZ_UPDATE_ROLLBACK_VERSION_ID                                          \
+          TZ_SYSCALL_CREATE_SMC_ID (TZ_OWNER_SIP, TZ_SVC_BOOT, 0x1E)
+
+#define TZ_UPDATE_ROLLBACK_VERSION_ID_PARAM_ID                                 \
+          TZ_SYSCALL_CREATE_PARAM_ID_0
 
 /**
    @ingroup init_image_syscall
