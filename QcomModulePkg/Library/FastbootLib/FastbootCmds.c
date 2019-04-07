@@ -973,7 +973,7 @@ FastbootUpdateAttr (CONST CHAR16 *SlotSuffix)
   Ptn_Entries_Ptr->PartEntry.Attributes |=
       (PART_ATT_PRIORITY_VAL | PART_ATT_MAX_RETRY_COUNT_VAL);
 
-  UpdatePartitionAttributes ();
+  UpdatePartitionAttributes (PARTITION_ATTRIBUTES);
   for (j = 0; j < SlotCount; j++) {
     if (AsciiStrStr (SlotSuffixAscii, BootSlotInfo[j].SlotSuffix)) {
       AsciiStrnCpyS (BootSlotInfo[j].SlotSuccessfulVal,
@@ -1513,6 +1513,7 @@ ReenumeratePartTable (VOID)
     /*Check for multislot boot support*/
     MultiSlotBoot = PartitionHasMultiSlot (L"boot");
     if (MultiSlotBoot) {
+      UpdatePartitionAttributes (PARTITION_ALL);
       FindPtnActiveSlot ();
       PopulateMultislotMetadata ();
       DEBUG ((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
@@ -1921,7 +1922,7 @@ CmdSetActive (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
     j++;
   } while (!SlotVarUpdateComplete);
 
-  UpdatePartitionAttributes ();
+  UpdatePartitionAttributes (PARTITION_ALL);
   FastbootOkay ("");
 }
 #endif

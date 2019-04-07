@@ -782,6 +782,19 @@ static VOID AddRequestedPartition (CHAR8 **RequestedPartititon, UINT32 Index)
   }
 }
 
+STATIC VOID
+ComputeVbMetaDigest (AvbSlotVerifyData* SlotData, CHAR8* Digest) {
+  size_t Index;
+  AvbSHA256Ctx Ctx;
+  avb_sha256_init (&Ctx);
+  for (Index = 0; Index < SlotData->num_vbmeta_images; Index++) {
+    avb_sha256_update (&Ctx,
+                SlotData->vbmeta_images[Index].vbmeta_data,
+                SlotData->vbmeta_images[Index].vbmeta_size);
+  }
+  avb_memcpy (Digest, avb_sha256_final(&Ctx), AVB_SHA256_DIGEST_SIZE);
+}
+
 STATIC EFI_STATUS
 LoadImageAndAuthVB2 (BootInfo *Info)
 {
@@ -810,6 +823,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
                              : AVB_SLOT_VERIFY_FLAGS_NONE;
   AvbHashtreeErrorMode VerityFlags =
       AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE;
+  CHAR8 Digest[AVB_SHA256_DIGEST_SIZE];
 
   Info->BootState = RED;
   GUARD (VBCommonInit (Info));
@@ -853,7 +867,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   }
   RequestedPartition = RequestedPartitionAll;
 
-  if ((!Info->MultiSlotBoot) &&
+  if ( ( (!Info->MultiSlotBoot) ||
+           IsDynamicPartitionSupport ()) &&
            Info->BootIntoRecovery) {
     AddRequestedPartition (RequestedPartitionAll, IMG_RECOVERY);
     NumRequestedPartition += 1;
@@ -994,7 +1009,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   Info->VBData = (VOID *)VBData;
 
   GUARD_OUT (GetImage (Info, &ImageBuffer, &ImageSize,
-                    ((!Info->MultiSlotBoot) &&
+                    ( (!Info->MultiSlotBoot ||
+                     IsDynamicPartitionSupport ()) &&
                      Info->BootIntoRecovery) ?
                      "recovery" : "boot"));
 
@@ -1030,7 +1046,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF800) >> 11;
 
   GUARD_OUT (KeyMasterSetRotAndBootState (&Data));
-
+  ComputeVbMetaDigest (SlotData, (CHAR8 *)&Digest);
+  GUARD_OUT (SetVerifiedBootHash ((CONST CHAR8 *)&Digest, sizeof(Digest)));
   DEBUG ((EFI_D_INFO, "VB2: Authenticate complete! boot state is: %a\n",
           VbSn[Info->BootState].name));
 

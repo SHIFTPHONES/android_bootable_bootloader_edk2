@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,6 +42,15 @@ enum ReturnVal {
   SUCCESS = 0,
   FAILURE,
 };
+
+typedef enum {
+  PARTITION_ATTRIBUTES = 1,
+  PARTITION_GUID,
+  PARTITION_ALL,
+} UPDATE_TYPE;
+
+#define PARTITION_ATTRIBUTES_MASK 0x1
+#define PARTITION_GUID_MASK 0x2
 
 #define MAX_HANDLEINF_LST_SIZE 128
 
@@ -199,7 +208,7 @@ BOOLEAN
 PartitionHasMultiSlot (CONST CHAR16 *Pname);
 EFI_STATUS EnumeratePartitions (VOID);
 VOID UpdatePartitionEntries (VOID);
-VOID UpdatePartitionAttributes (VOID);
+VOID UpdatePartitionAttributes (UINT32 UpdateType);
 VOID FindPtnActiveSlot (VOID);
 EFI_STATUS
 FindBootableSlot (Slot *BootableSlot);

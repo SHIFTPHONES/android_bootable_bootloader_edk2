@@ -2,7 +2,7 @@
  * Copyright (C) 2008 The Android Open Source Project
  * All rights reserved.
  *
- * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -163,5 +163,7 @@ struct kernel64_hdr {
   UINT32 magic_64;    /* Magic number, little endian, "ARM\x64" i.e 0x644d5241*/
   UINT32 Res5;        /* reserved (used for PE COFF offset) */
 };
+
+typedef struct kernel64_hdr Kernel64Hdr;
 
 #endif
