@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,11 +34,11 @@
 #include "UpdateDeviceTree.h"
 #include "AutoGen.h"
 #include <Library/UpdateDeviceTree.h>
+#include <Library/LocateDeviceTree.h>
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/EFIDDRGetConfig.h>
 #include <Protocol/EFIRng.h>
 
-#define DTB_PAD_SIZE 2048
 #define NUM_SPLASHMEM_PROP_ELEM 4
 #define DEFAULT_CELL_SIZE 2
 
