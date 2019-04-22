@@ -78,14 +78,15 @@ GetDDRInfo (UINT8 *DdrDeviceType)
                                 (VOID **)&DdrInfoIf);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_VERBOSE,
-            "Error locating DDR Info protocol. Fail to get DDR type:%r\n",
+            "INFO: Unable to get DDR Info protocol. DDR type not updated:%r\n",
             Status));
     return Status;
   }
 
   Status = DdrInfoIf->GetDDRDetails (DdrInfoIf, &DdrInfo);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "GetDDR details failed\n"));
+    DEBUG ((EFI_D_ERROR, "INFO: GetDDR details failed\n"));
+    return Status;
   }
 
   *DdrDeviceType = DdrInfo.device_type;
@@ -526,9 +527,6 @@ UpdateDeviceTree (VOID *fdt,
     } else {
       DEBUG ((EFI_D_VERBOSE, "ddr_device_type is added to memory node\n"));
     }
-  } else {
-    DEBUG (
-        (EFI_D_ERROR, "ERROR: Cannot update ddr_device_type - %r\n", Status));
   }
 
   UpdateSplashMemInfo (fdt);
