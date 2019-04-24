@@ -2447,7 +2447,11 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
       return;
     }
   }
-
+  if (!IsUnlocked ()) {
+    FastbootFail (
+          "Fastboot boot command is not available in locked device");
+      return;
+  }
   if (Size < sizeof (boot_img_hdr)) {
     FastbootFail ("Invalid Boot image Header");
     return;

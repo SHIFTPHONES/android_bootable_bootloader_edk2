@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,16 +34,20 @@
 #include "UpdateDeviceTree.h"
 #include "AutoGen.h"
 #include <Library/UpdateDeviceTree.h>
+#include <Library/LocateDeviceTree.h>
+#include <Library/BootLinux.h>
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/EFIDDRGetConfig.h>
 #include <Protocol/EFIRng.h>
 
-#define DTB_PAD_SIZE 2048
 #define NUM_SPLASHMEM_PROP_ELEM 4
 #define DEFAULT_CELL_SIZE 2
 
 STATIC struct FstabNode FstabTable = {"/firmware/android/fstab", "dev",
                                       "/soc/"};
+STATIC struct FstabNode DynamicFstabTable = {"/firmware/android/fstab",
+                                              "status",
+                                              ""};
 STATIC struct DisplaySplashBufferInfo splashBuf;
 STATIC UINTN splashBufSize = sizeof (splashBuf);
 
@@ -609,7 +613,8 @@ UpdateFstabNode (VOID *fdt)
   CHAR8 *BootDevBuf = NULL;
   CHAR8 *ReplaceStr = NULL;
   CHAR8 *NextStr = NULL;
-  struct FstabNode Table = FstabTable;
+  struct FstabNode Table = IsDynamicPartitionSupport () ? DynamicFstabTable
+                                                         : FstabTable;
   UINT32 DevNodeBootDevLen = 0;
   UINT32 Index = 0;
   UINT32 PaddingEnd = 0;
@@ -624,19 +629,21 @@ UpdateFstabNode (VOID *fdt)
   DEBUG ((EFI_D_VERBOSE, "Node: %a found.\n",
           fdt_get_name (fdt, ParentOffset, NULL)));
 
-  /* Get boot device type */
-  BootDevBuf = AllocateZeroPool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
-  if (BootDevBuf == NULL) {
-    DEBUG ((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
-    return EFI_OUT_OF_RESOURCES;
-  }
+  if (!IsDynamicPartitionSupport ()) {
+    /* Get boot device type */
+    BootDevBuf = AllocateZeroPool (sizeof (CHAR8) * BOOT_DEV_MAX_LEN);
+    if (BootDevBuf == NULL) {
+     DEBUG ((EFI_D_ERROR, "Boot device buffer: Out of resources\n"));
+     return EFI_OUT_OF_RESOURCES;
+    }
 
-  Status = GetBootDevice (BootDevBuf, BOOT_DEV_MAX_LEN);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Failed to get Boot Device: %r\n", Status));
-    FreePool (BootDevBuf);
-    BootDevBuf = NULL;
-    return Status;
+    Status = GetBootDevice (BootDevBuf, BOOT_DEV_MAX_LEN);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Failed to get Boot Device: %r\n", Status));
+      FreePool (BootDevBuf);
+      BootDevBuf = NULL;
+      return Status;
+    }
   }
 
   /* Get properties of all sub nodes */
@@ -651,6 +658,17 @@ UpdateFstabNode (VOID *fdt)
     } else {
       DEBUG ((EFI_D_VERBOSE, "Property:%a found for sub-node:%a\tProperty:%a\n",
               Table.Property, NodeName, Prop->data));
+
+      /* For Dynamic partition support disable firmware fstab nodes. */
+      if (IsDynamicPartitionSupport ()) {
+        DEBUG ((EFI_D_VERBOSE, "Disabling node status :%a\n", NodeName));
+        Status = fdt_setprop (fdt, SubNodeOffset, Table.Property, "disabled",
+                             (AsciiStrLen ("disabled") + 1));
+        if (Status) {
+         DEBUG ((EFI_D_ERROR, "ERROR: Failed to disable Node: %a\n", NodeName));
+        }
+        continue;
+      }
 
       /* Pointer to fdt 'dev' property string that needs to update based on the
        * 'androidboot.bootdevice' */
@@ -685,7 +703,9 @@ UpdateFstabNode (VOID *fdt)
     }
   }
 
-  FreePool (BootDevBuf);
+  if (BootDevBuf) {
+    FreePool (BootDevBuf);
+  }
   BootDevBuf = NULL;
   return Status;
 }
