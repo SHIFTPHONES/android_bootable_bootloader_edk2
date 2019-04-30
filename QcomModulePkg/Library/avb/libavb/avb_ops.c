@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -446,29 +446,16 @@ AvbIOResult
 AvbWriteRollbackIndex(AvbOps *Ops, size_t RollbackIndexLocation, uint64_t RollbackIndex)
 {
 	EFI_STATUS Status = EFI_SUCCESS;
-        BOOLEAN UpdateRollbackIndex = FALSE;
-        AvbOpsUserData *UserData = NULL;
+	BOOLEAN UpdateRollbackIndex = FALSE;
+	AvbOpsUserData *UserData = NULL;
 
+	UserData = (AvbOpsUserData *)Ops->user_data;
 	DEBUG((EFI_D_VERBOSE,
 	       "WriteRollbackIndex Location %d, RollbackIndex %d\n",
 	       RollbackIndexLocation, RollbackIndex));
 
-        UserData = (AvbOpsUserData *)Ops->user_data;
-        if (UserData->IsMultiSlot) {
-                /* Update rollback if the current slot is bootable */
-                if (IsCurrentSlotBootable ()) {
-                          UpdateRollbackIndex = TRUE;
-                } else {
-                          UpdateRollbackIndex = FALSE;
-                          DEBUG ((EFI_D_WARN, "Not updating rollback"
-                              "index as current slot is unbootable\n"));
-                }
-         } else {
-                /* When Multislot is disabled, always update*/
-                UpdateRollbackIndex = TRUE;
-         }
-
-         if (UpdateRollbackIndex == TRUE) {
+	UpdateRollbackIndex = avb_should_update_rollback(UserData->IsMultiSlot);
+	if (UpdateRollbackIndex == TRUE) {
 		DEBUG((EFI_D_INFO,
 		       "Updating rollback index %d, for location %d\n",
 		       RollbackIndex, RollbackIndexLocation));

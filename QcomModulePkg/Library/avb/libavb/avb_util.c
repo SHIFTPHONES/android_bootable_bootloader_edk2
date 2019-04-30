@@ -50,10 +50,12 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "avb_util.h"
+#include "avb_ops.h"
 #include <stdarg.h>
 #include "BootLinux.h"
 #include <Protocol/EFIScm.h>
 #include <Protocol/scm_sip_interface.h>
+#include "PartitionTableUpdate.h"
 
 #define SECBOOT_FUSE 0
 #define SHK_FUSE 1
@@ -63,6 +65,7 @@
 #define RPMB_ENABLED_FUSE 5
 #define DEBUG_RE_ENABLED_FUSE 6
 #define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
+#define TZ_FVER_QSEE 10
 
 uint32_t avb_be32toh(uint32_t in) {
   uint8_t* d = (uint8_t*)&in;
@@ -590,19 +593,7 @@ EFI_STATUS GetFuse (uint32_t FuseId, bool *get_fuse_id)
   return Status;
 }
 
-bool AllowSetFuse (uint32_t Version)
-{
-  /*if((major > 4) || (major == 4 && minor > 0))*/
-  if ((((Version >> 22) & 0x3FF) > 4) ||
-     (((Version >> 22) & 0x3FF) == 4 &&
-      ((Version >> 12) & 0x3FF) > 0)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-EFI_STATUS ScmGetFeatureVersion (uint32_t FeatureId, uint32_t *Version)
+STATIC EFI_STATUS ScmGetFeatureVersion (uint32_t FeatureId, uint32_t *Version)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   QCOM_SCM_PROTOCOL *test_scm_protocol = 0;
@@ -643,5 +634,101 @@ EFI_STATUS ScmGetFeatureVersion (uint32_t FeatureId, uint32_t *Version)
   }
 
   *Version = SysCallRsp->version;
+  return Status;
+}
+
+bool AllowSetFuse ()
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 version = 0;
+
+  Status = ScmGetFeatureVersion (TZ_FVER_QSEE, &version);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR,
+        "KeyMasterSetRotAndBootState: ScmGetFeatureVersion fails!\n"));
+    return false;
+  }
+  /*if((major > 4) || (major == 4 && minor > 0))*/
+  if ((((version >> 22) & 0x3FF) > 4) ||
+     (((version >> 22) & 0x3FF) == 4 &&
+      ((version >> 12) & 0x3FF) > 0)) {
+    return true;
+  } else {
+    DEBUG ((EFI_D_ERROR, "TZ didn't support this feature! "
+            "Version: major = %d, minor = %d, patch = %d\n",
+              (version >> 22) & 0x3FF, (version >> 12) & 0x3FF,
+                version & 0x3FF));
+    return false;
+  }
+}
+
+bool avb_should_update_rollback(bool is_multi_slot) {
+  bool update_rollback_index = FALSE;
+
+  if (is_multi_slot) {
+    /* Update rollback if the current slot is bootable */
+    if (IsCurrentSlotBootable ()) {
+      update_rollback_index = TRUE;
+    } else {
+      update_rollback_index = FALSE;
+      DEBUG ((EFI_D_WARN, "Not updating rollback"
+                "index as current slot is unbootable\n"));
+    }
+  } else {
+    /* When Multislot is disabled, always update*/
+    update_rollback_index = TRUE;
+  }
+
+  return update_rollback_index;
+}
+
+EFI_STATUS UpdateRollbackSyscall ()
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  QCOM_SCM_PROTOCOL *pQcomScmProtocol = NULL;
+  UINT64 Parameters[SCM_MAX_NUM_PARAMETERS] = {0};
+  UINT64 Results[SCM_MAX_NUM_RESULTS] = {0};
+  UINT32 FeatureVersion = 0;
+  UINT32 MajorVersion = 0;
+  UINT32 MinorVersion = 0;
+  tz_syscall_rsp_t *SysCallRsp = (tz_syscall_rsp_t*)Results;
+
+  // Locate QCOM_SCM_PROTOCOL.
+  Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL,
+                               (VOID **)&pQcomScmProtocol);
+  if (Status != EFI_SUCCESS || (pQcomScmProtocol == NULL)) {
+    DEBUG ((EFI_D_ERROR, "UpdateRollbackSyscall: Locate SCM Status: (0x%x)\r\n",
+             Status));
+    Status = EFI_FAILURE;
+    return Status;
+  }
+
+  Status = ScmGetFeatureVersion(TZ_FVER_QSEE, &FeatureVersion);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "UpdateRollbackSyscall: ScmGetFeatureVersion fails!"));
+    Status = EFI_FAILURE;
+    return Status;
+  }
+
+  MajorVersion = (FeatureVersion >> 22) & 0x3FF;
+  MinorVersion = (FeatureVersion >> 12) & 0x3FF;
+  if (MajorVersion > 5 || (MajorVersion == 5 && MinorVersion > 1)) {
+    // Make ScmSipSysCall to update rollback
+    Status = pQcomScmProtocol->ScmSipSysCall (
+          pQcomScmProtocol, TZ_UPDATE_ROLLBACK_VERSION_ID,
+          TZ_UPDATE_ROLLBACK_VERSION_ID_PARAM_ID, Parameters, Results);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "UpdateRollbackSyscall: ScmCall Status: (0x%x)\r\n",
+               Status));
+      Status = EFI_FAILURE;
+      return Status;
+    }
+    if (SysCallRsp->status != EFI_SUCCESS) {
+      Status = SysCallRsp->status;
+      DEBUG(( EFI_D_ERROR, "TZ_UPDATE_ROLLBACK_VERSION_ID failed, "
+                    "Status = (0x%x)\r\n", Status));
+      return Status;
+    }
+  }
   return Status;
 }

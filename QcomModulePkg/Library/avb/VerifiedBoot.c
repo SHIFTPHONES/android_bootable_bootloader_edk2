@@ -824,6 +824,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   AvbHashtreeErrorMode VerityFlags =
       AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE;
   CHAR8 Digest[AVB_SHA256_DIGEST_SIZE];
+  BOOLEAN UpdateRollback = FALSE;
 
   Info->BootState = RED;
   GUARD (VBCommonInit (Info));
@@ -854,6 +855,22 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     SlotSuffix = &PnameAscii[AsciiStrLen (PnameAscii) - MAX_SLOT_SUFFIX_SZ + 1];
   } else {
      SlotSuffix = "\0";
+  }
+
+  /* Check if slot is bootable and call into TZ to update rollback version.
+   * This is similar to the update done later for vbmeta bound images.
+   * However, here we call into TZ irrespective of version check and let
+   * the secure environment make the decision on updating rollback version
+   */
+
+  UpdateRollback = avb_should_update_rollback (UserData->IsMultiSlot);
+  if (UpdateRollback) {
+    Status = UpdateRollbackSyscall ();
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "LoadImageAndAuthVB2: Error int TZ Rollback Version "
+               "syscall; ScmCall Status: (0x%x)\r\n", Status));
+      return Status;
+    }
   }
 
   DEBUG ((EFI_D_VERBOSE, "Slot: %a, allow verification error: %a\n", SlotSuffix,

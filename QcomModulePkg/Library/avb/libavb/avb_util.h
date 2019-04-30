@@ -280,9 +280,11 @@ EFI_STATUS SetFuse (uint32_t FuseId);
 
 EFI_STATUS GetFuse (uint32_t FuseId, bool *get_fuse_id);
 
-bool AllowSetFuse (uint32_t Version);
+bool AllowSetFuse ();
 
-EFI_STATUS ScmGetFeatureVersion (uint32_t FeatureId, uint32_t *Version);
+bool avb_should_update_rollback(bool is_multi_slot);
+
+EFI_STATUS UpdateRollbackSyscall ();
 
 #ifdef __cplusplus
 }
