@@ -1553,3 +1553,15 @@ BOOLEAN IsDynamicPartitionSupport (VOID)
   return FALSE;
 }
 #endif
+
+#if NAND_SQUASHFS_SUPPORT
+BOOLEAN IsNANDSquashFsSupport (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsNANDSquashFsSupport (VOID)
+{
+  return FALSE;
+}
+#endif

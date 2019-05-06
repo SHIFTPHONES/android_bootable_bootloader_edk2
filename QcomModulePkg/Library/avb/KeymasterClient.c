@@ -48,7 +48,6 @@ typedef struct {
 #define KEYMASTER_CMD_ID 0x100UL
 #define KEYMASTER_UTILS_CMD_ID 0x200UL
 #define GK_CMD_ID 0x1000UL
-#define TZ_FVER_QSEE 10 /**< QSEE application layer. */
 
 typedef enum {
   /*
@@ -208,7 +207,6 @@ KeyMasterSetRotAndBootState (KMRotAndBootState *BootState)
   KMSetBootStateReq BootStateReq = {0};
   KMSetBootStateRsp BootStateRsp = {0};
   BOOLEAN secure_device = FALSE;
-  UINT32 version = 0;
 
   if (BootState == NULL) {
     DEBUG ((EFI_D_ERROR, "Invalid parameter BootState\n"));
@@ -302,14 +300,7 @@ KeyMasterSetRotAndBootState (KMRotAndBootState *BootState)
   /* Provide boot tamper state to TZ */
   if (((Status = IsSecureDevice (&secure_device)) == EFI_SUCCESS) &&
       secure_device && (BootState->Color != GREEN)) {
-
-    Status = ScmGetFeatureVersion (TZ_FVER_QSEE, &version);
-    if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR,
-              "KeyMasterSetRotAndBootState: ScmGetFeatureVersion fails!\n"));
-      return Status;
-    }
-    if (AllowSetFuse (version)) {
+    if (AllowSetFuse ()) {
       Status = SetFuse (TZ_HLOS_IMG_TAMPER_FUSE);
       if (Status != EFI_SUCCESS) {
         DEBUG ((EFI_D_ERROR, "KeyMasterSetRotAndBootState: "
@@ -322,15 +313,8 @@ KeyMasterSetRotAndBootState (KMRotAndBootState *BootState)
                              "SetFuse (TZ_HLOS_TAMPER_NOTIFY_FUSE) fails!\n"));
         return Status;
       }
-    } else {
-      DEBUG ((EFI_D_ERROR, "TZ didn't support this feature! "
-                           "Version: major = %d, minor = %d, patch = %d\n",
-              (version >> 22) & 0x3FF, (version >> 12) & 0x3FF,
-              version & 0x3FF));
-      return Status;
     }
   }
-
   DEBUG ((EFI_D_VERBOSE, "KeyMasterSetRotAndBootState success\n"));
   return Status;
 }

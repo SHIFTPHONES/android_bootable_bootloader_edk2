@@ -341,10 +341,19 @@ GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
     /* NAND is being treated as GPT partition, hence reduce the index by 1 as
      * PartitionIndex (0) should be ignored for correct mapping of partition.
      */
-    AsciiSPrint (*SysPath,
-          MAX_PATH_SIZE,
+    if (IsNANDSquashFsSupport ()) {
+      // The gluebi device that is to be passed to "root=" will be the first one
+      // after all "regular" mtd devices have been populated.
+      UINT32 PartitionCount = 0;
+      GetPartitionCount (&PartitionCount);
+      AsciiSPrint (*SysPath, MAX_PATH_SIZE,
+                   " rootfstype=squashfs root=/dev/mtdblock%d ubi.mtd=%d",
+                   (PartitionCount - 1), (Index - 1));
+    } else {
+      AsciiSPrint (*SysPath, MAX_PATH_SIZE,
           " rootfstype=ubifs rootflags=bulk_read root=ubi0:rootfs ubi.mtd=%d",
           (Index - 1));
+    }
   } else if (!AsciiStrCmp ("UFS", RootDevStr)) {
     AsciiSPrint (*SysPath, MAX_PATH_SIZE,
                  " %a=/dev/sd%c%d",
