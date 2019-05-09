@@ -46,4 +46,8 @@ KeyMasterSetRotAndBootState (KMRotAndBootState *BootState);
 
 EFI_STATUS
 SetVerifiedBootHash(CONST CHAR8 *Vbh, UINTN VbhSize);
+
+EFI_STATUS
+KeyMasterGetDateSupport (BOOLEAN *Supported);
+
 #endif /* __KEYMASTER_CLIENT_H__ */
