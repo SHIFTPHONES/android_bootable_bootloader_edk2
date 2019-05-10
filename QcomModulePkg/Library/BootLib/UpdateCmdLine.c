@@ -662,7 +662,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     DtboIdx = GetDtboIdx ();
     if (DtboIdx != INVALID_PTN) {
       AsciiSPrint (DtboIdxStr, sizeof (DtboIdxStr),
-                   " %a%d", AndroidBootDtboIdx, DtboIdx);
+                   "%a%d", AndroidBootDtboIdx, DtboIdx);
       CmdLineLen += AsciiStrLen (DtboIdxStr);
     }
   }
