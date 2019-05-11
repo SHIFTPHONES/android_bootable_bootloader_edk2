@@ -157,6 +157,7 @@ struct dt_entry {
   UINT32 pmic_rev[4];
   UINT64 offset;
   UINT32 size;
+  UINT32 Idx;
 };
 
 /*Struct def for device tree entry*/
@@ -272,6 +273,7 @@ DeviceTreeValidate (UINT8 *DeviceTreeBuff,
                     UINT32 PageSize,
                     UINT32 *DeviceTreeSize);
 INT32 GetDtboIdx (VOID);
+INT32 GetDtbIdx (VOID);
 VOID DeleteDtList (struct fdt_entry_node** DtList);
 BOOLEAN AppendToDtList (struct fdt_entry_node **DtList,
                 UINT64 Address,
