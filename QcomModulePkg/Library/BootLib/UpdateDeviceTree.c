@@ -39,6 +39,7 @@
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/EFIDDRGetConfig.h>
 #include <Protocol/EFIRng.h>
+#include <Library/PartialGoods.h>
 
 #define NUM_SPLASHMEM_PROP_ELEM 4
 #define DEFAULT_CELL_SIZE 2
@@ -593,6 +594,16 @@ UpdateDeviceTree (VOID *fdt,
   DEBUG ((EFI_D_VERBOSE, "End DT fstab node update: %lu ms\n",
           GetTimerCountms ()));
 
+  /* Check partial goods*/
+  if (FixedPcdGetBool (EnablePartialGoods)) {
+    ret = UpdatePartialGoodsNode (fdt);
+    if (ret != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR,
+        "Failed to update device tree for partial goods, Status=%r\n",
+           ret));
+      return ret;
+    }
+  }
   fdt_pack (fdt);
 
   return ret;

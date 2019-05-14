@@ -32,7 +32,6 @@
 
 #include <Library/DeviceInfo.h>
 #include <Library/DrawUI.h>
-#include <Library/PartialGoods.h>
 #include <Library/PartitionTableUpdate.h>
 #include <Library/ShutdownServices.h>
 #include <Library/VerifiedBootMenu.h>
@@ -714,16 +713,6 @@ LoadAddrAndDTUpdate (BootParamlist *BootParamlistPtr)
                   BootParamlistPtr->KernelSizeActual);
   }
 
-  if (FixedPcdGetBool (EnablePartialGoods)) {
-    Status = UpdatePartialGoodsNode
-                ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
-    if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR,
-        "Failed to update device tree for partial goods, Status=%r\n",
-           Status));
-      return Status;
-    }
-  }
   return EFI_SUCCESS;
 }
 

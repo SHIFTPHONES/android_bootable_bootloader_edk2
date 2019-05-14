@@ -172,8 +172,6 @@ FindNodeAndUpdateProperty (VOID *fdt,
                            UINT32 Value)
 {
   struct SubNodeListNew *SNode = NULL;
-  CONST struct fdt_property *Prop = NULL;
-  INT32 PropLen = 0;
   INT32 SubNodeOffset = 0;
   INT32 ParentOffset = 0;
   INT32 Ret = 0;
@@ -193,35 +191,19 @@ FindNodeAndUpdateProperty (VOID *fdt,
 
     /* Find the subnode */
     SNode = &(Table->SubNode);
-    SubNodeOffset = fdt_subnode_offset (fdt, ParentOffset, SNode->SubNodeName);
+    SubNodeOffset = fdt_subnode_offset (fdt, ParentOffset,
+                                      SNode->SubNodeName);
     if (SubNodeOffset < 0) {
-      DEBUG ((EFI_D_INFO, "Subnode : %a is not present, ignore\n",
+      DEBUG ((EFI_D_INFO, "Subnode: %a is not present, ignore\n",
               SNode->SubNodeName));
       continue;
     }
 
-    /* Find the property node and its length */
-    Prop = fdt_get_property (fdt, SubNodeOffset, SNode->PropertyName, &PropLen);
-    if (!Prop) {
-      /* Need to continue with next SubNode List instead of bailing out*/
-      DEBUG ((EFI_D_INFO, "Property: %a not found for (%a)\tLen:%d, continue "
-                          "with next subnode\n",
-              SNode->PropertyName, SNode->SubNodeName, PropLen));
-      continue;
-    }
+     /* Add/Replace the property with Replace string value */
+    Ret = fdt_setprop (fdt, SubNodeOffset, SNode->PropertyName,
+                     (CONST VOID *)SNode->ReplaceStr,
+                     AsciiStrLen (SNode->ReplaceStr)+ 1);
 
-    /* Replace the property value based on the property */
-    if (AsciiStrnCmp (SNode->PropertyStr,
-                         Prop->data,
-                         fdt32_to_cpu (Prop->len))) {
-      DEBUG ((EFI_D_VERBOSE, "Property string mismatch (%a) with (%a)\n",
-              SNode->PropertyStr, Prop->data));
-      continue;
-    }
-
-    /* Replace the property with Replace string value */
-    Ret = fdt_setprop_inplace (fdt, SubNodeOffset, SNode->PropertyName,
-                               (CONST VOID *)SNode->ReplaceStr, PropLen);
     if (!Ret) {
       DEBUG ((EFI_D_INFO, "Partial goods (%a) status property disabled\n",
               SNode->SubNodeName));
@@ -309,20 +291,23 @@ UpdatePartialGoodsNode (VOID *fdt)
 
   /* Read and update Multimedia Partial Goods Nodes */
   Status = ReadMMPartialGoods (pChipInfoProtocol, &PartialGoodsMMValue);
-  if (Status != EFI_SUCCESS)
-    goto out; /* NOT a critical failure and need not error out.*/
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_INFO, "No mm partial goods found.\n"));
+  }
 
-  if (PartialGoodsMMValue)
+  if (PartialGoodsMMValue) {
     DEBUG ((EFI_D_INFO, "PartialGoods for Multimedia: 0x%x\n",
             PartialGoodsMMValue));
 
-  FindNodeAndUpdateProperty (fdt, ARRAY_SIZE (PartialGoodsMmType),
-                             &PartialGoodsMmType[0], PartialGoodsMMValue);
+    FindNodeAndUpdateProperty (fdt, ARRAY_SIZE (PartialGoodsMmType),
+                               &PartialGoodsMmType[0], PartialGoodsMMValue);
+  }
 
   /* Read and update CPU Partial Goods nodes */
   Status = ReadCpuPartialGoods (pChipInfoProtocol, PartialGoodsCpuValue);
-  if (Status != EFI_SUCCESS)
-    goto out;
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_INFO, "No partial goods for cpu ss found.\n"));
+  }
 
   for (i = 0; i < MAX_CPU_CLUSTER; i++) {
     if (PartialGoodsCpuValue[i]) {
@@ -334,8 +319,5 @@ UpdatePartialGoodsNode (VOID *fdt)
     }
   }
 
-  return Status;
-out:
-  DEBUG ((EFI_D_VERBOSE, "Continue to boot...\n"));
   return EFI_SUCCESS;
 }
