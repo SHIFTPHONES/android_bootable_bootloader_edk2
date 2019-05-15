@@ -367,6 +367,12 @@ out:
   return EFI_SUCCESS;
 }
 
+STATIC UINT32
+GetNumberOfPages (UINT32 ImageSize, UINT32 PageSize)
+{
+   return (ImageSize + PageSize - 1) / PageSize;
+}
+
 STATIC EFI_STATUS
 DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
 {
@@ -380,6 +386,16 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
   BOOLEAN DtboImgInvalid = FALSE;
   struct fdt_entry_node *DtsList = NULL;
   EFI_STATUS Status;
+  UINT32 HeaderVersion = 0;
+  struct boot_img_hdr_v1 *BootImgHdrV1;
+  struct boot_img_hdr_v2 *BootImgHdrV2;
+  UINT32 NumHeaderPages;
+  UINT32 NumKernelPages;
+  UINT32 NumSecondPages;
+  UINT32 NumRamdiskPages;
+  UINT32 NumRecoveryDtboPages;
+  VOID* ImageBuffer = NULL;
+  UINT32 DtbSize = 0;
 
   if (Info == NULL ||
       BootParamlistPtr == NULL) {
@@ -387,18 +403,52 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
     return EFI_INVALID_PARAMETER;
   }
 
+  ImageBuffer = BootParamlistPtr->ImageBuffer +
+                        BootParamlistPtr->PageSize +
+                        BootParamlistPtr->PatchedKernelHdrSize;
+  DtbSize = BootParamlistPtr->KernelSize;
+  HeaderVersion = Info->HeaderVersion;
+
+  if (HeaderVersion > BOOT_HEADER_VERSION_ONE) {
+        BootImgHdrV1 = (struct boot_img_hdr_v1 *)
+                ((UINT64) BootParamlistPtr->ImageBuffer +
+                BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET);
+        BootImgHdrV2 = (struct boot_img_hdr_v2 *)
+            ((UINT64) BootParamlistPtr->ImageBuffer +
+            BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET +
+            BOOT_IMAGE_HEADER_V2_OFFSET);
+
+        NumHeaderPages = 1;
+        NumKernelPages =
+                GetNumberOfPages (BootParamlistPtr->KernelSize,
+                        BootParamlistPtr->PageSize);
+        NumRamdiskPages =
+                GetNumberOfPages (BootParamlistPtr->RamdiskSize,
+                        BootParamlistPtr->PageSize);
+        NumSecondPages =
+                GetNumberOfPages (BootParamlistPtr->SecondSize,
+                        BootParamlistPtr->PageSize);
+        NumRecoveryDtboPages =
+                GetNumberOfPages (BootImgHdrV1->recovery_dtbo_size,
+                        BootParamlistPtr->PageSize);
+        BootParamlistPtr->DtbOffset =
+                BootParamlistPtr->PageSize *
+                        (NumHeaderPages + NumKernelPages + NumRamdiskPages
+                                + NumSecondPages + NumRecoveryDtboPages);
+        DtbSize = BootImgHdrV2->dtb_size + BootParamlistPtr->DtbOffset;
+        ImageBuffer = BootParamlistPtr->ImageBuffer;
+  }
+
   DtboImgInvalid = LoadAndValidateDtboImg (Info, BootParamlistPtr);
   if (!DtboImgInvalid) {
     // appended device tree
-    Dtb = DeviceTreeAppended ((VOID *)(BootParamlistPtr->ImageBuffer +
-                             BootParamlistPtr->PageSize +
-                             BootParamlistPtr->PatchedKernelHdrSize),
-                             BootParamlistPtr->KernelSize,
+    Dtb = DeviceTreeAppended (ImageBuffer,
+                             DtbSize,
                              BootParamlistPtr->DtbOffset,
                              (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
     if (!Dtb) {
-      if (BootParamlistPtr->DtbOffset >= BootParamlistPtr->KernelSize) {
-        DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the kernel size\n"));
+      if (BootParamlistPtr->DtbOffset >= DtbSize) {
+        DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the image size\n"));
         return EFI_BAD_BUFFER_SIZE;
       }
       SingleDtHdr = (BootParamlistPtr->ImageBuffer +
@@ -406,9 +456,9 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
                      BootParamlistPtr->DtbOffset);
 
       if (!fdt_check_header (SingleDtHdr)) {
-        if ((BootParamlistPtr->KernelSize - BootParamlistPtr->DtbOffset) <
+        if ((DtbSize - BootParamlistPtr->DtbOffset) <
             fdt_totalsize (SingleDtHdr)) {
-          DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the kernel size\n"));
+          DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the image size\n"));
           return EFI_BAD_BUFFER_SIZE;
         }
 
@@ -430,19 +480,17 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
         gBS->CopyMem ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr,
                       SingleDtHdr, fdt_totalsize (SingleDtHdr));
       } else {
-        DEBUG ((EFI_D_ERROR, "Error: Appended Device Tree blob not found\n"));
+        DEBUG ((EFI_D_ERROR, "Error: Device Tree blob not found\n"));
         return EFI_NOT_FOUND;
       }
     }
   } else {
     /*It is the case of DTB overlay Get the Soc specific dtb */
-    SocDtb =
-    GetSocDtb ((VOID *)(BootParamlistPtr->ImageBuffer +
-               BootParamlistPtr->PageSize +
-               BootParamlistPtr->PatchedKernelHdrSize),
-               BootParamlistPtr->KernelSize,
-               BootParamlistPtr->DtbOffset,
-               (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
+    SocDtb = GetSocDtb (ImageBuffer,
+         DtbSize,
+         BootParamlistPtr->DtbOffset,
+         (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
+
     if (!SocDtb) {
       DEBUG ((EFI_D_ERROR,
                   "Error: Appended Soc Device Tree blob not found\n"));
@@ -587,6 +635,8 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr)
            ((VOID *)Kptr + DTB_OFFSET_LOCATION_IN_ARCH32_KERNEL_HDR),
            sizeof (BootParamlistPtr->DtbOffset));
     }
+    gBS->CopyMem ((VOID *)BootParamlistPtr->KernelLoadAddr, (VOID *)Kptr,
+                 BootParamlistPtr->KernelSize);
   }
 
   if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
@@ -1325,19 +1375,51 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   }
 
   if (BootIntoRecovery &&
-      HeaderVersion == BOOT_HEADER_VERSION_ONE) {
+      HeaderVersion > BOOT_HEADER_VERSION_ZERO) {
+
     struct boot_img_hdr_v1 *Hdr1 =
-        (struct boot_img_hdr_v1 *) (ImageHdrBuffer + sizeof (boot_img_hdr));
+      (struct boot_img_hdr_v1 *) (ImageHdrBuffer + sizeof (boot_img_hdr));
     UINT32 RecoveryDtboActual = 0;
 
+    if (HeaderVersion == BOOT_HEADER_VERSION_ONE) {
+        if ((Hdr1->header_size !=
+          sizeof (struct boot_img_hdr_v1) + sizeof (boot_img_hdr))) {
+           DEBUG ((EFI_D_ERROR,
+             "Invalid boot image header: %d\n", Hdr1->header_size));
+           return EFI_BAD_BUFFER_SIZE;
+        }
+    }
+    else {
+        UINT32 DtbActual = 0;
+        struct boot_img_hdr_v2 *Hdr2 = (struct boot_img_hdr_v2 *)
+            (ImageHdrBuffer +
+            BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET +
+            BOOT_IMAGE_HEADER_V2_OFFSET);
+        DtbActual = ROUND_TO_PAGE (Hdr2->dtb_size,
+                                        *PageSize - 1);
+        if ((Hdr1->header_size !=
+                        BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET +
+                        BOOT_IMAGE_HEADER_V2_OFFSET +
+                        sizeof (struct boot_img_hdr_v2))) {
+           DEBUG ((EFI_D_ERROR,
+              "Invalid boot image header: %d\n", Hdr1->header_size));
+           return EFI_BAD_BUFFER_SIZE;
+        }
+        if (Hdr2->dtb_size && !DtbActual) {
+           DEBUG ((EFI_D_ERROR,
+               "DTB Image not present: DTB Size = %u\n", Hdr2->dtb_size));
+           return EFI_BAD_BUFFER_SIZE;
+        }
+        tempImgSize = *ImageSizeActual;
+        *ImageSizeActual = ADD_OF (*ImageSizeActual, DtbActual);
+        if (!*ImageSizeActual) {
+           DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSizeActual=%u,"
+              " DtbActual=%u\n", tempImgSize, DtbActual));
+           return EFI_BAD_BUFFER_SIZE;
+        }
+    }
     RecoveryDtboActual = ROUND_TO_PAGE (Hdr1->recovery_dtbo_size,
                                         *PageSize - 1);
-    if ((Hdr1->header_size !=
-         sizeof (struct boot_img_hdr_v1) + sizeof (boot_img_hdr))) {
-      DEBUG ((EFI_D_ERROR,
-              "Invalid boot image header: %d\n", Hdr1->header_size));
-      return EFI_BAD_BUFFER_SIZE;
-    }
 
     if (RecoveryDtboActual > DTBO_MAX_SIZE_ALLOWED) {
       DEBUG ((EFI_D_ERROR, "Recovery Dtbo Size too big %x, Allowed size %x\n",

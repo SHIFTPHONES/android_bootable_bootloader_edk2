@@ -78,14 +78,15 @@ GetDDRInfo (UINT8 *DdrDeviceType)
                                 (VOID **)&DdrInfoIf);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_VERBOSE,
-            "Error locating DDR Info protocol. Fail to get DDR type:%r\n",
+            "INFO: Unable to get DDR Info protocol. DDR type not updated:%r\n",
             Status));
     return Status;
   }
 
   Status = DdrInfoIf->GetDDRDetails (DdrInfoIf, &DdrInfo);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "GetDDR details failed\n"));
+    DEBUG ((EFI_D_ERROR, "INFO: GetDDR details failed\n"));
+    return Status;
   }
 
   *DdrDeviceType = DdrInfo.device_type;
@@ -250,23 +251,23 @@ UpdateGranuleInfo (VOID *fdt)
   UINT32 GranuleSize;
   INT32 Ret;
 
-  GranuleNodeOffset = fdt_path_offset (fdt, "/mem-offline");
-  if (GranuleNodeOffset < 0) {
-    DEBUG ((EFI_D_ERROR, "WARNING: Could not find mem-offline node.\n"));
+  Status = GetGranuleSize (&GranuleSize);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_VERBOSE,
+            "Unable to get Granule Size, Status = %r\r\n",
+            Status));
     return;
   }
 
-  Status = GetGranuleSize (&GranuleSize);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR,
-            "Update Granule Size failed!!! Status = %r\r\n",
-            Status));
+  GranuleNodeOffset = fdt_path_offset (fdt, "/mem-offline");
+  if (GranuleNodeOffset < 0) {
+    DEBUG ((EFI_D_VERBOSE, "INFO: Could not find mem-offline node.\n"));
     return;
   }
 
   Ret = fdt_setprop_u32 (fdt, GranuleNodeOffset, "granule", GranuleSize);
   if (Ret) {
-    DEBUG ((EFI_D_ERROR, "WARNING: Granule size update failed.\n"));
+    DEBUG ((EFI_D_ERROR, "INFO: Granule size update failed.\n"));
   }
 }
 
@@ -526,9 +527,6 @@ UpdateDeviceTree (VOID *fdt,
     } else {
       DEBUG ((EFI_D_VERBOSE, "ddr_device_type is added to memory node\n"));
     }
-  } else {
-    DEBUG (
-        (EFI_D_ERROR, "ERROR: Cannot update ddr_device_type - %r\n", Status));
   }
 
   UpdateSplashMemInfo (fdt);

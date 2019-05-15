@@ -48,6 +48,12 @@ INT32 GetDtboIdx (VOID)
    return DtboIdx;
 }
 
+STATIC INT32 DtbIdx = INVALID_PTN;
+INT32 GetDtbIdx (VOID)
+{
+   return DtbIdx;
+}
+
 BOOLEAN GetDtboNeeded (VOID)
 {
   return DtboNeed;
@@ -128,6 +134,7 @@ DeviceTreeCompatible (VOID *dtb,
   UINT32 board_data_count;
   UINT32 pmic_data_count;
   BOOLEAN Result = FALSE;
+  static UINT32 DtbCount;
 
   root_offset = fdt_path_offset (dtb, "/");
   if (root_offset < 0)
@@ -297,6 +304,7 @@ DeviceTreeCompatible (VOID *dtb,
      * <Z ,A >;<Z, B>;<Z, C>;
      */
     k = 0;
+    DtbCount++;
     for (i = 0; i < msm_data_count; i++) {
       for (j = 0; j < board_data_count; j++) {
         if (dtb_ver == DEV_TREE_VERSION_V3 && pmic_prop) {
@@ -311,6 +319,7 @@ DeviceTreeCompatible (VOID *dtb,
             dt_entry_array[k].pmic_rev[3] = pmic_data[n].pmic_version[3];
             dt_entry_array[k].offset = (UINT64)dtb;
             dt_entry_array[k].size = dtb_size;
+            dt_entry_array[k].Idx = DtbCount;
             k++;
           }
 
@@ -325,6 +334,7 @@ DeviceTreeCompatible (VOID *dtb,
           dt_entry_array[k].pmic_rev[3] = BoardPmicTarget (3);
           dt_entry_array[k].offset = (UINT64)dtb;
           dt_entry_array[k].size = dtb_size;
+          dt_entry_array[k].Idx = DtbCount;
           k++;
         }
       }
@@ -380,9 +390,13 @@ Exit:
  * Will relocate the DTB to the tags addr if the device tree is found and return
  * its address
  *
- * Arguments:    kernel - Start address of the kernel loaded in RAM
+ * For Header Version 2, the arguments Kernel and KernelSize will be
+ * the entire bootimage and the bootimage size.
+ *
+ * Arguments:    kernel - Start address of the kernel/bootimage
+ *                                loaded in RAM
  *               tags - Start address of the tags loaded in RAM
- *               kernel_size - Size of the kernel in bytes
+ *               kernel_size - Size of the kernel/bootimage in bytes
  *
  * Return Value: DTB address : If appended device tree is found
  *               'NULL'         : Otherwise
@@ -502,6 +516,7 @@ DeviceTreeAppended (VOID *kernel,
       goto out;
     }
     gBS->CopyMem (tags, bestmatch_tag, bestmatch_tag_size);
+    DtbIdx = best_match_dt_entry->Idx;
     /* clear out the old DTB magic so kernel doesn't find it */
     *((UINT32 *)(kernel + dtb_offset)) = 0;
     FreePool (dt_entry_queue);
@@ -896,7 +911,10 @@ cleanup:
 
   return FindBestMatch;
 }
-
+/*
+ * For Header Version 2, the arguments Kernel and KernelSize will be
+ * the entire bootimage and the bootimage size.
+ */
 VOID *
 GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)
 {
@@ -904,6 +922,7 @@ GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)
   VOID *Dtb = NULL;
   struct fdt_header DtbHdr;
   UINT32 DtbSize = 0;
+  INT32 DtbCount = 0;
   DtInfo CurDtbInfo = {0};
   DtInfo BestDtbInfo = {0};
   if (!DtbOffset) {
@@ -927,7 +946,10 @@ GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)
       break;
 
     CurDtbInfo.Dtb = Dtb;
-    ReadDtbFindMatch (&CurDtbInfo, &BestDtbInfo, SOC_MATCH);
+    if (ReadDtbFindMatch (&CurDtbInfo, &BestDtbInfo, SOC_MATCH)) {
+        DtbIdx = DtbCount;
+    }
+
     if (CurDtbInfo.DtMatchVal) {
       if (CurDtbInfo.DtMatchVal & BIT (SOC_MATCH)) {
         if (CheckAllBitsSet (CurDtbInfo.DtMatchVal)) {
@@ -946,6 +968,7 @@ GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)
 
     DEBUG ((EFI_D_VERBOSE, "Bestmatch = %x\n", BestDtbInfo.DtMatchVal));
     Dtb += DtbSize;
+    DtbCount++;
   }
 
   if (!BestDtbInfo.Dtb) {

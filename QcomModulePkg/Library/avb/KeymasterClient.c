@@ -86,6 +86,7 @@ typedef enum {
   KEYMASTER_SET_BOOT_STATE = (KEYMASTER_UTILS_CMD_ID + 8UL),
   KEYMASTER_PROVISION_ATTEST_KEY = (KEYMASTER_UTILS_CMD_ID + 9UL),
   KEYMASTER_SET_VBH = (KEYMASTER_UTILS_CMD_ID + 17UL),
+  KEYMASTER_GET_DATE_SUPPORT = (KEYMASTER_UTILS_CMD_ID + 21UL),
 
   KEYMASTER_LAST_CMD_ENTRY = (int)0xFFFFFFFFULL
 } KeyMasterCmd;
@@ -147,6 +148,14 @@ typedef struct
 {
   INT32 Status;
 } __attribute__ ((packed)) KMSetVbhRsp;
+
+typedef struct {
+  UINT32 CmdId;
+} __attribute__ ((packed)) KMGetDateSupportReq;
+
+typedef struct {
+  INT32 Status;
+} __attribute__ ((packed)) KMGetDateSupportRsp;
 
 EFI_STATUS
 KeyMasterStartApp (KMHandle *Handle)
@@ -354,4 +363,35 @@ SetVerifiedBootHash (CONST CHAR8 *Vbh, UINTN VbhSize)
     return EFI_LOAD_ERROR;
   }
   return EFI_SUCCESS;
+}
+
+EFI_STATUS
+KeyMasterGetDateSupport (BOOLEAN *Supported)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  KMGetDateSupportReq Req = {0};
+  KMGetDateSupportRsp Rsp = {0};
+  KMHandle Handle = {NULL};
+
+  GUARD (KeyMasterStartApp (&Handle));
+  Req.CmdId = KEYMASTER_GET_DATE_SUPPORT;
+  Status = Handle.QseeComProtocol->QseecomSendCmd (
+      Handle.QseeComProtocol, Handle.AppId, (UINT8 *)&Req, sizeof (Req),
+      (UINT8 *)&Rsp, sizeof (Rsp));
+  if (Status != EFI_SUCCESS ||
+                Rsp.Status != 0 ) {
+    DEBUG ((EFI_D_ERROR, "Keymaster: Get date support error, status: "
+                         "%d, response status: %d\n",
+            Status, Rsp.Status));
+    if (Status == EFI_SUCCESS &&
+                Rsp.Status == KM_ERROR_INVALID_TAG) {
+      DEBUG ((EFI_D_ERROR, "Date in patch level not supported in keymaster\n"));
+      *Supported = FALSE;
+      return EFI_SUCCESS;
+    }
+    return EFI_LOAD_ERROR;
+  }
+
+  *Supported = TRUE;
+  return Status;
 }
