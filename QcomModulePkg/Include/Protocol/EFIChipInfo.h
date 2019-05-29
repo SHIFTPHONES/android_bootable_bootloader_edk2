@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016,2019 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -67,12 +67,6 @@ extern EFI_GUID gEfiChipInfoProtocolGuid;
   declaring space for the EFI_DALCHIPINFO_GETCHIPIDSTRING() function. */
 #define EFICHIPINFO_MAX_ID_LENGTH 16
 
-/**
-  Maximum length of a processor name string. This can be used
-  by clients when declaring space for the
-  EFI_DALCHIPINFO_GETPROCESSORNAMESTRING() function. */
-#define EFICHIPINFO_MAX_NAME_LENGTH 16
-
 /** Macro to generate the hardware version number from a specified major
   and minor number. This is used when comparing against the return value of
   hw_version(). For example, to check if the version is at least Version 1.2: \n
@@ -104,22 +98,6 @@ typedef UINT32 EFIChipInfoModemType;
 
 typedef UINT32 EFIChipInfoSerialNumType;
 typedef UINT32 EFIChipInfoQFPROMChipIdType;
-
-/**
-Chip Foundry type.
-*/
-typedef enum {
-  EFICHIPINFO_FOUNDRYID_UNKNOWN = 0,
-  EFICHIPINFO_FOUNDRYID_TSMC = 1,
-  EFICHIPINFO_FOUNDRYID_GF = 2,
-  EFICHIPINFO_FOUNDRYID_SS = 3,
-  EFICHIPINFO_FOUNDRYID_IBM = 4,
-  EFICHIPINFO_FOUNDRYID_UMC = 5,
-  EFICHIPINFO_FOUNDRYID_SMIC = 6,
-
-  EFICHIPINFO_NUM_FOUNDRYIDS,
-  EFICHIPINFO_FOUNDRYID_32BITS = 0x7FFFFFF
-} EFIChipInfoFoundryIdType;
 
 /** @} */ /* end_addtogroup efi_chipInfo_data_types */
 
