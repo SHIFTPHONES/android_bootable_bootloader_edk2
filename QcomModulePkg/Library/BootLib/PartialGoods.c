@@ -65,104 +65,247 @@ STATIC struct PartialGoods *PartialGoodsCpuType[MAX_CPU_CLUSTER] = {
 static struct PartialGoods PartialGoodsMmType[] = {
     {BIT (EFICHIPINFO_PART_GPU),
      "/soc",
-     {"qcom,kgsl-3d0", "status", "okay", "dsbl"}},
+     {"qcom,kgsl-3d0", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_GPU),
      "/soc",
-     {"qcom,kgsl-3d0", "status", "ok", "no"}},
+     {"qcom,gmu", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_GPU),
+     "/soc",
+     {"kgsl-smmu", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_GPU),
+     "/soc",
+     {"qcom,gpucc", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_VIDEO),
      "/soc",
-     {"qcom,vidc", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_VIDEO), "/soc", {"qcom,vidc", "status", "ok", "no"}},
+     {"qcom,vidc", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_VIDEO),
+     "/soc",
+     {"qcom,vidc0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_VIDEO),
+     "/soc",
+     {"qcom,vidc1", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_VIDEO),
+     "/soc",
+     {"qcom,videocc", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,msm-cam", "status", "okay", "dsbl"}},
+     {"qcom,cam-req-mgr", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
      {"qcom,msm-cam", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,csiphy", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_CAMERA),
-     "/soc",
      {"qcom,csiphy", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,csid", "status", "okay", "dsbl"}},
+     {"qcom,csiphy0", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,csid", "status", "ok", "no"}},
+     {"qcom,csiphy1", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,cam_smmu", "status", "okay", "dsbl"}},
+     {"qcom,csiphy2", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,csiphy3", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,csiphy4", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,csiphy5", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,csid0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,csid1", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,csid-lite0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,csid-lite1", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
      {"qcom,cam_smmu", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,fd", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_CAMERA), "/soc", {"qcom,fd", "status", "ok", "no"}},
+     {"qcom,cam-cpas", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,cpp", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_CAMERA), "/soc", {"qcom,cpp", "status", "ok", "no"}},
+     {"qcom,cam-cdm-intf", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,ispif", "status", "okay", "dsbl"}},
+     {"qcom,cpas-cdm0", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,ispif", "status", "ok", "no"}},
+     {"qcom,cpas-cdm1", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,vfe0", "status", "okay", "dsbl"}},
+     {"qcom,cpas-cdm2", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cam-cpas", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cam-fd", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,fd", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,ife0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,ife1", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,ife-lite0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,ife-lite1", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cci", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cci0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cci1", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,jpegenc", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,jpegdma", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,camera-flash0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,camera-flash1", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cam-icp", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cam-isp", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,a5", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,ipe0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,bps", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,cam-jpeg", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,lrme", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_CAMERA),
+     "/soc",
+     {"qcom,ipe1", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
      {"qcom,vfe0", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,vfe1", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_CAMERA),
-     "/soc",
      {"qcom,vfe1", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_CAMERA),
      "/soc",
-     {"qcom,cci", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_CAMERA), "/soc", {"qcom,cci", "status", "ok", "no"}},
-    {BIT (EFICHIPINFO_PART_CAMERA),
-     "/soc",
-     {"qcom,jpeg", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_CAMERA),
-     "/soc",
-     {"qcom,jpeg", "status", "ok", "no"}},
-    {BIT (EFICHIPINFO_PART_CAMERA),
-     "/soc",
-     {"qcom,camera-flash", "status", "okay", "dsbl"}},
-    {BIT (EFICHIPINFO_PART_CAMERA),
-     "/soc",
-     {"qcom,camera-flash", "status", "ok", "no"}},
-    {BIT (EFICHIPINFO_PART_DISPLAY),
-     "/soc",
-     {"qcom,mdss_mdp", "status", "okay", "dsbl"}},
+     {"qcom,camcc", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_DISPLAY),
      "/soc",
      {"qcom,mdss_mdp", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_DISPLAY),
      "/soc",
-     {"qcom,mdss_dsi_pll", "status", "okay", "dsbl"}},
+     {"qcom,mdss_rotator", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,mdss_dsi0_ctrl", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,mdss_dsi1_ctrl", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,mdss_dsi_phy0", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,mdss_dsi_phy1", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,mdss_dsi0_pll", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,mdss_dsi1_pll", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_DISPLAY),
      "/soc",
      {"qcom,mdss_dsi_pll", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_DISPLAY),
      "/soc",
-     {"qcom,mdss_dp_pll", "status", "okay", "dsbl"}},
+     {"qcom,mdss_dp_pll", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_DISPLAY),
      "/soc",
-     {"qcom,mdss_dp_pll", "status", "ok", "no"}},
-    {BIT (EFICHIPINFO_PART_AUDIO),
+     {"qcom,msm-ext-disp", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
      "/soc",
-     {"qcom,msm-adsp-loader", "status", "okay", "dsbl"}},
+     {"qcom,sde_rscc", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,dp_display", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_DISPLAY),
+     "/soc",
+     {"qcom,dispcc", "status", "ok", "no"}},
     {BIT (EFICHIPINFO_PART_AUDIO),
      "/soc",
      {"qcom,msm-adsp-loader", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_AUDIO),
+     "/soc",
+     {"qcom,lpass", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_AUDIO),
+     "/soc",
+     {"qcom,msm-adsprpc-mem", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_AUDIO),
+     "/soc",
+     {"qcom,msm_fastrpc", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_MODEM),
+     "/soc",
+     {"qcom,mss", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_WLAN),
+     "/soc",
+     {"qcom,mss", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_COMP),
+     "/soc",
+     {"qcom,turing", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_COMP),
+     "/soc",
+     {"qcom,msm-adsprpc-mem", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_COMP),
+     "/soc",
+     {"qcom,msm_fastrpc", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_SENSORS),
+     "/soc",
+     {"qcom,lpass", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_SENSORS),
+     "/soc",
+     {"qcom,msm-adsprpc-mem", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_SENSORS),
+     "/soc",
+     {"qcom,msm_fastrpc", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_NPU),
+     "/soc",
+     {"qcom,npucc", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_NPU),
+     "/soc",
+     {"qcom,npu", "status", "ok", "no"}},
+    {BIT (EFICHIPINFO_PART_NAV),
+     "/soc",
+     {"qcom,mss", "status", "ok", "no"}},
 };
 
 STATIC VOID
@@ -172,8 +315,6 @@ FindNodeAndUpdateProperty (VOID *fdt,
                            UINT32 Value)
 {
   struct SubNodeListNew *SNode = NULL;
-  CONST struct fdt_property *Prop = NULL;
-  INT32 PropLen = 0;
   INT32 SubNodeOffset = 0;
   INT32 ParentOffset = 0;
   INT32 Ret = 0;
@@ -193,35 +334,19 @@ FindNodeAndUpdateProperty (VOID *fdt,
 
     /* Find the subnode */
     SNode = &(Table->SubNode);
-    SubNodeOffset = fdt_subnode_offset (fdt, ParentOffset, SNode->SubNodeName);
+    SubNodeOffset = fdt_subnode_offset (fdt, ParentOffset,
+                                      SNode->SubNodeName);
     if (SubNodeOffset < 0) {
-      DEBUG ((EFI_D_INFO, "Subnode : %a is not present, ignore\n",
+      DEBUG ((EFI_D_INFO, "Subnode: %a is not present, ignore\n",
               SNode->SubNodeName));
       continue;
     }
 
-    /* Find the property node and its length */
-    Prop = fdt_get_property (fdt, SubNodeOffset, SNode->PropertyName, &PropLen);
-    if (!Prop) {
-      /* Need to continue with next SubNode List instead of bailing out*/
-      DEBUG ((EFI_D_INFO, "Property: %a not found for (%a)\tLen:%d, continue "
-                          "with next subnode\n",
-              SNode->PropertyName, SNode->SubNodeName, PropLen));
-      continue;
-    }
+     /* Add/Replace the property with Replace string value */
+    Ret = fdt_setprop (fdt, SubNodeOffset, SNode->PropertyName,
+                     (CONST VOID *)SNode->ReplaceStr,
+                     AsciiStrLen (SNode->ReplaceStr)+ 1);
 
-    /* Replace the property value based on the property */
-    if (AsciiStrnCmp (SNode->PropertyStr,
-                         Prop->data,
-                         fdt32_to_cpu (Prop->len))) {
-      DEBUG ((EFI_D_VERBOSE, "Property string mismatch (%a) with (%a)\n",
-              SNode->PropertyStr, Prop->data));
-      continue;
-    }
-
-    /* Replace the property with Replace string value */
-    Ret = fdt_setprop_inplace (fdt, SubNodeOffset, SNode->PropertyName,
-                               (CONST VOID *)SNode->ReplaceStr, PropLen);
     if (!Ret) {
       DEBUG ((EFI_D_INFO, "Partial goods (%a) status property disabled\n",
               SNode->SubNodeName));
@@ -309,20 +434,23 @@ UpdatePartialGoodsNode (VOID *fdt)
 
   /* Read and update Multimedia Partial Goods Nodes */
   Status = ReadMMPartialGoods (pChipInfoProtocol, &PartialGoodsMMValue);
-  if (Status != EFI_SUCCESS)
-    goto out; /* NOT a critical failure and need not error out.*/
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_INFO, "No mm partial goods found.\n"));
+  }
 
-  if (PartialGoodsMMValue)
+  if (PartialGoodsMMValue) {
     DEBUG ((EFI_D_INFO, "PartialGoods for Multimedia: 0x%x\n",
             PartialGoodsMMValue));
 
-  FindNodeAndUpdateProperty (fdt, ARRAY_SIZE (PartialGoodsMmType),
-                             &PartialGoodsMmType[0], PartialGoodsMMValue);
+    FindNodeAndUpdateProperty (fdt, ARRAY_SIZE (PartialGoodsMmType),
+                               &PartialGoodsMmType[0], PartialGoodsMMValue);
+  }
 
   /* Read and update CPU Partial Goods nodes */
   Status = ReadCpuPartialGoods (pChipInfoProtocol, PartialGoodsCpuValue);
-  if (Status != EFI_SUCCESS)
-    goto out;
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_INFO, "No partial goods for cpu ss found.\n"));
+  }
 
   for (i = 0; i < MAX_CPU_CLUSTER; i++) {
     if (PartialGoodsCpuValue[i]) {
@@ -334,8 +462,5 @@ UpdatePartialGoodsNode (VOID *fdt)
     }
   }
 
-  return Status;
-out:
-  DEBUG ((EFI_D_VERBOSE, "Continue to boot...\n"));
   return EFI_SUCCESS;
 }
