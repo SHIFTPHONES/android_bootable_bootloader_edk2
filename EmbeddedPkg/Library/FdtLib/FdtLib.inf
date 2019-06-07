@@ -25,6 +25,9 @@
 #  VALID_ARCHITECTURES           = ARM AARCH64
 #
 
+[BuildOptions.AARCH64]
+  GCC:*_*_*_CC_FLAGS = -Oz
+
 [Sources]
   fdt_ro.c
   fdt_rw.c
