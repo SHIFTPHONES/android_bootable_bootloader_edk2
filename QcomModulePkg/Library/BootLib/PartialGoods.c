@@ -34,7 +34,11 @@
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Uefi/UefiBaseType.h>
 
-/* Look up table for cpu partial goods */
+/* Look up table for cpu partial goods
+ *
+ * NOTE: Array size of PartialGoodsCpuType0 and
+ *       PartialGoodsCpuType1 have to be same
+ */
 static struct PartialGoods PartialGoodsCpuType0[] = {
     {0x1, "/cpus", {"cpu@0", "device_type", "cpu", "nak"}},
     {0x2, "/cpus", {"cpu@100", "device_type", "cpu", "nak"}},
@@ -46,7 +50,11 @@ static struct PartialGoods PartialGoodsCpuType0[] = {
     {0x80, "/cpus", {"cpu@700", "device_type", "cpu", "nak"}},
 };
 
-/* Look up table for cpu partial goods */
+/* Look up table for cpu partial goods 
+ *
+ * NOTE: Array size of PartialGoodsCpuType0 and
+ *       PartialGoodsCpuType1 have to be same
+ */
 static struct PartialGoods PartialGoodsCpuType1[] = {
     {0x1, "/cpus", {"cpu@101", "device_type", "cpu", "nak"}},
     {0x2, "/cpus", {"cpu@102", "device_type", "cpu", "nak"}},
@@ -57,6 +65,8 @@ static struct PartialGoods PartialGoodsCpuType1[] = {
     {0x40, "/cpus", {"cpu@107", "device_type", "cpu", "nak"}},
     {0x80, "/cpus", {"cpu@108", "device_type", "cpu", "nak"}},
 };
+
+#define NUM_OF_CPUS (ARRAY_SIZE(PartialGoodsCpuType0))
 
 STATIC struct PartialGoods *PartialGoodsCpuType[MAX_CPU_CLUSTER] = {
     PartialGoodsCpuType0, PartialGoodsCpuType1};
@@ -456,7 +466,7 @@ UpdatePartialGoodsNode (VOID *fdt)
     if (PartialGoodsCpuValue[i]) {
       DEBUG ((EFI_D_INFO, "PartialGoods for Cluster[%d]: 0x%x\n", i,
               PartialGoodsCpuValue[i]));
-      FindNodeAndUpdateProperty (fdt, ARRAY_SIZE (&PartialGoodsCpuType[i]),
+      FindNodeAndUpdateProperty (fdt, NUM_OF_CPUS,
                                  &PartialGoodsCpuType[i][0],
                                  PartialGoodsCpuValue[i]);
     }

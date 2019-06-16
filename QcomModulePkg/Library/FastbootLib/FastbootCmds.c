@@ -1626,6 +1626,9 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
         UfsBootLun = 0x1;
         UfsGetSetBootLun (&UfsBootLun, FALSE); /* False = Set */
       }
+    } else if (!AsciiStrnCmp (BootDeviceType, "EMMC", AsciiStrLen ("EMMC"))) {
+      Lun = NO_LUN;
+      LunSet = FALSE;
     }
     DEBUG ((EFI_D_INFO, "Attemping to update partition table\n"));
     DEBUG ((EFI_D_INFO, "*************** Current partition Table Dump Start "
