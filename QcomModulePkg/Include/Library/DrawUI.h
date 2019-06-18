@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, 2017, 2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -48,8 +48,30 @@
  */
 #define CHAR_NUM_PERROW_HOR 80
 
+/* Max row for portrait orientation
+ * "720  (W) 1280(H)" : "sysfont2x" -- 1280/(19*2) = 33
+ * "1080(W) 1920(H)" : "sysfont3x" -- 1920/(19*3) = 33
+ * "1440(W) 2560(H)" : "sysfont4x" -- 2560/(19*4) = 33
+ * "2160(W) 3840(H)" : "sysfont6x" -- 3840/(19*6) = 33
+ */
+#define MAX_ROW_FOR_POR 33
+
+/* Max row for horizontal orientation
+ * "480 (H) 640 (W)" : ""         -- 480/(19*1) = 25
+ * "720  (H) 1280(W)" : ""        -- 720/(19*1) = 37
+ * "1080(H) 1920(W)" : "sysfont2" -- 1080/(19*2) = 28
+ * "1440(H) 2560(W)" : "sysfont3" -- 1440/(19*3) = 25
+ * "2160(H) 3840(W)" : "sysfont4" -- 2160/(19*4) = 28
+ */
+#define MAX_ROW_FOR_HOR 25
+
 #define MAX_MSG_SIZE 256
 #define MAX_RSP_SIZE 64
+
+typedef enum {
+  PORTRAIT_MODE = 0,
+  HORIZONTAL_MODE
+} DISPLAY_MODE;
 
 typedef enum {
   DISPLAY_MENU_YELLOW = 0,
