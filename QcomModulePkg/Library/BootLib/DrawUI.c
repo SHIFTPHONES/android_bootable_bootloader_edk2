@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -220,6 +220,33 @@ VOID FreeBootLogoBltBuffer (VOID)
   }
 }
 
+STATIC UINT32 GetDisplayMode  (VOID)
+{
+  if (GetResolutionWidth () < GetResolutionHeight ()) {
+    return PORTRAIT_MODE;
+  }
+
+  return HORIZONTAL_MODE;
+}
+
+/* Get max row */
+STATIC UINT32 GetMaxRow (VOID)
+{
+  EFI_STATUS Status;
+  UINT32 FontBaseHeight = EFI_GLYPH_HEIGHT;
+  UINT32 MaxRow = 0;
+  EFI_IMAGE_OUTPUT *Blt = NULL;
+
+  Status = gHiiFont->GetGlyph (gHiiFont, 'a', NULL, &Blt, NULL);
+  if (!EFI_ERROR (Status)) {
+    if (Blt) {
+      FontBaseHeight = Blt->Height;
+    }
+  }
+  MaxRow = GetResolutionHeight() / FontBaseHeight;
+  return MaxRow;
+}
+
 /* Get Max font count per row */
 STATIC UINT32 GetMaxFontCount (VOID)
 {
@@ -248,14 +275,20 @@ GetFontScaleFactor (UINT32 ScaleFactorType)
 {
   UINT32 NumPerRow = 0;
   UINT32 ScaleFactor = 0;
+  UINT32 ScaleFactor1 = 0;
+  UINT32 ScaleFactor2 = 0;
+  UINT32 MaxRow = 0;
 
-  if (GetResolutionWidth () < GetResolutionHeight ()) {
-    NumPerRow = CHAR_NUM_PERROW_POR;
-  } else {
+  NumPerRow = CHAR_NUM_PERROW_POR;
+  MaxRow = MAX_ROW_FOR_POR;
+  if (GetDisplayMode () ==  HORIZONTAL_MODE) {
     NumPerRow = CHAR_NUM_PERROW_HOR;
+    MaxRow = MAX_ROW_FOR_HOR;
   }
-  ScaleFactor = GetMaxFontCount () / NumPerRow;
+  ScaleFactor1 = GetMaxFontCount () / NumPerRow;
+  ScaleFactor2 = GetMaxRow () / MaxRow;
 
+  ScaleFactor = ScaleFactor1 > ScaleFactor2 ? ScaleFactor2 : ScaleFactor1;
   if (ScaleFactor < 2) {
     ScaleFactor = 1;
   } else if (ScaleFactor > ((ARRAY_SIZE (mFactorName) - 1) / MAX_FACTORTYPE)) {
