@@ -723,12 +723,14 @@ EFI_STATUS UpdateRollbackSyscall ()
       Status = EFI_FAILURE;
       return Status;
     }
-    if (SysCallRsp->status != EFI_SUCCESS) {
+    if (SysCallRsp->status != 1) {
       Status = SysCallRsp->status;
       DEBUG(( EFI_D_ERROR, "TZ_UPDATE_ROLLBACK_VERSION_ID failed, "
                     "Status = (0x%x)\r\n", Status));
       return Status;
     }
+  } else {
+    DEBUG ((EFI_D_WARN, "UpdateRollbackSyscall: Older TZ, skipping update"));
   }
   return Status;
 }
