@@ -26,7 +26,7 @@
 #
 
 [BuildOptions.AARCH64]
-  GCC:*_*_*_CC_FLAGS = -Oz
+  GCC:*_*_*_CC_FLAGS = -Oz -O2
 
 [Sources]
   fdt_ro.c
