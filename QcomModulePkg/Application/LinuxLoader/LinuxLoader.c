@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,6 +43,7 @@
 #include <Library/ShutdownServices.h>
 #include <Library/StackCanary.h>
 #include <Library/HypervisorMvCalls.h>
+#include <Library/UpdateCmdLine.h>
 
 #define MAX_APP_STR_LEN 64
 #define MAX_NUM_FS 10
@@ -127,6 +128,25 @@ GetRebootReason (UINT32 *ResetReason)
   if (RstReasonIf->Revision >= EFI_RESETREASON_PROTOCOL_REVISION)
     RstReasonIf->ClearResetReason (RstReasonIf);
   return Status;
+}
+
+BOOLEAN IsABRetryCountUpdateRequired (VOID)
+{
+  BOOLEAN BatteryStatus;
+
+  /* Check power off charging */
+  TargetPauseForBatteryCharge (&BatteryStatus);
+
+  /* Do not decrement bootable retry count in below states:
+     * fastboot, fastbootd, charger, recovery
+     */
+  if ((BatteryStatus &&
+       IsChargingScreenEnable ()) ||
+       BootIntoFastboot ||
+       BootIntoRecovery) {
+    return FALSE;
+  }
+  return TRUE;
 }
 
 /**
