@@ -1290,6 +1290,7 @@ CheckImageHeader (VOID *ImageHdrBuffer,
                   BOOLEAN BootIntoRecovery)
 {
   EFI_STATUS Status = EFI_SUCCESS;
+  struct boot_img_hdr_v2 *BootImgHdrV2;
   UINT32 KernelSizeActual = 0;
   UINT32 DtSizeActual = 0;
   UINT32 RamdiskSizeActual = 0;
@@ -1299,6 +1300,7 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   UINT32 KernelSize = 0;
   UINT32 RamdiskSize = 0;
   UINT32 SecondSize = 0;
+  UINT32 DtSize = 0;
   UINT32 tempImgSize = 0;
 
   if (CompareMem ((void *)((boot_img_hdr *)(ImageHdrBuffer))->magic, BOOT_MAGIC,
@@ -1337,6 +1339,21 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   if (RamdiskSize && !RamdiskSizeActual) {
     DEBUG ((EFI_D_ERROR, "Integer Overflow: Ramdisk Size = %u\n", RamdiskSize));
     return EFI_BAD_BUFFER_SIZE;
+  }
+
+  if (HeaderVersion == BOOT_HEADER_VERSION_TWO) {
+    BootImgHdrV2 = (struct boot_img_hdr_v2 *)
+        ((UINT64) ImageHdrBuffer +
+        BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET +
+        BOOT_IMAGE_HEADER_V2_OFFSET);
+    DtSize = BootImgHdrV2->dtb_size;
+
+    DtSizeActual = ROUND_TO_PAGE (DtSize, *PageSize - 1);
+    if (DtSize &&
+        !DtSizeActual) {
+      DEBUG ((EFI_D_ERROR, "Integer Overflow: dt Size = %u\n", DtSize));
+      return EFI_BAD_BUFFER_SIZE;
+    }
   }
 
   *ImageSizeActual = ADD_OF (*PageSize, KernelSizeActual);
