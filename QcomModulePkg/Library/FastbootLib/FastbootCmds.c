@@ -3408,6 +3408,12 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
                 BoardPlatformChipVersion ());
   FastbootPublishVar ("hw-revision", StrSocVersion);
 
+  if (IsDisableParallelDownloadFlash()) {
+    FastbootPublishVar ("parallel-download-flash", "no");
+  } else {
+    FastbootPublishVar ("parallel-download-flash", "yes");
+  }
+
   /* Register handlers for the supported commands*/
   UINT32 FastbootCmdCnt = sizeof (cmd_list) / sizeof (cmd_list[0]);
   for (i = 1; i < FastbootCmdCnt; i++)
