@@ -13,7 +13,7 @@
 #
 
 [BuildOptions.AARCH64]
-	GCC:*_*_*_CC_FLAGS = -Wno-error -Oz
+	GCC:*_*_*_CC_FLAGS = -Wno-error -Oz -O2
 
 [Sources]
   ufdt_convert.c
