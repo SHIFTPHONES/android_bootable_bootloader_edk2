@@ -109,9 +109,6 @@ TARGET_ABL := $(PRODUCT_OUT)/abl.elf
 TARGET_EMMC_BOOTLOADER := $(TARGET_ABL)
 ABL_OUT := $(TARGET_OUT_INTERMEDIATES)/ABL_OBJ
 
-abl_clean:
-	$(hide) rm -f $(TARGET_ABL)
-
 $(ABL_OUT):
 	mkdir -p $(ABL_OUT)
 
