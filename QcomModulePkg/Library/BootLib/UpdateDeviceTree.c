@@ -40,6 +40,7 @@
 #include <Protocol/EFIDDRGetConfig.h>
 #include <Protocol/EFIRng.h>
 #include <Library/PartialGoods.h>
+#include <Library/FdtRw.h>
 
 #define NUM_SPLASHMEM_PROP_ELEM 4
 #define DEFAULT_CELL_SIZE 2
@@ -147,7 +148,7 @@ UpdateSplashMemInfo (VOID *fdt)
           splashBuf.uVersion, splashBuf.uFrameAddr, splashBuf.uFrameSize));
 
   /* Get offset of the splash memory reservation node */
-  ret = fdt_path_offset (fdt, "/reserved-memory/splash_region");
+  ret = FdtPathOffset (fdt, "/reserved-memory/splash_region");
   if (ret < 0) {
     DEBUG ((EFI_D_ERROR, "ERROR: Could not get splash memory region node\n"));
     return EFI_NOT_FOUND;
@@ -260,13 +261,14 @@ UpdateGranuleInfo (VOID *fdt)
     return;
   }
 
-  GranuleNodeOffset = fdt_path_offset (fdt, "/mem-offline");
+  GranuleNodeOffset = FdtPathOffset (fdt, "/mem-offline");
   if (GranuleNodeOffset < 0) {
     DEBUG ((EFI_D_VERBOSE, "INFO: Could not find mem-offline node.\n"));
     return;
   }
 
-  Ret = fdt_setprop_u32 (fdt, GranuleNodeOffset, "granule", GranuleSize);
+  FdtPropUpdateFunc (fdt, GranuleNodeOffset, "granule",
+                     GranuleSize, fdt_setprop_u32, Ret);
   if (Ret) {
     DEBUG ((EFI_D_ERROR, "INFO: Granule size update failed.\n"));
   }
@@ -415,11 +417,11 @@ dev_tree_add_mem_info (VOID *fdt, UINT32 offset, UINT32 addr, UINT32 size)
 
   if (!mem_info_cnt) {
     /* Replace any other reg prop in the memory node. */
-    ret = fdt_setprop_u32 (fdt, offset, "reg", addr);
     mem_info_cnt = 1;
+    FdtPropUpdateFunc (fdt, offset, "reg", addr, fdt_setprop_u32, ret);
   } else {
     /* Append the mem info to the reg prop for subsequent nodes.  */
-    ret = fdt_appendprop_u32 (fdt, offset, "reg", addr);
+    FdtPropUpdateFunc (fdt, offset, "reg", addr, fdt_appendprop_u32, ret);
   }
 
   if (ret) {
@@ -427,8 +429,7 @@ dev_tree_add_mem_info (VOID *fdt, UINT32 offset, UINT32 addr, UINT32 size)
         (EFI_D_ERROR, "Failed to add the memory information addr: %d\n", ret));
   }
 
-  ret = fdt_appendprop_u32 (fdt, offset, "reg", size);
-
+  FdtPropUpdateFunc (fdt, offset, "reg", size, fdt_appendprop_u32, ret);
   if (ret) {
     DEBUG (
         (EFI_D_ERROR, "Failed to add the memory information size: %d\n", ret));
@@ -445,11 +446,11 @@ dev_tree_add_mem_infoV64 (VOID *fdt, UINT32 offset, UINT64 addr, UINT64 size)
 
   if (!mem_info_cnt) {
     /* Replace any other reg prop in the memory node. */
-    ret = fdt_setprop_u64 (fdt, offset, "reg", addr);
     mem_info_cnt = 1;
+    FdtPropUpdateFunc (fdt, offset, "reg", addr, fdt_setprop_u64, ret);
   } else {
     /* Append the mem info to the reg prop for subsequent nodes.  */
-    ret = fdt_appendprop_u64 (fdt, offset, "reg", addr);
+    FdtPropUpdateFunc (fdt, offset, "reg", addr, fdt_appendprop_u64, ret);
   }
 
   if (ret) {
@@ -457,8 +458,7 @@ dev_tree_add_mem_infoV64 (VOID *fdt, UINT32 offset, UINT64 addr, UINT64 size)
         (EFI_D_ERROR, "Failed to add the memory information addr: %d\n", ret));
   }
 
-  ret = fdt_appendprop_u64 (fdt, offset, "reg", size);
-
+  FdtPropUpdateFunc (fdt, offset, "reg", size, fdt_appendprop_u64, ret);
   if (ret) {
     DEBUG (
         (EFI_D_ERROR, "Failed to add the memory information size: %d\n", ret));
@@ -512,7 +512,7 @@ UpdateDeviceTree (VOID *fdt,
   }
 
   /* Get offset of the memory node */
-  ret = fdt_path_offset (fdt, "/memory");
+  ret = FdtPathOffset (fdt, "/memory");
   if (ret < 0) {
     DEBUG ((EFI_D_ERROR, "ERROR: Could not find memory node ...\n"));
     return EFI_NOT_FOUND;
@@ -535,8 +535,8 @@ UpdateDeviceTree (VOID *fdt,
     DdrDeviceType = DdrInfo->device_type;
     DEBUG ((EFI_D_VERBOSE, "DDR deviceType:%d\n", DdrDeviceType));
 
-    ret = fdt_appendprop_u32 (fdt, offset, (CONST char *)"ddr_device_type",
-                              (UINT32)DdrDeviceType);
+    FdtPropUpdateFunc (fdt, offset, (CONST char *)"ddr_device_type",
+                       (UINT32)DdrDeviceType, fdt_appendprop_u32, ret);
     if (ret) {
       DEBUG ((EFI_D_ERROR,
               "ERROR: Cannot update memory node [ddr_device_type]:0x%x\n",
@@ -557,9 +557,9 @@ UpdateDeviceTree (VOID *fdt,
                 Chan, DdrInfo->num_ranks[Chan]));
         AsciiSPrint (FdtRankProp, sizeof (FdtRankProp),
                      "ddr_device_rank_ch%d", Chan);
-        ret = fdt_appendprop_u32 (fdt, offset,
-                                  (CONST char *)FdtRankProp,
-                                  (UINT32)DdrInfo->num_ranks[Chan]);
+        FdtPropUpdateFunc (fdt, offset, (CONST char *)FdtRankProp,
+                           (UINT32)DdrInfo->num_ranks[Chan],
+                           fdt_appendprop_u32, ret);
         if (ret) {
           DEBUG ((EFI_D_ERROR,
                   "ERROR: Cannot update memory node ddr_device_rank_ch%d:0x%x\n",
@@ -573,9 +573,9 @@ UpdateDeviceTree (VOID *fdt,
                   Chan, Rank, DdrInfo->hbb[Chan][Rank]));
           AsciiSPrint (FdtHbbProp, sizeof (FdtHbbProp),
                        "ddr_device_hbb_ch%d_rank%d", Chan, Rank);
-          ret = fdt_appendprop_u32 (fdt, offset,
-                                (CONST char *)FdtHbbProp,
-                                (UINT32)DdrInfo->hbb[Chan][Rank]);
+          FdtPropUpdateFunc (fdt, offset, (CONST char *)FdtHbbProp,
+                             (UINT32)DdrInfo->hbb[Chan][Rank],
+                             fdt_appendprop_u32, ret);
           if (ret) {
             DEBUG ((EFI_D_ERROR,
                     "ERROR: Cannot update memory node ddr_device_hbb_ch%d_rank%d:0x%x\n",
@@ -593,7 +593,7 @@ UpdateDeviceTree (VOID *fdt,
   UpdateSplashMemInfo (fdt);
 
   /* Get offset of the chosen node */
-  ret = fdt_path_offset (fdt, "/chosen");
+  ret = FdtPathOffset (fdt, "/chosen");
   if (ret < 0) {
     DEBUG ((EFI_D_ERROR, "ERROR: Could not find chosen node ...\n"));
     return EFI_NOT_FOUND;
@@ -602,8 +602,8 @@ UpdateDeviceTree (VOID *fdt,
   offset = ret;
   if (cmdline) {
     /* Adding the cmdline to the chosen node */
-    ret = fdt_appendprop_string (fdt, offset, (CONST char *)"bootargs",
-                                 (CONST VOID *)cmdline);
+    FdtPropUpdateFunc (fdt, offset, (CONST char *)"bootargs",
+                      (CONST VOID *)cmdline, fdt_appendprop_string, ret);
     if (ret) {
       DEBUG ((EFI_D_ERROR,
               "ERROR: Cannot update chosen node [bootargs] - 0x%x\n", ret));
@@ -616,8 +616,8 @@ UpdateDeviceTree (VOID *fdt,
     if (Status == EFI_SUCCESS) {
 
       /* Adding the RNG seed to the chosen node */
-      ret = fdt_appendprop_u64 (fdt, offset, (CONST char *)"rng-seed",
-            (UINT64)RandomSeed);
+      FdtPropUpdateFunc (fdt, offset, (CONST CHAR8 *)"rng-seed",
+                        (UINT64)RandomSeed, fdt_appendprop_u64, ret);
       if (ret) {
         DEBUG ((EFI_D_ERROR,
               "ERROR: Cannot update chosen node [rng-seed] - 0x%x\n", ret));
@@ -632,8 +632,8 @@ UpdateDeviceTree (VOID *fdt,
   Status = GetRandomSeed (&RandomSeed);
   if (Status == EFI_SUCCESS) {
     /* Adding Kaslr Seed to the chosen node */
-    ret = fdt_appendprop_u64 (fdt, offset, (CONST char *)"kaslr-seed",
-                              (UINT64)RandomSeed);
+    FdtPropUpdateFunc (fdt, offset, (CONST CHAR8 *)"kaslr-seed",
+                      (UINT64)RandomSeed, fdt_appendprop_u64, ret);
     if (ret) {
       DEBUG ((EFI_D_INFO,
               "ERROR: Cannot update chosen node [kaslr-seed] - 0x%x\n", ret));
@@ -646,7 +646,8 @@ UpdateDeviceTree (VOID *fdt,
 
   if (RamDiskSize) {
     /* Adding the initrd-start to the chosen node */
-    ret = fdt_setprop_u64 (fdt, offset, "linux,initrd-start", (UINT64)ramdisk);
+    FdtPropUpdateFunc (fdt, offset, (CONST CHAR8 *)"linux,initrd-start",
+                       (UINT64)ramdisk, fdt_setprop_u64, ret);
     if (ret) {
       DEBUG ((EFI_D_ERROR,
               "ERROR: Cannot update chosen node [linux,initrd-start] - 0x%x\n",
@@ -655,8 +656,8 @@ UpdateDeviceTree (VOID *fdt,
     }
 
     /* Adding the initrd-end to the chosen node */
-    ret = fdt_setprop_u64 (fdt, offset, "linux,initrd-end",
-                           ((UINT64)ramdisk + RamDiskSize));
+    FdtPropUpdateFunc (fdt, offset, (CONST CHAR8 *)"linux,initrd-end",
+                      (UINT64)ramdisk + RamDiskSize, fdt_setprop_u64, ret);
     if (ret) {
       DEBUG ((EFI_D_ERROR,
               "ERROR: Cannot update chosen node [linux,initrd-end] - 0x%x\n",
@@ -709,7 +710,7 @@ UpdateFstabNode (VOID *fdt)
   UINT32 PaddingEnd = 0;
 
   /* Find the parent node */
-  ParentOffset = fdt_path_offset (fdt, Table.ParentNode);
+  ParentOffset = FdtPathOffset (fdt, Table.ParentNode);
   if (ParentOffset < 0) {
     DEBUG ((EFI_D_VERBOSE, "Failed to Get parent node: fstab\terror: %d\n",
             ParentOffset));
@@ -751,8 +752,9 @@ UpdateFstabNode (VOID *fdt)
       /* For Dynamic partition support disable firmware fstab nodes. */
       if (IsDynamicPartitionSupport ()) {
         DEBUG ((EFI_D_VERBOSE, "Disabling node status :%a\n", NodeName));
-        Status = fdt_setprop (fdt, SubNodeOffset, Table.Property, "disabled",
-                             (AsciiStrLen ("disabled") + 1));
+        Status = FdtSetProp (fdt, SubNodeOffset, Table.Property,
+                          (CONST VOID *)"disabled",
+                          (AsciiStrLen ("disabled") + 1));
         if (Status) {
          DEBUG ((EFI_D_ERROR, "ERROR: Failed to disable Node: %a\n", NodeName));
         }
