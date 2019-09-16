@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,6 +38,7 @@
 #include <Library/LinuxLoaderLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PartitionTableUpdate.h>
+#include <Protocol/EFIKernelInterface.h>
 
 #define ENDPOINT_IN 0x01
 #define ENDPOINT_OUT 0x81
@@ -173,5 +174,9 @@ EFI_STATUS
 UpdateDevInfo (CHAR16 *Pname, CHAR8 *ImgVersion);
 VOID
 GetDevInfo (DeviceInfo **DevinfoPtr);
-BOOLEAN IsUsbTimerStarted (VOID);
+BOOLEAN IsFlashSplitNeeded (VOID);
+BOOLEAN FlashComplete (VOID);
+BOOLEAN IsDisableParallelDownloadFlash (VOID);
+BOOLEAN IsUseMThreadParallel (VOID);
+VOID ThreadSleep (TimeDuration Delay);
 #endif

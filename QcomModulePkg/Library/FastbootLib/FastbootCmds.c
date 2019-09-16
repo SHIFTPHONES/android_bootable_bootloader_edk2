@@ -56,6 +56,7 @@ found at
 #include <Library/PartitionTableUpdate.h>
 #include <Library/PcdLib.h>
 #include <Library/PrintLib.h>
+#include <Library/ThreadStack.h>
 #include <Library/UefiApplicationEntryPoint.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
@@ -170,7 +171,12 @@ STATIC UINT8 *mDataBuffer = NULL;
 STATIC UINT8 *mFlashDataBuffer = NULL;
 STATIC UINT8 *mUsbDataBuffer = NULL;
 
+STATIC EFI_KERNEL_PROTOCOL  *KernIntf = NULL;
+STATIC BOOLEAN IsMultiThreadSupported = FALSE;
 STATIC BOOLEAN IsFlashComplete = TRUE;
+STATIC LockHandle *LockDownload;
+STATIC LockHandle *LockFlash;
+
 STATIC EFI_STATUS FlashResult = EFI_SUCCESS;
 #ifdef ENABLE_UPDATE_PARTITIONS_CMDS
 STATIC EFI_EVENT UsbTimerEvent;
@@ -204,11 +210,32 @@ typedef struct {
   VOID *Data;
 } CmdInfo;
 
+typedef struct {
+  CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
+  UINT32 PartitionSize;
+  UINT8 *FlashDataBuffer;
+  UINT64 FlashNumDataBytes;
+} FlashInfo;
+
+STATIC BOOLEAN FlashSplitNeeded;
 STATIC BOOLEAN UsbTimerStarted;
 
-BOOLEAN IsUsbTimerStarted (VOID)
-{
+BOOLEAN IsUsbTimerStarted (VOID) {
   return UsbTimerStarted;
+}
+
+BOOLEAN IsFlashSplitNeeded (VOID)
+{
+  if (IsUseMThreadParallel ()) {
+    return FlashSplitNeeded;
+  } else {
+    return UsbTimerStarted;
+  }
+}
+
+BOOLEAN FlashComplete (VOID)
+{
+  return IsFlashComplete;
 }
 
 #ifdef DISABLE_PARALLEL_DOWNLOAD_FLASH
@@ -1290,6 +1317,69 @@ FastbootErasePartition (IN CHAR16 *PartitionName)
 
   return Status;
 }
+
+//Shoud block command until flash finished
+VOID WaitForFlashFinished (VOID)
+{
+  if (!IsFlashComplete &&
+    IsUseMThreadParallel ()) {
+    KernIntf->Lock->AcquireLock (LockFlash);
+    KernIntf->Lock->ReleaseLock (LockFlash);
+  }
+}
+
+INT32 __attribute__ ( (no_sanitize ("safe-stack")))
+SparseImgFlashThread (VOID* Arg)
+{
+  Thread* CurrentThread = KernIntf->Thread->GetCurrentThread ();
+  FlashInfo* ThreadFlashInfo = (FlashInfo*) Arg;
+
+  if (!ThreadFlashInfo || !ThreadFlashInfo->FlashDataBuffer) {
+    return 0;
+  }
+
+  KernIntf->Lock->AcquireLock (LockFlash);
+  IsFlashComplete = FALSE;
+  FlashSplitNeeded = TRUE;
+
+  HandleSparseImgFlash (ThreadFlashInfo->PartitionName,
+          ThreadFlashInfo->PartitionSize,
+          ThreadFlashInfo->FlashDataBuffer,
+          ThreadFlashInfo->FlashNumDataBytes);
+
+  FlashSplitNeeded = FALSE;
+  IsFlashComplete = TRUE;
+  KernIntf->Lock->ReleaseLock (LockFlash);
+
+  ThreadStackNodeRemove (CurrentThread);
+
+  FreePool (ThreadFlashInfo);
+  ThreadFlashInfo = NULL;
+
+  KernIntf->Thread->ThreadExit (0);
+
+  return 0;
+}
+
+EFI_STATUS CreateSparseImgFlashThread (IN FlashInfo* ThreadFlashInfo)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  Thread* SparseImgFlashTD = NULL;
+
+  SparseImgFlashTD = KernIntf->Thread->ThreadCreate ("SparseImgFlashThread",
+      SparseImgFlashThread, (VOID*)ThreadFlashInfo, UEFI_THREAD_PRIORITY,
+      DEFAULT_STACK_SIZE);
+
+  if (SparseImgFlashTD == NULL) {
+    return EFI_NOT_READY;
+  }
+
+  AllocateUnSafeStackPtr (SparseImgFlashTD);
+
+  Status = KernIntf->Thread->ThreadResume (SparseImgFlashTD);
+  return Status;
+}
+
 #endif
 
 /* Handle Download Command */
@@ -1335,6 +1425,11 @@ CmdDownload (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
 
   gBS->CopyMem (GetFastbootDeviceData ()->gTxBuffer, Response,
                 sizeof (Response));
+
+  if (IsUseMThreadParallel ()) {
+    KernIntf->Lock->AcquireLock (LockDownload);
+  }
+
   mState = ExpectDataState;
   mBytesReceivedSoFar = 0;
   GetFastbootDeviceData ()->UsbDeviceProtocol->Send (
@@ -1383,6 +1478,7 @@ STATIC VOID StopUsbTimer (VOID)
     gBS->CloseEvent (UsbTimerEvent);
     UsbTimerEvent = NULL;
   }
+
   UsbTimerStarted = FALSE;
 }
 #else
@@ -1508,10 +1604,20 @@ STATIC VOID ExchangeFlashAndUsbDataBuf (VOID)
 {
   VOID *mTmpbuff;
 
+  if (IsUseMThreadParallel ()) {
+    KernIntf->Lock->AcquireLock (LockDownload);
+    KernIntf->Lock->AcquireLock (LockFlash);
+  }
+
   mTmpbuff = mUsbDataBuffer;
   mUsbDataBuffer = mFlashDataBuffer;
   mFlashDataBuffer = mTmpbuff;
   mFlashNumDataBytes = mNumDataBytes;
+
+  if (IsUseMThreadParallel ()) {
+    KernIntf->Lock->ReleaseLock (LockFlash);
+    KernIntf->Lock->ReleaseLock (LockDownload);
+  }
 }
 
 STATIC EFI_STATUS
@@ -1754,29 +1860,53 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
       goto out;
     }
 
-    IsFlashComplete = FALSE;
     PartitionSize = (BlockIo->Media->LastBlock + 1)
                         * (BlockIo->Media->BlockSize);
 
     if ((PartitionSize > MaxDownLoadSize) &&
          !IsDisableParallelDownloadFlash ()) {
-      Status = HandleUsbEventsInTimer ();
-      if (EFI_ERROR (Status)) {
-        DEBUG ((EFI_D_ERROR, "Failed to handle usb event: %r\n", Status));
-        IsFlashComplete = TRUE;
-        StopUsbTimer ();
+      if (IsUseMThreadParallel ()) {
+        FlashInfo* ThreadFlashInfo = AllocateZeroPool (sizeof (FlashInfo));
+        if (!ThreadFlashInfo) {
+          DEBUG ((EFI_D_ERROR,
+                  "ERROR: Failed to allocate memory for ThreadFlashInfo\n"));
+          return ;
+        }
+
+        ThreadFlashInfo->FlashDataBuffer = mFlashDataBuffer,
+        ThreadFlashInfo->FlashNumDataBytes = mFlashNumDataBytes;
+
+        StrnCpyS (ThreadFlashInfo->PartitionName, MAX_GPT_NAME_SIZE,
+                PartitionName, ARRAY_SIZE (PartitionName));
+        ThreadFlashInfo->PartitionSize = ARRAY_SIZE (PartitionName);
+
+        Status = CreateSparseImgFlashThread (ThreadFlashInfo);
       } else {
-        UsbTimerStarted = TRUE;
+        IsFlashComplete = FALSE;
+
+        Status = HandleUsbEventsInTimer ();
+        if (EFI_ERROR (Status)) {
+          DEBUG ((EFI_D_ERROR, "Failed to handle usb event: %r\n", Status));
+          IsFlashComplete = TRUE;
+          StopUsbTimer ();
+        } else {
+          UsbTimerStarted = TRUE;
+        }
+      }
+
+      if (!EFI_ERROR (Status)) {
         FastbootOkay ("");
       }
     }
 
-    FlashResult = HandleSparseImgFlash (PartitionName,
+    if (EFI_ERROR (Status) ||
+      !IsUseMThreadParallel ()) {
+      FlashResult = HandleSparseImgFlash (PartitionName,
                                         ARRAY_SIZE (PartitionName),
                                         mFlashDataBuffer, mFlashNumDataBytes);
-
-    IsFlashComplete = TRUE;
-    StopUsbTimer ();
+      IsFlashComplete = TRUE;
+      StopUsbTimer ();
+    }
   } else if (!AsciiStrnCmp (UbiHeader->HdrMagic, UBI_HEADER_MAGIC, 4)) {
     FlashResult = HandleUbiImgFlash (PartitionName,
                                      ARRAY_SIZE (PartitionName),
@@ -1850,6 +1980,8 @@ CmdErase (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
   CHAR8 EraseResultStr[MAX_RSP_SIZE] = "";
   VirtualAbMergeStatus SnapshotMergeStatus;
+
+  WaitForFlashFinished ();
 
   if (AsciiStrLen (arg) >= MAX_GPT_NAME_SIZE) {
     FastbootFail ("Invalid partition name");
@@ -2123,11 +2255,17 @@ AcceptData (IN UINT64 Size, IN VOID *Data)
       gBS->SetMem ((VOID *)(Data + mNumDataBytes), RoundSize - mNumDataBytes,
                    0);
     }
-    /* Stop usb timer after data transfer completed */
-    StopUsbTimer ();
-    /* Postpone Fastboot Okay until flash completed */
-    FastbootOkayDelay ();
     mState = ExpectCmdState;
+
+    if (IsUseMThreadParallel ())  {
+      KernIntf->Lock->ReleaseLock (LockDownload);
+      FastbootOkay ("");
+    } else {
+      /* Stop usb timer after data transfer completed */
+      StopUsbTimer ();
+      /* Postpone Fastboot Okay until flash completed */
+      FastbootOkayDelay ();
+    }
   } else {
     GetFastbootDeviceData ()->UsbDeviceProtocol->Send (
         ENDPOINT_IN, GetXfrSize (), (Data + mBytesReceivedSoFar));
@@ -2266,6 +2404,59 @@ GetMaxAllocatableMemory (
   return;
 }
 
+VOID ThreadSleep (TimeDuration Delay)
+{
+  KernIntf->Thread->ThreadSleep (Delay);
+}
+
+#ifdef DISABLE_MULTITHREAD_DOWNLOAD_FLASH
+BOOLEAN IsUseMThreadParallel (VOID)
+{
+  return FALSE;
+}
+#else
+BOOLEAN IsUseMThreadParallel (VOID)
+{
+  return IsMultiThreadSupported;
+}
+#endif
+
+VOID InitMultiThreadEnv ()
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (IsDisableParallelDownloadFlash ()) {
+    return;
+  }
+
+  Status = gBS->LocateProtocol (&gEfiKernelProtocolGuid, NULL,
+      (VOID **)&KernIntf);
+
+  if ((Status != EFI_SUCCESS) || (KernIntf == NULL)) {
+    DEBUG ((EFI_D_INFO, "InitMultiThreadEnvMultiThread is not supported"));
+    return;
+  }
+
+  KernIntf->Lock->InitLock ("DOWNLOAD", &LockDownload);
+  if (&LockDownload == NULL) {
+     DEBUG ((EFI_D_ERROR, "InitLock LockDownload error \n"));
+     return;
+  }
+
+  KernIntf->Lock->InitLock ("FLASH", &LockFlash);
+  if (&LockFlash == NULL) {
+    DEBUG ((EFI_D_ERROR, "InitLock LockFlash error \n"));
+    KernIntf->Lock->DestroyLock (LockDownload);
+    return;
+  }
+
+  //init MultiThreadEnv succeeded, use multi thread to flash
+  IsMultiThreadSupported = TRUE;
+
+  DEBUG ((EFI_D_VERBOSE,
+          "InitMultiThreadEnv successfully, will use thread to flash \n"));
+}
+
 EFI_STATUS
 FastbootCmdsInit (VOID)
 {
@@ -2338,6 +2529,9 @@ FastbootCmdsInit (VOID)
                               MaxDownLoadSize : MaxDownLoadSize / 2;
 
   FastbootCommandSetup ((VOID *)FastBootBuffer, MaxDownLoadSize);
+
+  InitMultiThreadEnv ();
+
   return EFI_SUCCESS;
 }
 
@@ -3116,7 +3310,8 @@ AcceptCmd (IN UINT64 Size, IN CHAR8 *Data)
     /* Wait for flash finished before next command */
     if (AsciiStrnCmp (Data, "download", AsciiStrLen ("download"))) {
       StopUsbTimer ();
-      if (!IsFlashComplete) {
+      if (!IsFlashComplete &&
+          !IsUseMThreadParallel ()) {
         Status = AcceptCmdTimerInit (Size, Data);
         if (Status == EFI_SUCCESS) {
           return;
