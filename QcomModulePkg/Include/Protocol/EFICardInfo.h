@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016,2019 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -40,18 +40,13 @@
 /**
   Protocol version.
 */
-#define EFI_MEM_CARD_INFO_PROTOCOL_REVISION 0x0000000000010002
+#define EFI_MEM_CARD_INFO_PROTOCOL_REVISION 0x0000000000010003
 /** @} */ /* end_addtogroup efi_cardInfo_constants */
 
 /*  Protocol GUID definition */
 /** @ingroup efi_cardInfo_protocol */
-#define EFI_CARD_INFO_PROTOCOL_GUID                                            \
-  {                                                                            \
-    0x6EC6ED4F, 0xD958, 0x40BE,                                                \
-    {                                                                          \
-      0x87, 0x28, 0x6C, 0x59, 0x73, 0x29, 0x66, 0xDF                           \
-    }                                                                          \
-  }
+#define EFI_CARD_INFO_PROTOCOL_GUID \
+   { 0x85C1F7D2, 0xBCE6, 0x4F31, { 0x8F, 0x4D, 0xD3, 0x7E, 0x03, 0xD0, 0x5E, 0xAA } }
 
 /** @cond */
 /*===========================================================================
@@ -81,7 +76,7 @@ typedef struct _CARD_INFO {
   UINT16 mfr_id;                 /**< Manufacturer ID. */
   UINT16 oem_id;                 /**< Original equipment manufacturer ID. */
   UINT8 mfr_date[8];             /**< Manufacture date. */
-  UINT8 product_serial_num[250]; /**< Product serial number. */
+  UINT8 product_serial_num[252]; /**< Product serial number. */
   UINT32 serial_num_len;         /**< Product serial number length. */
   UINT8 inquiry_str[29];         /**< Output from SCSI inquiry command. */
   UINT32 rpmb_size_in_byte;      /**< Replay protected memory block partition
