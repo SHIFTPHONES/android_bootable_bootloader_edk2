@@ -91,7 +91,6 @@
 	FdtLib
 	TimerLib
 	MemoryAllocationLib
-	UefiHiiServicesLib
 	StackCanary
 	AvbLib
 	UbsanLib

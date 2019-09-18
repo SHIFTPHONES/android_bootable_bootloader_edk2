@@ -33,13 +33,14 @@
 #include <Library/Fonts.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiHiiServicesLib.h>
 #include <Library/UpdateDeviceTree.h>
 #include <Protocol/GraphicsOutput.h>
 #include <Uefi.h>
+#include <Protocol/HiiFont.h>
 
 STATIC EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutputProtocol;
 STATIC EFI_GRAPHICS_OUTPUT_BLT_PIXEL *LogoBlt;
+STATIC EFI_HII_FONT_PROTOCOL  *gHiiFont = NULL;
 
 STATIC CHAR16 *mFactorName[] = {
         [1] = (CHAR16 *)L"",        [2] = (CHAR16 *)SYSFONT_2x,
@@ -237,6 +238,12 @@ STATIC UINT32 GetMaxRow (VOID)
   UINT32 MaxRow = 0;
   EFI_IMAGE_OUTPUT *Blt = NULL;
 
+  Status = gBS->LocateProtocol (&gEfiHiiFontProtocolGuid, NULL,
+                               (VOID **) &gHiiFont);
+  if (EFI_ERROR (Status)) {
+    return MaxRow;
+  }
+
   Status = gHiiFont->GetGlyph (gHiiFont, 'a', NULL, &Blt, NULL);
   if (!EFI_ERROR (Status)) {
     if (Blt) {
@@ -254,6 +261,12 @@ STATIC UINT32 GetMaxFontCount (VOID)
   UINT32 FontBaseWidth = EFI_GLYPH_WIDTH;
   UINT32 max_count = 0;
   EFI_IMAGE_OUTPUT *Blt = NULL;
+
+  Status = gBS->LocateProtocol (&gEfiHiiFontProtocolGuid, NULL,
+                               (VOID **) &gHiiFont);
+  if (EFI_ERROR (Status)) {
+    return max_count;
+  }
 
   Status = gHiiFont->GetGlyph (gHiiFont, 'a', NULL, &Blt, NULL);
   if (!EFI_ERROR (Status)) {
@@ -474,6 +487,12 @@ DrawMenu (MENU_MSG_INFO *TargetMenu, UINT32 *pHeight)
 
   ManipulateMenuMsg (TargetMenu);
   AsciiStrToUnicodeStr (TargetMenu->Msg, FontMessage);
+
+  Status = gBS->LocateProtocol (&gEfiHiiFontProtocolGuid, NULL,
+                               (VOID **) &gHiiFont);
+  if (EFI_ERROR (Status)) {
+    goto Exit;
+  }
 
   Status = gHiiFont->StringToImage (
       gHiiFont,

@@ -67,7 +67,6 @@
   BootLib
   StackCanary
   DebugLib
-  UefiHiiServicesLib
   UbsanLib
 
 [Protocols]
