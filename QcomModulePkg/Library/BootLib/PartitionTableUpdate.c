@@ -1571,8 +1571,9 @@ FindBootableSlot (Slot *BootableSlot)
     DEBUG (
         (EFI_D_VERBOSE, "Active Slot %s is bootable\n", BootableSlot->Suffix));
   } else if (Unbootable == 0 && BootSuccess == 0 && RetryCount > 0) {
-    if (!IsABRetryCountDisabled () &&
-        !IsBootDevImage ()) {
+    if ((!IsABRetryCountDisabled () &&
+        !IsBootDevImage ()) &&
+      IsABRetryCountUpdateRequired ()) {
       RetryCount--;
       BootEntry->PartEntry.Attributes &= ~PART_ATT_MAX_RETRY_COUNT_VAL;
       BootEntry->PartEntry.Attributes |= RetryCount

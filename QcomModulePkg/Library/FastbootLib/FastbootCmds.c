@@ -96,7 +96,8 @@ STATIC struct GetVarPartitionInfo PublishedPartInfo[MAX_NUM_PARTITIONS];
 STATIC CONST CHAR16 *CriticalPartitions[] = {
     L"abl",  L"rpm",        L"tz",      L"sdi",       L"xbl",       L"hyp",
     L"pmic", L"bootloader", L"devinfo", L"partition", L"devcfg",    L"ddr",
-    L"frp",  L"cdt",        L"cmnlib",  L"cmnlib64",  L"keymaster", L"mdtp"};
+    L"frp",  L"cdt",        L"cmnlib",  L"cmnlib64",  L"keymaster", L"mdtp",
+    L"aop",  L"multiimgoem", L"secdata", L"imagefv",  L"qupfw", L"uefisecapp"};
 #endif
 
 STATIC FASTBOOT_VAR *Varlist;
