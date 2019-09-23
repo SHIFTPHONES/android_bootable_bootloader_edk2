@@ -560,7 +560,7 @@ UpdateDeviceTree (VOID *fdt,
       DEBUG ((EFI_D_INFO,
               "ERROR: Cannot update chosen node [kaslr-seed] - 0x%x\n", ret));
     } else {
-      DEBUG ((EFI_D_INFO, "kaslr-Seed is added to chosen node\n"));
+      DEBUG ((EFI_D_VERBOSE, "kaslr-Seed is added to chosen node\n"));
     }
   } else {
     DEBUG ((EFI_D_INFO, "ERROR: Cannot generate Kaslr Seed - %r\n", Status));

@@ -1013,7 +1013,7 @@ BootLinux (BootInfo *Info)
                 StrLen ((CONST CHAR16 *)L"boot"))) {
     Status = GetFfbmCommand (FfbmStr, FFBM_MODE_BUF_SIZE);
     if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_INFO, "No Ffbm cookie found, ignore: %r\n", Status));
+      DEBUG ((EFI_D_VERBOSE, "No Ffbm cookie found, ignore: %r\n", Status));
       FfbmStr[0] = '\0';
     }
   }

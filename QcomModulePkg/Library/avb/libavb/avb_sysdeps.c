@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -93,19 +93,19 @@ void avb_abort(void)
 	ShutdownDevice();
 }
 
-void avb_print(const char *message)
+void avb_print(UINTN ErrorLevel, const char *message)
 {
-	DEBUG((EFI_D_INFO, message));
+  DEBUG ((ErrorLevel, message));
 }
 
-void avb_printv(const char *message, ...)
+void avb_printv(UINTN ErrorLevel, const char *message, ...)
 {
 	VA_LIST ap;
 	const char *m;
 
 	VA_START(ap, message);
 	for (m = message; m != NULL; m = VA_ARG(ap, const char *)) {
-		avb_print(m);
+      avb_print (ErrorLevel, m);
 	}
 	VA_END(ap);
 	return;
