@@ -39,6 +39,11 @@
 #define KERNEL64_HDR_MAGIC 0x644D5241 /* ARM64 */
 #define BOOT_EXTRA_ARGS_SIZE 1024
 
+#define VENDOR_BOOT_MAGIC "VNDRBOOT"
+#define VENDOR_BOOT_MAGIC_SIZE 8
+#define VENDOR_BOOT_ARGS_SIZE 2048
+#define VENDOR_BOOT_NAME_SIZE 16
+
 #define BOOT_HEADER_VERSION_ZERO 0
 /* Struct def for boot image header
  * Bootloader expects the structure of boot_img_hdr with header version
@@ -195,6 +200,100 @@ struct boot_img_hdr_v2 {
  * 8. if second_size != 0: jump to second_addr
  *    else: jump to kernel_addr
  */
+
+#define BOOT_HEADER_VERSION_THREE 3
+
+/* When the boot image header has a version of 3, the structure of the boot
+ * image is as follows:
+ *
+ * +---------------------+
+ * | boot header         | 1 page
+ * +---------------------+
+ * | kernel              | m pages
+ * +---------------------+
+ * | ramdisk             | n pages
+ * +---------------------+
+ * m = (kernel_size + page_size - 1) / page_size
+ * n = (ramdisk_size + page_size - 1) / page_size
+ *
+ * and the structure of the vendor boot image (introduced with version 3) is as
+ * follows:
+ *
+ * +---------------------+
+ * | vendor boot header  | 1 page
+ * +---------------------+
+ * | vendor ramdisk      | o pages
+ * +---------------------+
+ * | dtb                 | p pages
+ * +---------------------+
+ * o = (vendor_ramdisk_size + page_size - 1) / page_size
+ * p = (dtb_size + page_size - 1) / page_size
+ *
+ * 0. all entities are page_size aligned in flash
+ * 1. kernel, ramdisk, vendor ramdisk, and DTB are required (size != 0)
+ * 2. load the kernel and DTB at the specified physical address (kernel_addr,
+ *    dtb_addr)
+ * 3. load the vendor ramdisk at ramdisk_addr
+ * 4. load the generic ramdisk immediately following the vendor ramdisk in
+ *    memory
+ * 5. prepare tags at tag_addr.  kernel_args[] is appended to the kernel
+ *    commandline in the tags.
+ * 6. r0 = 0, r1 = MACHINE_TYPE, r2 = tags_addr
+ * 7. if the platform has a second stage bootloader jump to it (must be
+ *    contained outside boot and vendor boot partitions), otherwise
+ *    jump to kernel_addr
+ */
+struct boot_img_hdr_v3 {
+  // Must be BOOT_MAGIC.
+  UINT8 magic[BOOT_MAGIC_SIZE];
+
+  UINT32 kernel_size; /* size in bytes */
+  UINT32 ramdisk_size; /* size in bytes */
+
+  // Operating system version and security patch level.
+  // For version "A.B.C" and patch level "Y-M-D":
+  //   (7 bits for each of A, B, C; 7 bits for (Y-2000), 4 bits for M)
+  //   os_version = A[31:25] B[24:18] C[17:11] (Y-2000)[10:4] M[3:0]
+  UINT32 os_version;
+
+  UINT32 header_size;
+
+  UINT32 reserved[4];
+
+  // Version of the boot image header.
+  UINT32 header_version;
+
+  UINT8 cmdline[BOOT_ARGS_SIZE + BOOT_EXTRA_ARGS_SIZE];
+} __attribute__((packed));
+
+typedef struct boot_img_hdr_v3 boot_img_hdr_v3;
+
+struct vendor_boot_img_hdr_v3 {
+  // Must be VENDOR_BOOT_MAGIC.
+  UINT8 magic[VENDOR_BOOT_MAGIC_SIZE];
+
+  // Version of the vendor boot image header.
+  UINT32 header_version;
+
+  UINT32 page_size; /* flash page size we assume */
+
+  UINT32 kernel_addr; /* physical load addr */
+  UINT32 ramdisk_addr; /* physical load addr */
+
+  UINT32 vendor_ramdisk_size; /* size in bytes */
+
+  UINT8 cmdline[VENDOR_BOOT_ARGS_SIZE];
+
+  UINT32 tags_addr; /* physical addr for kernel tags */
+  UINT8 name[VENDOR_BOOT_NAME_SIZE]; /* asciiz product name */
+
+  UINT32 header_size;
+
+  UINT32 dtb_size; /* size in bytes for DTB image */
+  UINT64 dtb_addr; /* physical load address for DTB image */
+} __attribute__((packed));
+
+typedef struct vendor_boot_img_hdr_v3 vendor_boot_img_hdr_v3;
 
 struct kernel64_hdr {
   UINT32 Code0;       /* Executable code */
