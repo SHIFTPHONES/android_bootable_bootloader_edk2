@@ -1280,6 +1280,10 @@ Exit:
 header buffer.
   @param[in]  ImageHdrSize    Supplies the address where a pointer to the image
 header size.
+  @param[in]  VendorImageHdrBuffer  Supplies the address where a pointer to
+the image header buffer.
+  @param[in]  VendorImageHdrSize    Supplies the address where a pointer to
+the image header size.
   @param[out] ImageSizeActual The Pointer for image actual size.
   @param[out] PageSize        The Pointer for page size..
   @retval     EFI_SUCCESS     Check image header successfully.
@@ -1288,35 +1292,76 @@ header size.
 EFI_STATUS
 CheckImageHeader (VOID *ImageHdrBuffer,
                   UINT32 ImageHdrSize,
+                  VOID *VendorImageHdrBuffer,
+                  UINT32 VendorImageHdrSize,
                   UINT32 *ImageSizeActual,
                   UINT32 *PageSize,
                   BOOLEAN BootIntoRecovery)
 {
   EFI_STATUS Status = EFI_SUCCESS;
+
   struct boot_img_hdr_v2 *BootImgHdrV2;
+  boot_img_hdr_v3 *BootImgHdrV3;
+  vendor_boot_img_hdr_v3 *VendorBootImgHdrV3;
+
   UINT32 KernelSizeActual = 0;
   UINT32 DtSizeActual = 0;
   UINT32 RamdiskSizeActual = 0;
+  UINT32 VendorRamdiskSizeActual = 0;
 
   // Boot Image header information variables
   UINT32 HeaderVersion = 0;
   UINT32 KernelSize = 0;
   UINT32 RamdiskSize = 0;
+  UINT32 VendorRamdiskSize = 0;
   UINT32 SecondSize = 0;
   UINT32 DtSize = 0;
   UINT32 tempImgSize = 0;
 
-  if (CompareMem ((void *)((boot_img_hdr *)(ImageHdrBuffer))->magic, BOOT_MAGIC,
+  if (CompareMem ((VOID *)((boot_img_hdr *)(ImageHdrBuffer))->magic, BOOT_MAGIC,
                   BOOT_MAGIC_SIZE)) {
     DEBUG ((EFI_D_ERROR, "Invalid boot image header\n"));
     return EFI_NO_MEDIA;
   }
 
   HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
-  KernelSize = ((boot_img_hdr *)(ImageHdrBuffer))->kernel_size;
-  RamdiskSize = ((boot_img_hdr *)(ImageHdrBuffer))->ramdisk_size;
-  SecondSize = ((boot_img_hdr *)(ImageHdrBuffer))->second_size;
-  *PageSize = ((boot_img_hdr *)(ImageHdrBuffer))->page_size;
+  if (HeaderVersion < BOOT_HEADER_VERSION_THREE) {
+    KernelSize = ((boot_img_hdr *)(ImageHdrBuffer))->kernel_size;
+    RamdiskSize = ((boot_img_hdr *)(ImageHdrBuffer))->ramdisk_size;
+    SecondSize = ((boot_img_hdr *)(ImageHdrBuffer))->second_size;
+    *PageSize = ((boot_img_hdr *)(ImageHdrBuffer))->page_size;
+  } else {
+    if (CompareMem ((VOID *)((vendor_boot_img_hdr_v3 *)
+                     (VendorImageHdrBuffer))->magic,
+                     VENDOR_BOOT_MAGIC, VENDOR_BOOT_MAGIC_SIZE)) {
+      DEBUG ((EFI_D_ERROR, "Invalid vendor-boot image header\n"));
+      return EFI_NO_MEDIA;
+    }
+
+    BootImgHdrV3 = ImageHdrBuffer;
+    VendorBootImgHdrV3 = VendorImageHdrBuffer;
+
+    KernelSize = BootImgHdrV3->kernel_size;
+    RamdiskSize = BootImgHdrV3->ramdisk_size;
+    VendorRamdiskSize = VendorBootImgHdrV3->vendor_ramdisk_size;
+    *PageSize = VendorBootImgHdrV3->page_size;
+    DtSize = VendorBootImgHdrV3->dtb_size;
+
+    if (*PageSize > BOOT_IMG_MAX_PAGE_SIZE) {
+      DEBUG ((EFI_D_ERROR, "Invalid vendor-img pagesize. "
+                           "MAX: %u. PageSize: %u and VendorImageHdrSize: %u\n",
+                        BOOT_IMG_MAX_PAGE_SIZE, *PageSize, VendorImageHdrSize));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    VendorRamdiskSizeActual = ROUND_TO_PAGE (VendorRamdiskSize, *PageSize - 1);
+    if (VendorRamdiskSize &&
+        !VendorRamdiskSizeActual) {
+      DEBUG ((EFI_D_ERROR, "Integer Overflow: Vendor Ramdisk Size = %u\n",
+              RamdiskSize));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+  }
 
   if (!KernelSize || !*PageSize) {
     DEBUG ((EFI_D_ERROR, "Invalid image Sizes\n"));
@@ -1349,14 +1394,18 @@ CheckImageHeader (VOID *ImageHdrBuffer,
         ((UINT64) ImageHdrBuffer +
         BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET +
         BOOT_IMAGE_HEADER_V2_OFFSET);
-    DtSize = BootImgHdrV2->dtb_size;
 
-    DtSizeActual = ROUND_TO_PAGE (DtSize, *PageSize - 1);
-    if (DtSize &&
-        !DtSizeActual) {
-      DEBUG ((EFI_D_ERROR, "Integer Overflow: dt Size = %u\n", DtSize));
-      return EFI_BAD_BUFFER_SIZE;
-    }
+     DtSize = BootImgHdrV2->dtb_size;
+  }
+
+  // DT size doesn't apply to header versions 0 and 1
+  if (HeaderVersion >= BOOT_HEADER_VERSION_TWO) {
+     DtSizeActual = ROUND_TO_PAGE (DtSize, *PageSize - 1);
+      if (DtSize &&
+          !DtSizeActual) {
+        DEBUG ((EFI_D_ERROR, "Integer Overflow: dt Size = %u\n", DtSize));
+        return EFI_BAD_BUFFER_SIZE;
+     }
   }
 
   *ImageSizeActual = ADD_OF (*PageSize, KernelSizeActual);
@@ -1376,15 +1425,23 @@ CheckImageHeader (VOID *ImageHdrBuffer,
   }
 
   tempImgSize = *ImageSizeActual;
-  *ImageSizeActual = ADD_OF (*ImageSizeActual, DtSizeActual);
-  if (!*ImageSizeActual) {
-    DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSizeActual=%u,"
-           " DtSizeActual=%u\n", tempImgSize, DtSizeActual));
-    return EFI_BAD_BUFFER_SIZE;
+
+  /*
+   * As the DTB is not not a part of boot-images with header versions greater
+   * than two, ignore considering its size for calculating the total image size
+   */
+  if (HeaderVersion < BOOT_HEADER_VERSION_THREE) {
+    *ImageSizeActual = ADD_OF (*ImageSizeActual, DtSizeActual);
+    if (!*ImageSizeActual) {
+      DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSizeActual=%u,"
+             " DtSizeActual=%u\n", tempImgSize, DtSizeActual));
+      return EFI_BAD_BUFFER_SIZE;
+    }
   }
 
   if (BootIntoRecovery &&
-      HeaderVersion > BOOT_HEADER_VERSION_ZERO) {
+      HeaderVersion > BOOT_HEADER_VERSION_ZERO &&
+      HeaderVersion < BOOT_HEADER_VERSION_THREE) {
 
     struct boot_img_hdr_v1 *Hdr1 =
       (struct boot_img_hdr_v1 *) (ImageHdrBuffer + sizeof (boot_img_hdr));
@@ -1452,71 +1509,80 @@ CheckImageHeader (VOID *ImageHdrBuffer,
     }
   }
   DEBUG ((EFI_D_VERBOSE, "Boot Image Header Info...\n"));
+  DEBUG ((EFI_D_VERBOSE, "Image Header version     : 0x%x\n", HeaderVersion));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 1            : 0x%x\n", KernelSize));
   DEBUG ((EFI_D_VERBOSE, "Kernel Size 2            : 0x%x\n", SecondSize));
   DEBUG ((EFI_D_VERBOSE, "Ramdisk Size             : 0x%x\n", RamdiskSize));
-  DEBUG ((EFI_D_VERBOSE, "Image Header version     : 0x%x\n", HeaderVersion));
+  DEBUG ((EFI_D_VERBOSE, "DTB Size                 : 0x%x\n", DtSize));
+
+  if (HeaderVersion >= BOOT_HEADER_VERSION_THREE) {
+    DEBUG ((EFI_D_VERBOSE, "Vendor Ramdisk Size      : 0x%x\n",
+            VendorRamdiskSize));
+  }
 
   return Status;
 }
 
 /**
-  Load image from partition
+  Load image header from partition
   @param[in]  Pname           Partition name.
-  @param[out] ImageBuffer     Supplies the address where a pointer to the image
+  @param[out] ImageHdrBuffer  Supplies the address where a pointer to the image
 buffer.
-  @param[out] ImageSizeActual The Pointer for image actual size.
+  @param[out] ImageHdrSize    The Pointer for image actual size.
   @retval     EFI_SUCCESS     Load image from partition successfully.
   @retval     other           Failed to Load image from partition.
 **/
 EFI_STATUS
-LoadImage (BOOLEAN BootIntoRecovery, CHAR16 *Pname,
-           VOID **ImageBuffer, UINT32 *ImageSizeActual)
+LoadImageHeader (CHAR16 *Pname, VOID **ImageHdrBuffer, UINT32 *ImageHdrSize)
 {
-  EFI_STATUS Status = EFI_SUCCESS;
-  VOID *ImageHdrBuffer;
-  UINT32 ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
-  UINT32 ImageSize = 0;
-  UINT32 PageSize = 0;
-  UINT32 tempImgSize = 0;
-
-  // Check for invalid ImageBuffer
-  if (ImageBuffer == NULL)
+  if (ImageHdrBuffer == NULL) {
     return EFI_INVALID_PARAMETER;
-  else
-    *ImageBuffer = NULL;
+  }
 
-  if (!ADD_OF (ImageHdrSize, ALIGNMENT_MASK_4KB - 1)) {
+  if (!ADD_OF (BOOT_IMG_MAX_PAGE_SIZE, ALIGNMENT_MASK_4KB - 1)) {
     DEBUG ((EFI_D_ERROR, "Integer Overflow: in ALIGNMENT_MASK_4KB addition\n"));
     return EFI_BAD_BUFFER_SIZE;
   }
 
-  ImageHdrBuffer =
-      AllocatePages (ALIGN_PAGES (ImageHdrSize, ALIGNMENT_MASK_4KB));
-  if (!ImageHdrBuffer) {
+  *ImageHdrBuffer =
+      AllocatePages (ALIGN_PAGES (BOOT_IMG_MAX_PAGE_SIZE, ALIGNMENT_MASK_4KB));
+  if (!*ImageHdrBuffer) {
     DEBUG ((EFI_D_ERROR, "Failed to allocate for Boot image Hdr\n"));
     return EFI_BAD_BUFFER_SIZE;
   }
 
-  Status = LoadImageFromPartition (ImageHdrBuffer, &ImageHdrSize, Pname);
-  if (Status != EFI_SUCCESS) {
-    return Status;
+  *ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
+  return LoadImageFromPartition (*ImageHdrBuffer, ImageHdrSize, Pname);
+}
+
+/**
+  Load image from partition
+  @param[in]  Pname           Partition name.
+  @param[in] ImageBuffer      Supplies the address where a pointer to the image
+buffer.
+  @param[in] ImageSizeActual  Actual size of the Image.
+  @param[in] PageSize         The page size
+  @retval     EFI_SUCCESS     Load image from partition successfully.
+  @retval     other           Failed to Load image from partition.
+**/
+EFI_STATUS
+LoadImage (CHAR16 *Pname, VOID **ImageBuffer,
+           UINT32 ImageSizeActual, UINT32 PageSize)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 ImageSize = 0;
+
+  // Check for invalid ImageBuffer
+  if (ImageBuffer == NULL) {
+    return EFI_INVALID_PARAMETER;
+  } else {
+    *ImageBuffer = NULL;
   }
 
-  // Add check for boot image header and kernel page size
-  // ensure kernel command line is terminated
-  Status = CheckImageHeader (ImageHdrBuffer, ImageHdrSize, ImageSizeActual,
-                             &PageSize, BootIntoRecovery);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
-    return Status;
-  }
-
-  tempImgSize = *ImageSizeActual;
   ImageSize =
-      ADD_OF (ROUND_TO_PAGE (*ImageSizeActual, (PageSize - 1)), PageSize);
+      ADD_OF (ROUND_TO_PAGE (ImageSizeActual, (PageSize - 1)), PageSize);
   if (!ImageSize) {
-    DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSize=%u\n", tempImgSize));
+    DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSize=%u\n", ImageSizeActual));
     return EFI_BAD_BUFFER_SIZE;
   }
 

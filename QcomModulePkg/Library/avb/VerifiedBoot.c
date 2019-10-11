@@ -28,6 +28,7 @@
 
 #include "VerifiedBoot.h"
 #include "BootLinux.h"
+#include "BootImage.h"
 #include "KeymasterClient.h"
 #include "libavb/libavb.h"
 #include <Library/MenuKeysDetection.h>
@@ -50,7 +51,8 @@ static CHAR8 *avb_verify_partition_name[] = {
      "dtbo",
      "vbmeta",
      "recovery",
-     "vm-linux"
+     "vm-linux",
+     "vendor-boot"
 };
 
 STATIC struct verified_boot_verity_mode VbVm[] = {
@@ -280,79 +282,273 @@ IsRootCmdLineUpdated (BootInfo *Info)
 }
 
 
+/**
+  Load Vendor Boot image if the boot image is v3
+**/
 STATIC EFI_STATUS
-LoadImageNoAuth (BootInfo *Info)
+NoAVBLoadVendorBootImage (BootInfo *Info)
 {
-  EFI_STATUS Status = EFI_SUCCESS;
+  EFI_STATUS Status;
   CHAR16 Pname[MAX_GPT_NAME_SIZE];
+  UINT8 ImgIdx = Info->NumLoadedImages;
 
-  if (Info->Images[0].ImageBuffer != NULL && Info->Images[0].ImageSize > 0) {
-    /* fastboot boot option, boot image is already loaded, check for dtbo */
-    goto load_dtbo;
-  }
-
-  Status = LoadImage (Info->BootIntoRecovery,
-                      Info->Pname,
-                      (VOID **)&(Info->Images[0].ImageBuffer),
-                      (UINT32 *)&(Info->Images[0].ImageSize));
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image from partition: %r\n",
-            Status));
-    return EFI_LOAD_ERROR;
-  }
-  Info->NumLoadedImages = 1;
-  Info->Images[0].Name = AllocateZeroPool (StrLen (Info->Pname) + 1);
-  UnicodeStrToAsciiStr (Info->Pname, Info->Images[0].Name);
-
-
-load_dtbo:
-  /*load dt overlay when avb is disabled*/
-  Status = NoAVBLoadReqImage (Info, (VOID **)&(Info->Images[1].ImageBuffer),
-          (UINT32 *)&(Info->Images[1].ImageSize), Pname, L"dtbo");
+  Status = NoAVBLoadReqImage (Info,
+           (VOID **)&(Info->Images[ImgIdx].ImageBuffer),
+           (UINT32 *)&(Info->Images[ImgIdx].ImageSize),
+           Pname, (CHAR16 *)L"vendor-boot");
   if (Status == EFI_NO_MEDIA) {
-      DEBUG ((EFI_D_ERROR, "No dtbo partition is found, Skip dtbo\n"));
-      if (Info->Images[1].ImageBuffer != NULL) {
-        FreePool (Info->Images[1].ImageBuffer);
+      DEBUG ((EFI_D_INFO, "No vendor-boot partition is found, Skipping\n"));
+      if (Info->Images[ImgIdx].ImageBuffer != NULL) {
+        FreePool (Info->Images[ImgIdx].ImageBuffer);
       }
       return EFI_SUCCESS;
   }
   else if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR,
-                  "ERROR: Failed to load dtbo from partition: %r\n", Status));
-      if (Info->Images[1].ImageBuffer != NULL) {
-        FreePool (Info->Images[1].ImageBuffer);
+             "ERROR: Failed to load vendor-boot from partition: %r\n", Status));
+      if (Info->Images[ImgIdx].ImageBuffer != NULL) {
+        goto Err;
       }
-      return EFI_LOAD_ERROR;
   }
-  Info-> NumLoadedImages = 2;
-  Info-> Images[1].Name = AllocateZeroPool (StrLen (Pname) + 1);
-  UnicodeStrToAsciiStr (Pname, Info->Images[1].Name);
+
+  Info-> Images[ImgIdx].Name = AllocateZeroPool (StrLen (Pname) + 1);
+  if (!Info-> Images[ImgIdx].Name) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto Err;
+  }
+
+  UnicodeStrToAsciiStr (Pname, Info->Images[ImgIdx].Name);
+  Info-> NumLoadedImages++;
+
+  return EFI_SUCCESS;
+
+Err:
+  FreePool (Info->Images[ImgIdx].ImageBuffer);
+  return Status;
+}
+
+STATIC EFI_STATUS
+LoadVendorBootImageHeader (BootInfo *Info,
+                          VOID **VendorImageHdrBuffer,
+                          UINT32 *VendorImageHdrSize)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  CHAR16 Pname[MAX_GPT_NAME_SIZE] = {0};
+
+  StrnCpyS (Pname, ARRAY_SIZE (Pname),
+            (CHAR16 *)L"vendor-boot", StrLen ((CHAR16 *)L"vendor-boot"));
+
+  if (Info->MultiSlotBoot) {
+    GUARD (StrnCatS (Pname, ARRAY_SIZE (Pname),
+                     GetCurrentSlotSuffix ().Suffix,
+                     StrLen (GetCurrentSlotSuffix ().Suffix)));
+  }
+
+  return LoadImageHeader (Pname, VendorImageHdrBuffer, VendorImageHdrSize);
+}
+
+STATIC EFI_STATUS
+LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  VOID *ImageHdrBuffer = NULL;
+  UINT32 ImageHdrSize = 0;
+  UINT32 ImageSizeActual = 0;
+  VOID *VendorImageHdrBuffer = NULL;
+  UINT32 VendorImageHdrSize = 0;
+
+  /** The Images[0].ImageBuffer would have been loaded with the boot image
+   *  already if we are coming from fastboot boot path. Ignore loading it
+   *  again.
+   **/
+  if (Info->Images[0].ImageBuffer != NULL &&
+     Info->Images[0].ImageSize > 0) {
+    return EFI_SUCCESS;
+  }
+
+  Status = LoadImageHeader (Info->Pname, &ImageHdrBuffer, &ImageHdrSize);
+  if (Status != EFI_SUCCESS ||
+      ImageHdrBuffer ==  NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image header: %r\n", Status));
+    return Status;
+  } else if (ImageHdrSize < sizeof (boot_img_hdr)) {
+    DEBUG ((EFI_D_ERROR,
+            "ERROR: Invalid image header size: %u\n", ImageHdrSize));
+    return EFI_BAD_BUFFER_SIZE;
+  }
+
+  Info->HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
+
+  /* Additional vendor-boot image header needs be loaded for header
+   * versions than 3. Consider both the headers for validation.
+   */
+  if (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE) {
+    Status = LoadVendorBootImageHeader (Info, &VendorImageHdrBuffer,
+                                        &VendorImageHdrSize);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+               "ERROR: Failed to load vendor-boot Image header: %r\n", Status));
+        goto ErrV3;
+    }
+  }
+
+  /* Add check for boot image header, kernel page size,
+   * and ensure kernel command line is terminate.
+   */
+  Status = CheckImageHeader (ImageHdrBuffer, ImageHdrSize,
+                             VendorImageHdrBuffer, VendorImageHdrSize,
+                             &ImageSizeActual, PageSize,
+                             Info->BootIntoRecovery);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
+    goto Err;
+  }
+
+  Status = LoadImage (Info->Pname, (VOID **)&(Info->Images[0].ImageBuffer),
+                      ImageSizeActual, *PageSize);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image from partition: %r\n",
+            Status));
+    goto Err;
+  }
+
+  Info->Images[0].ImageSize = ImageSizeActual;
+  Info->Images[0].Name = AllocateZeroPool (StrLen (Info->Pname) + 1);
+  if (!Info->Images[0].Name) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto ErrImg;
+  }
+  UnicodeStrToAsciiStr (Info->Pname, Info->Images[0].Name);
+  Info->NumLoadedImages = 1;
+
+  if (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE) {
+    Status = NoAVBLoadVendorBootImage (Info);
+    if (Status != EFI_SUCCESS) {
+        DEBUG ((EFI_D_ERROR,
+               "ERROR: Failed to load vendor-boot Image : %r\n", Status));
+      goto ErrImgName;
+    }
+  }
+
+  return EFI_SUCCESS;
+
+ErrImgName:
+  if (Info->Images[0].Name) {
+    FreePool (Info->Images[0].Name);
+  }
+ErrImg:
+  if (Info->Images[0].ImageBuffer) {
+    UINT32 ImageSize =
+      ADD_OF (ROUND_TO_PAGE (ImageSizeActual, (*PageSize - 1)), *PageSize);
+    FreePages (Info->Images[0].ImageBuffer,
+               ALIGN_PAGES (ImageSize, ALIGNMENT_MASK_4KB));
+  }
+Err:
+  if (VendorImageHdrBuffer) {
+    FreePages (VendorImageHdrBuffer,
+               ALIGN_PAGES (BOOT_IMG_MAX_PAGE_SIZE, ALIGNMENT_MASK_4KB));
+  }
+ErrV3:
+  if (ImageHdrBuffer) {
+    FreePages (ImageHdrBuffer,
+               ALIGN_PAGES (BOOT_IMG_MAX_PAGE_SIZE, ALIGNMENT_MASK_4KB));
+  }
+
+  return Status;
+}
+
+STATIC EFI_STATUS
+LoadImageNoAuth (BootInfo *Info)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  CHAR16 Pname[MAX_GPT_NAME_SIZE];
+  UINTN *ImgIdx = &Info->NumLoadedImages;
+  UINT32 PageSize = 0;
+
+  Status = LoadBootImageNoAuth (Info, &PageSize);
+  if (Status != EFI_SUCCESS) {
+    return Status;
+  }
+
+  /*load dt overlay when avb is disabled*/
+  Status = NoAVBLoadReqImage (Info,
+                 (VOID **)&(Info->Images[*ImgIdx].ImageBuffer),
+                 (UINT32 *)&(Info->Images[*ImgIdx].ImageSize),
+                 Pname, (CHAR16 *)L"dtbo");
+  if (Status == EFI_NO_MEDIA) {
+      DEBUG ((EFI_D_INFO, "No dtbo partition is found, Skip dtbo\n"));
+      if (Info->Images[*ImgIdx].ImageBuffer != NULL) {
+        FreePool (Info->Images[*ImgIdx].ImageBuffer);
+      }
+  }
+  else if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR,
+                  "ERROR: Failed to load dtbo from partition: %r\n", Status));
+      Status = EFI_LOAD_ERROR;
+      goto Err;
+  } else { /* EFI_SUCCESS */
+    Info-> Images[*ImgIdx].Name = AllocateZeroPool (StrLen (Pname) + 1);
+    if (!Info->Images[*ImgIdx].Name) {
+      Status = EFI_OUT_OF_RESOURCES;
+      goto Err;
+    }
+
+    UnicodeStrToAsciiStr (Pname, Info->Images[*ImgIdx].Name);
+    ++(*ImgIdx);
+  }
 
   /* Load vm-linux if Verified boot is disabled */
   if (IsVmEnabled ()) {
-    Status = NoAVBLoadReqImage (Info, (VOID **)&(Info->Images[2].ImageBuffer),
-                                (UINT32 *)&(Info->Images[2].ImageSize), Pname,
-                                L"vm-linux");
+    Status = NoAVBLoadReqImage (Info,
+             (VOID **)&(Info->Images[*ImgIdx].ImageBuffer),
+             (UINT32 *)&(Info->Images[*ImgIdx].ImageSize), Pname, L"vm-linux");
     if (Status == EFI_NO_MEDIA) {
-      DEBUG ((EFI_D_ERROR, "No vm-linux partition is found, Skip..\n"));
-      if (Info->Images[2].ImageBuffer != NULL) {
-        FreePool (Info->Images[2].ImageBuffer);
-      }
+      DEBUG ((EFI_D_INFO, "No vm-linux partition is found, Skip..\n"));
+      goto Out;
+    } else if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR,
+              "ERROR: Failed to load vm-linux from partition: %r\n", Status));
+      goto Err;
+    }
 
-      return EFI_SUCCESS;
-     } else if (Status != EFI_SUCCESS) {
-       DEBUG ((EFI_D_ERROR,
-               "ERROR: Failed to load vm-linux from partition: %r\n", Status));
-       if (Info->Images[2].ImageBuffer != NULL) {
-         FreePool (Info->Images[2].ImageBuffer);
-       }
+    Info-> Images[*ImgIdx].Name = AllocateZeroPool (StrLen (Pname) + 1);
+    if (!Info->Images[*ImgIdx].Name) {
+      Status = EFI_OUT_OF_RESOURCES;
+      goto Err;
+    }
 
-      return EFI_LOAD_ERROR;
-     }
+    UnicodeStrToAsciiStr (Pname, Info->Images[*ImgIdx].Name);
+    ++(*ImgIdx);
+  }
 
-     Info-> NumLoadedImages = 3;
-     Info-> Images[2].Name = AllocateZeroPool (StrLen (Pname) + 1);
-     UnicodeStrToAsciiStr (Pname, Info->Images[2].Name);
+Out:
+  return EFI_SUCCESS;
+
+Err:
+  /* Free all the Images' memory that was allocated */
+  for (--(*ImgIdx); *ImgIdx; --(*ImgIdx)) {
+    if (Info->Images[*ImgIdx].ImageBuffer != NULL) {
+      FreePool (Info->Images[*ImgIdx].ImageBuffer);
+    }
+    if (Info->Images[*ImgIdx].Name != NULL) {
+      FreePool (Info->Images[*ImgIdx].Name);
+    }
+  }
+
+  /* Images[0] needs to be freed in a special way as it was allocated
+   * using AllocPages().
+   */
+  if (Info->Images[0].ImageBuffer) {
+    UINT32 ImageSize =
+      ADD_OF (ROUND_TO_PAGE (Info->Images[0].ImageSize,
+                             (PageSize - 1)), PageSize);
+
+    FreePages (Info->Images[0].ImageBuffer,
+               ALIGN_PAGES (ImageSize, ALIGNMENT_MASK_4KB));
+  }
+
+  if (Info->Images[0].Name) {
+    FreePool (Info->Images[0].Name);
   }
 
   return Status;
@@ -833,6 +1029,28 @@ static UINT32 ParseBootSecurityLevel (CONST CHAR8 *BootSecurityLevel,
   return (PatchLevelDate | PatchLevelYear | PatchLevelMonth);
 }
 
+STATIC BOOLEAN
+IsValidPartition (Slot *Slot, CONST CHAR16 *Name)
+{
+  CHAR16 PartiName[MAX_GPT_NAME_SIZE] = {0};
+  EFI_STATUS Status;
+  INT32 Index;
+
+  GUARD (StrnCpyS (PartiName, (UINTN)MAX_GPT_NAME_SIZE, Name, StrLen (Name)));
+
+  /* If *Slot is filled, it means that it's for multi-slot */
+  if (Slot) {
+     GUARD (StrnCatS (PartiName, MAX_GPT_NAME_SIZE,
+                      Slot->Suffix, StrLen (Slot->Suffix)));
+  }
+
+  Index = GetPartitionIndex (PartiName);
+
+  return (Index == INVALID_PTN ||
+          Index >= MAX_NUM_PARTITIONS) ?
+          FALSE : TRUE;
+}
+
 STATIC EFI_STATUS
 LoadImageAndAuthVB2 (BootInfo *Info)
 {
@@ -848,12 +1066,13 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   CHAR8 *RequestedPartitionAll[MAX_NUM_REQ_PARTITION] = {NULL};
   CHAR8 **RequestedPartition = NULL;
   UINTN NumRequestedPartition = 0;
-  INT32 Index = INVALID_PTN;
   UINT32 ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
   UINT32 PageSize = 0;
   UINT32 ImageSizeActual = 0;
   VOID *ImageBuffer = NULL;
   UINTN ImageSize = 0;
+  VOID *VendorBootImageBuffer = NULL;
+  UINTN VendorBootImageSize = 0;
   KMRotAndBootState Data = {0};
   CONST CHAR8 *BootSecurityLevel = NULL;
   size_t BootSecurityLevelSize = 0;
@@ -866,6 +1085,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
       AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE;
   CHAR8 Digest[AVB_SHA256_DIGEST_SIZE];
   BOOLEAN UpdateRollback = FALSE;
+  UINT32 OSVersion;
 
   Info->BootState = RED;
   GUARD (VBCommonInit (Info));
@@ -952,7 +1172,9 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     }
     BOOLEAN HeaderVersion = GetHeaderVersion (SlotData);
     DEBUG ( (EFI_D_VERBOSE, "Recovery HeaderVersion %d \n", HeaderVersion));
-    if (!HeaderVersion) {
+
+    if (HeaderVersion == BOOT_HEADER_VERSION_ZERO ||
+        HeaderVersion >= BOOT_HEADER_VERSION_THREE) {
        AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
        NumRequestedPartition += 1;
        if (SlotData != NULL) {
@@ -962,34 +1184,36 @@ LoadImageAndAuthVB2 (BootInfo *Info)
                   SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
     }
   } else {
+    Slot CurrentSlot;
+
     if (!Info->NumLoadedImages) {
       AddRequestedPartition (RequestedPartitionAll, IMG_BOOT);
       NumRequestedPartition += 1;
     }
+
     AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
     NumRequestedPartition += 1;
-    if (IsVmEnabled ()) {
-      CHAR16 PartiName[MAX_GPT_NAME_SIZE];
-      Slot CurrentSlot;
 
-      GUARD (StrnCpyS (PartiName, (UINTN)MAX_GPT_NAME_SIZE,
-                        (CONST CHAR16 *)L"vm-linux", StrLen (L"vm-linux")));
-
-      if (Info->MultiSlotBoot) {
+    if (Info->MultiSlotBoot) {
         CurrentSlot = GetCurrentSlotSuffix ();
-        GUARD (StrnCatS (PartiName, MAX_GPT_NAME_SIZE,
-                         CurrentSlot.Suffix, StrLen (CurrentSlot.Suffix)));
-      }
+    }
 
-      Index = GetPartitionIndex (PartiName);
+    if (IsVmEnabled ()) {
+      if (IsValidPartition (&CurrentSlot, L"vm-linux")) {
+        AddRequestedPartition (RequestedPartitionAll, IMG_VMLINUX);
+        NumRequestedPartition += 1;
+      } else {
+        DEBUG ((EFI_D_VERBOSE, "Invalid vm-linux partition. Skipping\n"));
+      }
     }
-    if (Index == INVALID_PTN ||
-               Index >= MAX_NUM_PARTITIONS) {
-      DEBUG ((EFI_D_VERBOSE, "Invalid vm-linux partition\n"));
-    } else {
-      AddRequestedPartition (RequestedPartitionAll, IMG_VMLINUX);
+
+    if (IsValidPartition (&CurrentSlot, L"vendor-boot")) {
+      AddRequestedPartition (RequestedPartitionAll, IMG_VENDOR_BOOT);
       NumRequestedPartition += 1;
+    } else {
+      DEBUG ((EFI_D_VERBOSE, "Invalid vendor-boot partition. Skipping\n"));
     }
+
     Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
                 SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
   }
@@ -1072,8 +1296,23 @@ LoadImageAndAuthVB2 (BootInfo *Info)
                      Info->BootIntoRecovery) ?
                      "recovery" : "boot"));
 
+  if (ImageSize < sizeof (boot_img_hdr)) {
+    DEBUG ((EFI_D_ERROR, "Invalid boot image header size: %u\n", ImageSize));
+    Status = EFI_BAD_BUFFER_SIZE;
+    goto out;
+  }
+
+  BootImgHdr = (boot_img_hdr *)ImageBuffer;
+
+  if (BootImgHdr->header_version >= BOOT_HEADER_VERSION_THREE) {
+    GUARD_OUT (GetImage (Info, &VendorBootImageBuffer,
+                         &VendorBootImageSize, "vendor-boot"));
+  }
+
   Status = CheckImageHeader (ImageBuffer, ImageHdrSize,
-        &ImageSizeActual, &PageSize, Info->BootIntoRecovery);
+                             VendorBootImageBuffer, VendorBootImageSize,
+                             &ImageSizeActual, &PageSize,
+                             Info->BootIntoRecovery);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
     goto out;
@@ -1099,8 +1338,13 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   Data.PublicKeyLength = UserData->PublicKeyLen;
   Data.PublicKey = UserData->PublicKey;
 
-  BootImgHdr = (boot_img_hdr *)ImageBuffer;
   GUARD_OUT (KeyMasterGetDateSupport (&DateSupport));
+
+  if (BootImgHdr->header_version >= BOOT_HEADER_VERSION_THREE) {
+    OSVersion = ((boot_img_hdr_v3 *)(ImageBuffer))->os_version;
+  } else {
+    OSVersion = BootImgHdr->os_version;
+  }
 
   /* Send date value in security patch only when KM TA supports it and the
    * property is available in vbmeta data, send the old value in other cases
@@ -1124,13 +1368,13 @@ LoadImageAndAuthVB2 (BootInfo *Info)
       }
     }
     else {
-      Data.SystemSecurityLevel = (BootImgHdr->os_version & 0x7FF);
+      Data.SystemSecurityLevel = (OSVersion & 0x7FF);
     }
   }
   else {
-    Data.SystemSecurityLevel = (BootImgHdr->os_version & 0x7FF);
+    Data.SystemSecurityLevel = (OSVersion & 0x7FF);
   }
-  Data.SystemVersion = (BootImgHdr->os_version & 0xFFFFF800) >> 11;
+  Data.SystemVersion = (OSVersion & 0xFFFFF800) >> 11;
 
   GUARD_OUT (KeyMasterSetRotAndBootState (&Data));
   ComputeVbMetaDigest (SlotData, (CHAR8 *)&Digest);

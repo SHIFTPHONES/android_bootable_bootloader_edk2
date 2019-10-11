@@ -2490,7 +2490,8 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
   SetBootDevImage ();
 
-  Status = CheckImageHeader (Data, ImageHdrSize, &ImageSizeActual,
+  /* TODO: Fix the arguments */
+  Status = CheckImageHeader (Data, ImageHdrSize, NULL, 0, &ImageSizeActual,
                              &PageSize, FALSE);
   if (Status != EFI_SUCCESS) {
     AsciiSPrint (Resp, sizeof (Resp), "Invalid Boot image Header: %r", Status);

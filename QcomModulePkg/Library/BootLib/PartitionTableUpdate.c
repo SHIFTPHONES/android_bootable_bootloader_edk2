@@ -1700,7 +1700,8 @@ LoadAndValidateDtboImg (BootInfo *Info,
   if ((!Info->MultiSlotBoot ||
       IsDynamicPartitionSupport ()) &&
       Info->BootIntoRecovery &&
-      Info->HeaderVersion > BOOT_HEADER_VERSION_ZERO) {
+      Info->HeaderVersion > BOOT_HEADER_VERSION_ZERO &&
+      Info->HeaderVersion < BOOT_HEADER_VERSION_THREE) {
     Status = GetRecoveryDtboInfo (Info, BootParamlistPtr, &DtboImgSize);
   } else {
     Status = GetImage (Info, &BootParamlistPtr->DtboImgBuffer,
