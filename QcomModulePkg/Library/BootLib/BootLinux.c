@@ -973,6 +973,83 @@ CheckAndLoadComputeVM (BootInfo *Info,
   return Status;
 }
 
+STATIC EFI_STATUS
+CatCmdLine (BootParamlist *BootParamlistPtr,
+            boot_img_hdr_v3 *BootImgHdrV3,
+            vendor_boot_img_hdr_v3 *VendorBootImgHdrV3)
+{
+  UINTN MaxCmdLineLen = BOOT_ARGS_SIZE +
+                        BOOT_EXTRA_ARGS_SIZE + VENDOR_BOOT_ARGS_SIZE;
+
+  BootParamlistPtr->CmdLine = AllocateZeroPool (MaxCmdLineLen);
+  if (!BootParamlistPtr->CmdLine) {
+    DEBUG ((EFI_D_ERROR,
+            "CatCmdLine: Failed to allocate memory for cmdline\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  /* Place the vendor-boot image cmdline first so that the cmdline
+   * from boot image takes precedence in case of duplicates.
+   */
+  AsciiStrCpyS (BootParamlistPtr->CmdLine, MaxCmdLineLen,
+               (CONST CHAR8 *)VendorBootImgHdrV3->cmdline);
+  AsciiStrCatS (BootParamlistPtr->CmdLine, MaxCmdLineLen, " ");
+  AsciiStrCatS (BootParamlistPtr->CmdLine, MaxCmdLineLen,
+               (CONST CHAR8 *)BootImgHdrV3->cmdline);
+
+  return EFI_SUCCESS;
+}
+
+STATIC EFI_STATUS
+UpdateBootParamsSizeAndCmdLine (BootInfo *Info, BootParamlist *BootParamlistPtr)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINTN VendorBootImgSize;
+  boot_img_hdr_v3 *BootImgHdrV3;
+  vendor_boot_img_hdr_v3 *VendorBootImgHdrV3;
+
+  if (Info->HeaderVersion < BOOT_HEADER_VERSION_THREE) {
+    BootParamlistPtr->KernelSize =
+               ((boot_img_hdr *)(BootParamlistPtr->ImageBuffer))->kernel_size;
+    BootParamlistPtr->RamdiskSize =
+               ((boot_img_hdr *)(BootParamlistPtr->ImageBuffer))->ramdisk_size;
+    BootParamlistPtr->SecondSize =
+               ((boot_img_hdr *)(BootParamlistPtr->ImageBuffer))->second_size;
+    BootParamlistPtr->PageSize =
+               ((boot_img_hdr *)(BootParamlistPtr->ImageBuffer))->page_size;
+    BootParamlistPtr->CmdLine = (CHAR8 *)&(((boot_img_hdr *)
+                             (BootParamlistPtr->ImageBuffer))->cmdline[0]);
+    BootParamlistPtr->CmdLine[BOOT_ARGS_SIZE - 1] = '\0';
+
+    return EFI_SUCCESS;
+  }
+
+  BootImgHdrV3 = BootParamlistPtr->ImageBuffer;
+
+  Status = GetImage (Info, (VOID **)&VendorBootImgHdrV3,
+                     &VendorBootImgSize, "vendor-boot");
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR,
+    "UpdateBootParamsSizeAndCmdLine: Failed to find vendor-boot image\n"));
+    return Status;
+  }
+
+  BootParamlistPtr->KernelSize = BootImgHdrV3->kernel_size;
+  BootParamlistPtr->RamdiskSize = BootImgHdrV3->ramdisk_size +
+                                  VendorBootImgHdrV3->vendor_ramdisk_size;
+  BootParamlistPtr->PageSize = VendorBootImgHdrV3->page_size;
+  BootParamlistPtr->SecondSize = 0;
+
+  Status = CatCmdLine (BootParamlistPtr, BootImgHdrV3, VendorBootImgHdrV3);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR,
+           "UpdateBootParamsSizeAndCmdLine: Failed to cat cmdline\n"));
+    return Status;
+  }
+
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS
 BootLinux (BootInfo *Info)
 {
@@ -1042,16 +1119,13 @@ BootLinux (BootInfo *Info)
     return Status;
   }
 
-  BootParamlistPtr.KernelSize =
-               ((boot_img_hdr *)(BootParamlistPtr.ImageBuffer))->kernel_size;
-  BootParamlistPtr.RamdiskSize =
-               ((boot_img_hdr *)(BootParamlistPtr.ImageBuffer))->ramdisk_size;
-  BootParamlistPtr.SecondSize =
-               ((boot_img_hdr *)(BootParamlistPtr.ImageBuffer))->second_size;
-  BootParamlistPtr.PageSize =
-               ((boot_img_hdr *)(BootParamlistPtr.ImageBuffer))->page_size;
-  BootParamlistPtr.CmdLine = (CHAR8 *)&(((boot_img_hdr *)
-                             (BootParamlistPtr.ImageBuffer))->cmdline[0]);
+  Info->HeaderVersion = ((boot_img_hdr *)
+                         (BootParamlistPtr.ImageBuffer))->header_version;
+
+  Status = UpdateBootParamsSizeAndCmdLine (Info, &BootParamlistPtr);
+  if (Status != EFI_SUCCESS) {
+    return Status;
+  }
 
   if (IsVmEnabled ()) {
     Status = UpdateMemRegions (&BootParamlistPtr,
@@ -1123,23 +1197,20 @@ BootLinux (BootInfo *Info)
       (EFI_D_VERBOSE, "Device Tree Load Address: 0x%x\n",
                              BootParamlistPtr.DeviceTreeLoadAddr));
 
-  /*Updates the command line from boot image, appends device serial no.,
-   *baseband information, etc
-   *Called before ShutdownUefiBootServices as it uses some boot service
-   *functions*/
-  BootParamlistPtr.CmdLine[BOOT_ARGS_SIZE - 1] = '\0';
-
   if (AsciiStrStr (BootParamlistPtr.CmdLine, "root=")) {
     BootDevImage = TRUE;
   }
 
-  Info->HeaderVersion = ((boot_img_hdr *)
-                         (BootParamlistPtr.ImageBuffer))->header_version;
   Status = DTBImgCheckAndAppendDT (Info, &BootParamlistPtr);
   if (Status != EFI_SUCCESS) {
     return Status;
   }
 
+  /* Updates the command line from boot image, appends device serial no.,
+   * baseband information, etc.
+   * Called before ShutdownUefiBootServices as it uses some boot service
+   * functions
+   */
   Status = UpdateCmdLine (BootParamlistPtr.CmdLine, FfbmStr, Recovery,
                    AlarmBoot, Info->VBCmdLine, &BootParamlistPtr.FinalCmdLine);
   if (EFI_ERROR (Status)) {
