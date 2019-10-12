@@ -914,6 +914,8 @@ cleanup:
 /*
  * For Header Version 2, the arguments Kernel and KernelSize will be
  * the entire bootimage and the bootimage size.
+ * For Header Version 3, Kernel holds the base of the vendor-boot
+ * image and KernelSize holds its size.
  */
 VOID *
 GetSocDtb (VOID *Kernel, UINT32 KernelSize, UINT32 DtbOffset, VOID *DtbLoadAddr)

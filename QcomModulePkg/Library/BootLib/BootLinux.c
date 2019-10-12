@@ -393,13 +393,15 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
   UINT32 HeaderVersion = 0;
   struct boot_img_hdr_v1 *BootImgHdrV1;
   struct boot_img_hdr_v2 *BootImgHdrV2;
+  vendor_boot_img_hdr_v3 *VendorBootImgHdrV3;
   UINT32 NumHeaderPages;
   UINT32 NumKernelPages;
   UINT32 NumSecondPages;
   UINT32 NumRamdiskPages;
+  UINT32 NumVendorRamdiskPages;
   UINT32 NumRecoveryDtboPages;
   VOID* ImageBuffer = NULL;
-  UINT32 DtbSize = 0;
+  UINT32 ImageSize = 0;
 
   if (Info == NULL ||
       BootParamlistPtr == NULL) {
@@ -410,7 +412,7 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
   ImageBuffer = BootParamlistPtr->ImageBuffer +
                         BootParamlistPtr->PageSize +
                         BootParamlistPtr->PatchedKernelHdrSize;
-  DtbSize = BootParamlistPtr->KernelSize;
+  ImageSize = BootParamlistPtr->KernelSize;
   HeaderVersion = Info->HeaderVersion;
 
   if (HeaderVersion > BOOT_HEADER_VERSION_ONE) {
@@ -432,26 +434,40 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
         NumSecondPages =
                 GetNumberOfPages (BootParamlistPtr->SecondSize,
                         BootParamlistPtr->PageSize);
-        NumRecoveryDtboPages =
-                GetNumberOfPages (BootImgHdrV1->recovery_dtbo_size,
-                        BootParamlistPtr->PageSize);
-        BootParamlistPtr->DtbOffset =
-                BootParamlistPtr->PageSize *
-                        (NumHeaderPages + NumKernelPages + NumRamdiskPages
-                                + NumSecondPages + NumRecoveryDtboPages);
-        DtbSize = BootImgHdrV2->dtb_size + BootParamlistPtr->DtbOffset;
-        ImageBuffer = BootParamlistPtr->ImageBuffer;
-  }
 
+       if (HeaderVersion  == BOOT_HEADER_VERSION_TWO) {
+          NumRecoveryDtboPages =
+                           GetNumberOfPages (BootImgHdrV1->recovery_dtbo_size,
+                           BootParamlistPtr->PageSize);
+          BootParamlistPtr->DtbOffset = BootParamlistPtr->PageSize *
+                           (NumHeaderPages + NumKernelPages + NumRamdiskPages +
+                            NumSecondPages + NumRecoveryDtboPages);
+          ImageSize = BootImgHdrV2->dtb_size + BootParamlistPtr->DtbOffset;
+          ImageBuffer = BootParamlistPtr->ImageBuffer;
+        } else {
+          VendorBootImgHdrV3 = BootParamlistPtr->VendorImageBuffer;
+
+          NumVendorRamdiskPages = GetNumberOfPages (
+                                           BootParamlistPtr->VendorRamdiskSize,
+                                           BootParamlistPtr->PageSize);
+          BootParamlistPtr->DtbOffset = BootParamlistPtr->PageSize *
+                           (NumHeaderPages + NumVendorRamdiskPages);
+          ImageSize = VendorBootImgHdrV3->dtb_size +
+                      BootParamlistPtr->DtbOffset;
+
+          // DTB is a part of vendor-boot image
+          ImageBuffer = BootParamlistPtr->VendorImageBuffer;
+        }
+  }
   DtboImgInvalid = LoadAndValidateDtboImg (Info, BootParamlistPtr);
   if (!DtboImgInvalid) {
     // appended device tree
     Dtb = DeviceTreeAppended (ImageBuffer,
-                             DtbSize,
+                             ImageSize,
                              BootParamlistPtr->DtbOffset,
                              (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
     if (!Dtb) {
-      if (BootParamlistPtr->DtbOffset >= DtbSize) {
+      if (BootParamlistPtr->DtbOffset >= ImageSize) {
         DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the image size\n"));
         return EFI_BAD_BUFFER_SIZE;
       }
@@ -460,7 +476,7 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
                      BootParamlistPtr->DtbOffset);
 
       if (!fdt_check_header (SingleDtHdr)) {
-        if ((DtbSize - BootParamlistPtr->DtbOffset) <
+        if ((ImageSize - BootParamlistPtr->DtbOffset) <
             fdt_totalsize (SingleDtHdr)) {
           DEBUG ((EFI_D_ERROR, "Dtb offset goes beyond the image size\n"));
           return EFI_BAD_BUFFER_SIZE;
@@ -491,7 +507,7 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
   } else {
     /*It is the case of DTB overlay Get the Soc specific dtb */
     SocDtb = GetSocDtb (ImageBuffer,
-         DtbSize,
+         ImageSize,
          BootParamlistPtr->DtbOffset,
          (VOID *)BootParamlistPtr->DeviceTreeLoadAddr);
 
@@ -1053,9 +1069,12 @@ UpdateBootParamsSizeAndCmdLine (BootInfo *Info, BootParamlist *BootParamlistPtr)
     return Status;
   }
 
+  BootParamlistPtr->VendorImageBuffer = VendorBootImgHdrV3;
+  BootParamlistPtr->VendorImageSize = VendorBootImgSize;
   BootParamlistPtr->KernelSize = BootImgHdrV3->kernel_size;
-  BootParamlistPtr->RamdiskSize = BootImgHdrV3->ramdisk_size +
-                                  VendorBootImgHdrV3->vendor_ramdisk_size;
+  BootParamlistPtr->RamdiskSize = BootImgHdrV3->ramdisk_size;
+  BootParamlistPtr->VendorRamdiskSize =
+                    VendorBootImgHdrV3->vendor_ramdisk_size;
   BootParamlistPtr->PageSize = VendorBootImgHdrV3->page_size;
   BootParamlistPtr->SecondSize = 0;
 
