@@ -153,6 +153,10 @@ typedef struct BootLinuxParamlist {
   UINT64 ImageSize;
   VOID *DtboImgBuffer;
 
+  // Valid only for boot image header version greater than 2
+  VOID *VendorImageBuffer;
+  UINT64 VendorImageSize;
+
   /* Load addresses for kernel, ramdisk, dt
    * These addresses are either predefined or get from UEFI core */
   UINT64 KernelLoadAddr;
@@ -169,6 +173,10 @@ typedef struct BootLinuxParamlist {
   UINT32 RamdiskOffset;
   UINT32 PatchedKernelHdrSize;
   UINT32 DtbOffset;
+
+  // Get the below fields info from the vendor-boot image header
+  // Valid only for boot image header version greater than 2
+  UINT32 VendorRamdiskSize;
 
   //Kernel size rounded off based on the page size
   UINT32 KernelSizeActual;

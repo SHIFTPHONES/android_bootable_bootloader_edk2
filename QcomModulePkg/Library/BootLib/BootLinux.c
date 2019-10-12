@@ -153,7 +153,9 @@ UpdateBootParams (BootParamlist *BootParamlistPtr)
      of buffer for kernel relocation and take care of dynamic change in size
      of ramdisk. Add pagesize as a buffer space */
   BootParamlistPtr->RamdiskLoadAddr = (BootParamlistPtr->KernelEndAddr -
-                            (LOCAL_ROUND_TO_PAGE (BootParamlistPtr->RamdiskSize,
+                            (LOCAL_ROUND_TO_PAGE (
+                                          BootParamlistPtr->RamdiskSize +
+                                          BootParamlistPtr->VendorRamdiskSize,
                              BootParamlistPtr->PageSize) +
                              BootParamlistPtr->PageSize));
   BootParamlistPtr->DeviceTreeLoadAddr = (BootParamlistPtr->RamdiskLoadAddr -
@@ -657,19 +659,24 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr)
 }
 
 STATIC EFI_STATUS
-LoadAddrAndDTUpdate (BootParamlist *BootParamlistPtr)
+LoadAddrAndDTUpdate (BootInfo *Info, BootParamlist *BootParamlistPtr)
 {
   EFI_STATUS Status;
+  UINT64 RamdiskLoadAddr;
   UINT64 RamdiskEndAddr = 0;
+  UINT32 TotalRamdiskSize;
 
   if (BootParamlistPtr == NULL) {
     DEBUG ((EFI_D_ERROR, "Invalid input parameters\n"));
     return EFI_INVALID_PARAMETER;
   }
 
-  RamdiskEndAddr = BootParamlistPtr->KernelEndAddr;
-  if (RamdiskEndAddr - BootParamlistPtr->RamdiskLoadAddr <
-                       BootParamlistPtr->RamdiskSize) {
+  RamdiskLoadAddr = BootParamlistPtr->RamdiskLoadAddr;
+
+  TotalRamdiskSize = BootParamlistPtr->RamdiskSize +
+                            BootParamlistPtr->VendorRamdiskSize;
+
+  if (RamdiskEndAddr - RamdiskLoadAddr < TotalRamdiskSize) {
     DEBUG ((EFI_D_ERROR, "Error: Ramdisk size is over the limit\n"));
     return EFI_BAD_BUFFER_SIZE;
   }
@@ -685,15 +692,27 @@ LoadAddrAndDTUpdate (BootParamlist *BootParamlistPtr)
 
   Status = UpdateDeviceTree ((VOID *)BootParamlistPtr->DeviceTreeLoadAddr,
                              BootParamlistPtr->FinalCmdLine,
-                             (VOID *)BootParamlistPtr->RamdiskLoadAddr,
-                             BootParamlistPtr->RamdiskSize,
+                             (VOID *)RamdiskLoadAddr, TotalRamdiskSize,
                              BootParamlistPtr->BootingWith32BitKernel);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Device Tree update failed Status:%r\n", Status));
     return Status;
   }
 
-  gBS->CopyMem ((CHAR8 *)BootParamlistPtr->RamdiskLoadAddr,
+  /* If the boot-image version is greater than 2, place the vendor-ramdisk
+   * first in the memory, and then place ramdisk.
+   * This concatination would result in an overlay for .gzip and .cpio formats.
+   */
+  if (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE) {
+    gBS->CopyMem ((VOID *)RamdiskLoadAddr,
+                  BootParamlistPtr->VendorImageBuffer +
+                  BootParamlistPtr->PageSize,
+                  BootParamlistPtr->VendorRamdiskSize);
+
+    RamdiskLoadAddr += BootParamlistPtr->VendorRamdiskSize;
+  }
+
+  gBS->CopyMem ((CHAR8 *)RamdiskLoadAddr,
                 BootParamlistPtr->ImageBuffer +
                 BootParamlistPtr->RamdiskOffset,
                 BootParamlistPtr->RamdiskSize);
@@ -1218,7 +1237,7 @@ BootLinux (BootInfo *Info)
     return Status;
   }
 
-  Status = LoadAddrAndDTUpdate (&BootParamlistPtr);
+  Status = LoadAddrAndDTUpdate (Info, &BootParamlistPtr);
   if (Status != EFI_SUCCESS) {
        return Status;
   }
