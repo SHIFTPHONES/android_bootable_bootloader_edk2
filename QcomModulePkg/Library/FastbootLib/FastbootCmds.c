@@ -2453,9 +2453,9 @@ STATIC VOID
 CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
   boot_img_hdr *hdr = Data;
+  boot_img_hdr_v3 *HdrV3 = Data;
   EFI_STATUS Status = EFI_SUCCESS;
   UINT32 ImageSizeActual = 0;
-  UINT32 ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
   UINT32 PageSize = 0;
   UINT32 SigActual = SIGACTUAL;
   CHAR8 Resp[MAX_RSP_SIZE];
@@ -2487,29 +2487,17 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
     return;
   }
 
-  hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
+  if (hdr->header_version <= BOOT_HEADER_VERSION_TWO) {
+    hdr->cmdline[BOOT_ARGS_SIZE - 1] = '\0';
+  } else {
+    HdrV3->cmdline[BOOT_ARGS_SIZE + BOOT_EXTRA_ARGS_SIZE - 1] = '\0';
+  }
+
   SetBootDevImage ();
 
-  /* TODO: Fix the arguments */
-  Status = CheckImageHeader (Data, ImageHdrSize, NULL, 0, &ImageSizeActual,
-                             &PageSize, FALSE);
-  if (Status != EFI_SUCCESS) {
-    AsciiSPrint (Resp, sizeof (Resp), "Invalid Boot image Header: %r", Status);
-    FastbootFail (Resp);
-    goto out;
-  }
-
-  if (ImageSizeActual > Size) {
-    FastbootFail ("BootImage is Incomplete");
-    goto out;
-  }
-  if ((MaxDownLoadSize - (ImageSizeActual - SigActual)) < PageSize) {
-    FastbootFail ("BootImage: Size os greater than boot image buffer can hold");
-    goto out;
-  }
-
   Info.Images[0].ImageBuffer = Data;
-  Info.Images[0].ImageSize = ImageSizeActual;
+  /* The actual image size will be updated in LoadImageAndAuth */
+  Info.Images[0].ImageSize = Size;
   Info.Images[0].Name = "boot";
   Info.NumLoadedImages = 1;
   Info.MultiSlotBoot = PartitionHasMultiSlot (L"boot");
@@ -2521,11 +2509,23 @@ CmdBoot (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
       goto out;
     }
   }
+
   Status = LoadImageAndAuth (&Info);
   if (Status != EFI_SUCCESS) {
     AsciiSPrint (Resp, sizeof (Resp),
                  "Failed to load/authenticate boot image: %r", Status);
     FastbootFail (Resp);
+    goto out;
+  }
+
+  ImageSizeActual = Info.Images[0].ImageSize;
+
+  if (ImageSizeActual > Size) {
+    FastbootFail ("BootImage is Incomplete");
+    goto out;
+  }
+  if ((MaxDownLoadSize - (ImageSizeActual - SigActual)) < PageSize) {
+    FastbootFail ("BootImage: Size is greater than boot image buffer can hold");
     goto out;
   }
 

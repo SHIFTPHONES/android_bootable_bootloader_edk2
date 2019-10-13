@@ -348,7 +348,7 @@ LoadVendorBootImageHeader (BootInfo *Info,
 }
 
 STATIC EFI_STATUS
-LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize)
+LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize, BOOLEAN *FastbootPath)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   VOID *ImageHdrBuffer = NULL;
@@ -356,25 +356,33 @@ LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize)
   UINT32 ImageSizeActual = 0;
   VOID *VendorImageHdrBuffer = NULL;
   UINT32 VendorImageHdrSize = 0;
+  BOOLEAN BootIntoRecovery = FALSE;
+  BOOLEAN BootImageLoaded;
 
   /** The Images[0].ImageBuffer would have been loaded with the boot image
    *  already if we are coming from fastboot boot path. Ignore loading it
    *  again.
    **/
-  if (Info->Images[0].ImageBuffer != NULL &&
-     Info->Images[0].ImageSize > 0) {
-    return EFI_SUCCESS;
-  }
+  BootImageLoaded = (Info->Images[0].ImageBuffer != NULL) &&
+                    (Info->Images[0].ImageSize > 0);
+  *FastbootPath = BootImageLoaded;
 
-  Status = LoadImageHeader (Info->Pname, &ImageHdrBuffer, &ImageHdrSize);
-  if (Status != EFI_SUCCESS ||
-      ImageHdrBuffer ==  NULL) {
-    DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image header: %r\n", Status));
-    return Status;
-  } else if (ImageHdrSize < sizeof (boot_img_hdr)) {
-    DEBUG ((EFI_D_ERROR,
-            "ERROR: Invalid image header size: %u\n", ImageHdrSize));
-    return EFI_BAD_BUFFER_SIZE;
+  if (BootImageLoaded) {
+    ImageHdrBuffer = Info->Images[0].ImageBuffer;
+    ImageHdrSize = BOOT_IMG_MAX_PAGE_SIZE;
+  } else {
+    Status = LoadImageHeader (Info->Pname, &ImageHdrBuffer, &ImageHdrSize);
+    if (Status != EFI_SUCCESS ||
+        ImageHdrBuffer ==  NULL) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image header: %r\n", Status));
+      return Status;
+    } else if (ImageHdrSize < sizeof (boot_img_hdr)) {
+      DEBUG ((EFI_D_ERROR,
+              "ERROR: Invalid image header size: %u\n", ImageHdrSize));
+      return EFI_BAD_BUFFER_SIZE;
+    }
+
+    BootIntoRecovery = Info->BootIntoRecovery;
   }
 
   Info->HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
@@ -397,29 +405,31 @@ LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize)
    */
   Status = CheckImageHeader (ImageHdrBuffer, ImageHdrSize,
                              VendorImageHdrBuffer, VendorImageHdrSize,
-                             &ImageSizeActual, PageSize,
-                             Info->BootIntoRecovery);
+                             &ImageSizeActual, PageSize, BootIntoRecovery);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Invalid boot image header:%r\n", Status));
     goto Err;
   }
 
-  Status = LoadImage (Info->Pname, (VOID **)&(Info->Images[0].ImageBuffer),
-                      ImageSizeActual, *PageSize);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image from partition: %r\n",
-            Status));
-    goto Err;
+  if (!BootImageLoaded) {
+    Status = LoadImage (Info->Pname, (VOID **)&(Info->Images[0].ImageBuffer),
+                        ImageSizeActual, *PageSize);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image from partition: %r\n",
+              Status));
+      goto Err;
+    }
+
+    Info->Images[0].Name = AllocateZeroPool (StrLen (Info->Pname) + 1);
+    if (!Info->Images[0].Name) {
+      Status = EFI_OUT_OF_RESOURCES;
+      goto ErrImg;
+    }
+    UnicodeStrToAsciiStr (Info->Pname, Info->Images[0].Name);
+    Info->NumLoadedImages = 1;
   }
 
   Info->Images[0].ImageSize = ImageSizeActual;
-  Info->Images[0].Name = AllocateZeroPool (StrLen (Info->Pname) + 1);
-  if (!Info->Images[0].Name) {
-    Status = EFI_OUT_OF_RESOURCES;
-    goto ErrImg;
-  }
-  UnicodeStrToAsciiStr (Info->Pname, Info->Images[0].Name);
-  Info->NumLoadedImages = 1;
 
   if (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE) {
     Status = NoAVBLoadVendorBootImage (Info);
@@ -433,11 +443,13 @@ LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize)
   return EFI_SUCCESS;
 
 ErrImgName:
-  if (Info->Images[0].Name) {
+  if (!BootImageLoaded &&
+      Info->Images[0].Name) {
     FreePool (Info->Images[0].Name);
   }
 ErrImg:
-  if (Info->Images[0].ImageBuffer) {
+  if (!BootImageLoaded &&
+      Info->Images[0].ImageBuffer) {
     UINT32 ImageSize =
       ADD_OF (ROUND_TO_PAGE (ImageSizeActual, (*PageSize - 1)), *PageSize);
     FreePages (Info->Images[0].ImageBuffer,
@@ -449,7 +461,8 @@ Err:
                ALIGN_PAGES (BOOT_IMG_MAX_PAGE_SIZE, ALIGNMENT_MASK_4KB));
   }
 ErrV3:
-  if (ImageHdrBuffer) {
+  if (!BootImageLoaded &&
+      ImageHdrBuffer) {
     FreePages (ImageHdrBuffer,
                ALIGN_PAGES (BOOT_IMG_MAX_PAGE_SIZE, ALIGNMENT_MASK_4KB));
   }
@@ -464,8 +477,9 @@ LoadImageNoAuth (BootInfo *Info)
   CHAR16 Pname[MAX_GPT_NAME_SIZE];
   UINTN *ImgIdx = &Info->NumLoadedImages;
   UINT32 PageSize = 0;
+  BOOLEAN FastbootPath;
 
-  Status = LoadBootImageNoAuth (Info, &PageSize);
+  Status = LoadBootImageNoAuth (Info, &PageSize, &FastbootPath);
   if (Status != EFI_SUCCESS) {
     return Status;
   }
@@ -536,8 +550,12 @@ Err:
   }
 
   /* Images[0] needs to be freed in a special way as it was allocated
-   * using AllocPages().
+   * using AllocPages(). Although, ignore if we are coming from a
+   * fastboot boot path.
    */
+  if (FastbootPath)
+    goto err_out;
+
   if (Info->Images[0].ImageBuffer) {
     UINT32 ImageSize =
       ADD_OF (ROUND_TO_PAGE (Info->Images[0].ImageSize,
@@ -551,6 +569,7 @@ Err:
     FreePool (Info->Images[0].Name);
   }
 
+err_out:
   return Status;
 }
 
