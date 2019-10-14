@@ -710,6 +710,19 @@ PartitionVerifyMbrSignature (UINT32 Sz, UINT8 *Gpt)
   return SUCCESS;
 }
 
+UINT32
+PartitionVerifyMibibImage (UINT8 *Image)
+{
+
+  /* Check for the MIBIB Magic */
+  if ((((UINT32 *)Image)[0] != MIBIB_MAGIC1) ||
+      (((UINT32 *)Image)[1] != MIBIB_MAGIC2)) {
+    DEBUG ((EFI_D_ERROR, "Mibib Magic do not match\n"));
+    return FAILURE;
+  }
+  return SUCCESS;
+}
+
 STATIC UINT32
 MbrGetPartitionType (UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
 {
