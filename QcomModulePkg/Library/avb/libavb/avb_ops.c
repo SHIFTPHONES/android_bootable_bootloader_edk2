@@ -147,6 +147,7 @@ AvbIOResult AvbReadFromPartition(AvbOps *Ops, const char *Partition, int64_t Rea
         AvbPartitionDetails *List = SupportedPartitions;
         UINT32 Count = ARRAY_SIZE (SupportedPartitions);
         EFI_GUID *PType = NULL;
+        UINT64 LoadImageStartTime = GetTimerCountms ();
 
 	if (Partition == NULL || Buffer == NULL || OutNumRead == NULL || NumBytes <= 0) {
 		DEBUG((EFI_D_ERROR, "bad input paramaters\n"));
@@ -359,6 +360,8 @@ out:
 		avb_free(Page);
 	}
 
+    DEBUG ((EFI_D_INFO, "Load Image %a total time: %lu ms \n",
+          Partition, GetTimerCountms () - LoadImageStartTime));
 	return Result;
 }
 

@@ -315,6 +315,7 @@ ApplyOverlay (BootParamlist *BootParamlistPtr,
 {
   VOID *FinalDtbHdr = AppendedDtHdr;
   VOID *TmpDtbHdr = NULL;
+  UINT64 ApplyDTStartTime = GetTimerCountms ();
 
   if (BootParamlistPtr == NULL ||
       AppendedDtHdr == NULL) {
@@ -363,6 +364,8 @@ out:
                 FinalDtbHdr,
                 fdt_totalsize (FinalDtbHdr));
   post_overlay_free ();
+  DEBUG ((EFI_D_INFO, "Apply Overlay total time: %lu ms \n",
+        GetTimerCountms () - ApplyDTStartTime));
   return EFI_SUCCESS;
 }
 
@@ -563,6 +566,7 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr)
   UINT32 OutLen = 0;
   UINT64 OutAvaiLen = 0;
   struct kernel64_hdr *Kptr = NULL;
+  UINT64 DecompressStartTime;
 
   if (BootParamlistPtr == NULL) {
 
@@ -581,8 +585,7 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr)
       return EFI_BAD_BUFFER_SIZE;
     }
 
-    DEBUG ((EFI_D_INFO, "Decompressing kernel image start: %lu ms\n",
-                         GetTimerCountms ()));
+    DecompressStartTime = GetTimerCountms ();
     if (decompress (
         (UINT8 *)(BootParamlistPtr->ImageBuffer +
         BootParamlistPtr->PageSize),               // Read blob using BlockIo
@@ -600,8 +603,8 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr)
       return RETURN_OUT_OF_RESOURCES;
     }
     Kptr = (Kernel64Hdr *) BootParamlistPtr->KernelLoadAddr;
-    DEBUG ((EFI_D_INFO, "Decompressing kernel image done: %lu ms\n",
-                         GetTimerCountms ()));
+    DEBUG ((EFI_D_INFO, "Decompressing kernel image total time: %lu ms\n",
+                         GetTimerCountms () - DecompressStartTime));
   } else {
     Kptr = (struct kernel64_hdr *)(BootParamlistPtr->ImageBuffer
                          + BootParamlistPtr->PageSize);
@@ -1013,7 +1016,7 @@ BootLinux (BootInfo *Info)
                 StrLen ((CONST CHAR16 *)L"boot"))) {
     Status = GetFfbmCommand (FfbmStr, FFBM_MODE_BUF_SIZE);
     if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_INFO, "No Ffbm cookie found, ignore: %r\n", Status));
+      DEBUG ((EFI_D_VERBOSE, "No Ffbm cookie found, ignore: %r\n", Status));
       FfbmStr[0] = '\0';
     }
   }

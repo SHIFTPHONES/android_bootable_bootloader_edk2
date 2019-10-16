@@ -481,6 +481,7 @@ UpdateDeviceTree (VOID *fdt,
   UINT64 KaslrSeed = 0;
   UINT8 DdrDeviceType;
   EFI_STATUS Status;
+  UINT64 UpdateDTStartTime = GetTimerCountms ();
 
   /* Check the device tree header */
   ret = fdt_check_header (fdt) || fdt_check_header_ext (fdt);
@@ -560,7 +561,7 @@ UpdateDeviceTree (VOID *fdt,
       DEBUG ((EFI_D_INFO,
               "ERROR: Cannot update chosen node [kaslr-seed] - 0x%x\n", ret));
     } else {
-      DEBUG ((EFI_D_INFO, "kaslr-Seed is added to chosen node\n"));
+      DEBUG ((EFI_D_VERBOSE, "kaslr-Seed is added to chosen node\n"));
     }
   } else {
     DEBUG ((EFI_D_INFO, "ERROR: Cannot generate Kaslr Seed - %r\n", Status));
@@ -606,6 +607,8 @@ UpdateDeviceTree (VOID *fdt,
   }
   fdt_pack (fdt);
 
+  DEBUG ((EFI_D_INFO, "Update Device Tree total time: %lu ms \n",
+        GetTimerCountms () - UpdateDTStartTime));
   return ret;
 }
 

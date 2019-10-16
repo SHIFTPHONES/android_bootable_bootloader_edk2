@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2016, 2019 The Android Open Source Project
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -671,7 +671,7 @@ bool avb_should_update_rollback(bool is_multi_slot) {
       update_rollback_index = TRUE;
     } else {
       update_rollback_index = FALSE;
-      DEBUG ((EFI_D_WARN, "Not updating rollback"
+      DEBUG ((EFI_D_VERBOSE, "Not updating rollback"
                 "index as current slot is unbootable\n"));
     }
   } else {
