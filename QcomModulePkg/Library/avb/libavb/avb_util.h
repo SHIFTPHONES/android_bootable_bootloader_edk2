@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
