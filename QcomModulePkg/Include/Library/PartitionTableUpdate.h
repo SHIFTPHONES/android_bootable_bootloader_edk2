@@ -63,6 +63,8 @@ typedef enum {
 #define MBR_SIGNATURE 510
 #define MBR_SIGNATURE_BYTE_0 0x55
 #define MBR_SIGNATURE_BYTE_1 0xAA
+#define MIBIB_MAGIC1 0xFE569FAC
+#define MIBIB_MAGIC2 0xCD7F127A
 
 /* GPT Signature should be 0x5452415020494645 */
 #define GPT_SIGNATURE_1 0x54524150
@@ -219,4 +221,6 @@ SetActiveSlot (Slot *NewSlot, BOOLEAN ResetSuccessBit);
 BOOLEAN IsCurrentSlotBootable (VOID);
 EFI_STATUS HandleActiveSlotUnbootable (VOID);
 EFI_STATUS ClearUnbootable (VOID);
+BOOLEAN IsABRetryCountUpdateRequired (VOID);
+UINT32 PartitionVerifyMibibImage (UINT8 *Image);
 #endif

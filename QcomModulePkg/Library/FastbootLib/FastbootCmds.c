@@ -98,6 +98,9 @@ STATIC CONST CHAR16 *CriticalPartitions[] = {
     L"pmic", L"bootloader", L"devinfo", L"partition", L"devcfg",    L"ddr",
     L"frp",  L"cdt",        L"cmnlib",  L"cmnlib64",  L"keymaster", L"mdtp",
     L"aop",  L"multiimgoem", L"secdata", L"imagefv",  L"qupfw", L"uefisecapp"};
+
+STATIC BOOLEAN
+IsCriticalPartition (CHAR16 *PartitionName);
 #endif
 
 STATIC FASTBOOT_VAR *Varlist;
@@ -1225,6 +1228,13 @@ HandleMetaImgFlash (IN CHAR16 *PartitionName,
       return EFI_INVALID_PARAMETER;
     }
     AsciiStrToUnicodeStr (img_header_entry[i].ptn_name, PartitionNameFromMeta);
+
+    if (!IsUnlockCritical () &&
+        IsCriticalPartition (PartitionNameFromMeta)) {
+      FastbootFail ("Flashing is not allowed for Critical Partitions\n");
+      return EFI_INVALID_PARAMETER;
+    }
+
     Status = HandleRawImgFlash (
         PartitionNameFromMeta, ARRAY_SIZE (PartitionNameFromMeta),
         (void *)Image + img_header_entry[i].start_offset,
@@ -1563,6 +1573,7 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
   CHAR8 FlashResultStr[MAX_RSP_SIZE] = "";
   UINT64 PartitionSize = 0;
+  UINT32 Ret;
 
   ExchangeFlashAndUsbDataBuf ();
   if (mFlashDataBuffer == NULL) {
@@ -1619,8 +1630,11 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     LunSet = TRUE;
   }
 
-  if (!StrnCmp (PartitionName, L"partition", StrLen (L"partition"))) {
-    GetRootDeviceType (BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+  GetRootDeviceType (BootDeviceType, BOOT_DEV_NAME_SIZE_MAX);
+
+  if ((!StrnCmp (PartitionName, L"partition", StrLen (L"partition"))) ||
+       ((!StrnCmp (PartitionName, L"mibib", StrLen (L"mibib"))) &&
+       (!AsciiStrnCmp (BootDeviceType, "NAND", AsciiStrLen ("NAND"))))) {
     if (!AsciiStrnCmp (BootDeviceType, "UFS", AsciiStrLen ("UFS"))) {
       UfsGetSetBootLun (&UfsBootLun, TRUE); /* True = Get */
       if (UfsBootLun != 0x1) {
@@ -1637,8 +1651,20 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     PartitionDump ();
     DEBUG ((EFI_D_INFO, "*************** Current partition Table Dump End   "
                         "*******************\n"));
-    Status = UpdatePartitionTable (mFlashDataBuffer, mFlashNumDataBytes, Lun,
-                                   Ptable);
+    if (!AsciiStrnCmp (BootDeviceType, "NAND", AsciiStrLen ("NAND"))) {
+      Ret = PartitionVerifyMibibImage (mFlashDataBuffer);
+      if (Ret) {
+        FastbootFail ("Error Updating partition Table\n");
+        goto out;
+      }
+      Status = HandleRawImgFlash (PartitionName,
+                        ARRAY_SIZE (PartitionName),
+                        mFlashDataBuffer, mFlashNumDataBytes);
+    }
+    else {
+      Status = UpdatePartitionTable (mFlashDataBuffer, mFlashNumDataBytes,
+                        Lun, Ptable);
+    }
     /* Signal the Block IO to update and reenumerate the parition table */
     if (Status == EFI_SUCCESS)  {
       Status = ReenumeratePartTable ();

@@ -31,6 +31,7 @@
 
 #include "avb_sysdeps.h"
 #include "VerifiedBoot.h"
+#include <Library/DebugLib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,7 +83,8 @@ extern "C" {
  */
 #define avb_debug(message)              \
   do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
+    avb_printv(EFI_D_VERBOSE,           \
+               avb_basename(__FILE__),  \
                ":",                     \
                AVB_TO_STRING(__LINE__), \
                ": DEBUG: ",             \
@@ -91,7 +93,8 @@ extern "C" {
   } while (0)
 #define avb_debugv(message, ...)        \
   do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
+    avb_printv(EFI_D_VERBOSE,           \
+               avb_basename(__FILE__),  \
                ":",                     \
                AVB_TO_STRING(__LINE__), \
                ": DEBUG: ",             \
@@ -108,7 +111,8 @@ extern "C" {
  */
 #define avb_error(message)              \
   do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
+    avb_printv(EFI_D_ERROR,             \
+               avb_basename(__FILE__),  \
                ":",                     \
                AVB_TO_STRING(__LINE__), \
                ": ERROR: ",             \
@@ -117,7 +121,8 @@ extern "C" {
   } while (0)
 #define avb_errorv(message, ...)        \
   do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
+    avb_printv(EFI_D_ERROR,             \
+               avb_basename(__FILE__),  \
                ":",                     \
                AVB_TO_STRING(__LINE__), \
                ": ERROR: ",             \
@@ -129,7 +134,8 @@ extern "C" {
  */
 #define avb_fatal(message)              \
   do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
+    avb_printv(EFI_D_ERROR,             \
+               avb_basename(__FILE__),  \
                ":",                     \
                AVB_TO_STRING(__LINE__), \
                ": FATAL: ",             \
@@ -139,7 +145,8 @@ extern "C" {
   } while (0)
 #define avb_fatalv(message, ...)        \
   do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
+    avb_printv(EFI_D_ERROR,             \
+               avb_basename(__FILE__),  \
                ":",                     \
                AVB_TO_STRING(__LINE__), \
                ": FATAL: ",             \

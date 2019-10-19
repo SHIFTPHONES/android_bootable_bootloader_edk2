@@ -710,6 +710,19 @@ PartitionVerifyMbrSignature (UINT32 Sz, UINT8 *Gpt)
   return SUCCESS;
 }
 
+UINT32
+PartitionVerifyMibibImage (UINT8 *Image)
+{
+
+  /* Check for the MIBIB Magic */
+  if ((((UINT32 *)Image)[0] != MIBIB_MAGIC1) ||
+      (((UINT32 *)Image)[1] != MIBIB_MAGIC2)) {
+    DEBUG ((EFI_D_ERROR, "Mibib Magic do not match\n"));
+    return FAILURE;
+  }
+  return SUCCESS;
+}
+
 STATIC UINT32
 MbrGetPartitionType (UINT32 Sz, UINT8 *Gpt, UINT32 *Ptype)
 {
@@ -1571,8 +1584,9 @@ FindBootableSlot (Slot *BootableSlot)
     DEBUG (
         (EFI_D_VERBOSE, "Active Slot %s is bootable\n", BootableSlot->Suffix));
   } else if (Unbootable == 0 && BootSuccess == 0 && RetryCount > 0) {
-    if (!IsABRetryCountDisabled () &&
-        !IsBootDevImage ()) {
+    if ((!IsABRetryCountDisabled () &&
+        !IsBootDevImage ()) &&
+      IsABRetryCountUpdateRequired ()) {
       RetryCount--;
       BootEntry->PartEntry.Attributes &= ~PART_ATT_MAX_RETRY_COUNT_VAL;
       BootEntry->PartEntry.Attributes |= RetryCount

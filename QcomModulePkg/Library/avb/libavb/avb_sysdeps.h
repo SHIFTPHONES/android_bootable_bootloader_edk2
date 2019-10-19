@@ -95,12 +95,12 @@ void* avb_memset(void* dest, const int c, size_t n);
 /* Prints out a message. The string passed must be a NUL-terminated
  * UTF-8 string.
  */
-void avb_print(const char* message);
+void avb_print(UINTN ErrorLevel, const char* message);
 
 /* Prints out a vector of strings. Each argument must point to a
  * NUL-terminated UTF-8 string and NULL should be the last argument.
  */
-void avb_printv(const char* message, ...) AVB_ATTR_SENTINEL;
+void avb_printv(UINTN ErrorLevel, const char* message, ...) AVB_ATTR_SENTINEL;
 
 /* Aborts the program or reboots the device. */
 void avb_abort(void);

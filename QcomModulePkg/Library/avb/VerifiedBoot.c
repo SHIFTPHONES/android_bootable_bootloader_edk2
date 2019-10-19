@@ -934,7 +934,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
                SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
     if (AllowVerificationError &&
                ResultShouldContinue (Result)) {
-      DEBUG ((EFI_D_ERROR, "State: Unlocked, AvbSlotVerify returned "
+      DEBUG ((EFI_D_VERBOSE, "State: Unlocked, AvbSlotVerify returned "
                           "%a, continue boot\n",
               avb_slot_verify_result_to_string (Result)));
     } else if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
@@ -985,7 +985,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     }
     if (Index == INVALID_PTN ||
                Index >= MAX_NUM_PARTITIONS) {
-      DEBUG ((EFI_D_ERROR, "Invalid vm-linux partition\n"));
+      DEBUG ((EFI_D_VERBOSE, "Invalid vm-linux partition\n"));
     } else {
       AddRequestedPartition (RequestedPartitionAll, IMG_VMLINUX);
       NumRequestedPartition += 1;
@@ -1001,7 +1001,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   }
 
   if (AllowVerificationError && ResultShouldContinue (Result)) {
-    DEBUG ((EFI_D_ERROR, "State: Unlocked, AvbSlotVerify returned "
+    DEBUG ((EFI_D_VERBOSE, "State: Unlocked, AvbSlotVerify returned "
                          "%a, continue boot\n",
             avb_slot_verify_result_to_string (Result)));
   } else if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
@@ -1105,8 +1105,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   /* Send date value in security patch only when KM TA supports it and the
    * property is available in vbmeta data, send the old value in other cases
   */
+  DEBUG ((EFI_D_VERBOSE, "DateSupport: %d\n", DateSupport));
   if (DateSupport) {
-    DEBUG ((EFI_D_INFO, "DateSupport: %d\n", DateSupport));
     BootSecurityLevel = avb_property_lookup (
                            SlotData->vbmeta_images[0].vbmeta_data,
                            SlotData->vbmeta_images[0].vbmeta_size,
@@ -1165,8 +1165,8 @@ out:
     }
   }
 
-  DEBUG ((EFI_D_ERROR, "VB2: boot state: %a(%d)\n", VbSn[Info->BootState].name,
-          Info->BootState));
+  DEBUG ((EFI_D_INFO, "VB2: boot state: %a(%d)\n",
+        VbSn[Info->BootState].name, Info->BootState));
   return Status;
 }
 

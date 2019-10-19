@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -51,7 +51,7 @@ HypBootInfo *GetVmData (VOID)
     return HypInfo;
   }
 
-  DEBUG ((EFI_D_INFO, "GetVmData: making ScmCall to get HypInfo\n"));
+  DEBUG ((EFI_D_VERBOSE, "GetVmData: making ScmCall to get HypInfo\n"));
   /* Locate QCOM_SCM_PROTOCOL */
   Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL,
                                 (VOID **)&QcomScmProtocol);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -70,7 +70,7 @@ VOID ExitMenuKeysDetection (VOID)
       gBS->CloseEvent (CallbackKeyDetection);
       CallbackKeyDetection = NULL;
     }
-    DEBUG ((EFI_D_INFO, "Exit key detection timer\n"));
+    DEBUG ((EFI_D_VERBOSE, "Exit key detection timer\n"));
 
     /* Clear the screen */
     gST->ConOut->ClearScreen (gST->ConOut);
