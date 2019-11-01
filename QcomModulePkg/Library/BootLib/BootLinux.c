@@ -1253,31 +1253,12 @@ CheckImageHeader (VOID *ImageHdrBuffer,
         }
     }
     else {
-        UINT32 DtbActual = 0;
-        struct boot_img_hdr_v2 *Hdr2 = (struct boot_img_hdr_v2 *)
-            (ImageHdrBuffer +
-            BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET +
-            BOOT_IMAGE_HEADER_V2_OFFSET);
-        DtbActual = ROUND_TO_PAGE (Hdr2->dtb_size,
-                                        *PageSize - 1);
         if ((Hdr1->header_size !=
                         BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET +
                         BOOT_IMAGE_HEADER_V2_OFFSET +
                         sizeof (struct boot_img_hdr_v2))) {
            DEBUG ((EFI_D_ERROR,
               "Invalid boot image header: %d\n", Hdr1->header_size));
-           return EFI_BAD_BUFFER_SIZE;
-        }
-        if (Hdr2->dtb_size && !DtbActual) {
-           DEBUG ((EFI_D_ERROR,
-               "DTB Image not present: DTB Size = %u\n", Hdr2->dtb_size));
-           return EFI_BAD_BUFFER_SIZE;
-        }
-        tempImgSize = *ImageSizeActual;
-        *ImageSizeActual = ADD_OF (*ImageSizeActual, DtbActual);
-        if (!*ImageSizeActual) {
-           DEBUG ((EFI_D_ERROR, "Integer Overflow: ImgSizeActual=%u,"
-              " DtbActual=%u\n", tempImgSize, DtbActual));
            return EFI_BAD_BUFFER_SIZE;
         }
     }
