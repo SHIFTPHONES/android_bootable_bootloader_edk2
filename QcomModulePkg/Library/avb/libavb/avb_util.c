@@ -671,7 +671,7 @@ bool avb_should_update_rollback(bool is_multi_slot) {
       update_rollback_index = TRUE;
     } else {
       update_rollback_index = FALSE;
-      DEBUG ((EFI_D_WARN, "Not updating rollback"
+      DEBUG ((EFI_D_VERBOSE, "Not updating rollback"
                 "index as current slot is unbootable\n"));
     }
   } else {
