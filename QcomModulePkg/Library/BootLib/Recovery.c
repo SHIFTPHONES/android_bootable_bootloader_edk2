@@ -236,7 +236,7 @@ GetSnapshotMergeStatus (VOID)
   return MergeStatus;
 }
 
-STATIC EFI_STATUS
+EFI_STATUS
 ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
 {
   return (ReadFromPartitionOffset (Ptype, Msg, Size, 0));
