@@ -1779,6 +1779,18 @@ BOOLEAN IsBuildAsSystemRootImage (VOID)
 }
 #endif
 
+#ifdef BUILD_USES_RECOVERY_AS_BOOT
+BOOLEAN IsBuildUseRecoveryAsBoot (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsBuildUseRecoveryAsBoot (VOID)
+{
+  return FALSE;
+}
+#endif
+
 VOID
 ResetBootDevImage (VOID)
 {
