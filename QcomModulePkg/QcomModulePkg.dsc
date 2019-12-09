@@ -128,6 +128,9 @@
   !if $(DYNAMIC_PARTITION_SUPPORT)
       GCC:*_*_*_CC_FLAGS = -DDYNAMIC_PARTITION_SUPPORT
   !endif
+  !if $(BUILD_USES_RECOVERY_AS_BOOT)
+      GCC:*_*_*_CC_FLAGS = -DBUILD_USES_RECOVERY_AS_BOOT
+  !endif
   !ifdef $(INIT_BIN)
       GCC:*_*_*_CC_FLAGS = -DINIT_BIN='$(INIT_BIN)'
   !endif
