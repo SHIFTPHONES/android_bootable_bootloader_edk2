@@ -74,6 +74,9 @@ STATIC UINTN DisplayCmdLineLen = sizeof (DisplayCmdLine);
 STATIC CHAR8 *AndroidBootDtboIdx = " androidboot.dtbo_idx=";
 STATIC CHAR8 *AndroidBootDtbIdx = " androidboot.dtb_idx=";
 
+STATIC CONST CHAR8 *AndroidBootForceNormalBoot =
+                                      " androidboot.force_normal_boot=1";
+
 EFI_STATUS
 TargetPauseForBatteryCharge (BOOLEAN *BatteryStatus)
 {
@@ -505,6 +508,12 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
 
+  if (IsBuildUseRecoveryAsBoot () &&
+      !Param->Recovery) {
+    Src = AndroidBootForceNormalBoot;
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+  }
+
   if (Param->LEVerityCmdLine != NULL) {
     Src = Param->LEVerityCmdLine;
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
@@ -681,6 +690,12 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
       CmdLineLen += AsciiStrLen (DtbIdxStr);
     }
   }
+
+  if (IsBuildUseRecoveryAsBoot () &&
+      !Recovery) {
+    CmdLineLen += AsciiStrLen (AndroidBootForceNormalBoot);
+  }
+
   /* 1 extra byte for NULL */
   CmdLineLen += 1;
 
