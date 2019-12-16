@@ -137,6 +137,9 @@
   !if $(NAND_SQUASHFS_SUPPORT)
       GCC:*_*_*_CC_FLAGS = -DNAND_SQUASHFS_SUPPORT
   !endif
+  !if $(RW_ROOTFS)
+      GCC:*_*_*_CC_FLAGS = -DRW_ROOTFS
+  !endif
 
 [PcdsFixedAtBuild.common]
 
