@@ -3,6 +3,7 @@ ANDROID_TOP=$(shell pwd)
 CLANG_BIN := $(ANDROID_TOP)/$(LLVM_PREBUILTS_PATH)/
 ABL_USE_SDLLVM := false
 
+ifneq ($(FORCE_SDCLANG_OFF),true)
 ifneq ($(wildcard $(SDCLANG_PATH)),)
   ifeq ($(shell echo $(SDCLANG_PATH) | head -c 1),/)
     CLANG_BIN := $(SDCLANG_PATH)/
@@ -11,6 +12,7 @@ ifneq ($(wildcard $(SDCLANG_PATH)),)
   endif
 
   ABL_USE_SDLLVM := true
+endif
 endif
 
 # LD & make are not available in prebuilts for older Android versions
