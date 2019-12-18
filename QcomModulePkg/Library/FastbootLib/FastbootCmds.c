@@ -2567,9 +2567,9 @@ is_display_supported ( VOID )
   UINT32 ParamSize = sizeof (PanelConfig);
   PanelConfig.uPanelIndex = Index;
 
-  if (EFI_SUCCESS == (Status = gBS->LocateProtocol (&DisplayUtilGUID,
+  if (EFI_SUCCESS == gBS->LocateProtocol (&DisplayUtilGUID,
                                     NULL,
-                                    (VOID **)&pDisplayUtilProtocol))) {
+                                    (VOID **)&pDisplayUtilProtocol)) {
      Status = pDisplayUtilProtocol->DisplayUtilsGetProperty (
                                      EFI_DISPLAY_UTILS_PANEL_CONFIG,
                                     (VOID*)&PanelConfig, &ParamSize);
