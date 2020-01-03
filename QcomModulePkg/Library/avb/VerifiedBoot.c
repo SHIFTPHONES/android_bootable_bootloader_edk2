@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -511,31 +511,6 @@ LoadImageNoAuth (BootInfo *Info)
     ++(*ImgIdx);
   }
 
-  /* Load vm-linux if Verified boot is disabled */
-  if (IsVmEnabled ()) {
-    Status = NoAVBLoadReqImage (Info,
-             (VOID **)&(Info->Images[*ImgIdx].ImageBuffer),
-             (UINT32 *)&(Info->Images[*ImgIdx].ImageSize), Pname, L"vm-linux");
-    if (Status == EFI_NO_MEDIA) {
-      DEBUG ((EFI_D_INFO, "No vm-linux partition is found, Skip..\n"));
-      goto Out;
-    } else if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR,
-              "ERROR: Failed to load vm-linux from partition: %r\n", Status));
-      goto Err;
-    }
-
-    Info-> Images[*ImgIdx].Name = AllocateZeroPool (StrLen (Pname) + 1);
-    if (!Info->Images[*ImgIdx].Name) {
-      Status = EFI_OUT_OF_RESOURCES;
-      goto Err;
-    }
-
-    UnicodeStrToAsciiStr (Pname, Info->Images[*ImgIdx].Name);
-    ++(*ImgIdx);
-  }
-
-Out:
   return EFI_SUCCESS;
 
 Err:
