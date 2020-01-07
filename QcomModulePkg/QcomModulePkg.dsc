@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+# * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
 # *
 # * Redistribution and use in source and binary forms, with or without
 # * modification, are permitted provided that the following conditions are
@@ -133,9 +133,6 @@
   !endif
   !ifdef $(INIT_BIN)
       GCC:*_*_*_CC_FLAGS = -DINIT_BIN='$(INIT_BIN)'
-  !endif
-  !if $(TARGET_ARCH_ARM64)
-      GCC:*_*_*_CC_FLAGS = -DTARGET_ARCH_ARM64
   !endif
   !if $(NAND_SQUASHFS_SUPPORT)
       GCC:*_*_*_CC_FLAGS = -DNAND_SQUASHFS_SUPPORT
