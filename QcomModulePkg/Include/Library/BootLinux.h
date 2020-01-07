@@ -162,8 +162,9 @@ typedef struct BootLinuxParamlist {
   UINT64 KernelEndAddr;
   UINT64 RamdiskLoadAddr;
   UINT64 DeviceTreeLoadAddr;
-  UINT64 HypDtboAddr;
-  UINT64 MemorySize;
+  UINT64 *HypDtboBaseAddr;
+  UINT32 NumHypDtbos;
+
  //Get the below fields info from the bootimage header
   UINT32 PageSize;
   UINT32 KernelSize;

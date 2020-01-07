@@ -26,7 +26,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "BootLinux.h"
 #include <Library/DebugLib.h>
 #include <Protocol/EFIScm.h>
 #include <Protocol/scm_sip_interface.h>
@@ -80,4 +79,67 @@ HypBootInfo *GetVmData (VOID)
   VmEnabled = TRUE;
 
   return HypInfo;
+}
+
+STATIC
+EFI_STATUS
+SetHypInfo (BootParamlist *BootParamlistPtr,
+            HypBootInfo *HypInfo)
+{
+
+  UINT32 i = 0;
+  UINT32 NumDtbos;
+  UINT64 *DtboBaseAddr;
+
+  if (HypInfo->hyp_bootinfo_magic != HYP_BOOTINFO_MAGIC) {
+    DEBUG ((EFI_D_ERROR, "Invalid HYP MAGIC\n"));
+    return EFI_UNSUPPORTED;
+  }
+
+  /* If the data in HypInfo is incorrect, we are just flagging it
+   * as an error and will allow the primary VM to boot normally */
+  NumDtbos = HypInfo->primary_vm_info.num_dtbos;
+  if (NumDtbos > HYP_MAX_NUM_DTBOS) {
+    DEBUG ((EFI_D_ERROR, "HypInfo: Invalid number of dtbos: %d "
+                         "max supported : %d\n", NumDtbos, HYP_MAX_NUM_DTBOS));
+    NumDtbos = HYP_MAX_NUM_DTBOS;
+  }
+
+  DtboBaseAddr = AllocateZeroPool (NumDtbos * sizeof (UINT64));
+  if (!DtboBaseAddr) {
+    DEBUG ((EFI_D_ERROR,
+            "HypInfo: Failed to allocate memory for DtboBaseAddr\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  for (i = 0; i < NumDtbos; i++) {
+    /* Sanity check on these addresses is done just before overlaying */
+    DtboBaseAddr[i] = HypInfo->primary_vm_info.info.linux_aarch64[i].dtbo_base;
+  }
+
+  BootParamlistPtr->NumHypDtbos = NumDtbos;
+  BootParamlistPtr->HypDtboBaseAddr = DtboBaseAddr;
+
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+CheckAndSetVmData (BootParamlist *BootParamlistPtr)
+{
+  EFI_STATUS Status;
+
+  HypBootInfo *HypInfo = GetVmData ();
+  if (HypInfo == NULL) {
+    DEBUG ((EFI_D_ERROR, "HypInfo is NULL\n"));
+    return EFI_UNSUPPORTED;
+  }
+
+  Status = SetHypInfo (BootParamlistPtr, HypInfo);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Failed to update HypInfo!! Status:%r\n", Status));
+    return Status;
+  }
+
+  DEBUG ((EFI_D_INFO, "Hyp version: %d\n", HypInfo->hyp_bootinfo_version));
+  return Status;
 }

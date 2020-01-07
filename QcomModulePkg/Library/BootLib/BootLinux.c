@@ -535,19 +535,30 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
       }
     }
 
+    /* If hypervisor boot info is present, append dtbo info passed from hyp */
     if (IsVmEnabled ()) {
-      if ((VOID *)BootParamlistPtr->HypDtboAddr == NULL) {
+      if (BootParamlistPtr->HypDtboBaseAddr == NULL) {
         DEBUG ((EFI_D_ERROR, "Error: HypOverlay DT is NULL\n"));
         return EFI_NOT_FOUND;
       }
 
-      if (!AppendToDtList (&DtsList,
-                           (fdt64_t)BootParamlistPtr->HypDtboAddr,
-                           fdt_totalsize (BootParamlistPtr->HypDtboAddr))) {
-        DEBUG ((EFI_D_ERROR,
-                "Unable to Allocate buffer for HypOverlay DT\n"));
-        DeleteDtList (&DtsList);
-        return EFI_OUT_OF_RESOURCES;
+      for (UINT32 i = 0; i < BootParamlistPtr->NumHypDtbos; i++) {
+        /* Flag the invalid dtbos and overlay the valid ones */
+        if (!BootParamlistPtr->HypDtboBaseAddr[i] ||
+             fdt_check_header ((VOID *)BootParamlistPtr->HypDtboBaseAddr[i])) {
+          DEBUG ((EFI_D_ERROR, "HypInfo: Not overlaying hyp dtbo"
+                  "Dtbo :%d is null or Bad DT header\n", i));
+          continue;
+        }
+
+        if (!AppendToDtList (&DtsList,
+                       (fdt64_t)BootParamlistPtr->HypDtboBaseAddr[i],
+                       fdt_totalsize (BootParamlistPtr->HypDtboBaseAddr[i]))) {
+          DEBUG ((EFI_D_ERROR,
+                  "Unable to Allocate buffer for HypOverlay DT num: %d\n", i));
+          DeleteDtList (&DtsList);
+          return EFI_OUT_OF_RESOURCES;
+        }
       }
     }
 
@@ -753,84 +764,6 @@ LoadAddrAndDTUpdate (BootInfo *Info, BootParamlist *BootParamlistPtr)
   return EFI_SUCCESS;
 }
 
-STATIC
-EFI_STATUS
-UpdateMemRegions (BootParamlist *BootParamlistPtr,
-                  BootParamlist *CvmBootParamList,
-                  HypBootInfo *HypInfo)
-{
-  if (HypInfo->hyp_bootinfo_magic != HYP_BOOTINFO_MAGIC) {
-    DEBUG ((EFI_D_ERROR, "Invalid HYP MAGIC\n"));
-    return EFI_UNSUPPORTED;
-  }
-
-  if ((HypInfo->num_vms > MAX_SUPPORTED_VMS) ||
-      (HypInfo->num_vms < MIN_SUPPORTED_VMS)) {
-    DEBUG ((EFI_D_ERROR, "Invalid No. of VMs:%d,Supported VMs range:(%d-%d)\n",
-            HypInfo->num_vms, MIN_SUPPORTED_VMS, MAX_SUPPORTED_VMS));
-    return EFI_UNSUPPORTED;
-  }
-
-  /* HLOS: get ddr regions from HypInfo */
-  BootParamlistPtr->BaseMemory =
-         HypInfo->vm[HypInfo->hlos_vm].ddr_region[KERNEL_ADDR_IDX].base;
-  DEBUG ((EFI_D_INFO, "Memory Base Address: 0x%x\n",
-                       BootParamlistPtr->BaseMemory));
-  BootParamlistPtr->MemorySize =
-         HypInfo->vm[HypInfo->hlos_vm].ddr_region[KERNEL_ADDR_IDX].size;
-  BootParamlistPtr->KernelLoadAddr =
-        (EFI_PHYSICAL_ADDRESS)
-        (BootParamlistPtr->BaseMemory | PcdGet32 (KernelLoadAddress));
-  BootParamlistPtr->RamdiskLoadAddr =
-        (EFI_PHYSICAL_ADDRESS)
-        (BootParamlistPtr->BaseMemory | PcdGet32 (RamdiskLoadAddress));
-  BootParamlistPtr->DeviceTreeLoadAddr =
-        (EFI_PHYSICAL_ADDRESS)
-        (BootParamlistPtr->BaseMemory | PcdGet32 (TagsAddress));
-  BootParamlistPtr->HypDtboAddr =
-        HypInfo->vm[HypInfo->hlos_vm].info.linux_arm.dtbo_base;
-
-  /* If Hyp is enabled & HLOS DTBO is invalid,
-     no need to continue further */
-  if (!BootParamlistPtr->HypDtboAddr ||
-      fdt_check_header ((VOID *)BootParamlistPtr->HypDtboAddr)) {
-    DEBUG ((EFI_D_ERROR, "HLOS overlay DT Addr is NULL or Bad DT Header\n"));
-    return EFI_UNSUPPORTED;
-  }
-
-  /*
-   * Right now only one vm is supported
-   * Support for more than one vm can be extended later.
-   */
-
-  /* MLVM: get ddr regions from HypInfo */
-  for (UINT32 Count = 0; Count < HypInfo->num_vms; Count++) {
-    if (Count == HypInfo->hlos_vm) {
-      continue;
-    }
-    if (HypInfo->vm[Count].vm_type == HYP_VM_TYPE_LINUX_AARCH64) {
-      CvmBootParamList->BaseMemory =
-            HypInfo->vm[Count].ddr_region[KERNEL_ADDR_IDX].base;
-      CvmBootParamList->MemorySize =
-            HypInfo->vm[Count].ddr_region[KERNEL_ADDR_IDX].size;
-      CvmBootParamList->KernelLoadAddr =
-           (EFI_PHYSICAL_ADDRESS)
-           (CvmBootParamList->BaseMemory | PcdGet32 (KernelLoadAddress));
-      CvmBootParamList->RamdiskLoadAddr =
-           (EFI_PHYSICAL_ADDRESS)
-           (CvmBootParamList->BaseMemory | PcdGet32 (RamdiskLoadAddress));
-      CvmBootParamList->DeviceTreeLoadAddr =
-           (EFI_PHYSICAL_ADDRESS)
-           (CvmBootParamList->BaseMemory | PcdGet32 (TagsAddress));
-      CvmBootParamList->HypDtboAddr =
-           HypInfo->vm[Count].info.linux_arm.dtbo_base;
-      break;
-    }
-  }
-
-  return EFI_SUCCESS;
-}
-
 STATIC EFI_STATUS
 CatCmdLine (BootParamlist *BootParamlistPtr,
             boot_img_hdr_v3 *BootImgHdrV3,
@@ -930,17 +863,18 @@ BootLinux (BootInfo *Info)
   BOOLEAN IsModeSwitch = FALSE;
 
   BootParamlist BootParamlistPtr = {0};
-  BootParamlist CvmBootParamList = {0};
-  HypBootInfo *HypInfo = GetVmData ();
-  if (IsVmEnabled () &&
-      HypInfo == NULL) {
-    DEBUG ((EFI_D_ERROR, "HypInfo is NULL\n"));
-    return EFI_UNSUPPORTED;
-  }
 
   if (Info == NULL) {
     DEBUG ((EFI_D_ERROR, "BootLinux: invalid parameter Info\n"));
     return EFI_INVALID_PARAMETER;
+  }
+
+  if (IsVmEnabled ()) {
+    Status = CheckAndSetVmData (&BootParamlistPtr);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Failed to update HypData!! Status:%r\n", Status));
+      return Status;
+    }
   }
 
   PartitionName = Info->Pname;
@@ -985,22 +919,11 @@ BootLinux (BootInfo *Info)
     return Status;
   }
 
-  if (IsVmEnabled ()) {
-    Status = UpdateMemRegions (&BootParamlistPtr,
-                               &CvmBootParamList,
-                               HypInfo);
-    if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR, "Failed to update HLOS Mem regions !!! "
-                           "Status:%r\n", Status));
-      return Status;
-    }
-  } else {
-    // Retrive Base Memory Address from Ram Partition Table
-    Status = BaseMem (&BootParamlistPtr.BaseMemory);
-    if (Status != EFI_SUCCESS) {
+  // Retrive Base Memory Address from Ram Partition Table
+  Status = BaseMem (&BootParamlistPtr.BaseMemory);
+  if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "Base memory not found!!! Status:%r\n", Status));
       return Status;
-    }
   }
 
   Status = UpdateKernelModeAndPkg (&BootParamlistPtr);
