@@ -3,7 +3,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,7 +79,6 @@ typedef struct UpdateCmdLineParamList {
   CHAR8 *DtboIdxStr;
   CHAR8 *DtbIdxStr;
   CHAR8 *LEVerityCmdLine;
-  CHAR8 *CvmSystemPtnCmdLine;
 } UpdateCmdLineParamList;
 
 EFI_STATUS
@@ -93,8 +92,8 @@ BOOLEAN
 TargetBatterySocOk (UINT32 *BatteryVoltage);
 
 UINT32
-GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
-               BOOLEAN BootIntoRecovery, CHAR16 *ReqPartition, CHAR8 *Key);
+GetSystemPath (CHAR8 **SysPath, BootInfo *Info);
+
 EFI_STATUS
 TargetPauseForBatteryCharge (BOOLEAN *BatteryStatus);
 #endif

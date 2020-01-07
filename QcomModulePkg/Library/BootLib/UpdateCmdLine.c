@@ -3,7 +3,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,7 +40,6 @@
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/EFIPmicPon.h>
 #include <Protocol/Print2.h>
-#include <Library/HypervisorMvCalls.h>
 
 #include "AutoGen.h"
 #include <DeviceInfo.h>
@@ -286,8 +285,7 @@ STATIC VOID GetDisplayCmdline (VOID)
  * Returns length = 0 when there is failure.
  */
 UINT32
-GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
-               BOOLEAN BootIntoRecovery, CHAR16 *ReqPartition, CHAR8 *Key)
+GetSystemPath (CHAR8 **SysPath, BootInfo *Info)
 {
   INT32 Index;
   UINT32 Lun;
@@ -296,12 +294,6 @@ GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
   CHAR8 LunCharMapping[] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
   CHAR8 RootDevStr[BOOT_DEV_NAME_SIZE_MAX];
 
-  if (ReqPartition == NULL ||
-      Key == NULL) {
-    DEBUG ((EFI_D_ERROR, "Invalid parameters: NULL\n"));
-    return 0;
-  }
-
   *SysPath = AllocateZeroPool (sizeof (CHAR8) * MAX_PATH_SIZE);
   if (!*SysPath) {
     DEBUG ((EFI_D_ERROR, "Failed to allocated memory for System path query\n"));
@@ -309,23 +301,23 @@ GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
   }
 
   if (IsLEVariant () &&
-      BootIntoRecovery) {
+      Info->BootIntoRecovery) {
     StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"recoveryfs",
-              StrLen ((CONST CHAR16 *)L"recoveryfs"));
+            StrLen ((CONST CHAR16 *)L"recoveryfs"));
   } else {
-    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, ReqPartition,
-              StrLen (ReqPartition));
+    StrnCpyS (PartitionName, MAX_GPT_NAME_SIZE, (CONST CHAR16 *)L"system",
+            StrLen ((CONST CHAR16 *)L"system"));
   }
 
   /* Append slot info for A/B Variant */
-  if (MultiSlotBoot) {
+  if (Info->MultiSlotBoot) {
      StrnCatS (PartitionName, MAX_GPT_NAME_SIZE, CurSlot.Suffix,
             StrLen (CurSlot.Suffix));
   }
 
   Index = GetPartitionIndex (PartitionName);
   if (Index == INVALID_PTN || Index >= MAX_NUM_PARTITIONS) {
-    DEBUG ((EFI_D_ERROR, "%s partition does not exist\n", PartitionName));
+    DEBUG ((EFI_D_ERROR, "System partition does not exist\n"));
     FreePool (*SysPath);
     *SysPath = NULL;
     return 0;
@@ -340,7 +332,7 @@ GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
   }
 
   if (!AsciiStrCmp ("EMMC", RootDevStr)) {
-    AsciiSPrint (*SysPath, MAX_PATH_SIZE, " %a=/dev/mmcblk0p%d", Key, Index);
+    AsciiSPrint (*SysPath, MAX_PATH_SIZE, " root=/dev/mmcblk0p%d", Index);
   } else if (!AsciiStrCmp ("NAND", RootDevStr)) {
     /* NAND is being treated as GPT partition, hence reduce the index by 1 as
      * PartitionIndex (0) should be ignored for correct mapping of partition.
@@ -359,9 +351,7 @@ GetSystemPath (CHAR8 **SysPath, BOOLEAN MultiSlotBoot,
           (Index - 1));
     }
   } else if (!AsciiStrCmp ("UFS", RootDevStr)) {
-    AsciiSPrint (*SysPath, MAX_PATH_SIZE,
-                 " %a=/dev/sd%c%d",
-                 Key,
+    AsciiSPrint (*SysPath, MAX_PATH_SIZE, " root=/dev/sd%c%d",
                  LunCharMapping[Lun],
                  GetPartitionIdxInLun (PartitionName, Lun));
   } else {
@@ -521,11 +511,6 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     Param->LEVerityCmdLine = NULL;
   }
 
-  /* Update commandline for VM System partition */
-  if (Param->CvmSystemPtnCmdLine) {
-    Src = Param->CvmSystemPtnCmdLine;
-    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
-  }
   return EFI_SUCCESS;
 }
 
@@ -550,7 +535,6 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   BOOLEAN BatteryStatus;
   CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
   BOOLEAN MdtpActive = FALSE;
-  CHAR8 *CvmSystemPtnCmdLine = NULL;
   UpdateCmdLineParamList Param = {0};
   CHAR8 DtboIdxStr[MAX_DTBO_IDX_STR] = "\0";
   CHAR8 DtbIdxStr[MAX_DTBO_IDX_STR] = "\0";
@@ -699,14 +683,6 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   /* 1 extra byte for NULL */
   CmdLineLen += 1;
 
-  if (IsVmEnabled ()) {
-    CmdLineLen += GetSystemPath (&CvmSystemPtnCmdLine,
-                                 MultiSlotBoot,
-                                 Recovery,
-                                 (CHAR16 *)L"vm-system",
-                                 (CHAR8 *)"vm_system");
-  }
-
   Param.Recovery = Recovery;
   Param.MultiSlotBoot = MultiSlotBoot;
   Param.AlarmBoot = AlarmBoot;
@@ -736,7 +712,6 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   Param.DtboIdxStr = DtboIdxStr;
   Param.DtbIdxStr = DtbIdxStr;
   Param.LEVerityCmdLine = LEVerityCmdLine;
-  Param.CvmSystemPtnCmdLine = CvmSystemPtnCmdLine;
 
   Status = UpdateCmdLineParams (&Param, FinalCmdLine);
   if (Status != EFI_SUCCESS) {
