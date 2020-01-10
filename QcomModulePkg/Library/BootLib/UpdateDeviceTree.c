@@ -43,6 +43,7 @@
 
 #define NUM_SPLASHMEM_PROP_ELEM 4
 #define DEFAULT_CELL_SIZE 2
+#define NUM_RNG_SEED_WORDS 512
 
 STATIC struct FstabNode FstabTable = {"/firmware/android/fstab", "dev",
                                       "/soc/"};
@@ -95,7 +96,7 @@ GetDDRInfo (struct ddr_details_entry_info *DdrInfo,
 }
 
 STATIC EFI_STATUS
-GetKaslrSeed (UINT64 *KaslrSeed)
+GetRandomSeed (UINT64 *RandomSeed)
 {
   EFI_QCOM_RNG_PROTOCOL *RngIf;
   EFI_STATUS Status;
@@ -103,7 +104,7 @@ GetKaslrSeed (UINT64 *KaslrSeed)
   Status = gBS->LocateProtocol (&gQcomRngProtocolGuid, NULL, (VOID **)&RngIf);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_VERBOSE,
-            "Error locating PRNG protocol. Fail to generate Kaslr seed:%r\n",
+            "Error locating PRNG protocol. Fail to generate random seed:%r\n",
             Status));
     return Status;
   }
@@ -111,12 +112,12 @@ GetKaslrSeed (UINT64 *KaslrSeed)
   Status = RngIf->GetRNG (RngIf,
                           &gEfiRNGAlgRawGuid,
                           sizeof (UINTN),
-                          (UINT8 *)KaslrSeed);
+                          (UINT8 *)RandomSeed);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_VERBOSE,
          "Error getting PRNG random number. Fail to generate Kaslr seed:%r\n",
          Status));
-    *KaslrSeed = 0;
+    *RandomSeed = 0;
     return Status;
   }
 
@@ -477,7 +478,7 @@ UpdateDeviceTree (VOID *fdt,
   INT32 ret = 0;
   UINT32 offset;
   UINT32 PaddSize = 0;
-  UINT64 KaslrSeed = 0;
+  UINT64 RandomSeed = 0;
   UINT8 DdrDeviceType;
   /* Single space reserved for chan(0-9) */
   CHAR8 FdtRankProp[] = "ddr_device_rank_ch ";
@@ -487,6 +488,7 @@ UpdateDeviceTree (VOID *fdt,
   UINT64 Revision;
   EFI_STATUS Status;
   UINT64 UpdateDTStartTime = GetTimerCountms ();
+  UINT32 Index;
 
   /* Check the device tree header */
   ret = fdt_check_header (fdt) || fdt_check_header_ext (fdt);
@@ -609,11 +611,29 @@ UpdateDeviceTree (VOID *fdt,
     }
   }
 
-  Status = GetKaslrSeed (&KaslrSeed);
+  for (Index = 0; Index < NUM_RNG_SEED_WORDS / sizeof (UINT64); Index++) {
+    Status = GetRandomSeed (&RandomSeed);
+    if (Status == EFI_SUCCESS) {
+
+      /* Adding the RNG seed to the chosen node */
+      ret = fdt_appendprop_u64 (fdt, offset, (CONST char *)"rng-seed",
+            (UINT64)RandomSeed);
+      if (ret) {
+        DEBUG ((EFI_D_ERROR,
+              "ERROR: Cannot update chosen node [rng-seed] - 0x%x\n", ret));
+        break;
+      }
+    } else {
+      DEBUG ((EFI_D_INFO, "ERROR: Cannot generate Random Seed - %r\n", Status));
+      break;
+    }
+  }
+
+  Status = GetRandomSeed (&RandomSeed);
   if (Status == EFI_SUCCESS) {
     /* Adding Kaslr Seed to the chosen node */
     ret = fdt_appendprop_u64 (fdt, offset, (CONST char *)"kaslr-seed",
-                              (UINT64)KaslrSeed);
+                              (UINT64)RandomSeed);
     if (ret) {
       DEBUG ((EFI_D_INFO,
               "ERROR: Cannot update chosen node [kaslr-seed] - 0x%x\n", ret));
