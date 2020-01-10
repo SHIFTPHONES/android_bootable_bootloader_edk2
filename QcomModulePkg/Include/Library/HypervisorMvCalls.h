@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018, 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -133,4 +133,3 @@ UINT32 HvcSysPipeControl (UINT32 PipeId, UINT32 Control);
 /* SCM call related functions */
 HypBootInfo *GetVmData (VOID);
 BOOLEAN IsVmEnabled (VOID);
-EFI_STATUS HypUnmapMemory (UINT64 RegionAddr, UINT64 RegionSize);

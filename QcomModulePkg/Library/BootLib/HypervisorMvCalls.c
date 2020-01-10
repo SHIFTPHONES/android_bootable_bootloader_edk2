@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -80,92 +80,6 @@ HypBootInfo *GetVmData (VOID)
   VmEnabled = TRUE;
 
   return HypInfo;
-}
-
-EFI_STATUS
-HypUnmapMemory (UINT64 RegionAddr,
-                UINT64 RegionSize)
-{
-    EFI_STATUS Status = EFI_OUT_OF_RESOURCES;
-    QCOM_SCM_PROTOCOL *QcomScmProtocol = NULL;
-    UINT64 Parameters[SCM_MAX_NUM_PARAMETERS] = {0};
-    UINT64 Results[SCM_MAX_NUM_RESULTS] = {0};
-    hyp_memprot_assign_t *HypSyscall = (hyp_memprot_assign_t*)Parameters;
-    hyp_memprot_ipa_info_t Ipa = {RegionAddr, RegionSize};
-    UINT32 SrcVM = AC_VM_HLOS;
-    hyp_memprot_dstVM_perm_info_t DstVM = {AC_VM_GUEST_OS_MLVM,
-                                           (VM_PERM_R|VM_PERM_W),
-                                           (UINT64)NULL, 0};
-    VOID * AssignBufferPtr = NULL;
-    UINT64 BufferSize;
-
-    if (RegionAddr == 0 ||
-        RegionSize == 0) {
-      DEBUG ((EFI_D_ERROR, "HypAssign: Invalid parameters: NULL\n"));
-      return EFI_INVALID_PARAMETER;
-    }
-
-    /* Assign call buffer size, Ipa+SrcVM+DstVM+4
-     * Adding 4 bytes for ctx of hyp_memprot_dstVM_perm_info_t
-       to be 64 bits aligned
-     */
-    BufferSize = sizeof (hyp_memprot_ipa_info_t) +
-                 sizeof (SrcVM) +
-                 sizeof (hyp_memprot_dstVM_perm_info_t) + 4;
-    AssignBufferPtr = AllocatePages (
-                         ALIGN_PAGES (BufferSize, ALIGNMENT_MASK_4KB)
-                      );
-    if (!AssignBufferPtr) {
-      DEBUG ((EFI_D_ERROR, "HypAssign: Failed to allocate for Buffer\n"));
-      return EFI_BAD_BUFFER_SIZE;
-    }
-    DEBUG ((EFI_D_VERBOSE, "HypAssign: Buffer 0x%llx "
-                          "size %x\n", AssignBufferPtr, BufferSize));
-
-    HypSyscall->IPAinfolist = (UINT64)AssignBufferPtr;
-    HypSyscall->IPAinfolistsize = sizeof (hyp_memprot_ipa_info_t);
-    CopyMem ((VOID *)HypSyscall->IPAinfolist,
-            &Ipa,
-            sizeof (hyp_memprot_ipa_info_t));
-
-    HypSyscall->sourceVMlist = (UINT64)AssignBufferPtr +
-                                sizeof (hyp_memprot_ipa_info_t);
-    HypSyscall->srcVMlistsize = sizeof (SrcVM);
-    CopyMem ((VOID *)HypSyscall->sourceVMlist,
-            &SrcVM,
-            sizeof (SrcVM));
-
-    HypSyscall->destVMlist = (UINT64)AssignBufferPtr +
-                              sizeof (hyp_memprot_ipa_info_t) +
-                              sizeof (SrcVM) + 4;
-    HypSyscall->destVMlistsize = sizeof (hyp_memprot_dstVM_perm_info_t);
-    CopyMem ((VOID *)HypSyscall->destVMlist,
-            &DstVM,
-            sizeof (hyp_memprot_dstVM_perm_info_t));
-
-    HypSyscall->spare = 0;
-
-    Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL,
-                                  (VOID **)&QcomScmProtocol);
-    if (EFI_ERROR (Status)) {
-      DEBUG ((EFI_D_ERROR, "HypAssign: Locate SCM Protocol failed, "
-                           "Status: (0x%x)\n", Status));
-      goto out;
-    }
-    Status = QcomScmProtocol->ScmSipSysCall (QcomScmProtocol,
-                                            HYP_MEM_PROTECT_ASSIGN,
-                                            HYP_MEM_PROTECT_ASSIGN_PARAM_ID,
-                                            Parameters,
-                                            Results
-                                            );
-    if (EFI_ERROR (Status)) {
-        DEBUG ((EFI_D_ERROR,
-                "HypAssign failed, Status = (0x%x)\r\n", Status));
-    }
-
-out:
-    FreePages (AssignBufferPtr, ALIGN_PAGES (BufferSize, ALIGNMENT_MASK_4KB));
-    return Status;
 }
 
 /* From Linux Kernel asm/system.h */
