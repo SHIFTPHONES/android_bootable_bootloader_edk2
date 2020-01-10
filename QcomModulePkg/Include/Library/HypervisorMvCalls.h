@@ -26,31 +26,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/* The msg_id consists of the following bit fields: */
-/* bit 31 (0=client, 1=server) */
-/*     bit 30..24 (protocol_id) */
-/*     bit 23..16 (reserved) */
-/*     bit 15.. 0 (function_id) */
-
-/* start_client: Unmap the client (ML VM) memory and start Linux */
-#define BOOT_MGR_START_CLIENT 0x00420001
-/* boot_mgr: struct HypBootMgrStartParams */
-
-/* start_client_reply: Response to BOOT_MGR_START_CLIENT */
-#define BOOT_MGR_START_CLIENT_REPLY 0x80420001
-/* boot_mgr: BOOLEAN success */
-
-/* start_self: Reset the caller and start the loaded HLOS image */
-#define BOOT_MGR_START_SELF 0x00420002
-/* boot_mgr: struct HypBootMgrStartParams */
-
-/*
- * start_self_reply: Response to BOOT_MGR_START_CLIENT; sent only on
- * failure as the caller will be reset if this call succeeds
- */
-#define BOOT_MGR_START_SELF_REPLY 0x80420002
-/* boot_mgr: BOOLEAN success */
-
 #define HYP_BOOTINFO_MAGIC 0xC06B0071
 #define HYP_BOOTINFO_VERSION 1
 
@@ -63,9 +38,6 @@
 #define KERNEL_ADDR_IDX 0
 #define RAMDISK_ADDR_IDX 1
 #define DTB_ADDR_IDX 2
-
-#define GET_PIPE_ID_SEND(x) ((x) & (0xFFFF))
-#define GET_PIPE_ID_RECEIVE(x) (((x) >> 16) & (0xFFFF))
 
 /*
 DDR regions.
@@ -111,25 +83,6 @@ typedef struct hyp_boot_info {
     } vm[];
 } __attribute__ ((packed)) HypBootInfo;
 
-typedef struct HypBootMgrStartParams {
-  UINT64 EntryAddr; /* Physical load address / entry point of Linux */
-  UINT64 DtbAddr; /* Physical address of DTB */
-  BOOLEAN Is64BitMode; /* True to reset VM to AArch64 mode, false for AArch32 */
-} HypBootMgrStartParams;
-
-typedef struct HypMsg {
-  UINT32 MsgId;
-  union {
-    BOOLEAN Success;
-    struct HypBootMgrStartParams StartParams;
-    /* Content depends on msg_id; see table below */
-  } HypBootMgr;
-} HypMsg;
-
-#define CONTROL_STATE 3
-/* hypervisor calls */
-UINT32 HvcSysPipeSend (UINT32 PipeId, UINT32 Size, UINTN *Data);
-UINT32 HvcSysPipeControl (UINT32 PipeId, UINT32 Control);
 /* SCM call related functions */
 HypBootInfo *GetVmData (VOID);
 BOOLEAN IsVmEnabled (VOID);
