@@ -51,7 +51,6 @@ static CHAR8 *avb_verify_partition_name[] = {
      "dtbo",
      "vbmeta",
      "recovery",
-     "vm-linux",
      "vendor-boot"
 };
 
@@ -1190,15 +1189,6 @@ LoadImageAndAuthVB2 (BootInfo *Info)
 
     if (Info->MultiSlotBoot) {
         CurrentSlot = GetCurrentSlotSuffix ();
-    }
-
-    if (IsVmEnabled ()) {
-      if (IsValidPartition (&CurrentSlot, L"vm-linux")) {
-        AddRequestedPartition (RequestedPartitionAll, IMG_VMLINUX);
-        NumRequestedPartition += 1;
-      } else {
-        DEBUG ((EFI_D_VERBOSE, "Invalid vm-linux partition. Skipping\n"));
-      }
     }
 
     if (IsValidPartition (&CurrentSlot, L"vendor-boot")) {

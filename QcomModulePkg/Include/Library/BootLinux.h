@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -117,7 +117,6 @@ typedef enum {
         IMG_DTBO,
         IMG_VBMETA,
         IMG_RECOVERY,
-        IMG_VMLINUX,
         IMG_VENDOR_BOOT,
         IMG_MAX
 } img_type;
