@@ -50,7 +50,7 @@ static CHAR8 *avb_verify_partition_name[] = {
      "dtbo",
      "vbmeta",
      "recovery",
-     "vendor-boot"
+     "vendor_boot"
 };
 
 STATIC struct verified_boot_verity_mode VbVm[] = {
@@ -293,9 +293,9 @@ NoAVBLoadVendorBootImage (BootInfo *Info)
   Status = NoAVBLoadReqImage (Info,
            (VOID **)&(Info->Images[ImgIdx].ImageBuffer),
            (UINT32 *)&(Info->Images[ImgIdx].ImageSize),
-           Pname, (CHAR16 *)L"vendor-boot");
+           Pname, (CHAR16 *)L"vendor_boot");
   if (Status == EFI_NO_MEDIA) {
-      DEBUG ((EFI_D_INFO, "No vendor-boot partition is found, Skipping\n"));
+      DEBUG ((EFI_D_INFO, "No vendor_boot partition is found, Skipping\n"));
       if (Info->Images[ImgIdx].ImageBuffer != NULL) {
         FreePool (Info->Images[ImgIdx].ImageBuffer);
       }
@@ -303,7 +303,7 @@ NoAVBLoadVendorBootImage (BootInfo *Info)
   }
   else if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR,
-             "ERROR: Failed to load vendor-boot from partition: %r\n", Status));
+             "ERROR: Failed to load vendor_boot from partition: %r\n", Status));
       if (Info->Images[ImgIdx].ImageBuffer != NULL) {
         goto Err;
       }
@@ -334,7 +334,7 @@ LoadVendorBootImageHeader (BootInfo *Info,
   CHAR16 Pname[MAX_GPT_NAME_SIZE] = {0};
 
   StrnCpyS (Pname, ARRAY_SIZE (Pname),
-            (CHAR16 *)L"vendor-boot", StrLen ((CHAR16 *)L"vendor-boot"));
+            (CHAR16 *)L"vendor_boot", StrLen ((CHAR16 *)L"vendor_boot"));
 
   if (Info->MultiSlotBoot) {
     GUARD (StrnCatS (Pname, ARRAY_SIZE (Pname),
@@ -385,7 +385,7 @@ LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize, BOOLEAN *FastbootPath)
 
   Info->HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
 
-  /* Additional vendor-boot image header needs be loaded for header
+  /* Additional vendor_boot image header needs be loaded for header
    * versions than 3. Consider both the headers for validation.
    */
   if (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE) {
@@ -393,7 +393,7 @@ LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize, BOOLEAN *FastbootPath)
                                         &VendorImageHdrSize);
     if (Status != EFI_SUCCESS) {
         DEBUG ((EFI_D_ERROR,
-               "ERROR: Failed to load vendor-boot Image header: %r\n", Status));
+               "ERROR: Failed to load vendor_boot Image header: %r\n", Status));
         goto ErrV3;
     }
   }
@@ -433,7 +433,7 @@ LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize, BOOLEAN *FastbootPath)
     Status = NoAVBLoadVendorBootImage (Info);
     if (Status != EFI_SUCCESS) {
         DEBUG ((EFI_D_ERROR,
-               "ERROR: Failed to load vendor-boot Image : %r\n", Status));
+               "ERROR: Failed to load vendor_boot Image : %r\n", Status));
       goto ErrImgName;
     }
   }
@@ -1182,11 +1182,11 @@ LoadImageAndAuthVB2 (BootInfo *Info)
         CurrentSlot = GetCurrentSlotSuffix ();
     }
 
-    if (IsValidPartition (&CurrentSlot, L"vendor-boot")) {
+    if (IsValidPartition (&CurrentSlot, L"vendor_boot")) {
       AddRequestedPartition (RequestedPartitionAll, IMG_VENDOR_BOOT);
       NumRequestedPartition += 1;
     } else {
-      DEBUG ((EFI_D_VERBOSE, "Invalid vendor-boot partition. Skipping\n"));
+      DEBUG ((EFI_D_VERBOSE, "Invalid vendor_boot partition. Skipping\n"));
     }
 
     Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
@@ -1281,7 +1281,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
 
   if (BootImgHdr->header_version >= BOOT_HEADER_VERSION_THREE) {
     GUARD_OUT (GetImage (Info, &VendorBootImageBuffer,
-                         &VendorBootImageSize, "vendor-boot"));
+                         &VendorBootImageSize, "vendor_boot"));
   }
 
   Status = CheckImageHeader (ImageBuffer, ImageHdrSize,

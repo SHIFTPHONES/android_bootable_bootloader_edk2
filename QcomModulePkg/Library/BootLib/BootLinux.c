@@ -454,7 +454,7 @@ DTBImgCheckAndAppendDT (BootInfo *Info, BootParamlist *BootParamlistPtr)
           ImageSize = VendorBootImgHdrV3->dtb_size +
                       BootParamlistPtr->DtbOffset;
 
-          // DTB is a part of vendor-boot image
+          // DTB is a part of vendor_boot image
           ImageBuffer = BootParamlistPtr->VendorImageBuffer;
         }
   }
@@ -779,7 +779,7 @@ CatCmdLine (BootParamlist *BootParamlistPtr,
     return EFI_OUT_OF_RESOURCES;
   }
 
-  /* Place the vendor-boot image cmdline first so that the cmdline
+  /* Place the vendor_boot image cmdline first so that the cmdline
    * from boot image takes precedence in case of duplicates.
    */
   AsciiStrCpyS (BootParamlistPtr->CmdLine, MaxCmdLineLen,
@@ -818,10 +818,10 @@ UpdateBootParamsSizeAndCmdLine (BootInfo *Info, BootParamlist *BootParamlistPtr)
   BootImgHdrV3 = BootParamlistPtr->ImageBuffer;
 
   Status = GetImage (Info, (VOID **)&VendorBootImgHdrV3,
-                     &VendorBootImgSize, "vendor-boot");
+                     &VendorBootImgSize, "vendor_boot");
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR,
-    "UpdateBootParamsSizeAndCmdLine: Failed to find vendor-boot image\n"));
+    "UpdateBootParamsSizeAndCmdLine: Failed to find vendor_boot image\n"));
     return Status;
   }
 
@@ -1125,7 +1125,7 @@ CheckImageHeader (VOID *ImageHdrBuffer,
     if (CompareMem ((VOID *)((vendor_boot_img_hdr_v3 *)
                      (VendorImageHdrBuffer))->magic,
                      VENDOR_BOOT_MAGIC, VENDOR_BOOT_MAGIC_SIZE)) {
-      DEBUG ((EFI_D_ERROR, "Invalid vendor-boot image header\n"));
+      DEBUG ((EFI_D_ERROR, "Invalid vendor_boot image header\n"));
       return EFI_NO_MEDIA;
     }
 
