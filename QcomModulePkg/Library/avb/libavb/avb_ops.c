@@ -370,6 +370,34 @@ AvbValidateVbmetaPublicKey(AvbOps *Ops, const uint8_t *PublicKeyData,
 	return AVB_IO_RESULT_OK;
 }
 
+
+AvbIOResult
+AvbValidatePartitionPublicKey(AvbOps *Ops, const char* Partition,
+                           const uint8_t *PublicKeyData, size_t PublicKeyLength,
+                           const uint8_t *PublicKeyMetadata, size_t PublicKeyMetadataLength,
+                           bool *OutIsTrusted, uint32_t* OutRollbackIndexLocation)
+{
+	DEBUG((EFI_D_VERBOSE, "ValidatePartitionPublicKey PublicKeyLength %d, "
+	                      "PublicKeyMetadataLength %d\n",
+	       PublicKeyLength, PublicKeyMetadataLength));
+
+	if (OutIsTrusted == NULL || PublicKeyData == NULL) {
+		DEBUG((EFI_D_ERROR, "Invalid parameters\n"));
+		return AVB_IO_RESULT_ERROR_IO;
+	}
+
+	if (PublicKeyLength == ARRAY_SIZE(OEMPublicKey) &&
+	           CompareMem(PublicKeyData, OEMPublicKey, PublicKeyLength) == 0) {
+		*OutIsTrusted = true;
+	} else {
+		*OutIsTrusted = false;
+	}
+	*OutRollbackIndexLocation = 1; // Recovery rollback index
+	DEBUG((EFI_D_ERROR,
+	       "ValidateVbmetaPublicKey OutIsTrusted %d\n",*OutIsTrusted));
+	return AVB_IO_RESULT_OK;
+}
+
 AvbIOResult AvbReadRollbackIndex(AvbOps *Ops, size_t RollbackIndexLocation,
                                  uint64_t *OutRollbackIndex)
 {
@@ -545,6 +573,7 @@ AvbOps *AvbOpsNew(VOID *UserData)
 	Ops->read_from_partition = AvbReadFromPartition;
 	Ops->write_to_partition = AvbWriteToPartition;
 	Ops->validate_vbmeta_public_key = AvbValidateVbmetaPublicKey;
+	Ops->validate_public_key_for_partition = AvbValidatePartitionPublicKey;
 	Ops->read_rollback_index = AvbReadRollbackIndex;
 	Ops->write_rollback_index = AvbWriteRollbackIndex;
 	Ops->read_is_device_unlocked = AvbReadIsDeviceUnlocked;
