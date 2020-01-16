@@ -170,7 +170,7 @@ DeviceTreeCompatible (VOID *dtb,
   } else if (board_prop && len_board_id > 0) {
     if (len_board_id % BOARD_ID_SIZE) {
       DEBUG ((EFI_D_ERROR,
-              "qcom,pmic-id (%d) in device tree is not a multiple of (%d)\n",
+              "qcom,board-id (%d) in device tree is not a multiple of (%d)\n",
               len_board_id, BOARD_ID_SIZE));
       goto Exit;
     }
