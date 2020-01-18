@@ -67,7 +67,6 @@
 	PartialGoods.c
 	LECmdLine.c
 	HypervisorMvCalls.c
-	FdtRw.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
