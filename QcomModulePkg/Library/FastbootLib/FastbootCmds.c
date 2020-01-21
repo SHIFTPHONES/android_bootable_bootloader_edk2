@@ -18,7 +18,7 @@ found at
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2015 - 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015 - 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -116,6 +116,7 @@ STATIC CHAR8 StrSocVersion[MAX_RSP_SIZE];
 STATIC CHAR8 LogicalBlkSizeStr[MAX_RSP_SIZE];
 STATIC CHAR8 EraseBlkSizeStr[MAX_RSP_SIZE];
 STATIC CHAR8 MaxDownloadSizeStr[MAX_RSP_SIZE];
+STATIC CHAR8 SnapshotMergeState[MAX_RSP_SIZE];
 
 struct GetVarSlotInfo {
   CHAR8 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
@@ -3306,6 +3307,7 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
   UINT32 PartitionCount = 0;
   BOOLEAN MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
   MemCardType Type = UNKNOWN;
+  VirtualAbMergeStatus SnapshotMergeStatus;
 
   mDataBuffer = Base;
   mNumDataBytes = Size;
@@ -3378,6 +3380,27 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
 
   if (IsDynamicPartitionSupport ()) {
     FastbootPublishVar ("is-userspace", "no");
+  }
+
+  if (IsVirtualAbOtaSupported ()) {
+    SnapshotMergeStatus = GetSnapshotMergeStatus ();
+
+    switch (SnapshotMergeStatus) {
+      case SNAPSHOTTED:
+        SnapshotMergeStatus = SNAPSHOTTED;
+        break;
+      case MERGING:
+        SnapshotMergeStatus = MERGING;
+        break;
+      default:
+        SnapshotMergeStatus = NONE_MERGE_STATUS;
+        break;
+    }
+
+    AsciiSPrint (SnapshotMergeState,
+                  AsciiStrLen (VabSnapshotMergeStatus[SnapshotMergeStatus]) + 1,
+                  "%a", VabSnapshotMergeStatus[SnapshotMergeStatus]);
+    FastbootPublishVar ("snapshot-update-state", SnapshotMergeState);
   }
 
   AsciiSPrint (FullProduct, sizeof (FullProduct), "%a", PRODUCT_NAME);

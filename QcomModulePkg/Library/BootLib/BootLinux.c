@@ -1517,6 +1517,18 @@ BOOLEAN IsDynamicPartitionSupport (VOID)
 }
 #endif
 
+#if VIRTUAL_AB_OTA
+BOOLEAN IsVirtualAbOtaSupported (VOID)
+{
+  return TRUE;
+}
+#else
+BOOLEAN IsVirtualAbOtaSupported (VOID)
+{
+  return FALSE;
+}
+#endif
+
 #if NAND_SQUASHFS_SUPPORT
 BOOLEAN IsNANDSquashFsSupport (VOID)
 {

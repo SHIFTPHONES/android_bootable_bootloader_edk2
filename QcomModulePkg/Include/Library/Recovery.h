@@ -1,4 +1,4 @@
-/* Copyright (c) 2016,2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, 2019-2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -43,10 +43,49 @@ struct RecoveryMessage {
   CHAR8 recovery[1024];
 };
 
+#define MISC_VIRTUAL_AB_MESSAGE_VERSION 2
+#define MISC_VIRTUAL_AB_MAGIC_HEADER 0x56740AB0
+
+/** MISC Partition usage as per AOSP implementation.
+  * 0   - 2K     For bootloader_message
+  * 2K  - 16K    Used by Vendor's bootloader (the 2K - 4K range may be
+  *              optionally used as bootloader_message_ab struct)
+  * 16K - 32K    Used by uncrypt and recovery to store wipe_package
+  *              for A/B devices
+  * 32K - 64K    System space, used for miscellanious AOSP features.
+  **/
+#define MISC_VIRTUALAB_OFFSET (32 * 1024)
+
+static CHAR8 *VabSnapshotMergeStatus[] = {
+  "none",
+  "unknown",
+  "snapshotted",
+  "merging",
+  "cancelled"
+};
+
+typedef enum UINT8 {
+  NONE_MERGE_STATUS,
+  UNKNOWN_MERGE_STATUS,
+  SNAPSHOTTED,
+  MERGING,
+  CANCELLED
+} VirtualAbMergeStatus;
+
+typedef struct {
+  UINT8 Version;
+  UINT32 Magic;
+  UINT8 MergeStatus;  // IBootControl 1.1, MergeStatus enum.
+  UINT8 SourceStatus;   // Slot number when merge_status was written.
+  UINT8 Reserved[57];
+} __attribute__ ((packed)) MiscVirtualABMessage;
+
 EFI_STATUS
 RecoveryInit (BOOLEAN *BootIntoRecovery);
 EFI_STATUS
 GetFfbmCommand (CHAR8 *FfbmMode, UINT32 Sz);
 EFI_STATUS
 WriteRecoveryMessage (CHAR8 *Command);
+VirtualAbMergeStatus
+GetSnapshotMergeStatus (VOID);
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,8 +31,11 @@
 #include <Library/LinuxLoaderLib.h>
 #include <Library/BootLinux.h>
 
+STATIC MiscVirtualABMessage *VirtualAbMsg = NULL;
+
 STATIC EFI_STATUS
-ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
+ReadFromPartitionOffset (EFI_GUID *Ptype, VOID **Msg,
+                         UINT32 Size, UINT32 Offset)
 {
   EFI_STATUS Status;
   EFI_BLOCK_IO_PROTOCOL *BlkIo = NULL;
@@ -85,7 +88,15 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
     return EFI_OUT_OF_RESOURCES;
   }
 
-  Status = BlkIo->ReadBlocks (BlkIo, BlkIo->Media->MediaId, 0, MsgSize, *Msg);
+  if (Offset % BlkIo->Media->BlockSize) {
+    DEBUG (
+        (EFI_D_ERROR, "Error offset:%u passed is not multiple of blocksz:%u\n",
+        Offset, BlkIo->Media->BlockSize));
+    return EFI_INVALID_PARAMETER;
+  }
+  Status = BlkIo->ReadBlocks (BlkIo, BlkIo->Media->MediaId,
+                               (Offset / BlkIo->Media->BlockSize),
+                               MsgSize, *Msg);
   if (Status != EFI_SUCCESS) {
     FreePool (*Msg);
     *Msg = NULL;
@@ -93,6 +104,58 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
   }
 
   return Status;
+}
+
+VirtualAbMergeStatus
+GetSnapshotMergeStatus (VOID)
+{
+  VirtualAbMergeStatus MergeStatus = NONE_MERGE_STATUS;
+  EFI_STATUS Status;
+  EFI_GUID Ptype = gEfiMiscPartitionGuid;
+  MemCardType CardType = UNKNOWN;
+  UINT32 PageSize;
+
+  if (VirtualAbMsg == NULL) {
+
+    CardType = CheckRootDeviceType ();
+    if (CardType == NAND) {
+      return MergeStatus;
+    }
+
+    GetPageSize (&PageSize);
+
+    Status = ReadFromPartitionOffset (&Ptype, (VOID **)&VirtualAbMsg, PageSize,
+                                         MISC_VIRTUALAB_OFFSET);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR,
+              "Error reading virtualab msg from misc partition: %r\n", Status));
+      return MergeStatus;
+    }
+
+    if (VirtualAbMsg->Magic != MISC_VIRTUAL_AB_MAGIC_HEADER ||
+        VirtualAbMsg->Version != MISC_VIRTUAL_AB_MESSAGE_VERSION) {
+      DEBUG ((EFI_D_ERROR,
+                 "Error read virtualab msg version:%u magic:%u not valid\n",
+                  VirtualAbMsg->Version, VirtualAbMsg->Magic));
+      FreePool (VirtualAbMsg);
+      VirtualAbMsg = NULL;
+    } else {
+      DEBUG ((EFI_D_VERBOSE, "read virtualab MergeStatus:%x\n",
+                              VirtualAbMsg->MergeStatus));
+    }
+  }
+
+  if (VirtualAbMsg) {
+    MergeStatus = VirtualAbMsg->MergeStatus;
+  }
+
+  return MergeStatus;
+}
+
+STATIC EFI_STATUS
+ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
+{
+  return (ReadFromPartitionOffset (Ptype, Msg, Size, 0));
 }
 
 EFI_STATUS
