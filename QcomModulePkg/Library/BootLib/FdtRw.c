@@ -305,44 +305,48 @@ INT32 FdtPathOffset (CONST VOID *Fdt, CONST CHAR8 *Path)
   UINT32 Level = 0;
   INT32 Ret;
 
-  if ((Ret = fdt_check_header (Fdt)) != 0) {
-    return Ret;
-  }
-
-  /* see if we have an alias */
-  if (*Path != '/') {
-    Qtr = strchr (Path, '/');
-    if (!Qtr) {
-      Qtr = End;
+  if (FixedPcdGetBool (EnableNewNodeSearchFuc)) {
+    if ((Ret = fdt_check_header (Fdt)) != 0) {
+      return Ret;
     }
 
-    Ptr = fdt_get_alias_namelen (Fdt, Ptr, Qtr - Ptr);
-    if (!Ptr) {
-      return -FDT_ERR_BADPATH;
+    /* see if we have an alias */
+    if (*Path != '/') {
+      Qtr = strchr (Path, '/');
+      if (!Qtr) {
+        Qtr = End;
+      }
+
+      Ptr = fdt_get_alias_namelen (Fdt, Ptr, Qtr - Ptr);
+      if (!Ptr) {
+        return -FDT_ERR_BADPATH;
+      }
+
+      Offset = FdtPathOffset (Fdt, Ptr);
+      Ptr = Qtr;
     }
 
-    Offset = FdtPathOffset (Fdt, Ptr);
-    Ptr = Qtr;
-  }
+    while (*Ptr) {
+      while (*Ptr == '/') {
+        Ptr++;
+      }
+      if (! *Ptr) {
+        return Offset;
+      }
+      Qtr = strchr (Ptr, '/');
+      if (! Qtr) {
+        Qtr = End;
+      }
 
-  while (*Ptr) {
-    while (*Ptr == '/') {
-      Ptr++;
+      Offset = FdtSubnodeOffsetNamelen (Fdt, Offset, Ptr, Qtr - Ptr, Level);
+      if (Offset < 0) {
+        return Offset;
+      }
+      Ptr = Qtr;
+      Level ++;
     }
-    if (! *Ptr) {
-      return Offset;
-    }
-    Qtr = strchr (Ptr, '/');
-    if (! Qtr) {
-      Qtr = End;
-    }
-
-    Offset = FdtSubnodeOffsetNamelen (Fdt, Offset, Ptr, Qtr - Ptr, Level);
-    if (Offset < 0) {
-      return Offset;
-    }
-    Ptr = Qtr;
-    Level ++;
+  } else {
+    Offset = fdt_path_offset (Fdt, Path);
   }
 
   return Offset;
@@ -395,23 +399,26 @@ INT32 FdtSetProp (VOID *Fdt, INT32 Offset, CONST CHAR8 *Name,
   INT32 OldLen, NewLen;
   INT32 Ret = 0;
 
-  OldLen = FdtGetPropLen (Fdt, Offset, Name);
-  Ret = fdt_setprop (Fdt, Offset, Name, Val, Len);
-  if (Ret == 0) {
-    NewLen = FdtGetPropLen (Fdt, Offset, Name);
+  if (FixedPcdGetBool (EnableNewNodeSearchFuc)) {
+    OldLen = FdtGetPropLen (Fdt, Offset, Name);
+    Ret = fdt_setprop (Fdt, Offset, Name, Val, Len);
+    if (Ret == 0) {
+      NewLen = FdtGetPropLen (Fdt, Offset, Name);
+    } else {
+      return Ret;
+    }
+
+    /* New prop */
+    if (OldLen == 0 &&
+      NewLen) {
+      NewLen = sizeof (struct fdt_property) + FDT_TAGALIGN (NewLen);
+    }
+
+    /* Update the node's offset in the list */
+    FdtUpdateNodeOffsetInList (
+       Offset, FDT_TAGALIGN (NewLen) - FDT_TAGALIGN (OldLen));
   } else {
-    return Ret;
+    Ret = fdt_setprop (Fdt, Offset, Name, Val, Len);
   }
-
-  /* New prop */
-  if (OldLen == 0 &&
-    NewLen) {
-    NewLen = sizeof (struct fdt_property) + FDT_TAGALIGN (NewLen);
-  }
-
-  /* Update the node's offset in the list */
-  FdtUpdateNodeOffsetInList (
-     Offset, FDT_TAGALIGN (NewLen) - FDT_TAGALIGN (OldLen));
-
   return Ret;
 }

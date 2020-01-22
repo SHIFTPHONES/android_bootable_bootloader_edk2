@@ -45,19 +45,23 @@ INT32 FdtSetProp (VOID *Fdt, INT32 Offset, CONST CHAR8 *Name,
 #define FDT_ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
 #define FDT_TAGALIGN(x) (FDT_ALIGN((x), FDT_TAGSIZE))
 
-#define FdtPropUpdateFunc(Fdt, Offset, Name, Val, FdtUpdateFunc, RetValue)   \
-  do {                                                                       \
-    INT32 OldLen = FdtGetPropLen (Fdt, Offset, Name);                        \
-    RetValue = FdtUpdateFunc (Fdt, Offset, Name, Val);                       \
-    if (RetValue == 0) {                                                     \
-      INT32 NewLen = FdtGetPropLen (Fdt, Offset, Name);                      \
-      if (OldLen == 0 &&                                                     \
-          NewLen) {                                                          \
-          NewLen = sizeof (struct fdt_property) + FDT_TAGALIGN (NewLen);     \
-      }                                                                      \
-      /* Update the node's offset in the list */                             \
-      FdtUpdateNodeOffsetInList (                                            \
-           Offset, FDT_TAGALIGN (NewLen) - FDT_TAGALIGN (OldLen));           \
-   }                                                                         \
+#define FdtPropUpdateFunc(Fdt, Offset, Name, Val, FdtUpdateFunc, RetValue) \
+  do {                                                                     \
+    if (FixedPcdGetBool (EnableNewNodeSearchFuc)) {                        \
+      INT32 OldLen = FdtGetPropLen (Fdt, Offset, Name);                    \
+      RetValue = FdtUpdateFunc (Fdt, Offset, Name, Val);                   \
+      if (RetValue == 0) {                                                 \
+        INT32 NewLen = FdtGetPropLen (Fdt, Offset, Name);                  \
+        if (OldLen == 0 &&                                                 \
+            NewLen) {                                                      \
+            NewLen = sizeof (struct fdt_property) + FDT_TAGALIGN (NewLen); \
+        }                                                                  \
+        /* Update the node's offset in the list */                         \
+        FdtUpdateNodeOffsetInList (                                        \
+           Offset, FDT_TAGALIGN (NewLen) - FDT_TAGALIGN (OldLen));         \
+     }                                                                     \
+    } else {                                                               \
+      RetValue = FdtUpdateFunc (Fdt, Offset, Name, Val);                   \
+    }                                                                      \
   } while (0)
 #endif
