@@ -73,16 +73,44 @@ STATIC VOID FdtDeleteNodeList (VOID)
   NodeList = NULL;
 }
 
-STATIC VOID FdtAppendToNodeList (CONST CHAR8 *NodeName,
-                                      UINT32 NameLen,
-                                      UINT32 NodeOffset)
+STATIC UINT32 GetNodeNameLen (CONST CHAR8 *NodeName)
 {
-  FDT_FIRST_LEVEL_NODE *Node;
+  CONST CHAR8 *Ptr = NULL;
+  CONST CHAR8 *End = NodeName + AsciiStrLen (NodeName);
+  UINT32 NameLen = 0;
+
+  if (! *NodeName) {
+    return NameLen;
+  }
+  Ptr = strchr (NodeName, '{');
+  if (! Ptr) {
+    Ptr = End;
+  }
+
+  NameLen = Ptr - NodeName;
+  return NameLen;
+}
+
+STATIC BOOLEAN IsNodeAdded (CONST CHAR8 *NodeName, UINT32 NameLen)
+{
+  FDT_FIRST_LEVEL_NODE *Node = NULL;
 
   for (Node = NodeList; Node; Node = Node->Next) {
     if (!AsciiStrnCmp (Node->NodeName, NodeName, NameLen)) {
-      return;
+      return TRUE;
     }
+  }
+  return FALSE;
+}
+
+STATIC VOID FdtAppendToNodeList (CONST CHAR8 *NodeName, UINT32 NodeOffset)
+{
+  FDT_FIRST_LEVEL_NODE *Node;
+  UINT32 NameLen;
+
+  NameLen = GetNodeNameLen (NodeName);
+  if (IsNodeAdded (NodeName, NameLen)) {
+    return;
   }
 
   Node = AllocateZeroPool (sizeof (*Node));
@@ -229,7 +257,7 @@ STATIC INT32 FdtSubnodeOffsetNamelen (CONST VOID *Fdt,
           /* short match: Some error occurs  */
           return 0;
         }
-        FdtAppendToNodeList (Ptr, NameLen, Offset);
+        FdtAppendToNodeList (Ptr, Offset);
       }
       /* Return the offset if find the node */
       if (FdtNodeNameEq (Fdt, Offset, Name, NameLen)) {
