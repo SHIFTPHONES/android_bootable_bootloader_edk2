@@ -56,12 +56,28 @@ typedef enum {
   UNKNOWN,
 } MemCardType;
 
+#define DDR_SHIFT      8
+
+#define MB             (1024 * 1024UL)
+#define DDR_256MB      (256 * MB)
+#define DDR_512MB      (512 * MB)
+#define DDR_1024MB     (1024 * MB)
+#define DDR_2048MB     (2048 * MB)
+
+typedef enum {
+  DDRTYPE_256MB = 1,
+  DDRTYPE_512MB,
+  DDRTYPE_1024MB,
+  DDRTYPE_2048MB,
+} DdrType;
+
 struct BoardInfo {
   EFI_PLATFORMINFO_PLATFORM_INFO_TYPE PlatformInfo;
   UINT32 RawChipId;
   CHAR8 ChipBaseBand[EFICHIPINFO_MAX_ID_LENGTH];
   EFIChipInfoVersionType ChipVersion;
   EFIChipInfoFoundryIdType FoundryId;
+  UINT32 HlosSubType;
 };
 
 EFI_STATUS
@@ -99,4 +115,6 @@ EFI_STATUS ReadRamPartitions (RamPartitionEntry **RamPartitions,
                   UINT32 *NumPartitions);
 EFI_STATUS GetGranuleSize (UINT32 *MinPasrGranuleSize);
 VOID GetPageSize (UINT32 *PageSize);
+EFI_STATUS BoardDdrType (UINT32 *Type);
+UINT32 BoardPlatformHlosSubType (VOID);
 #endif
