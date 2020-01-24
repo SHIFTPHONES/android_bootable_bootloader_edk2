@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -345,14 +345,10 @@ AddMemMap (VOID *Fdt, UINT32 MemNodeOffset, BOOLEAN BootWith32Bit)
     return Status;
   }
 
-  Status = GetRamPartitions (&RamPartitions, &NumPartitions);
+  Status = ReadRamPartitions (&RamPartitions, &NumPartitions);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Error returned from GetRamPartitions %r\n", Status));
+    DEBUG ((EFI_D_ERROR, "Error returned from ReadRamPartitions %r\n", Status));
     return Status;
-  }
-  if (!RamPartitions) {
-    DEBUG ((EFI_D_ERROR, "RamPartitions is NULL\n"));
-    return EFI_NOT_FOUND;
   }
 
   DEBUG ((EFI_D_INFO, "RAM Partitions\r\n"));
@@ -377,6 +373,7 @@ AddMemMap (VOID *Fdt, UINT32 MemNodeOffset, BOOLEAN BootWith32Bit)
 
   FreePool (RamPartitions);
   RamPartitions = NULL;
+  RamPartitionEntries = NULL;
 
   return EFI_SUCCESS;
 }
