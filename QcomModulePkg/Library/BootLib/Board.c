@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -41,7 +41,9 @@ STATIC CONST CHAR8 *DeviceType[] = {
         [EMMC] = "EMMC", [UFS] = "UFS", [NAND] = "NAND", [UNKNOWN] = "Unknown",
 };
 
-EFI_STATUS
+RamPartitionEntry *RamPartitionEntries = NULL;
+
+STATIC EFI_STATUS
 GetRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions)
 {
 
@@ -76,6 +78,31 @@ GetRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions)
     DEBUG ((EFI_D_ERROR, "Error Occured while populating RamPartitions\n"));
     return EFI_PROTOCOL_ERROR;
   }
+  return Status;
+}
+
+EFI_STATUS
+ReadRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions)
+{
+  STATIC UINT32 NumPartitionEntries = 0;
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (RamPartitionEntries == NULL) {
+    Status = GetRamPartitions (&RamPartitionEntries, &NumPartitionEntries);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((EFI_D_ERROR, "Error returned from GetRamPartitions %r\n",
+              Status));
+      return Status;
+    }
+    if (!RamPartitionEntries) {
+      DEBUG ((EFI_D_ERROR, "RamPartitions is NULL\n"));
+      return EFI_NOT_FOUND;
+    }
+  }
+
+  *RamPartitions = RamPartitionEntries;
+  *NumPartitions = NumPartitionEntries;
+
   return Status;
 }
 
@@ -120,14 +147,10 @@ BaseMem (UINT64 *BaseMemory)
   UINT64 SmallestBase;
   UINT32 i = 0;
 
-  Status = GetRamPartitions (&RamPartitions, &NumPartitions);
+  Status = ReadRamPartitions (&RamPartitions, &NumPartitions);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Error returned from GetRamPartitions %r\n", Status));
+    DEBUG ((EFI_D_ERROR, "Error returned from ReadRamPartitions %r\n", Status));
     return Status;
-  }
-  if (!RamPartitions) {
-    DEBUG ((EFI_D_ERROR, "RamPartitions is NULL\n"));
-    return EFI_NOT_FOUND;
   }
   SmallestBase = RamPartitions[0].Base;
   for (i = 0; i < NumPartitions; i++) {
@@ -136,7 +159,6 @@ BaseMem (UINT64 *BaseMemory)
   }
   *BaseMemory = SmallestBase;
   DEBUG ((EFI_D_INFO, "Memory Base Address: 0x%x\n", *BaseMemory));
-  FreePool (RamPartitions);
 
   return Status;
 }

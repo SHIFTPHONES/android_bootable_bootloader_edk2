@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -47,6 +47,8 @@
 
 #define BIT(x) (1UL << x)
 
+extern RamPartitionEntry *RamPartitionEntries;
+
 typedef enum {
   EMMC = 0,
   UFS = 1,
@@ -93,7 +95,7 @@ EFI_STATUS
 UfsGetSetBootLun (UINT32 *UfsBootlun, BOOLEAN IsGet);
 BOOLEAN BoardPlatformFusion (VOID);
 UINT32 BoardPlatformRawChipId (VOID);
-EFI_STATUS GetRamPartitions (RamPartitionEntry **RamPartitions,
+EFI_STATUS ReadRamPartitions (RamPartitionEntry **RamPartitions,
                   UINT32 *NumPartitions);
 EFI_STATUS GetGranuleSize (UINT32 *MinPasrGranuleSize);
 VOID GetPageSize (UINT32 *PageSize);
