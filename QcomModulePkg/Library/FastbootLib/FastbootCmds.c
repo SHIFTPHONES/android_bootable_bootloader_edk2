@@ -18,7 +18,7 @@ found at
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2015 - 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015 - 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -86,7 +86,7 @@ found at
 
 STATIC struct GetVarPartitionInfo part_info[] = {
     {"system", "partition-size:", "partition-type:", "", "ext4"},
-    {"userdata", "partition-size:", "partition-type:", "", "ext4"},
+    {"userdata", "partition-size:", "partition-type:", "", USERDATA_FS_TYPE},
     {"cache", "partition-size:", "partition-type:", "", "ext4"},
 };
 
