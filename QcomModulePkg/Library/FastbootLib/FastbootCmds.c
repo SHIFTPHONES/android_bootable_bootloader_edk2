@@ -88,8 +88,9 @@ found at
 
 STATIC struct GetVarPartitionInfo part_info[] = {
     {"system", "partition-size:", "partition-type:", "", "ext4"},
-    {"userdata", "partition-size:", "partition-type:", "", "ext4"},
+    {"userdata", "partition-size:", "partition-type:", "", USERDATA_FS_TYPE},
     {"cache", "partition-size:", "partition-type:", "", "ext4"},
+    {"metadata", "partition-size:", "partition-type:", "", "ext4"},
 };
 
 STATIC struct GetVarPartitionInfo PublishedPartInfo[MAX_NUM_PARTITIONS];
