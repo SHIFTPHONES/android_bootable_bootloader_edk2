@@ -143,6 +143,9 @@
   !if $(NAND_SQUASHFS_SUPPORT)
       GCC:*_*_*_CC_FLAGS = -DNAND_SQUASHFS_SUPPORT
   !endif
+  !if $(ENABLE_SYSTEMD_BOOTSLOT)
+      GCC:*_*_*_CC_FLAGS = -DENABLE_SYSTEMD_BOOTSLOT
+  !endif
 
 [PcdsFixedAtBuild.common]
 

@@ -479,7 +479,7 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
      /* Slot suffix */
     UnicodeStrToAsciiStr (GetCurrentSlotSuffix ().Suffix,
                           Param->SlotSuffixAscii);
-    if (IsLEVariant ()) {
+    if (IsSystemdBootslotEnabled ()) {
       INT32 StrLen = 0;
       StrLen = AsciiStrLen (SystemdSlotEnv);
       SystemdSlotEnv[StrLen - 2] = Param->SlotSuffixAscii[1];
@@ -672,7 +672,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
   if (MultiSlotBoot &&
      !IsBootDevImage ()) {
-    if (IsLEVariant ()) {
+    if (IsSystemdBootslotEnabled ()) {
       CmdLineLen += AsciiStrLen (SystemdSlotEnv);
     } else {
     /* Add additional length for slot suffix */
