@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -742,15 +742,23 @@ STATIC EFI_STATUS GetBoardMatchDtb (DtInfo *CurDtbInfo,
 
     DEBUG ((EFI_D_VERBOSE, "BoardSubtype = %x, DtSubType = %x\n",
             BoardPlatformSubType (), CurDtbInfo->DtPlatformSubtype));
-    if (CurDtbInfo->DtPlatformSubtype == BoardPlatformSubType ()) {
+    if ((CurDtbInfo->DtPlatformSubtype & PLATFORM_SUBTYPE_MASK) ==
+        BoardPlatformSubType ()) {
       CurDtbInfo->DtMatchVal |= BIT (SUBTYPE_EXACT_MATCH);
-    } else if (CurDtbInfo->DtPlatformSubtype == 0) {
+    } else if ((CurDtbInfo->DtPlatformSubtype & PLATFORM_SUBTYPE_MASK) == 0) {
       CurDtbInfo->DtMatchVal |= BIT (SUBTYPE_DEFAULT_MATCH);
     } else {
       DEBUG ((EFI_D_VERBOSE, "subtype-id doesnot match\n"));
       /* If it's neither exact nor default match don't select dtb */
       CurDtbInfo->DtMatchVal = BIT (NONE_MATCH);
       return EFI_NOT_FOUND;
+    }
+
+    if ((CurDtbInfo->DtPlatformSubtype & DDR_MASK) ==
+        (BoardPlatformHlosSubType() & DDR_MASK)) {
+      CurDtbInfo->DtMatchVal |= BIT (DDR_MATCH);
+    } else {
+      DEBUG ((EFI_D_VERBOSE, "ddr size does not match\n"));
     }
   } else {
     DEBUG ((EFI_D_VERBOSE, "qcom,board-id does not exist (or) (%d) "
@@ -1197,6 +1205,7 @@ STATIC int
 platform_dt_absolute_match (struct dt_entry *cur_dt_entry,
                             struct dt_entry_node *dt_list)
 {
+  UINT32 cur_dt_hlos_ddr;
   UINT32 cur_dt_hw_platform;
   UINT32 cur_dt_hw_subtype;
   UINT32 cur_dt_msm_id;
@@ -1210,6 +1219,9 @@ platform_dt_absolute_match (struct dt_entry *cur_dt_entry,
   cur_dt_hw_platform = (cur_dt_entry->variant_id & 0x000000ff);
   cur_dt_hw_subtype = (cur_dt_entry->board_hw_subtype & 0xff);
 
+  /* Bits 10:8 contain ddr information */
+  cur_dt_hlos_ddr = (cur_dt_entry->board_hw_subtype & 0x700);
+
   /* 1. must match the msm_id, platform_hw_id, platform_subtype and DDR size
    *  soc, board major/minor, pmic major/minor must less than board info
    *  2. find the matched DTB then return 1
@@ -1219,6 +1231,7 @@ platform_dt_absolute_match (struct dt_entry *cur_dt_entry,
   if ((cur_dt_msm_id == (BoardPlatformRawChipId () & 0x0000ffff)) &&
       (cur_dt_hw_platform == BoardPlatformType ()) &&
       (cur_dt_hw_subtype == BoardPlatformSubType ()) &&
+      (cur_dt_hlos_ddr == (BoardPlatformHlosSubType() & 0x700)) &&
       (cur_dt_entry->soc_rev <= BoardPlatformChipVersion ()) &&
       ((cur_dt_entry->variant_id & 0x00ffff00) <=
        (BoardTargetId () & 0x00ffff00)) &&
