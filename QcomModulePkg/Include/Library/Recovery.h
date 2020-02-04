@@ -88,4 +88,6 @@ EFI_STATUS
 WriteRecoveryMessage (CHAR8 *Command);
 VirtualAbMergeStatus
 GetSnapshotMergeStatus (VOID);
+EFI_STATUS
+SetSnapshotMergeStatus (VirtualAbMergeStatus MergeStatus);
 #endif

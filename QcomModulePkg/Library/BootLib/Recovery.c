@@ -34,6 +34,89 @@
 STATIC MiscVirtualABMessage *VirtualAbMsg = NULL;
 
 STATIC EFI_STATUS
+WriteVirtualABMessage (UINT8 MergeStatus)
+{
+  EFI_STATUS Status;
+  EFI_BLOCK_IO_PROTOCOL *BlkIo = NULL;
+  PartiSelectFilter HandleFilter;
+  HandleInfo HandleInfoList[1];
+  UINT32 MaxHandles;
+  UINT32 BlkIOAttrib = 0;
+  EFI_HANDLE *Handle = NULL;
+  EFI_GUID Ptype = gEfiMiscPartitionGuid;
+  MemCardType CardType = UNKNOWN;
+  UINT32 PageSize;
+  UINT32 Offset;
+
+  if (VirtualAbMsg == NULL) {
+    return EFI_NOT_FOUND;
+  }
+
+  CardType = CheckRootDeviceType ();
+  if (CardType == NAND) {
+    return EFI_UNSUPPORTED;
+  }
+
+  GetPageSize (&PageSize);
+
+  BlkIOAttrib = BLK_IO_SEL_PARTITIONED_GPT;
+  BlkIOAttrib |= BLK_IO_SEL_MEDIA_TYPE_NON_REMOVABLE;
+  BlkIOAttrib |= BLK_IO_SEL_MATCH_PARTITION_TYPE_GUID;
+
+  HandleFilter.RootDeviceType = NULL;
+  HandleFilter.PartitionType = &Ptype;
+  HandleFilter.VolumeName = NULL;
+
+  MaxHandles = ARRAY_SIZE (HandleInfoList);
+  Status =
+      GetBlkIOHandles (BlkIOAttrib, &HandleFilter, HandleInfoList, &MaxHandles);
+
+  if (Status == EFI_SUCCESS) {
+    if (MaxHandles == 0) {
+      return EFI_NO_MEDIA;
+    }
+
+    if (MaxHandles != 1) {
+      // Unable to deterministically load from single partition
+      DEBUG ((EFI_D_INFO, "%s: multiple partitions found.\r\n", __func__));
+      return EFI_LOAD_ERROR;
+    }
+  } else {
+    DEBUG ((EFI_D_ERROR,
+            "%s: GetBlkIOHandles failed: %r\n", __func__, Status));
+    return Status;
+  }
+
+  BlkIo = HandleInfoList[0].BlkIo;
+  Handle = HandleInfoList[0].Handle;
+  Offset = MISC_VIRTUALAB_OFFSET / BlkIo->Media->BlockSize;
+  Status = WriteBlockToPartition (BlkIo, Handle,
+                                  Offset, PageSize, VirtualAbMsg);
+
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR,
+          "Write the VirtualAbMsg failed :%r\n", Status));
+  }
+
+  return Status;
+}
+
+EFI_STATUS SetSnapshotMergeStatus (VirtualAbMergeStatus MergeStatus)
+{
+  EFI_STATUS Status;
+  VirtualAbMergeStatus OldMergeStatus;
+
+  OldMergeStatus = VirtualAbMsg->MergeStatus;
+  VirtualAbMsg->MergeStatus = MergeStatus;
+
+  Status = WriteVirtualABMessage (MergeStatus);
+  if (Status != EFI_SUCCESS) {
+    VirtualAbMsg->MergeStatus = OldMergeStatus;
+  }
+  return Status;
+}
+
+STATIC EFI_STATUS
 ReadFromPartitionOffset (EFI_GUID *Ptype, VOID **Msg,
                          UINT32 Size, UINT32 Offset)
 {

@@ -101,6 +101,12 @@ STATIC CONST CHAR16 *CriticalPartitions[] = {
 
 STATIC BOOLEAN
 IsCriticalPartition (CHAR16 *PartitionName);
+
+STATIC CONST CHAR16 *VirtualAbCriticalPartitions[] = {
+    L"misc",  L"metadata",  L"userdata"};
+
+STATIC BOOLEAN
+CheckVirtualAbCriticalPartition (CHAR16 *PartitionName);
 #endif
 
 STATIC FASTBOOT_VAR *Varlist;
@@ -1479,6 +1485,25 @@ IsCriticalPartition (CHAR16 *PartitionName)
   return FALSE;
 }
 
+STATIC BOOLEAN
+CheckVirtualAbCriticalPartition (CHAR16 *PartitionName)
+{
+  VirtualAbMergeStatus SnapshotMergeStatus;
+  UINT32 Iter = 0;
+
+  SnapshotMergeStatus = GetSnapshotMergeStatus ();
+  if ((SnapshotMergeStatus == MERGING ||
+      SnapshotMergeStatus == SNAPSHOTTED)) {
+    for (Iter = 0; Iter < ARRAY_SIZE (VirtualAbCriticalPartitions); Iter++) {
+      if (!StrnCmp (PartitionName, VirtualAbCriticalPartitions[Iter],
+                  StrLen (VirtualAbCriticalPartitions[Iter])))
+        return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
 STATIC VOID ExchangeFlashAndUsbDataBuf (VOID)
 {
   VOID *mTmpbuff;
@@ -1575,6 +1600,7 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   CHAR8 FlashResultStr[MAX_RSP_SIZE] = "";
   UINT64 PartitionSize = 0;
   UINT32 Ret;
+  VirtualAbMergeStatus SnapshotMergeStatus;
 
   ExchangeFlashAndUsbDataBuf ();
   if (mFlashDataBuffer == NULL) {
@@ -1600,6 +1626,33 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     if (!IsUnlockCritical () && IsCriticalPartition (PartitionName)) {
       FastbootFail ("Flashing is not allowed for Critical Partitions\n");
       return;
+    }
+  }
+
+  if (IsVirtualAbOtaSupported ()) {
+    if (CheckVirtualAbCriticalPartition (PartitionName)) {
+      AsciiSPrint (FlashResultStr, MAX_RSP_SIZE,
+                    "Flashing of %s is not allowed in %a state",
+                    PartitionName, SnapshotMergeState);
+      FastbootFail (FlashResultStr);
+      return;
+    }
+
+    SnapshotMergeStatus = GetSnapshotMergeStatus ();
+    if (((SnapshotMergeStatus == MERGING) ||
+          (SnapshotMergeStatus == SNAPSHOTTED)) &&
+          !StrnCmp (PartitionName, L"super", StrLen (L"super"))) {
+
+      Status = SetSnapshotMergeStatus (CANCELLED);
+      if (Status != EFI_SUCCESS) {
+        FastbootFail ("Failed to update snapshot state to cancel");
+        return;
+      }
+
+      //updating fbvar snapshot-merge-state
+      AsciiSPrint (SnapshotMergeState,
+                    AsciiStrLen (VabSnapshotMergeStatus[NONE_MERGE_STATUS]) + 1,
+                    "%a", VabSnapshotMergeStatus[NONE_MERGE_STATUS]);
     }
   }
 
@@ -1795,6 +1848,8 @@ CmdErase (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
   CHAR16 SlotSuffix[MAX_SLOT_SUFFIX_SZ];
   BOOLEAN MultiSlotBoot = PartitionHasMultiSlot (L"boot");
   CHAR16 PartitionName[MAX_GPT_NAME_SIZE];
+  CHAR8 EraseResultStr[MAX_RSP_SIZE] = "";
+  VirtualAbMergeStatus SnapshotMergeStatus;
 
   if (AsciiStrLen (arg) >= MAX_GPT_NAME_SIZE) {
     FastbootFail ("Invalid partition name");
@@ -1814,6 +1869,33 @@ CmdErase (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
     if (!IsUnlockCritical () && IsCriticalPartition (PartitionName)) {
       FastbootFail ("Erase is not allowed for Critical Partitions\n");
       return;
+    }
+  }
+
+  if (IsVirtualAbOtaSupported ()) {
+    if (CheckVirtualAbCriticalPartition (PartitionName)) {
+      AsciiSPrint (EraseResultStr, MAX_RSP_SIZE,
+                    "Erase of %s is not allowed in %a state",
+                    PartitionName, SnapshotMergeState);
+      FastbootFail (EraseResultStr);
+      return;
+    }
+
+    SnapshotMergeStatus = GetSnapshotMergeStatus ();
+    if (((SnapshotMergeStatus == MERGING) ||
+          (SnapshotMergeStatus == SNAPSHOTTED)) &&
+          !StrnCmp (PartitionName, L"super", StrLen (L"super"))) {
+
+      Status = SetSnapshotMergeStatus (CANCELLED);
+      if (Status != EFI_SUCCESS) {
+        FastbootFail ("Failed to update snapshot state to cancel");
+        return;
+      }
+
+      //updating fbvar snapshot-merge-state
+      AsciiSPrint (SnapshotMergeState,
+                    AsciiStrLen (VabSnapshotMergeStatus[NONE_MERGE_STATUS]) + 1,
+                    "%a", VabSnapshotMergeStatus[NONE_MERGE_STATUS]);
     }
   }
 
@@ -1889,6 +1971,13 @@ CmdSetActive (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   if (!Arg) {
     FastbootFail ("Invalid Input Parameters");
     return;
+  }
+
+  if (IsVirtualAbOtaSupported ()) {
+    if (GetSnapshotMergeStatus () == MERGING) {
+      FastbootFail ("Slot Change is not allowed in merging state");
+      return;
+    }
   }
 
   InputSlot = AsciiStrStr (Arg, Delim);
@@ -2321,6 +2410,49 @@ CmdRebootFastboot (IN CONST CHAR8 *Arg, IN VOID *Data, IN UINT32 Size)
   // Shouldn't get here
   FastbootFail ("Failed to reboot");
 }
+
+#ifdef VIRTUAL_AB_OTA
+STATIC VOID
+CmdUpdateSnapshot (IN CONST CHAR8 *Arg, IN VOID *Data, IN UINT32 Size)
+{
+  CHAR8 *Command = NULL;
+  CONST CHAR8 *Delim = ":";
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  Command = AsciiStrStr (Arg, Delim);
+  if (Command) {
+    Command++;
+
+    if (!AsciiStrnCmp (Command, "merge", AsciiStrLen ("merge"))) {
+      if (GetSnapshotMergeStatus () == MERGING) {
+        CmdRebootFastboot (Arg, Data, Size);
+      }
+      FastbootOkay ("");
+      return;
+    } else if (!AsciiStrnCmp (Command, "cancel", AsciiStrLen ("cancel"))) {
+      if (!IsUnlocked ()) {
+        FastbootFail ("Snapshot Cancel is not allowed in Lock State");
+        return;
+      }
+
+      Status = SetSnapshotMergeStatus (CANCELLED);
+      if (Status != EFI_SUCCESS) {
+        FastbootFail ("Failed to update snapshot state to cancel");
+        return;
+      }
+
+      //updating fbvar snapshot-merge-state
+      AsciiSPrint (SnapshotMergeState,
+                    AsciiStrLen (VabSnapshotMergeStatus[NONE_MERGE_STATUS]) + 1,
+                    "%a", VabSnapshotMergeStatus[NONE_MERGE_STATUS]);
+      FastbootOkay ("");
+      return;
+    }
+  }
+  FastbootFail ("Invalid snapshot-update command");
+  return;
+}
+#endif
 #endif
 
 STATIC VOID
@@ -3360,6 +3492,9 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
 #ifdef DYNAMIC_PARTITION_SUPPORT
       {"reboot-recovery", CmdRebootRecovery},
       {"reboot-fastboot", CmdRebootFastboot},
+#ifdef VIRTUAL_AB_OTA
+      {"snapshot-update", CmdUpdateSnapshot},
+#endif
 #endif
       {"reboot-bootloader", CmdRebootBootloader},
       {"getvar:", CmdGetVar},
