@@ -1131,7 +1131,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
 
   if ( ( (!Info->MultiSlotBoot) ||
            IsDynamicPartitionSupport ()) &&
-           Info->BootIntoRecovery) {
+           (Info->BootIntoRecovery &&
+           !IsBuildUseRecoveryAsBoot ())) {
     AddRequestedPartition (RequestedPartitionAll, IMG_RECOVERY);
     NumRequestedPartition += 1;
     Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
@@ -1268,7 +1269,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
   GUARD_OUT (GetImage (Info, &ImageBuffer, &ImageSize,
                     ( (!Info->MultiSlotBoot ||
                      IsDynamicPartitionSupport ()) &&
-                     Info->BootIntoRecovery) ?
+                     (Info->BootIntoRecovery &&
+                     !IsBuildUseRecoveryAsBoot ())) ?
                      "recovery" : "boot"));
 
   if (ImageSize < sizeof (boot_img_hdr)) {
