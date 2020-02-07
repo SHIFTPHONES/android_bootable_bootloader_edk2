@@ -216,6 +216,7 @@ struct dt_mem_node_info {
 
 enum dt_entry_info {
   DTB_FOUNDRY = 0,
+  DTB_DDR,
   DTB_SOC,
   DTB_MAJOR_MINOR,
   DTB_PMIC0,
