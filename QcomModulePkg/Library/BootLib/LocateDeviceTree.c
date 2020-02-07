@@ -1232,7 +1232,6 @@ STATIC int
 platform_dt_absolute_match (struct dt_entry *cur_dt_entry,
                             struct dt_entry_node *dt_list)
 {
-  UINT32 cur_dt_hlos_ddr;
   UINT32 cur_dt_hw_platform;
   UINT32 cur_dt_hw_subtype;
   UINT32 cur_dt_msm_id;
@@ -1246,9 +1245,6 @@ platform_dt_absolute_match (struct dt_entry *cur_dt_entry,
   cur_dt_hw_platform = (cur_dt_entry->variant_id & 0x000000ff);
   cur_dt_hw_subtype = (cur_dt_entry->board_hw_subtype & 0xff);
 
-  /* Bits 10:8 contain ddr information */
-  cur_dt_hlos_ddr = (cur_dt_entry->board_hw_subtype & 0x700);
-
   /* 1. must match the msm_id, platform_hw_id, platform_subtype and DDR size
    *  soc, board major/minor, pmic major/minor must less than board info
    *  2. find the matched DTB then return 1
@@ -1258,7 +1254,6 @@ platform_dt_absolute_match (struct dt_entry *cur_dt_entry,
   if ((cur_dt_msm_id == (BoardPlatformRawChipId () & 0x0000ffff)) &&
       (cur_dt_hw_platform == BoardPlatformType ()) &&
       (cur_dt_hw_subtype == BoardPlatformSubType ()) &&
-      (cur_dt_hlos_ddr == (BoardPlatformHlosSubType() & 0x700)) &&
       (cur_dt_entry->soc_rev <= BoardPlatformChipVersion ()) &&
       ((cur_dt_entry->variant_id & 0x00ffff00) <=
        (BoardTargetId () & 0x00ffff00)) &&
