@@ -1,4 +1,4 @@
-/* Copyright (c) 2017,2019-2020 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017,2019, 2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,6 +33,7 @@
 #include <Protocol/EFIChipInfo.h>
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Uefi/UefiBaseType.h>
+#include <Library/FdtRw.h>
 
 /* Look up table for cpu partial goods
  *
@@ -335,7 +336,7 @@ FindNodeAndUpdateProperty (VOID *fdt,
       continue;
 
     /* Find the parent node */
-    ParentOffset = fdt_path_offset (fdt, Table->ParentNode);
+    ParentOffset = FdtPathOffset (fdt, Table->ParentNode);
     if (ParentOffset < 0) {
       DEBUG ((EFI_D_ERROR, "Failed to Get parent node: %a\terror: %d\n",
               Table->ParentNode, ParentOffset));
@@ -353,10 +354,9 @@ FindNodeAndUpdateProperty (VOID *fdt,
     }
 
      /* Add/Replace the property with Replace string value */
-    Ret = fdt_setprop (fdt, SubNodeOffset, SNode->PropertyName,
-                     (CONST VOID *)SNode->ReplaceStr,
-                     AsciiStrLen (SNode->ReplaceStr)+ 1);
-
+    Ret = FdtSetProp (fdt, SubNodeOffset, SNode->PropertyName,
+                      (CONST VOID *)SNode->ReplaceStr,
+                      AsciiStrLen (SNode->ReplaceStr) + 1);
     if (!Ret) {
       DEBUG ((EFI_D_INFO, "Partial goods (%a) status property disabled\n",
               SNode->SubNodeName));
