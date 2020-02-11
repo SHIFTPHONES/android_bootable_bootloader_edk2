@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -69,29 +69,28 @@ PrintSplashMemInfo (CONST CHAR8 *data, INT32 datalen)
 }
 
 STATIC EFI_STATUS
-GetDDRInfo (UINT8 *DdrDeviceType)
+GetDDRInfo (struct ddr_details_entry_info *DdrInfo,
+            UINT64 *Revision)
 {
   EFI_DDRGETINFO_PROTOCOL *DdrInfoIf;
-  struct ddr_details_entry_info DdrInfo;
   EFI_STATUS Status;
 
   Status = gBS->LocateProtocol (&gEfiDDRGetInfoProtocolGuid, NULL,
                                 (VOID **)&DdrInfoIf);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_VERBOSE,
-            "INFO: Unable to get DDR Info protocol. DDR type not updated:%r\n",
+            "INFO: Unable to get DDR Info protocol:%r\n",
             Status));
     return Status;
   }
 
-  Status = DdrInfoIf->GetDDRDetails (DdrInfoIf, &DdrInfo);
+  Status = DdrInfoIf->GetDDRDetails (DdrInfoIf, DdrInfo);
   if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR, "INFO: GetDDR details failed\n"));
     return Status;
   }
-
-  *DdrDeviceType = DdrInfo.device_type;
-  DEBUG ((EFI_D_VERBOSE, "DDR deviceType:%d", *DdrDeviceType));
+  *Revision = DdrInfoIf->Revision;
+  DEBUG ((EFI_D_VERBOSE, "DDR Header Revision =0x%x\n", *Revision));
   return Status;
 }
 
@@ -345,14 +344,10 @@ AddMemMap (VOID *Fdt, UINT32 MemNodeOffset, BOOLEAN BootWith32Bit)
     return Status;
   }
 
-  Status = GetRamPartitions (&RamPartitions, &NumPartitions);
+  Status = ReadRamPartitions (&RamPartitions, &NumPartitions);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Error returned from GetRamPartitions %r\n", Status));
+    DEBUG ((EFI_D_ERROR, "Error returned from ReadRamPartitions %r\n", Status));
     return Status;
-  }
-  if (!RamPartitions) {
-    DEBUG ((EFI_D_ERROR, "RamPartitions is NULL\n"));
-    return EFI_NOT_FOUND;
   }
 
   DEBUG ((EFI_D_INFO, "RAM Partitions\r\n"));
@@ -377,6 +372,7 @@ AddMemMap (VOID *Fdt, UINT32 MemNodeOffset, BOOLEAN BootWith32Bit)
 
   FreePool (RamPartitions);
   RamPartitions = NULL;
+  RamPartitionEntries = NULL;
 
   return EFI_SUCCESS;
 }
@@ -480,6 +476,12 @@ UpdateDeviceTree (VOID *fdt,
   UINT32 PaddSize = 0;
   UINT64 KaslrSeed = 0;
   UINT8 DdrDeviceType;
+  /* Single space reserved for chan(0-9) */
+  CHAR8 FdtRankProp[] = "ddr_device_rank_ch ";
+  /* Single spaces reserved for chan(0-9), rank(0-9) */
+  CHAR8 FdtHbbProp[] = "ddr_device_hbb_ch _rank ";
+  struct ddr_details_entry_info *DdrInfo;
+  UINT64 Revision;
   EFI_STATUS Status;
   UINT64 UpdateDTStartTime = GetTimerCountms ();
 
@@ -518,16 +520,68 @@ UpdateDeviceTree (VOID *fdt,
     return Status;
   }
 
-  Status = GetDDRInfo (&DdrDeviceType);
+  DdrInfo = AllocateZeroPool (sizeof (struct ddr_details_entry_info));
+  if (DdrInfo == NULL) {
+    DEBUG ((EFI_D_ERROR, "DDR Info Buffer: Out of resources\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
+  Status = GetDDRInfo (DdrInfo, &Revision);
   if (Status == EFI_SUCCESS) {
+    DdrDeviceType = DdrInfo->device_type;
+    DEBUG ((EFI_D_VERBOSE, "DDR deviceType:%d\n", DdrDeviceType));
+
     ret = fdt_appendprop_u32 (fdt, offset, (CONST char *)"ddr_device_type",
                               (UINT32)DdrDeviceType);
     if (ret) {
       DEBUG ((EFI_D_ERROR,
-              "ERROR: Cannot update memory node [ddr_device_type] - 0x%x\n",
+              "ERROR: Cannot update memory node [ddr_device_type]:0x%x\n",
               ret));
     } else {
       DEBUG ((EFI_D_VERBOSE, "ddr_device_type is added to memory node\n"));
+    }
+
+    if (Revision < EFI_DDRGETINFO_PROTOCOL_REVISION) {
+      DEBUG ((EFI_D_VERBOSE,
+              "ddr_device_rank, HBB not supported in Revision=0x%x\n",
+              Revision));
+    } else {
+      DEBUG ((EFI_D_VERBOSE, "DdrInfo->num_channels:%d\n",
+              DdrInfo->num_channels));
+      for (UINT8 Chan = 0; Chan < DdrInfo->num_channels; Chan++) {
+        DEBUG ((EFI_D_VERBOSE, "ddr_device_rank_ch%d:%d\n",
+                Chan, DdrInfo->num_ranks[Chan]));
+        AsciiSPrint (FdtRankProp, sizeof (FdtRankProp),
+                     "ddr_device_rank_ch%d", Chan);
+        ret = fdt_appendprop_u32 (fdt, offset,
+                                  (CONST char *)FdtRankProp,
+                                  (UINT32)DdrInfo->num_ranks[Chan]);
+        if (ret) {
+          DEBUG ((EFI_D_ERROR,
+                  "ERROR: Cannot update memory node ddr_device_rank_ch%d:0x%x\n",
+                  Chan, ret));
+        } else {
+          DEBUG ((EFI_D_VERBOSE, "ddr_device_rank_ch%d added to memory node\n",
+                  Chan));
+        }
+        for (UINT8 Rank = 0; Rank < DdrInfo->num_ranks[Chan]; Rank++) {
+          DEBUG ((EFI_D_VERBOSE, "ddr_device_hbb_ch%d_rank%d:%d\n",
+                  Chan, Rank, DdrInfo->hbb[Chan][Rank]));
+          AsciiSPrint (FdtHbbProp, sizeof (FdtHbbProp),
+                       "ddr_device_hbb_ch%d_rank%d", Chan, Rank);
+          ret = fdt_appendprop_u32 (fdt, offset,
+                                (CONST char *)FdtHbbProp,
+                                (UINT32)DdrInfo->hbb[Chan][Rank]);
+          if (ret) {
+            DEBUG ((EFI_D_ERROR,
+                    "ERROR: Cannot update memory node ddr_device_hbb_ch%d_rank%d:0x%x\n",
+                    Chan, Rank, ret));
+          } else {
+            DEBUG ((EFI_D_VERBOSE,
+                    "ddr_device_hbb_ch%d_rank%d added to memory node\n",
+                    Chan, Rank));
+          }
+        }
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -80,7 +80,6 @@ TxMpdatatoQhee (UINT64 *MpDataAddr, size_t MpDataSize)
 BOOLEAN
 GetRticDtb (VOID *Dtb)
 {
-  EFI_STATUS Status = EFI_SUCCESS;
   int RootOffset;
   const char *RticProp = NULL;
   const char *MpDataProp = NULL;
@@ -90,7 +89,6 @@ GetRticDtb (VOID *Dtb)
   UINT8 *MpData = NULL;
   UINT32 i;
   UINT64 *MpDataAddr;
-  UINT64 BaseMemory = 0;
 
   RootOffset = fdt_path_offset (Dtb, "/");
   if (RootOffset < 0)
@@ -133,13 +131,6 @@ GetRticDtb (VOID *Dtb)
   }
 
   MpDataAddr = (UINT64 *)MpData;
-  Status = BaseMem (&BaseMemory);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Base memory not found!!! Status:%r\n", Status));
-    FreePool (MpData);
-    MpData = NULL;
-    return FALSE;
-  }
 
   /* Display the RTIC id and mpdata */
   DEBUG ((EFI_D_VERBOSE, "rtic-id (%x)\n", RticData.Id));

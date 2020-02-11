@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2017-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -70,6 +70,8 @@
 #define PMIC_SHIFT_IDX (2)
 #define PLATFORM_SUBTYPE_SHIFT_ID (0x18)
 #define FOUNDRY_ID_MASK (0x00ff0000)
+#define PLATFORM_SUBTYPE_MASK (0x000000ff)
+#define DDR_MASK (0x00000700)
 
 typedef enum {
   NONE_MATCH,
@@ -99,6 +101,7 @@ typedef enum {
   PMIC_MATCH_EXACT_MODEL_IDX3,
   SUBTYPE_DEFAULT_MATCH,
   SUBTYPE_EXACT_MATCH,
+  DDR_MATCH,
   VARIANT_MATCH,
   SOC_MATCH,
   MAX_MATCH,

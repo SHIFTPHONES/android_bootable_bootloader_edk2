@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,7 +32,9 @@
 #define MAX_IDX 8
 #define MAX_NUM_CLOCK_PLAN 14
 
-#define DDR_DETAILS_STRUCT_VERSION 0x0000000000030000
+#define DDR_DETAILS_STRUCT_VERSION 0x0000000000040000
+#define MAX_CHANNELS 2
+#define MAX_RANKS 2
 
 struct ddr_freq_table {
    UINT32 freq_khz;
@@ -59,6 +61,8 @@ typedef struct ddr_details_entry_info {
   struct ddr_part_details ddr_params[MAX_IDX];
   ddr_freq_plan_entry     ddr_freq_tbl;
   UINT8 num_channels;
+  UINT8 num_ranks[MAX_CHANNELS];/* Number of ranks per channel */
+  UINT8 hbb[MAX_CHANNELS][MAX_RANKS];/* Highest Bank Bit per rank per channel */
 } ddr_details_entry;
 
 #endif /* DDRDETAILS_H */

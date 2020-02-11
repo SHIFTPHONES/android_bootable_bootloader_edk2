@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+# * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
 # *
 # * Redistribution and use in source and binary forms, with or without
 # * modification, are permitted provided that the following conditions are
@@ -139,6 +139,9 @@
   !endif
   !if $(RW_ROOTFS)
       GCC:*_*_*_CC_FLAGS = -DRW_ROOTFS
+  !endif
+  !if $(USERDATAIMAGE_FILE_SYSTEM_TYPE)
+      GCC:*_*_*_CC_FLAGS = -DUSERDATA_FS_TYPE=\"$(USERDATAIMAGE_FILE_SYSTEM_TYPE)\"
   !endif
 
 [PcdsFixedAtBuild.common]
