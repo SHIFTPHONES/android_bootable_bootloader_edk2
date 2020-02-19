@@ -162,6 +162,7 @@
 	gQcomTokenSpaceGuid.EnableDisplayMenu
 	gQcomTokenSpaceGuid.KernelLoadAddress32
 	gQcomTokenSpaceGuid.EnableMdtpSupport
+	gQcomTokenSpaceGuid.EnableNewNodeSearchFuc
 
 [Depex]
 	TRUE
