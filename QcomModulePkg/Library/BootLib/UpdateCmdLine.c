@@ -3,7 +3,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,6 +41,7 @@
 #include <Protocol/EFIPmicPon.h>
 #include <Protocol/Print2.h>
 #include <Library/HypervisorMvCalls.h>
+#include <Library/EarlyUsbInit.h>
 
 #include "AutoGen.h"
 #include <DeviceInfo.h>
@@ -521,6 +522,12 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     Src = Param->CvmSystemPtnCmdLine;
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
+
+  if (EarlyUsbInitEnabled ()) {
+    Src = Param->UsbCompCmdLine;
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+  }
+
   return EFI_SUCCESS;
 }
 
@@ -553,6 +560,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   INT32 DtbIdx = INVALID_PTN;
   CHAR8 *LEVerityCmdLine = NULL;
   UINT32 LEVerityCmdLineLen = 0;
+  CHAR8 UsbCompositionCmdline[COMPOSITION_CMDLINE_LEN]= "\0";
 
   Status = BoardSerialNum (StrSerialNum, sizeof (StrSerialNum));
   if (Status != EFI_SUCCESS) {
@@ -696,6 +704,11 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
                                  (CHAR8 *)"vm_system");
   }
 
+  if (EarlyUsbInitEnabled ()) {
+    GetEarlyUsbCmdlineParam (UsbCompositionCmdline);
+    CmdLineLen += AsciiStrLen (UsbCompositionCmdline);
+  }
+
   Param.Recovery = Recovery;
   Param.MultiSlotBoot = MultiSlotBoot;
   Param.AlarmBoot = AlarmBoot;
@@ -726,6 +739,10 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   Param.DtbIdxStr = DtbIdxStr;
   Param.LEVerityCmdLine = LEVerityCmdLine;
   Param.CvmSystemPtnCmdLine = CvmSystemPtnCmdLine;
+
+  if (EarlyUsbInitEnabled ()) {
+    Param.UsbCompCmdLine = UsbCompositionCmdline;
+  }
 
   Status = UpdateCmdLineParams (&Param, FinalCmdLine);
   if (Status != EFI_SUCCESS) {

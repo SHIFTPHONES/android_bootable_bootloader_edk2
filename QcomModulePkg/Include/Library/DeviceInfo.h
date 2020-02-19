@@ -1,6 +1,5 @@
 /*
- * * Copyright (c) 2011,2014-2015,2017 The Linux Foundation. All rights
- * reserved.
+ * Copyright (c) 2011,2014-2015,2017,2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,6 +31,7 @@
 #define _DEVINFO_H_
 
 #include <Protocol/EFIVerifiedBoot.h>
+#include <Library/EarlyUsbInit.h>
 #define DEVICE_MAGIC "ANDROID-BOOT!"
 #define DEVICE_MAGIC_SIZE 13
 #define MAX_VERSION_LEN 64
@@ -54,6 +54,7 @@ typedef struct device_info {
   UINT32 user_public_key_length;
   CHAR8 user_public_key[MAX_USER_KEY_SIZE];
   UINT64 rollback_index[MAX_VB_PARTITIONS];
+  struct usb_composition usb_comp;
 } DeviceInfo;
 
 struct verified_boot_verity_mode {

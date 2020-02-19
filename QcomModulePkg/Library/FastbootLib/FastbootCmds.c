@@ -61,6 +61,7 @@ found at
 #include <Library/UefiLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/UnlockMenu.h>
+#include <Library/EarlyUsbInit.h>
 #include <Uefi.h>
 
 #include <Guid/EventGroup.h>
@@ -2891,6 +2892,55 @@ CmdFlashingGetUnlockAbility (CONST CHAR8 *arg, VOID *data, UINT32 sz)
 }
 #endif
 
+#ifdef TARGET_SUPPORTS_EARLY_USB_INIT
+/* Handle USB Composition setting */
+STATIC VOID
+CmdSetUsbCompositionPid (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
+{
+  EFI_STATUS Status;
+  CHAR8 *Ptr = NULL;
+  CONST CHAR8 *Delim = " ";
+  UINTN Pid = 0;
+
+  if (Arg) {
+    // Currently supported inputs to the command is either "disable" string
+    // or pid values which is usually 4 character long.
+    if ((AsciiStrLen (Arg) < 5) ||
+        (AsciiStrLen (Arg) > 8)) {
+      FastbootFail ("Invalid input entered");
+      return;
+    }
+    Ptr = AsciiStrStr (Arg, Delim);
+    Ptr++;
+  } else {
+    FastbootFail ("Invalid input entered");
+    return;
+  }
+
+ if (!AsciiStrCmp (Ptr, "disable")) {
+   Status = ClearDevInfoUsbCompositionPid ();
+   if (Status != EFI_SUCCESS) {
+     FastbootFail ("Failed to clear USB Composition PID");
+   } else {
+     FastbootOkay ("USB Composition Cleared");
+   }
+   return;
+ } else if (0 != (Pid = AsciiStrDecimalToUintn ((CHAR8 *)Ptr))) {
+    Status = SetDevInfoUsbComposition (Pid);
+    if (Status != EFI_SUCCESS) {
+            FastbootFail ("Failed to set USB Composition PID");
+    } else {
+            FastbootOkay ("USB Composition PID is set");
+    }
+    return;
+ }
+ else {
+    FastbootFail ("Invalid input entered");
+    return;
+ }
+}
+#endif
+
 STATIC VOID
 CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
@@ -2912,6 +2962,12 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
                IsChargingScreenEnable () ? "true" : "false");
   FastbootInfo (DeviceInfo);
   WaitForTransferComplete ();
+  if (EarlyUsbInitEnabled ()) {
+    AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "USB Composition PID: %d",
+                 GetUsbPid ());
+    FastbootInfo (DeviceInfo);
+    WaitForTransferComplete ();
+  }
   FastbootOkay ("");
 }
 
@@ -3352,6 +3408,9 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
       {"oem off-mode-charge", CmdOemOffModeCharger},
       {"oem select-display-panel", CmdOemSelectDisplayPanel},
       {"oem device-info", CmdOemDevinfo},
+#ifdef TARGET_SUPPORTS_EARLY_USB_INIT
+      {"oem usb-pid", CmdSetUsbCompositionPid},
+#endif
       {"continue", CmdContinue},
       {"reboot", CmdReboot},
 #ifdef DYNAMIC_PARTITION_SUPPORT
