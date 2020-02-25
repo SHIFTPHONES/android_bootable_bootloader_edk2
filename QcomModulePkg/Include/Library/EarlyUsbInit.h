@@ -35,8 +35,14 @@
 #define USB_COMP_MAGIC          "USB_DEVICE_COMP!"
 #define USB_COMP_MAGIC_SIZE     16
 
-#define USB_PID_LEN     (sizeof(UINTN))
-#define COMPOSITION_CMDLINE_LEN 32
+/* Currently USB Pids are of length 5 characters. We are reserving double
+ * the size to accommodate PIDs upto 10 character length for future use-case
+ * also.
+ */
+#define USB_PID_LEN             10
+
+/* Maximum USB Pid command line parameter length */
+#define COMPOSITION_CMDLINE_LEN 64
 
 extern CHAR8 UsbCompositionCmdline[COMPOSITION_CMDLINE_LEN];
 
