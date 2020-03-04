@@ -32,13 +32,13 @@
 
 typedef struct _FDT_FIRST_LEVEL_NODE {
   CONST CHAR8 *NodeName;
-  UINT32 NodeOffset;
+  INT32 NodeOffset;
   struct _FDT_FIRST_LEVEL_NODE *Next;
 } FDT_FIRST_LEVEL_NODE;
 
 INT32 FdtPathOffset (CONST VOID *Fdt, CONST CHAR8 *Path);
 INT32 FdtGetPropLen (VOID *Fdt, INT32 Offset, CONST CHAR8 *Name);
-VOID FdtUpdateNodeOffsetInList (UINT32 NodeOffset, INT32 DiffLen);
+VOID FdtUpdateNodeOffsetInList (INT32 NodeOffset, INT32 DiffLen);
 INT32 FdtSetProp (VOID *Fdt, INT32 Offset, CONST CHAR8 *Name,
                     CONST VOID *Val, INT32 Len);
 

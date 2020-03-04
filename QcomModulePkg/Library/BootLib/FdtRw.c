@@ -103,7 +103,7 @@ STATIC BOOLEAN IsNodeAdded (CONST CHAR8 *NodeName, UINT32 NameLen)
   return FALSE;
 }
 
-STATIC VOID FdtAppendToNodeList (CONST CHAR8 *NodeName, UINT32 NodeOffset)
+STATIC VOID FdtAppendToNodeList (CONST CHAR8 *NodeName, INT32 NodeOffset)
 {
   FDT_FIRST_LEVEL_NODE *Node;
   UINT32 NameLen;
@@ -128,7 +128,7 @@ STATIC VOID FdtAppendToNodeList (CONST CHAR8 *NodeName, UINT32 NodeOffset)
 
 STATIC BOOLEAN FdtFindNodeFromList (CONST CHAR8 *Name,
                                         UINT32 NameLen,
-                                        UINT32 *NodeOffset)
+                                        INT32 *NodeOffset)
 {
   FDT_FIRST_LEVEL_NODE *Node = NULL;
 
@@ -147,7 +147,7 @@ STATIC BOOLEAN FdtFindNodeFromList (CONST CHAR8 *Name,
   return FALSE;
 }
 
-VOID FdtUpdateNodeOffsetInList (UINT32 NodeOffset, INT32 DiffLen)
+VOID FdtUpdateNodeOffsetInList (INT32 NodeOffset, INT32 DiffLen)
 {
   FDT_FIRST_LEVEL_NODE *Node = NULL;
 
@@ -174,7 +174,7 @@ VOID FdtUpdateNodeOffsetInList (UINT32 NodeOffset, INT32 DiffLen)
   @retval TRUE          Match.
   @retval FALSE         Mismatch.
  **/
-STATIC BOOLEAN FdtNodeNameEq (CONST VOID *Fdt, UINT32 Offset,
+STATIC BOOLEAN FdtNodeNameEq (CONST VOID *Fdt, INT32 Offset,
                                    CONST CHAR8 *Source, UINT32 Len)
 {
   CONST CHAR8 *Ptr = fdt_offset_ptr (Fdt, Offset + FDT_TAGSIZE, Len + 1);
@@ -214,7 +214,7 @@ STATIC BOOLEAN FdtNodeNameEq (CONST VOID *Fdt, UINT32 Offset,
   such as a full path.
  **/
 STATIC INT32 FdtSubnodeOffsetNamelen (CONST VOID *Fdt,
-                                     UINT32 Offset,
+                                     INT32 Offset,
                                      CONST CHAR8 *Name,
                                      UINT32 NameLen,
                                      UINT32 Level)
@@ -301,7 +301,7 @@ INT32 FdtPathOffset (CONST VOID *Fdt, CONST CHAR8 *Path)
   CONST CHAR8 *End = Path + AsciiStrLen (Path);
   CONST CHAR8 *Ptr = Path;
   CONST CHAR8 *Qtr = NULL;
-  UINT32 Offset = 0;
+  INT32 Offset = 0;
   UINT32 Level = 0;
   INT32 Ret;
 
