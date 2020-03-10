@@ -88,6 +88,7 @@ ReadRamPartitions (RamPartitionEntry **RamPartitions, UINT32 *NumPartitions)
   EFI_STATUS Status = EFI_SUCCESS;
 
   if (RamPartitionEntries == NULL) {
+    NumPartitionEntries = 0;
     Status = GetRamPartitions (&RamPartitionEntries, &NumPartitionEntries);
     if (EFI_ERROR (Status)) {
       DEBUG ((EFI_D_ERROR, "Error returned from GetRamPartitions %r\n",
