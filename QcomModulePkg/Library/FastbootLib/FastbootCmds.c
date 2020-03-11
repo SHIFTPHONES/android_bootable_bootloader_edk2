@@ -3535,7 +3535,7 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
     AsciiSPrint (SnapshotMergeState,
                   AsciiStrLen (VabSnapshotMergeStatus[SnapshotMergeStatus]) + 1,
                   "%a", VabSnapshotMergeStatus[SnapshotMergeStatus]);
-    FastbootPublishVar ("snapshot-update-state", SnapshotMergeState);
+    FastbootPublishVar ("snapshot-update-status", SnapshotMergeState);
   }
 
   AsciiSPrint (FullProduct, sizeof (FullProduct), "%a", PRODUCT_NAME);

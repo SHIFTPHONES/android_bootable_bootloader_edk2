@@ -48,10 +48,6 @@ WriteVirtualABMessage (UINT8 MergeStatus)
   UINT32 PageSize;
   UINT32 Offset;
 
-  if (VirtualAbMsg == NULL) {
-    return EFI_NOT_FOUND;
-  }
-
   CardType = CheckRootDeviceType ();
   if (CardType == NAND) {
     return EFI_UNSUPPORTED;
@@ -105,6 +101,10 @@ EFI_STATUS SetSnapshotMergeStatus (VirtualAbMergeStatus MergeStatus)
 {
   EFI_STATUS Status;
   VirtualAbMergeStatus OldMergeStatus;
+
+  if (VirtualAbMsg == NULL) {
+    return EFI_NOT_FOUND;
+  }
 
   OldMergeStatus = VirtualAbMsg->MergeStatus;
   VirtualAbMsg->MergeStatus = MergeStatus;
