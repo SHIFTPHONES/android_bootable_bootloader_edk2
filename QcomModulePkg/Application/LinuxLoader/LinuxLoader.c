@@ -2,7 +2,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,6 +42,7 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/ShutdownServices.h>
 #include <Library/StackCanary.h>
+#include "Library/ThreadStack.h"
 #include <Library/HypervisorMvCalls.h>
 #include <Library/UpdateCmdLine.h>
 
@@ -53,36 +54,7 @@ STATIC BOOLEAN BootReasonAlarm = FALSE;
 STATIC BOOLEAN BootIntoFastboot = FALSE;
 STATIC BOOLEAN BootIntoRecovery = FALSE;
 
-STATIC VOID* UnSafeStackPtr;
-
-STATIC EFI_STATUS __attribute__ ( (no_sanitize ("safe-stack")))
-AllocateUnSafeStackPtr (VOID)
-{
-
-  EFI_STATUS Status = EFI_SUCCESS;
-
-  UnSafeStackPtr = AllocateZeroPool (BOOT_LOADER_MAX_UNSAFE_STACK_SIZE);
-  if (UnSafeStackPtr == NULL) {
-    DEBUG ((EFI_D_ERROR, "Failed to Allocate memory for UnSafeStack \n"));
-    Status = EFI_OUT_OF_RESOURCES;
-    return Status;
-  }
-
-  UnSafeStackPtr += BOOT_LOADER_MAX_UNSAFE_STACK_SIZE;
-
-  return Status;
-}
-
-//This function is to return the Unsafestack ptr address
-VOID** __attribute__ ( (no_sanitize ("safe-stack")))
-__safestack_pointer_address (VOID)
-{
-
-  return (VOID**) &UnSafeStackPtr;
-}
-
 // This function is used to Deactivate MDTP by entering recovery UI
-
 STATIC EFI_STATUS MdtpDisable (VOID)
 {
   BOOLEAN MdtpActive = FALSE;
@@ -176,7 +148,8 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   DEBUG ((EFI_D_VERBOSE, "LinuxLoaderEntry Address: 0x%llx\n",
          (UINTN)LinuxLoaderEntry));
 
-  Status = AllocateUnSafeStackPtr ();
+  Status = InitThreadUnsafeStack ();
+
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Unable to Allocate memory for Unsafe Stack: %r\n",
             Status));
@@ -318,5 +291,8 @@ fastboot:
 stack_guard_update_default:
   /*Update stack check guard with defualt value then return*/
   __stack_chk_guard = DEFAULT_STACK_CHK_GUARD;
+
+  DeInitThreadUnsafeStack ();
+
   return Status;
 }

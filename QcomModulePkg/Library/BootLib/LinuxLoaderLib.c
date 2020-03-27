@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -547,7 +547,8 @@ WriteBlockToPartition (EFI_BLOCK_IO_PROTOCOL *BlockIo,
        side timeout. So split the image into small writing units  to let usb
        have chance to champ in and doing work in parallel.
       */
-    if (!IsUsbTimerStarted ()) {
+
+    if (!IsFlashSplitNeeded ()) {
       WriteUnitSize = DivMsgBufSize;
     }
 

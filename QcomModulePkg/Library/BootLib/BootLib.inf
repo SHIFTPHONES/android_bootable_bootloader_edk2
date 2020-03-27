@@ -68,6 +68,7 @@
 	LECmdLine.c
 	HypervisorMvCalls.c
 	FdtRw.c
+	ThreadStack.c
 
 [Packages]
 	ArmPkg/ArmPkg.dec
@@ -149,6 +150,7 @@
 	gQcomScmProtocolGuid
 	gEfiNandPartiGuidProtocolGuid
 	gEfiDDRGetInfoProtocolGuid
+	gEfiKernelProtocolGuid
 
 [FixedPcd]
 	gArmTokenSpaceGuid.PcdSystemMemoryBase
