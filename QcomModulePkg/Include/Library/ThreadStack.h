@@ -54,7 +54,4 @@ __safestack_pointer_address (VOID);
 VOID ThreadStackNodeRemove (Thread* CurrentThread);
 VOID ThreadStackReleaseCb (VOID * Arg);
 EFI_STATUS InitThreadUnsafeStack (VOID);
-VOID DeInitThreadUnsafeStack (VOID);
-EFI_STATUS EFIAPI TimerStackInit (VOID);
-VOID CloseStackTimer (VOID);
 #endif

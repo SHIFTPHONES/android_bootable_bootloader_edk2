@@ -292,7 +292,5 @@ stack_guard_update_default:
   /*Update stack check guard with defualt value then return*/
   __stack_chk_guard = DEFAULT_STACK_CHK_GUARD;
 
-  DeInitThreadUnsafeStack ();
-
   return Status;
 }

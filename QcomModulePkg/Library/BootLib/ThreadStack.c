@@ -32,14 +32,12 @@
 
 STATIC EFI_KERNEL_PROTOCOL  *KernIntf = NULL;
 STATIC VOID* UnSafeStackPtr;
-STATIC BOOLEAN IsMultiThreadSupported = TRUE;
+STATIC BOOLEAN IsMultiStack = TRUE;
 // This is a runtime variable to record if "thread unsafe stack low level" is
 // supported,  if TRUE, we can set/get multithread stack by API, if FALSE, we
 // can manage stack by link table.
 STATIC BOOLEAN IsThreadUSSLLSupported = FALSE;
 STATIC THREAD_STACK_NODE * ThreadStackNodeList;
-STATIC Thread* TimerThread = NULL;
-STATIC EFI_EVENT TimerStackEvent;
 
 STATIC THREAD_STACK_NODE * ThreadStackNodeInit (Thread *thread)
 {
@@ -252,7 +250,7 @@ __safestack_pointer_address (VOID)
 {
   THREAD_STACK_NODE *ThreadStackNodeTmp = NULL;
 
-  if (!IsMultiThreadSupported) {
+  if (!IsMultiStack) {
       return (VOID**) &UnSafeStackPtr;
   }
 
@@ -270,72 +268,10 @@ __safestack_pointer_address (VOID)
       GetStackTableByThread (KernIntf->Thread->GetCurrentThread ());
   if (!ThreadStackNodeTmp ||
       !ThreadStackNodeTmp->ThreadStackEntry) {
-    return NULL;
+    return (VOID**) &UnSafeStackPtr;
   }
 
   return (VOID**) &(ThreadStackNodeTmp->ThreadStackEntry->StackTop);
-}
-
-STATIC VOID EFIAPI __attribute__ ( (no_sanitize ("safe-stack")))
-TimerStackHandler (IN EFI_EVENT Event, IN VOID *Context)
-{
-  TimerThread = KernIntf->Thread->GetCurrentThread ();
-  DEBUG ((EFI_D_VERBOSE, "TimerStackHandler TimerThread =  %r\n", TimerThread));
-
-  //Timer use one thread in abl, so only need to allocate unsafestack once.
-  AllocateUnSafeStackPtr (TimerThread);
-  return;
-}
-
-/* Close the timer and event */
-VOID CloseStackTimer (VOID)
-{
-  /* Close the timer and event */
-  if (TimerStackEvent) {
-    gBS->SetTimer (TimerStackEvent, TimerCancel, 0);
-    gBS->CloseEvent (TimerStackEvent);
-    TimerStackEvent = NULL;
-  }
-  DEBUG ((EFI_D_VERBOSE, "Close the timer and event\n"));
-}
-
-/* Start timer stack allocate timer, it only runs one time to get timer thread
- * ID in TimerStackHandler.
- */
-STATIC VOID
-StartStackTimer (VOID)
-{
-  EFI_STATUS Status;
-
-  Status = gBS->SetTimer (TimerStackEvent, TimerRelative, 500000);
-
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "ERROR: Failed to start stack Timer: %r\n", Status));
-    CloseStackTimer ();
-  }
-}
-
-/**
-  Create a event and timer to allocate timer stack as all timer share the same
-  thread ID.
-  @retval EFI_SUCCESS     The entry point is executed successfully.
-  @retval other           Some error occurs when executing this entry point.
- **/
-EFI_STATUS EFIAPI
-TimerStackInit (VOID)
-{
-  EFI_STATUS Status = EFI_SUCCESS;
-
-  Status = gBS->CreateEvent (EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
-          TimerStackHandler, NULL, &TimerStackEvent);
-
-  if (!EFI_ERROR (Status) &&
-      TimerStackEvent) {
-    StartStackTimer ();
-
-    DEBUG ((EFI_D_VERBOSE, "Create TimerStackEvent: %r\n", Status));
-  }
-  return Status;
 }
 
 /**
@@ -351,6 +287,7 @@ VOID ThreadStackReleaseCb (VOID * Arg)
     UnSafeStackPtr = KernIntf->Thread->ThreadGetUnsafeSPBase (CurrentThread);
     DEBUG ((EFI_D_VERBOSE, "ThreadStackReleaseCb UnSafeStackPtr = 0x%x\n",
         UnSafeStackPtr));
+
     FreePages (UnSafeStackPtr, ALIGN_PAGES (
         BOOT_LOADER_MAX_UNSAFE_STACK_SIZE, ALIGNMENT_MASK_4KB));
 
@@ -375,9 +312,10 @@ EFI_STATUS InitThreadUnsafeStack (VOID)
   if ((Status != EFI_SUCCESS) ||
       (KernIntf == NULL) ||
       KernIntf->Version < EFI_KERNEL_PROTOCOL_VER_THR_CPU_STATS) {
-    DEBUG ((EFI_D_VERBOSE, "MultiThread is not supported in UEFI core, allocate"
-          " global stack.\n"));
-    IsMultiThreadSupported = FALSE;
+    DEBUG ((EFI_D_VERBOSE, "multi stack is not supported, using global"
+          " single stack.\n"));
+
+    IsMultiStack = FALSE;
     return AllocateGlobalUnSafeStackPtr ();
   }
 
@@ -388,6 +326,9 @@ EFI_STATUS InitThreadUnsafeStack (VOID)
   }
 
   if (!IsThreadUSSLLSupported) {
+    //Allocate gloabl anyway, if some thread get null stack, return gloabal
+    AllocateGlobalUnSafeStackPtr ();
+
     Status =  ThreadStackListCreate ();
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_VERBOSE, "Unable to Init thread unsafe stack: %r.\n",
@@ -401,21 +342,6 @@ EFI_STATUS InitThreadUnsafeStack (VOID)
                 Status));
       return Status;
     }
-
-    TimerStackInit ();
-    if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR, "Unable to init timer stack: %r\n", Status));
-      return Status;
-    }
   }
   return Status;
-}
-
-VOID DeInitThreadUnsafeStack (VOID)
-{
-  if (!IsThreadUSSLLSupported) {
-    //Release timer stack
-    CloseStackTimer ();
-    ThreadStackNodeRemove (TimerThread);
-  }
 }
