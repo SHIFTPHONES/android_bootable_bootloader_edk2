@@ -2432,8 +2432,10 @@ VOID InitMultiThreadEnv ()
   Status = gBS->LocateProtocol (&gEfiKernelProtocolGuid, NULL,
       (VOID **)&KernIntf);
 
-  if ((Status != EFI_SUCCESS) || (KernIntf == NULL)) {
-    DEBUG ((EFI_D_INFO, "InitMultiThreadEnvMultiThread is not supported"));
+  if ((Status != EFI_SUCCESS) ||
+    (KernIntf == NULL) ||
+    KernIntf->Version < EFI_KERNEL_PROTOCOL_VER_UNSAFE_STACK_APIS) {
+    DEBUG ((EFI_D_VERBOSE, "Multi thread is not supported.\n"));
     return;
   }
 

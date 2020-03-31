@@ -373,9 +373,10 @@ EFI_STATUS InitThreadUnsafeStack (VOID)
         (VOID **)&KernIntf);
 
   if ((Status != EFI_SUCCESS) ||
-      (KernIntf == NULL)) {
+      (KernIntf == NULL) ||
+      KernIntf->Version < EFI_KERNEL_PROTOCOL_VER_THR_CPU_STATS) {
     DEBUG ((EFI_D_VERBOSE, "MultiThread is not supported in UEFI core, allocate"
-          " global stack\n"));
+          " global stack.\n"));
     IsMultiThreadSupported = FALSE;
     return AllocateGlobalUnSafeStackPtr ();
   }
@@ -389,7 +390,8 @@ EFI_STATUS InitThreadUnsafeStack (VOID)
   if (!IsThreadUSSLLSupported) {
     Status =  ThreadStackListCreate ();
     if (Status != EFI_SUCCESS) {
-      DEBUG ((EFI_D_ERROR, "Unable to Init thread unsafe stack: %r\n", Status));
+      DEBUG ((EFI_D_VERBOSE, "Unable to Init thread unsafe stack: %r.\n",
+              Status));
       return Status;
     }
 
