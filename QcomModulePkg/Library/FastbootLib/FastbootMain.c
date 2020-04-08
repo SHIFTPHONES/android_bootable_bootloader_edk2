@@ -357,7 +357,6 @@ EFI_STATUS HandleUsbEvents (VOID)
 EFI_STATUS FastbootInitialize (VOID)
 {
   EFI_STATUS Status = EFI_SUCCESS;
-  UINT64 Count= 0;
 
   DEBUG ((EFI_D_INFO, "Fastboot Build Info: %a %a\n", __DATE__, __TIME__));
   BootStatsSetTimeStamp (BS_BL_START);
@@ -382,17 +381,6 @@ EFI_STATUS FastbootInitialize (VOID)
     if (FastbootFatal ()) {
       DEBUG ((EFI_D_ERROR, "Continue detected, Exiting App...\n"));
       break;
-    }
-
-    // Tunes the CPU time for download and flash thread to improve performance
-    if (IsUseMThreadParallel ()) {
-      if (FlashComplete ()) {
-        if (Count % 1000 == 0) {
-          ThreadSleep (1);
-          Count = 0;
-        }
-      }
-      Count++;
     }
   }
 
