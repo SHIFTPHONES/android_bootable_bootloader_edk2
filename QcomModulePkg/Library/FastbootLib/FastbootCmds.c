@@ -339,7 +339,6 @@ VOID PartitionDump (VOID)
   }
 }
 
-STATIC
 EFI_STATUS
 PartitionGetInfo (IN CHAR16 *PartitionName,
                   OUT EFI_BLOCK_IO_PROTOCOL **BlockIo,
@@ -2902,6 +2901,11 @@ CmdSetUsbCompositionPid (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   CONST CHAR8 *Delim = " ";
   UINTN PidStrLen = 0;
 
+  if (IsUsbQtiPartitionPresent ()) {
+    FastbootFail ("Feature not supported for the target!");
+    return;
+  }
+
   if (Arg) {
     PidStrLen = AsciiStrLen (Arg);
     // Currently supported inputs to the command is either "disable" string
@@ -2963,7 +2967,8 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
                IsChargingScreenEnable () ? "true" : "false");
   FastbootInfo (DeviceInfo);
   WaitForTransferComplete ();
-  if (EarlyUsbInitEnabled ()) {
+  if (EarlyUsbInitEnabled () &&
+     !IsUsbQtiPartitionPresent ()) {
     AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "USB Composition PID: %a",
                  GetDevInfoUsbPid ());
     FastbootInfo (DeviceInfo);
