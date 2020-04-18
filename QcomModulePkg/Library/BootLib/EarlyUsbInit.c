@@ -33,7 +33,7 @@
 #include <Library/BootLinux.h>
 #include <Library/EarlyUsbInit.h>
 
-UINTN GetUsbPid (VOID)
+CHAR8 *GetDevInfoUsbPid (VOID)
 {
   struct usb_composition *DevInfoUsbCompPt = GetDevInfoUsbComp ();
   return DevInfoUsbCompPt->pid;
@@ -42,24 +42,22 @@ UINTN GetUsbPid (VOID)
 VOID GetEarlyUsbCmdlineParam (CHAR8 *UsbCompositionCmdlinePtr)
 {
   CHAR8 *UsbCmdPtr = " g_qti_gadget.usb_pid=";
-  CHAR8 UsbPid[USB_PID_LEN] = {'\0'};
 
   AsciiStrCatS (UsbCompositionCmdlinePtr,
                 COMPOSITION_CMDLINE_LEN,
                 UsbCmdPtr);
-  AsciiSPrint ((CHAR8 *)UsbPid, USB_PID_LEN, "%d", GetUsbPid ());
   AsciiStrCatS (UsbCompositionCmdlinePtr,
                 COMPOSITION_CMDLINE_LEN,
-                (CHAR8 *)UsbPid);
+                GetDevInfoUsbPid ());
 }
 
-STATIC BOOLEAN CheckUsbCompMagic (VOID)
+STATIC BOOLEAN CheckDevinfoUsbCompMagic (VOID)
 {
   struct usb_composition *DevInfoUsbCompPtr = GetDevInfoUsbComp ();
   if (CompareMem (DevInfoUsbCompPtr->magic,
                   USB_COMP_MAGIC,
                   USB_COMP_MAGIC_SIZE)) {
-    DEBUG ((EFI_D_ERROR, "USB Composition Magic does not match\n"));
+    DEBUG ((EFI_D_ERROR, "USB Composition Magic verification Failed\n"));
     return FALSE;
   } else {
     return TRUE;
@@ -84,5 +82,5 @@ BOOLEAN
 EarlyUsbInitEnabled ()
 {
   return (EarlyUsbInitFeatureEnabled () &&
-          CheckUsbCompMagic ());
+          CheckDevinfoUsbCompMagic ());
 }

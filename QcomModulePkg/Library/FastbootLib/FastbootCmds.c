@@ -2900,13 +2900,14 @@ CmdSetUsbCompositionPid (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
   EFI_STATUS Status;
   CHAR8 *Ptr = NULL;
   CONST CHAR8 *Delim = " ";
-  UINTN Pid = 0;
+  UINTN PidStrLen = 0;
 
   if (Arg) {
+    PidStrLen = AsciiStrLen (Arg);
     // Currently supported inputs to the command is either "disable" string
     // or pid values which is usually 4 character long.
-    if ((AsciiStrLen (Arg) < 5) ||
-        (AsciiStrLen (Arg) > 8)) {
+    if ((PidStrLen < 5) ||
+        (PidStrLen > 8)) {
       FastbootFail ("Invalid input entered");
       return;
     }
@@ -2925,8 +2926,8 @@ CmdSetUsbCompositionPid (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
      FastbootOkay ("USB Composition Cleared");
    }
    return;
- } else if (0 != (Pid = AsciiStrDecimalToUintn ((CHAR8 *)Ptr))) {
-    Status = SetDevInfoUsbComposition (Pid);
+ } else if ((PidStrLen != (USB_PID_SZ - 1))) {
+    Status = SetDevInfoUsbComposition (Ptr, PidStrLen);
     if (Status != EFI_SUCCESS) {
             FastbootFail ("Failed to set USB Composition PID");
     } else {
@@ -2963,8 +2964,8 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
   FastbootInfo (DeviceInfo);
   WaitForTransferComplete ();
   if (EarlyUsbInitEnabled ()) {
-    AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "USB Composition PID: %d",
-                 GetUsbPid ());
+    AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "USB Composition PID: %a",
+                 GetDevInfoUsbPid ());
     FastbootInfo (DeviceInfo);
     WaitForTransferComplete ();
   }

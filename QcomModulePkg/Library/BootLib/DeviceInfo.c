@@ -406,7 +406,7 @@ ClearDevInfoUsbCompositionPid (VOID)
 }
 
 EFI_STATUS
-SetDevInfoUsbComposition (UINTN Pid)
+SetDevInfoUsbComposition (CHAR8 *Pid, UINTN PidSize)
 {
   EFI_STATUS Status = EFI_SUCCESS;
 
@@ -416,8 +416,13 @@ SetDevInfoUsbComposition (UINTN Pid)
     return Status;
   }
 
+  if (PidSize > ARRAY_SIZE (DevInfo.usb_comp.pid)) {
+    DEBUG ((EFI_D_ERROR, "Pid size:%d too large!\n", PidSize));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
   gBS->CopyMem (DevInfo.usb_comp.magic, USB_COMP_MAGIC, USB_COMP_MAGIC_SIZE);
-  DevInfo.usb_comp.pid = Pid;
+  gBS->CopyMem (DevInfo.usb_comp.pid, Pid, PidSize);
   Status =
     ReadWriteDeviceInfo (WRITE_CONFIG, (VOID *)&DevInfo, sizeof (DevInfo));
   if (Status != EFI_SUCCESS) {

@@ -29,34 +29,26 @@
 #ifndef __EARLY_USB_INIT__
 #define __EARLY_USB_INIT__
 
-#define BOARD_SERIAL_SZ         16
+#define USB_PID_SZ              5
 #define BOARD_PRODUCT_ID_SZ     16
 
-#define USB_COMP_MAGIC          "USB_DEVICE_COMP!"
-#define USB_COMP_MAGIC_SIZE     16
+#define USB_COMP_MAGIC          "USB_COMP!"
+#define USB_COMP_MAGIC_SIZE     10
 
-/* Currently USB Pids are of length 5 characters. We are reserving double
- * the size to accommodate PIDs upto 10 character length for future use-case
- * also.
- */
-#define USB_PID_LEN             10
 
 /* Maximum USB Pid command line parameter length */
 #define COMPOSITION_CMDLINE_LEN 64
 
-extern CHAR8 UsbCompositionCmdline[COMPOSITION_CMDLINE_LEN];
-
 struct usb_composition {
   CHAR8 magic[USB_COMP_MAGIC_SIZE];
-  UINTN pid;
-  CHAR8 serial[BOARD_SERIAL_SZ];
+  CHAR8 pid[USB_PID_SZ];
   CHAR8 product_id[BOARD_PRODUCT_ID_SZ];
 };
 
 BOOLEAN EarlyUsbInitEnabled (VOID);
 EFI_STATUS ClearDevInfoUsbCompositionPid (VOID);
-EFI_STATUS SetDevInfoUsbComposition (UINTN Pid);
-UINTN GetUsbPid (VOID);
+EFI_STATUS SetDevInfoUsbComposition (CHAR8 *Pid, UINTN PidSize);
+CHAR8 *GetDevInfoUsbPid (VOID);
 struct usb_composition *GetDevInfoUsbComp (VOID);
 VOID GetEarlyUsbCmdlineParam (CHAR8 *UsbCompositionCmdlinePtr);
 #endif
