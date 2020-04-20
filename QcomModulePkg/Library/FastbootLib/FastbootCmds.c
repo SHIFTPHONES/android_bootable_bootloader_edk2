@@ -2407,17 +2407,14 @@ VOID ThreadSleep (TimeDuration Delay)
   KernIntf->Thread->ThreadSleep (Delay);
 }
 
-#ifdef DISABLE_MULTITHREAD_DOWNLOAD_FLASH
 BOOLEAN IsUseMThreadParallel (VOID)
 {
+  if (FixedPcdGetBool (EnableMultiThreadFlash)) {
+    return IsMultiThreadSupported;
+  }
+
   return FALSE;
 }
-#else
-BOOLEAN IsUseMThreadParallel (VOID)
-{
-  return IsMultiThreadSupported;
-}
-#endif
 
 VOID InitMultiThreadEnv ()
 {

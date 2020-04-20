@@ -159,3 +159,4 @@
   gQcomTokenSpaceGuid.EnableBatteryVoltageCheck|TRUE|BOOLEAN|0x00015009
   gQcomTokenSpaceGuid.RamdiskEndAddress32|0x03C00000|UINT32|0x0001500A
   gQcomTokenSpaceGuid.EnableNewNodeSearchFuc|TRUE|BOOLEAN|0x0001500B
+  gQcomTokenSpaceGuid.EnableMultiThreadFlash|TRUE|BOOLEAN|0x0001500C
