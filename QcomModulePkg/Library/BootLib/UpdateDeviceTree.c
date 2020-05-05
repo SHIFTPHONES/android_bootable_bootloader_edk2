@@ -91,6 +91,18 @@ GetDDRInfo (struct ddr_details_entry_info *DdrInfo,
     DEBUG ((EFI_D_ERROR, "INFO: GetDDR details failed\n"));
     return Status;
   }
+
+  if (DdrInfo->num_channels > MAX_CHANNELS) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Number of channels is over the limit\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  for (UINT8 Chan = 0; Chan < DdrInfo->num_channels; Chan++) {
+    if (DdrInfo->num_ranks[Chan] > MAX_RANKS) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Number of ranks is over the limit\n"));
+      return EFI_INVALID_PARAMETER;
+    }
+  }
   *Revision = DdrInfoIf->Revision;
   DEBUG ((EFI_D_VERBOSE, "DDR Header Revision =0x%x\n", *Revision));
   return Status;
