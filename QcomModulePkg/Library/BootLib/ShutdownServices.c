@@ -17,6 +17,7 @@
 
 #include "ShutdownServices.h"
 
+#include <FastbootLib/FastbootCmds.h>
 #include <Guid/ArmMpCoreInfo.h>
 #include <Guid/FileInfo.h>
 #include <Guid/GlobalVariable.h>
@@ -39,6 +40,8 @@ EFI_STATUS ShutdownUefiBootServices (VOID)
   UINTN DescriptorSize;
   UINT32 DescriptorVersion;
   UINTN Pages;
+
+  WaitForFlashFinished ();
 
   MemoryMap = NULL;
   MemoryMapSize = 0;
@@ -102,6 +105,8 @@ RebootDevice (UINT8 RebootReason)
   ResetDataType ResetData;
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
 
+  WaitForFlashFinished ();
+
   StrnCpyS (ResetData.DataBuffer, ARRAY_SIZE (ResetData.DataBuffer),
             (CONST CHAR16 *)STR_RESET_PARAM, ARRAY_SIZE (STR_RESET_PARAM) - 1);
   ResetData.Bdata = RebootReason;
@@ -120,6 +125,9 @@ RebootDevice (UINT8 RebootReason)
 VOID ShutdownDevice (VOID)
 {
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
+
+  WaitForFlashFinished ();
+
   gRT->ResetSystem (EfiResetShutdown, Status, 0, NULL);
 
   /* Flow never comes here and is fatal if it comes here.*/
