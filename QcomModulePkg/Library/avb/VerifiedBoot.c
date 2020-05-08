@@ -1133,6 +1133,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
            IsDynamicPartitionSupport ()) &&
            (Info->BootIntoRecovery &&
            !IsBuildUseRecoveryAsBoot ())) {
+    if (!Info->MultiSlotBoot)
+              VerifyFlags = VerifyFlags | AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION;
     AddRequestedPartition (RequestedPartitionAll, IMG_RECOVERY);
     NumRequestedPartition += 1;
     Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
