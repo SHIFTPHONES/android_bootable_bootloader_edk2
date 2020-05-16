@@ -179,4 +179,5 @@ BOOLEAN FlashComplete (VOID);
 BOOLEAN IsDisableParallelDownloadFlash (VOID);
 BOOLEAN IsUseMThreadParallel (VOID);
 VOID ThreadSleep (TimeDuration Delay);
+VOID WaitForFlashFinished (VOID);
 #endif

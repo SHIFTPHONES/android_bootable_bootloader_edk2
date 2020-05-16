@@ -1318,16 +1318,6 @@ FastbootErasePartition (IN CHAR16 *PartitionName)
   return Status;
 }
 
-//Shoud block command until flash finished
-VOID WaitForFlashFinished (VOID)
-{
-  if (!IsFlashComplete &&
-    IsUseMThreadParallel ()) {
-    KernIntf->Lock->AcquireLock (LockFlash);
-    KernIntf->Lock->ReleaseLock (LockFlash);
-  }
-}
-
 INT32 __attribute__ ( (no_sanitize ("safe-stack")))
 SparseImgFlashThread (VOID* Arg)
 {
@@ -2403,6 +2393,16 @@ GetMaxAllocatableMemory (
   DEBUG ((EFI_D_VERBOSE, "Free Memory available: %ld\n", *FreeSize));
   FreePool (MemMapPtr);
   return;
+}
+
+//Shoud block command until flash finished
+VOID WaitForFlashFinished (VOID)
+{
+  if (!IsFlashComplete &&
+    IsUseMThreadParallel ()) {
+    KernIntf->Lock->AcquireLock (LockFlash);
+    KernIntf->Lock->ReleaseLock (LockFlash);
+  }
 }
 
 VOID ThreadSleep (TimeDuration Delay)

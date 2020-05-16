@@ -31,6 +31,7 @@
 #include "BootImage.h"
 #include "KeymasterClient.h"
 #include "libavb/libavb.h"
+#include <FastbootLib/FastbootCmds.h>
 #include <Library/MenuKeysDetection.h>
 #include <Library/VerifiedBootMenu.h>
 #include <Library/LEOEMCertificate.h>
@@ -1580,6 +1581,8 @@ LoadImageAndAuth (BootInfo *Info)
   BOOLEAN MdtpActive = FALSE;
   QCOM_MDTP_PROTOCOL *MdtpProtocol;
   UINT32 AVBVersion = NO_AVB;
+
+  WaitForFlashFinished ();
 
   if (Info == NULL) {
     DEBUG ((EFI_D_ERROR, "Invalid parameter Info\n"));
