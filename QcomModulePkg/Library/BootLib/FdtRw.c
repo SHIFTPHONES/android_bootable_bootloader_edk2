@@ -118,9 +118,13 @@ STATIC VOID FdtAppendToNodeList (CONST CHAR8 *NodeName, INT32 NodeOffset)
     Node->Next = NodeList;
     NodeList = Node;
     Node->NodeName = AllocateZeroPool (NameLen + 1);
-    CopyMem ((VOID *)Node->NodeName, NodeName, NameLen);
+    if (Node->NodeName) {
+      CopyMem ((VOID *)Node->NodeName, NodeName, NameLen);
 
-    Node->NodeOffset = NodeOffset;
+      Node->NodeOffset = NodeOffset;
+    } else {
+        FdtDeleteNodeList ();
+    }
   } else {
     FdtDeleteNodeList ();
   }
