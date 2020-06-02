@@ -571,6 +571,24 @@ UfsGetSetBootLun (UINT32 *UfsBootlun, BOOLEAN IsGet)
 }
 
 EFI_STATUS
+BoardHardwareRevision (CHAR8 *StrHwRevision, UINT32 Len)
+{
+
+  EFI_STATUS Status;
+
+  Status = GetOemHardwareRevision(StrHwRevision);
+  if (Status != EFI_SUCCESS) {
+    /* use fallback hardware revision and mark as success
+     * to proceed bootup */
+    AsciiSPrint (StrHwRevision, Len, "%d", 10000);
+    Status = EFI_SUCCESS;
+  }
+  DEBUG ((EFI_D_ERROR, "Got hardware revision from oem partition: %s\n", StrHwRevision));
+
+  return Status;
+}
+
+EFI_STATUS
 BoardSerialNum (CHAR8 *StrSerialNum, UINT32 Len)
 {
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
