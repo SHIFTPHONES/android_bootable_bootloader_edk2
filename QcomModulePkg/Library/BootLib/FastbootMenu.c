@@ -109,6 +109,13 @@ STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
      COMMON,
      0,
      NOACTION},
+    {{"PRODUCT_MODEL - "},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
     {{"VARIANT - "},
      COMMON_FACTOR,
      BGR_WHITE,
@@ -256,6 +263,12 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
         AsciiStrLen (PRODUCT_NAME));
       break;
     case 3:
+      /* Get product model */
+      AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
+        sizeof (mFastbootCommonMsgInfo[i].Msg), PRODUCT_MODEL,
+        AsciiStrLen (PRODUCT_MODEL));
+      break;
+    case 4:
       /* Get variant value */
       BoardHwPlatformName (StrTemp, sizeof (StrTemp));
       GetRootDeviceType (StrTemp1, sizeof (StrTemp1));
@@ -270,14 +283,14 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), StrTemp1,
                      sizeof (StrTemp1));
       break;
-    case 4:
+    case 5:
       /* Get bootloader version */
       GetBootloaderVersion (VersionTemp, sizeof (VersionTemp));
       AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
                      sizeof (mFastbootCommonMsgInfo[i].Msg), VersionTemp,
                      sizeof (VersionTemp));
       break;
-    case 5:
+    case 6:
       /* Get baseband version */
       ZeroMem (VersionTemp, sizeof (VersionTemp));
       GetRadioVersion (VersionTemp, sizeof (VersionTemp));
@@ -285,7 +298,7 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), VersionTemp,
                      sizeof (VersionTemp));
       break;
-    case 6:
+    case 7:
       /* Get serial number */
       ZeroMem (StrTemp, sizeof (StrTemp));
       BoardSerialNum (StrTemp, MAX_RSP_SIZE);
@@ -293,7 +306,7 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), StrTemp,
                      sizeof (StrTemp));
       break;
-    case 7:
+    case 8:
       /* Get hardware revision */
       ZeroMem (StrTemp, sizeof (StrTemp));
       BoardHardwareRevision (StrTemp, MAX_RSP_SIZE);
@@ -301,14 +314,14 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), StrTemp,
                      sizeof (StrTemp));
       break;
-    case 8:
+    case 9:
       /* Get secure boot value */
       AsciiStrnCatS (
           mFastbootCommonMsgInfo[i].Msg, sizeof (mFastbootCommonMsgInfo[i].Msg),
           IsSecureBootEnabled () ? "yes" : "no",
           IsSecureBootEnabled () ? AsciiStrLen ("yes") : AsciiStrLen ("no"));
       break;
-    case 9:
+    case 10:
       /* Get device status */
       AsciiStrnCatS (
           mFastbootCommonMsgInfo[i].Msg, sizeof (mFastbootCommonMsgInfo[i].Msg),
