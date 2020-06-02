@@ -246,3 +246,49 @@ GetFfbmCommand (CHAR8 *FfbmString, UINT32 Sz)
 
   return Status;
 }
+
+EFI_STATUS
+GetOemSerialNum (CHAR8 *nv_serialnum)
+{
+  CONST CHAR8 *line_ind = "SN:";
+  CHAR8 *oem_page_buffer = NULL;
+  CHAR8 *line_ptr = NULL;
+  EFI_STATUS Status;
+  EFI_GUID Ptype = gEfiOemPartitionGuid;
+  MemCardType CardType = UNKNOWN;
+
+  CardType = CheckRootDeviceType ();
+  if (CardType == NAND) {
+    Status = GetNandOemPartiGuid (&Ptype);
+    if (Status != EFI_SUCCESS) {
+      return Status;
+    }
+  }
+
+  Status = ReadFromPartition (&Ptype, (VOID **)&oem_page_buffer, READ_OEM_BUF_SIZE);
+  if (Status != EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Error Reading OEM info from oem: %r\n", Status));
+    return Status;
+  }
+
+  oem_page_buffer[READ_OEM_BUF_SIZE - 1] = '\0';
+  //DEBUG ((EFI_D_ERROR, "Read OEM data: %s\n", oem_page_buffer));
+
+  line_ptr = AsciiStrStr(oem_page_buffer, line_ind);
+  if (line_ptr == NULL) {
+    Status = EFI_NOT_FOUND;
+  } else {
+    memset(nv_serialnum, 0x0, sizeof(nv_serialnum));
+    AsciiStrnCpy((char *)nv_serialnum, (line_ptr + strlen(line_ind)), READ_OEM_BUF_LEN);
+    for (unsigned char i = 0; i < READ_OEM_BUF_LEN; i++) {
+      if (nv_serialnum[i] == '\r' || nv_serialnum[i] == '\n' || nv_serialnum[i] == ' ') {
+        nv_serialnum[i] = '\0';
+      }
+    }
+  }
+
+  FreePool (oem_page_buffer);
+  oem_page_buffer = NULL;
+
+  return Status;
+}
