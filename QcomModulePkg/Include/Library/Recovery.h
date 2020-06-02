@@ -97,6 +97,8 @@ EFI_STATUS
 ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size);
 
 EFI_STATUS
+GetOemHardwareRevision (CHAR8 *nv_hwrevision);
+EFI_STATUS
 GetOemSerialNum (CHAR8 *nv_serialnum);
 
 #endif
