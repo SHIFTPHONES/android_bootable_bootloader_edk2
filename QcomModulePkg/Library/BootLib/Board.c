@@ -29,6 +29,7 @@
 #include "AutoGen.h"
 #include <Board.h>
 #include <Library/BootImage.h>
+#include <Library/Recovery.h>
 #include <Library/UpdateDeviceTree.h>
 #include <Protocol/EFICardInfo.h>
 #include <Protocol/EFIPlatformInfoTypes.h>
@@ -594,6 +595,12 @@ BoardSerialNum (CHAR8 *StrSerialNum, UINT32 Len)
                            &gEfiMemCardInfoProtocolGuid, (VOID **)&CardInfo);
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Error locating MemCardInfoProtocol:%x\n", Status));
+    return Status;
+  }
+
+  Status = GetOemSerialNum (StrSerialNum);
+  if (Status == EFI_SUCCESS) {
+    DEBUG ((EFI_D_ERROR, "Got serial number from oem partition: %s\n", StrSerialNum));
     return Status;
   }
 
