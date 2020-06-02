@@ -33,6 +33,9 @@
 
 #define FFBM_MODE_BUF_SIZE 8
 
+#define READ_OEM_BUF_SIZE 512
+#define READ_OEM_BUF_LEN  24
+
 #define RECOVERY_BOOT_RECOVERY "boot-recovery"
 #define RECOVERY_BOOT_FASTBOOT "boot-fastboot"
 
@@ -92,4 +95,8 @@ EFI_STATUS
 SetSnapshotMergeStatus (VirtualAbMergeStatus MergeStatus);
 EFI_STATUS
 ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size);
+
+EFI_STATUS
+GetOemSerialNum (CHAR8 *nv_serialnum);
+
 #endif
