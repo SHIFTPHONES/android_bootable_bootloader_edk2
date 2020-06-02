@@ -246,6 +246,8 @@ EFI_STATUS DeviceInfoInit (VOID)
     FirstReadDevInfo = FALSE;
   }
 
+  EnableChargingScreen (TRUE);
+
   if (CompareMem (DevInfo.magic, DEVICE_MAGIC, DEVICE_MAGIC_SIZE)) {
     DEBUG ((EFI_D_ERROR, "Device Magic does not match\n"));
     gBS->SetMem (&DevInfo, sizeof (DevInfo), 0);
