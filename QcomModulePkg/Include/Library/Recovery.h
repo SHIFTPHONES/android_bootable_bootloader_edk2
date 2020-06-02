@@ -33,6 +33,9 @@
 
 #define FFBM_MODE_BUF_SIZE 8
 
+#define READ_OEM_BUF_SIZE 512
+#define READ_OEM_BUF_LEN  24
+
 #define RECOVERY_BOOT_RECOVERY "boot-recovery"
 #define RECOVERY_BOOT_FASTBOOT "boot-fastboot"
 
@@ -49,4 +52,8 @@ EFI_STATUS
 GetFfbmCommand (CHAR8 *FfbmMode, UINT32 Sz);
 EFI_STATUS
 WriteRecoveryMessage (CHAR8 *Command);
+
+EFI_STATUS
+GetOemSerialNum (CHAR8 *nv_serialnum);
+
 #endif
