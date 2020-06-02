@@ -58,6 +58,7 @@ STATIC CONST CHAR8 *LogLevel = " quite";
 STATIC CONST CHAR8 *BatteryChgPause = " androidboot.mode=charger";
 STATIC CONST CHAR8 *MdtpActiveFlag = " mdtp";
 STATIC CONST CHAR8 *AlarmBootCmdLine = " androidboot.alarmboot=true";
+STATIC CONST CHAR8 *HardwareRevisionCmdLine = " androidboot.hardware.revision=";
 
 /*Send slot suffix in cmdline with which we have booted*/
 STATIC CHAR8 *AndroidSlotSuffix = " androidboot.slot_suffix=";
@@ -424,6 +425,11 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     Param->BootDevBuf = NULL;
   }
 
+  Src = Param->HardwareRevisionCmdLine;
+  AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+  Src = Param->StrHardwareRev;
+  AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+
   Src = Param->UsbSerialCmdLine;
   AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   Src = Param->StrSerialNum;
@@ -543,6 +549,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   CHAR8 ChipBaseBand[CHIP_BASE_BAND_LEN];
   CHAR8 *BootDevBuf = NULL;
   BOOLEAN BatteryStatus;
+  CHAR8 StrHardwareRev[HW_REVISION_SIZE];
   CHAR8 StrSerialNum[SERIAL_NUM_SIZE];
   BOOLEAN MdtpActive = FALSE;
   CHAR8 *CvmSystemPtnCmdLine = NULL;
@@ -553,6 +560,12 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   INT32 DtbIdx = INVALID_PTN;
   CHAR8 *LEVerityCmdLine = NULL;
   UINT32 LEVerityCmdLineLen = 0;
+
+  Status = BoardHardwareRevision (StrHardwareRev, sizeof (StrHardwareRev));
+  if (Status != EFI_SUCCESS) {
+    DEBUG((EFI_D_ERROR, "Failed to get hardware revision: %r\n", Status));
+    return Status;
+  }
 
   Status = BoardSerialNum (StrSerialNum, sizeof (StrSerialNum));
   if (Status != EFI_SUCCESS) {
@@ -612,6 +625,9 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
       CmdLineLen += AsciiStrLen (BootDevBuf);
     }
   }
+
+  CmdLineLen += AsciiStrLen (HardwareRevisionCmdLine);
+  CmdLineLen += AsciiStrLen (StrHardwareRev);
 
   CmdLineLen += AsciiStrLen (UsbSerialCmdLine);
   CmdLineLen += AsciiStrLen (StrSerialNum);
@@ -703,11 +719,13 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   Param.CmdLineLen = CmdLineLen;
   Param.HaveCmdLine = HaveCmdLine;
   Param.PauseAtBootUp = PauseAtBootUp;
+  Param.StrHardwareRev = StrHardwareRev;
   Param.StrSerialNum = StrSerialNum;
   Param.SlotSuffixAscii = SlotSuffixAscii;
   Param.ChipBaseBand = ChipBaseBand;
   Param.DisplayCmdLine = DisplayCmdLine;
   Param.CmdLine = CmdLine;
+  Param.HardwareRevisionCmdLine = HardwareRevisionCmdLine;
   Param.AlarmBootCmdLine = AlarmBootCmdLine;
   Param.MdtpActiveFlag = MdtpActiveFlag;
   Param.BatteryChgPause = BatteryChgPause;

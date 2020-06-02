@@ -54,6 +54,8 @@ EFI_STATUS
 WriteRecoveryMessage (CHAR8 *Command);
 
 EFI_STATUS
+GetOemHardwareRevision (CHAR8 *nv_hwrevision);
+EFI_STATUS
 GetOemSerialNum (CHAR8 *nv_serialnum);
 
 #endif
