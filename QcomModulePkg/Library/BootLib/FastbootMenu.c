@@ -138,6 +138,13 @@ STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
      COMMON,
      0,
      NOACTION},
+    {{"HARDWARE REVISION - "},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
     {{"SECURE BOOT - "},
      COMMON_FACTOR,
      BGR_WHITE,
@@ -288,13 +295,21 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (StrTemp));
       break;
     case 7:
+      /* Get hardware revision */
+      ZeroMem (StrTemp, sizeof (StrTemp));
+      BoardHardwareRevision (StrTemp, MAX_RSP_SIZE);
+      AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
+                     sizeof (mFastbootCommonMsgInfo[i].Msg), StrTemp,
+                     sizeof (StrTemp));
+      break;
+    case 8:
       /* Get secure boot value */
       AsciiStrnCatS (
           mFastbootCommonMsgInfo[i].Msg, sizeof (mFastbootCommonMsgInfo[i].Msg),
           IsSecureBootEnabled () ? "yes" : "no",
           IsSecureBootEnabled () ? AsciiStrLen ("yes") : AsciiStrLen ("no"));
       break;
-    case 8:
+    case 9:
       /* Get device status */
       AsciiStrnCatS (
           mFastbootCommonMsgInfo[i].Msg, sizeof (mFastbootCommonMsgInfo[i].Msg),
