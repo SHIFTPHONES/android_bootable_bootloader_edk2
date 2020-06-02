@@ -92,6 +92,8 @@ BoardPmicTarget (UINT32 PmicDeviceIndex);
 EFI_STATUS BoardInit (VOID);
 
 EFI_STATUS
+BoardHardwareRevision (CHAR8 *StrHardwareRev, UINT32 Len);
+EFI_STATUS
 BoardSerialNum (CHAR8 *StrSerialNum, UINT32 Len);
 UINT32 BoardPlatformRawChipId (VOID);
 CHAR8 *BoardPlatformChipBaseBand (VOID);
