@@ -1540,3 +1540,15 @@ BOOLEAN IsNANDSquashFsSupport (VOID)
   return FALSE;
 }
 #endif
+
+#if TARGET_BOARD_TYPE_AUTO
+BOOLEAN IsEnableDisplayMenuFlagSupported (VOID)
+{
+  return FALSE;
+}
+#else
+BOOLEAN IsEnableDisplayMenuFlagSupported (VOID)
+{
+  return TRUE;
+}
+#endif

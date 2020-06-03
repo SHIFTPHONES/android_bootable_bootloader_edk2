@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,6 +36,7 @@
 #include <Library/MenuKeysDetection.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UpdateDeviceTree.h>
+#include <Library/BootLinux.h>
 #include <Protocol/EFIVerifiedBoot.h>
 #include <Uefi.h>
 
@@ -320,9 +321,9 @@ VOID DisplayFastbootMenu (VOID)
 {
   EFI_STATUS Status;
   OPTION_MENU_INFO *OptionMenuInfo;
-  OptionMenuInfo = &gMenuInfo;
 
-  if (FixedPcdGetBool (EnableDisplayMenu)) {
+  if (IsEnableDisplayMenuFlagSupported ()) {
+    OptionMenuInfo = &gMenuInfo;
     DrawMenuInit ();
     OptionMenuInfo->LastMenuType = OptionMenuInfo->Info.MenuType;
 

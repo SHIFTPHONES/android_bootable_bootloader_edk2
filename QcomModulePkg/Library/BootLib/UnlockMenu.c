@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,6 +36,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UnlockMenu.h>
 #include <Library/UpdateDeviceTree.h>
+#include <Library/BootLinux.h>
 #include <Uefi.h>
 
 #define UNLOCK_OPTION_NUM 2
@@ -304,9 +305,9 @@ DisplayUnlockMenu (INTN Type, BOOLEAN Value)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   OPTION_MENU_INFO *OptionMenuInfo;
-  OptionMenuInfo = &gMenuInfo;
 
-  if (FixedPcdGetBool (EnableDisplayMenu)) {
+  if (IsEnableDisplayMenuFlagSupported ()) {
+    OptionMenuInfo = &gMenuInfo;
     DrawMenuInit ();
 
     /* Initialize the last menu type */

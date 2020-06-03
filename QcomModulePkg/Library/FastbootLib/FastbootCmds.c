@@ -62,6 +62,7 @@ found at
 #include <Library/UefiLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/UnlockMenu.h>
+#include <Library/BootLinux.h>
 #include <Uefi.h>
 
 #include <Guid/EventGroup.h>
@@ -2933,9 +2934,9 @@ SetDeviceUnlock (UINT32 Type, BOOLEAN State)
     return;
   }
 
-
   if (GetAVBVersion () != AVB_LE &&
-      is_display_supported ()) {
+      is_display_supported () &&
+      IsEnableDisplayMenuFlagSupported ()) {
     Status = DisplayUnlockMenu (Type, State);
     if (Status != EFI_SUCCESS) {
       FastbootFail ("Command not support: the display is not enabled");
@@ -2952,6 +2953,10 @@ SetDeviceUnlock (UINT32 Type, BOOLEAN State)
          return;
     }
     FastbootOkay ("");
+    if (GetAVBVersion () != AVB_LE &&
+       !IsEnableDisplayMenuFlagSupported ()) {
+      RebootDevice (RECOVERY_MODE);
+    }
   }
 }
 #endif

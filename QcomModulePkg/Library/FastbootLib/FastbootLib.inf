@@ -100,3 +100,4 @@
   gQcomTokenSpaceGuid.EnableMdtpSupport
   gQcomTokenSpaceGuid.EnableBatteryVoltageCheck
   gQcomTokenSpaceGuid.EnableMultiThreadFlash
+  gQcomTokenSpaceGuid.EnableDisplayMenu

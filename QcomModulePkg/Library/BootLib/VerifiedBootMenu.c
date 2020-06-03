@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -37,6 +37,7 @@
 #include <Library/UpdateDeviceTree.h>
 #include <Library/VerifiedBoot.h>
 #include <Library/VerifiedBootMenu.h>
+#include <Library/BootLinux.h>
 #include <Protocol/EFIVerifiedBoot.h>
 #include <Uefi.h>
 
@@ -594,9 +595,9 @@ DisplayVerifiedBootMenu (DISPLAY_MENU_TYPE Type)
 {
   EFI_STATUS Status = EFI_SUCCESS;
   OPTION_MENU_INFO *OptionMenuInfo;
-  OptionMenuInfo = &gMenuInfo;
 
-  if (FixedPcdGetBool (EnableDisplayMenu)) {
+  if (IsEnableDisplayMenuFlagSupported ()) {
+    OptionMenuInfo = &gMenuInfo;
     DrawMenuInit ();
 
     /* Initialize the last_msg_type */
