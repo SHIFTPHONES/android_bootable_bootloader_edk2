@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -148,7 +148,7 @@ UpdateDeviceStatus (OPTION_MENU_INFO *MsgInfo, INTN Reason)
     RebootDevice (NORMAL_MODE);
     break;
   case QMMI:
-    AsciiSPrint (FfbmPageBuffer, sizeof (FfbmPageBuffer), "ffbm-02");
+    AsciiSPrint (FfbmPageBuffer, sizeof (FfbmPageBuffer), "qmmi");
     if (CardType == NAND) {
       Status = GetNandMiscPartiGuid (&Ptype);
     }

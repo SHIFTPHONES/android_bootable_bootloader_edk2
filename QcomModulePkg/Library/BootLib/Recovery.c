@@ -362,6 +362,7 @@ EFI_STATUS
 GetFfbmCommand (CHAR8 *FfbmString, UINT32 Sz)
 {
   CONST CHAR8 *FfbmCmd = "ffbm-";
+  CONST CHAR8 *QmmiCmd = "qmmi";
   CHAR8 *FfbmData = NULL;
   EFI_STATUS Status;
   EFI_GUID Ptype = gEfiMiscPartitionGuid;
@@ -382,10 +383,13 @@ GetFfbmCommand (CHAR8 *FfbmString, UINT32 Sz)
   }
 
   FfbmData[Sz - 1] = '\0';
-  if (!AsciiStrnCmp (FfbmData, FfbmCmd, AsciiStrLen (FfbmCmd)))
+  if (!AsciiStrnCmp (FfbmData, FfbmCmd, AsciiStrLen (FfbmCmd))) {
     AsciiStrnCpy (FfbmString, FfbmData, Sz);
-  else
+  } else if (!AsciiStrnCmp (FfbmData, QmmiCmd, AsciiStrLen (QmmiCmd))) {
+    AsciiStrnCpy (FfbmString, FfbmData, AsciiStrLen (QmmiCmd));
+  } else {
     Status = EFI_NOT_FOUND;
+  }
 
   FreePool (FfbmData);
   FfbmData = NULL;
