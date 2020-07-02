@@ -70,6 +70,7 @@ typedef struct UpdateCmdLineParamList {
   CONST CHAR8 *LogLevel;
   CONST CHAR8 *BootDeviceCmdLine;
   CONST CHAR8 *AndroidBootMode;
+  CONST CHAR8 *AndroidBootFstabSuffix;
   CHAR8 *BootDevBuf;
   CHAR8 *FfbmStr;
   CHAR8 *AndroidSlotSuffix;
@@ -79,6 +80,7 @@ typedef struct UpdateCmdLineParamList {
   CHAR8 *DtboIdxStr;
   CHAR8 *DtbIdxStr;
   CHAR8 *LEVerityCmdLine;
+  CHAR8 *FstabSuffix;
 } UpdateCmdLineParamList;
 
 EFI_STATUS

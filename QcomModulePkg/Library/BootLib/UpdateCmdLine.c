@@ -75,6 +75,10 @@ STATIC CHAR8 *AndroidBootDtbIdx = " androidboot.dtb_idx=";
 
 STATIC CONST CHAR8 *AndroidBootForceNormalBoot =
                                       " androidboot.force_normal_boot=1";
+STATIC CONST CHAR8 *AndroidBootFstabSuffix =
+                                      " androidboot.fstab_suffix=";
+STATIC CHAR8 *FstabSuffixEmmc = "emmc";
+STATIC CHAR8 *FstabSuffixDefault = "default";
 
 EFI_STATUS
 TargetPauseForBatteryCharge (BOOLEAN *BatteryStatus)
@@ -400,6 +404,12 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     Src = Param->BootDevBuf;
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
 
+    Src = Param->AndroidBootFstabSuffix;
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+
+    Src = Param->FstabSuffix;
+    AsciiStrCatS (Dst, MaxCmdLineLen, Src);
+
     /* Dynamic partition append boot_devices for super partition */
     if (IsDynamicPartitionSupport ()) {
       Src = DynamicBootDeviceCmdLine;
@@ -543,6 +553,7 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
   INT32 DtbIdx = INVALID_PTN;
   CHAR8 *LEVerityCmdLine = NULL;
   UINT32 LEVerityCmdLineLen = 0;
+  CHAR8 RootDevStr[BOOT_DEV_NAME_SIZE_MAX];
 
   Status = BoardSerialNum (StrSerialNum, sizeof (StrSerialNum));
   if (Status != EFI_SUCCESS) {
@@ -681,6 +692,16 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
       !Recovery) {
     CmdLineLen += AsciiStrLen (AndroidBootForceNormalBoot);
   }
+
+  CmdLineLen += AsciiStrLen (AndroidBootFstabSuffix);
+  GetRootDeviceType (RootDevStr, BOOT_DEV_NAME_SIZE_MAX);
+  if (!AsciiStriCmp (FstabSuffixEmmc, RootDevStr)) {
+    Param.FstabSuffix = FstabSuffixEmmc;
+  } else {
+    Param.FstabSuffix = FstabSuffixDefault;
+  }
+  CmdLineLen += AsciiStrLen (Param.FstabSuffix);
+  Param.AndroidBootFstabSuffix = AndroidBootFstabSuffix;
 
   /* 1 extra byte for NULL */
   CmdLineLen += 1;
