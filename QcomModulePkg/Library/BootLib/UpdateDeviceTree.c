@@ -230,6 +230,162 @@ error:
   return Status;
 }
 
+STATIC EFI_STATUS
+UpdateDemuraRegion (VOID *fdt, CONST CHAR8 *Path,
+                    UINT32 HFCAddr, UINT32 HFCSize)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 DemuraInfoSize = 4 * sizeof (UINT32);
+  CONST struct fdt_property *Prop = NULL;
+  INT32 PropLen = 0;
+  CHAR8 *tmp = NULL;
+  INT32 ret = 0;
+  UINT32 offset = 0;
+
+  if (Path != NULL)
+  {
+    ret = FdtPathOffset (fdt, Path);
+    if (ret < 0) {
+      /* Just return success if demura node not exists */
+      return EFI_SUCCESS;
+    }
+
+    offset = (UINT32)ret;
+    Prop = fdt_get_property (fdt, offset, "reg", &PropLen);
+
+    if (!Prop) {
+      DEBUG ((EFI_D_WARN, "Could not find the demura reg property\n"));
+      Status = EFI_NOT_FOUND;
+    } else if (PropLen < DemuraInfoSize) {
+      DEBUG ((EFI_D_WARN, "Invalid demura node size\n"));
+      Status = EFI_INVALID_PARAMETER;
+    } else {
+      /* First, update the demura HFC Address */
+      tmp = (CHAR8 *)Prop->data + sizeof (UINT32);
+      HFCAddr = cpu_to_fdt32 (HFCAddr);
+      memcpy (tmp, &HFCAddr, sizeof (UINT32));
+
+      /* Next, update the demura HFC Size */
+      tmp += (2 * sizeof (UINT32));
+      HFCSize = cpu_to_fdt32 (HFCSize);
+      memcpy (tmp, &HFCSize, sizeof (UINT32));
+
+      /* Update the property value in place */
+      ret = fdt_setprop_inplace (fdt, offset, "reg", Prop->data, PropLen);
+      if (ret < 0) {
+        DEBUG ((EFI_D_WARN, "Could not update demura info\n"));
+        Status = EFI_NO_MAPPING;
+      }
+    }
+  }
+
+  return Status;
+}
+
+STATIC EFI_STATUS
+UpdateDemuraPanelID (VOID *fdt, CONST CHAR8 *Path, UINT64 PanelID)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  UINT32 PanelIDSize = sizeof (UINT64);
+  CONST struct fdt_property *Prop = NULL;
+  INT32 PropLen = 0;
+  CHAR8 *tmp = NULL;
+  INT32 ret = 0;
+  UINT32 offset = 0;
+
+  if (Path != NULL)
+  {
+    /* Get offset of the display node */
+    ret = FdtPathOffset (fdt, Path);
+    if (ret < 0) {
+      /* Just return success if display node not exists */
+      return EFI_SUCCESS;
+    }
+
+    offset = (UINT32)ret;
+    Prop = fdt_get_property (fdt, offset, "qcom,demura-panel-id", &PropLen);
+
+    if (!Prop) {
+      DEBUG ((EFI_D_WARN, "Could not find the panel id property\n"));
+      Status = EFI_NOT_FOUND;
+    } else if (PropLen < PanelIDSize) {
+      DEBUG ((EFI_D_WARN, "Invalid panel ID size\n"));
+      Status = EFI_INVALID_PARAMETER;
+    } else {
+      /* Update panel id */
+      tmp = (CHAR8 *)Prop->data;
+      PanelID = fdt64_to_cpu (PanelID);
+      memcpy (tmp, &PanelID, sizeof (UINT64));
+
+      /* Update the property value in place */
+      ret = fdt_setprop_inplace (fdt,
+                                 offset,
+                                 "qcom,demura-panel-id",
+                                 Prop->data,
+                                 PropLen);
+      if (ret < 0) {
+        DEBUG ((EFI_D_WARN, "Could not update demura panel id\n"));
+        Status = EFI_NO_MAPPING;
+      }
+    }
+  }
+
+  return Status;
+}
+
+STATIC EFI_STATUS
+UpdateDemuraInfo (VOID *fdt)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  struct DisplayDemuraInfoType DemuraInfo;
+  UINTN DemuraInfoSize = sizeof (DemuraInfo);
+
+  memset (&DemuraInfo, 0, DemuraInfoSize);
+
+  Status = gRT->GetVariable ((CHAR16 *)L"DisplayDemuraInfo",
+                             &gQcomTokenSpaceGuid,
+                             NULL,
+                             &DemuraInfoSize,
+                             &DemuraInfo);
+  if ((Status == EFI_SUCCESS) &&
+      (DemuraInfo.Version > 0)) {
+    /* Update demura 0 region */
+    if ((DemuraInfo.Demura0HFCAddr != 0) &&
+        (DemuraInfo.Demura0HFCSize != 0)) {
+      UpdateDemuraRegion(fdt,
+                         "/reserved-memory/demura_region_0",
+                         DemuraInfo.Demura0HFCAddr,
+                         DemuraInfo.Demura0HFCSize);
+    }
+
+    /* Update demura 1 region */
+    if ((DemuraInfo.Demura1HFCAddr != 0) &&
+        (DemuraInfo.Demura1HFCSize != 0)) {
+      UpdateDemuraRegion(fdt,
+                         "/reserved-memory/demura_region_1",
+                         DemuraInfo.Demura1HFCAddr,
+                         DemuraInfo.Demura1HFCSize);
+    }
+
+    /* Update demura 0 panel id */
+    if (DemuraInfo.Demura0PanelID != 0) {
+      UpdateDemuraPanelID(fdt,
+                          "/soc/qcom,dsi-display-primary",
+                          DemuraInfo.Demura0PanelID);
+    }
+
+    /* Update demura 1 panel id */
+    if (DemuraInfo.Demura1PanelID != 0) {
+
+      UpdateDemuraPanelID(fdt,
+                          "/soc/qcom,dsi-display-secondary",
+                          DemuraInfo.Demura1PanelID);
+    }
+  }
+
+  return Status;
+}
+
 UINT32
 fdt_check_header_ext (VOID *fdt)
 {
@@ -614,6 +770,7 @@ UpdateDeviceTree (VOID *fdt,
 OutofUpdateRankChannel:
 
   UpdateSplashMemInfo (fdt);
+  UpdateDemuraInfo (fdt);
 
   /* Get offset of the chosen node */
   ret = FdtPathOffset (fdt, "/chosen");

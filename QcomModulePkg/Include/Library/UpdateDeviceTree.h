@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, 2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -67,6 +67,20 @@ struct DisplaySplashBufferInfo {
   /* Frame buffer size */
   UINT32 uFrameSize;
 };
+
+#pragma pack(push)
+#pragma pack(1)
+/* Display demura parameters */
+struct DisplayDemuraInfoType {
+  UINT32 Version;                /* Version info of this structure */
+  UINT64 Demura0PanelID;         /* Demura 0 panel ID              */
+  UINT32 Demura0HFCAddr;         /* Demura 0 HFC data address      */
+  UINT32 Demura0HFCSize;         /* Demura 0 HFC data size         */
+  UINT64 Demura1PanelID;         /* Demura 1 panel ID              */
+  UINT32 Demura1HFCAddr;         /* Demura 1 HFC data address      */
+  UINT32 Demura1HFCSize;         /* Demura 1 HFC data size         */
+};
+#pragma pack(pop)
 
 INT32
 dev_tree_add_mem_info (VOID *fdt, UINT32 offset, UINT32 addr, UINT32 size);
