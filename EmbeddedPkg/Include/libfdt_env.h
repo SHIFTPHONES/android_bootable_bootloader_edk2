@@ -58,7 +58,9 @@ static inline void *memmove(void *dest, const void *src, size_t n) {
   return CopyMem (dest, src, n);
 }
 
-static inline void *memset(void *s, int c, size_t n) {
+static inline __attribute__ ((always_inline))
+void *memset (void *s, int c, size_t n)
+{
   return SetMem (s, n, c);
 }
 
