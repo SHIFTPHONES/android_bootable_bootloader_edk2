@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -691,7 +691,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
   if (!allow_verification_error) {
     if (stored_rollback_index < vbmeta_header.rollback_index) {
       io_ret = ops->write_rollback_index (
-          ops, rollback_index_location, vbmeta_header.rollback_index);
+          ops, rollback_index_location_to_use, vbmeta_header.rollback_index);
       if (io_ret != AVB_IO_RESULT_OK) {
         avb_errorv (full_partition_name,
                    ": Error storing rollback index for location.\n",
@@ -936,14 +936,15 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     }
   }
 
-  if (rollback_index_location >= AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS) {
+  if (rollback_index_location_to_use >=
+          AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS) {
     avb_errorv(
         full_partition_name, ": Invalid rollback_index_location.\n", NULL);
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
     goto out;
   }
 
-  slot_data->rollback_indexes[rollback_index_location] =
+  slot_data->rollback_indexes[rollback_index_location_to_use] =
       vbmeta_header.rollback_index;
 
   if (out_algorithm_type != NULL) {
