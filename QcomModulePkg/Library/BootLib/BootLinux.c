@@ -651,8 +651,6 @@ GZipPkgCheck (BootParamlist *BootParamlistPtr)
       BootParamlistPtr->PatchedKernelHdrSize = PATCHED_KERNEL_HEADER_SIZE;
       Kptr = (struct kernel64_hdr *)((VOID *)Kptr +
                  BootParamlistPtr->PatchedKernelHdrSize);
-      gBS->CopyMem ((VOID *)BootParamlistPtr->KernelLoadAddr, (VOID *)Kptr,
-                 BootParamlistPtr->KernelSize);
     }
 
     if (Kptr->magic_64 != KERNEL64_HDR_MAGIC) {
