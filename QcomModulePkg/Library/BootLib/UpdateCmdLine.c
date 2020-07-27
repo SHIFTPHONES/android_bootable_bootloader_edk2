@@ -508,9 +508,11 @@ UpdateCmdLineParams (UpdateCmdLineParamList *Param,
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
 
-  if (IsBuildUseRecoveryAsBoot () &&
+  if ((IsBuildUseRecoveryAsBoot () &&
       IsDynamicPartitionSupport () &&
-      !Param->Recovery) {
+      !Param->Recovery) ||
+      (!Param->MultiSlotBoot &&
+       !IsBuildUseRecoveryAsBoot ())) {
     Src = AndroidBootForceNormalBoot;
     AsciiStrCatS (Dst, MaxCmdLineLen, Src);
   }
@@ -687,9 +689,11 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
     }
   }
 
-  if (IsBuildUseRecoveryAsBoot () &&
+  if ((IsBuildUseRecoveryAsBoot () &&
       IsDynamicPartitionSupport () &&
-      !Recovery) {
+      !Recovery) ||
+      (!MultiSlotBoot &&
+       !IsBuildUseRecoveryAsBoot ())) {
     CmdLineLen += AsciiStrLen (AndroidBootForceNormalBoot);
   }
 
