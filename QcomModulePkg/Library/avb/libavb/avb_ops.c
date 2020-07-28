@@ -377,6 +377,11 @@ AvbValidatePartitionPublicKey(AvbOps *Ops, const char* Partition,
                            const uint8_t *PublicKeyMetadata, size_t PublicKeyMetadataLength,
                            bool *OutIsTrusted, uint32_t* OutRollbackIndexLocation)
 {
+        CHAR8 *UserKeyBuffer = NULL;
+        UINT32 UserKeyLength = 0;
+        EFI_STATUS Status = EFI_SUCCESS;
+        AvbOpsUserData *UserData = NULL;
+
 	DEBUG((EFI_D_VERBOSE, "ValidatePartitionPublicKey PublicKeyLength %d, "
 	                      "PublicKeyMetadataLength %d\n",
 	       PublicKeyLength, PublicKeyMetadataLength));
@@ -386,15 +391,44 @@ AvbValidatePartitionPublicKey(AvbOps *Ops, const char* Partition,
 		return AVB_IO_RESULT_ERROR_IO;
 	}
 
-	if (PublicKeyLength == ARRAY_SIZE(OEMPublicKey) &&
+        Status = GetUserKey (&UserKeyBuffer, &UserKeyLength);
+        if (Status != EFI_SUCCESS) {
+                DEBUG ( (EFI_D_ERROR, "GetUserKey failed!, %r\n", Status));
+                return AVB_IO_RESULT_ERROR_IO;
+        }
+
+        UserData = (AvbOpsUserData *)Ops->user_data;
+        UserData->IsUserKey = FALSE;
+
+        if (PublicKeyLength == UserKeyLength &&
+            CompareMem (PublicKeyData, UserKeyBuffer, PublicKeyLength) == 0) {
+                *OutIsTrusted = true;
+                UserData->IsUserKey = TRUE;
+        } else if (PublicKeyLength == ARRAY_SIZE (OEMPublicKey) &&
 	           CompareMem(PublicKeyData, OEMPublicKey, PublicKeyLength) == 0) {
 		*OutIsTrusted = true;
 	} else {
 		*OutIsTrusted = false;
+                SetMem (UserData->PublicKey,
+                   ARRAY_SIZE (UserData->PublicKey), 0);
+                UserData->PublicKeyLen = 0;
 	}
+
+        if (*OutIsTrusted == true) {
+                if (PublicKeyLength > ARRAY_SIZE (UserData->PublicKey)) {
+                        DEBUG ( (EFI_D_ERROR, "ValidatePartitionPublicKey: "
+                                            "public key length too large %d\n",
+                               PublicKeyLength));
+                        return AVB_IO_RESULT_ERROR_OOM;
+                }
+                CopyMem (UserData->PublicKey, PublicKeyData, PublicKeyLength);
+                UserData->PublicKeyLen = PublicKeyLength;
+        }
+
 	*OutRollbackIndexLocation = 1; // Recovery rollback index
-	DEBUG((EFI_D_ERROR,
-	       "ValidateVbmetaPublicKey OutIsTrusted %d\n",*OutIsTrusted));
+        DEBUG ( (EFI_D_VERBOSE,
+               "ValidatePartitionPublicKey OutIsTrusted %d, UserKey %d\n",
+               *OutIsTrusted, UserData->IsUserKey));
 	return AVB_IO_RESULT_OK;
 }
 
