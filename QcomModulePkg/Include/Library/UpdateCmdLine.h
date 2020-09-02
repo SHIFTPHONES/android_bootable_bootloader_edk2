@@ -81,6 +81,7 @@ typedef struct UpdateCmdLineParamList {
   CHAR8 *DtbIdxStr;
   CHAR8 *LEVerityCmdLine;
   CHAR8 *FstabSuffix;
+  UINT32 HeaderVersion;
 } UpdateCmdLineParamList;
 
 EFI_STATUS
@@ -89,7 +90,8 @@ UpdateCmdLine (CONST CHAR8 *CmdLine,
                BOOLEAN Recovery,
                BOOLEAN AlarmBoot,
                CONST CHAR8 *VBCmdLine,
-               CHAR8 **FinalCmdLine);
+               CHAR8 **FinalCmdLine,
+               UINT32 HeaderVersion);
 BOOLEAN
 TargetBatterySocOk (UINT32 *BatteryVoltage);
 

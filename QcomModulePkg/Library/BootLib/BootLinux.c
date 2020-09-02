@@ -996,7 +996,8 @@ BootLinux (BootInfo *Info)
    * functions
    */
   Status = UpdateCmdLine (BootParamlistPtr.CmdLine, FfbmStr, Recovery,
-                   AlarmBoot, Info->VBCmdLine, &BootParamlistPtr.FinalCmdLine);
+                   AlarmBoot, Info->VBCmdLine, &BootParamlistPtr.FinalCmdLine,
+                   Info->HeaderVersion);
   if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR, "Error updating cmdline. Device Error %r\n", Status));
     return Status;
