@@ -363,6 +363,7 @@ GetFfbmCommand (CHAR8 *FfbmString, UINT32 Sz)
 {
   CONST CHAR8 *FfbmCmd = "ffbm-";
   CONST CHAR8 *QmmiCmd = "qmmi";
+  CONST CHAR8 *Ffbm02Cmd = "ffbm-02";
   CHAR8 *FfbmData = NULL;
   EFI_STATUS Status;
   EFI_GUID Ptype = gEfiMiscPartitionGuid;
@@ -383,10 +384,13 @@ GetFfbmCommand (CHAR8 *FfbmString, UINT32 Sz)
   }
 
   FfbmData[Sz - 1] = '\0';
-  if (!AsciiStrnCmp (FfbmData, FfbmCmd, AsciiStrLen (FfbmCmd))) {
+  if (!AsciiStrnCmp (FfbmData, QmmiCmd, AsciiStrLen (QmmiCmd))||
+    !AsciiStrnCmp (FfbmData, Ffbm02Cmd, AsciiStrLen (Ffbm02Cmd))) {
+    /* if ffbm-02 or qmmi string is in misc partition,
+       then write qmmi to kernel cmd line*/
+    AsciiStrnCpy (FfbmString, QmmiCmd, AsciiStrLen (QmmiCmd));
+  } else if (!AsciiStrnCmp (FfbmData, FfbmCmd, AsciiStrLen (FfbmCmd))) {
     AsciiStrnCpy (FfbmString, FfbmData, Sz);
-  } else if (!AsciiStrnCmp (FfbmData, QmmiCmd, AsciiStrLen (QmmiCmd))) {
-    AsciiStrnCpy (FfbmString, FfbmData, AsciiStrLen (QmmiCmd));
   } else {
     Status = EFI_NOT_FOUND;
   }
