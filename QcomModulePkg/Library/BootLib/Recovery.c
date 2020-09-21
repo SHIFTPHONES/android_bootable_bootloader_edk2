@@ -159,8 +159,9 @@ ReadFromPartitionOffset (EFI_GUID *Ptype, VOID **Msg,
 
   BlkIo = HandleInfoList[0].BlkIo;
   MsgSize = ROUND_TO_PAGE (Size, BlkIo->Media->BlockSize - 1);
-  PartitionSize = (BlkIo->Media->LastBlock + 1) * BlkIo->Media->BlockSize;
-  if (MsgSize > PartitionSize) {
+  PartitionSize = GetPartitionSize (BlkIo);
+  if (MsgSize > PartitionSize ||
+    !PartitionSize) {
     return EFI_OUT_OF_RESOURCES;
   }
 

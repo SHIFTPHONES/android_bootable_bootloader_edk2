@@ -826,7 +826,10 @@ ErasePartition (EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle)
   UINTN PartitionSize;
   UINTN TokenIndex;
 
-  PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+  PartitionSize = GetPartitionSize (BlockIo);
+  if (!PartitionSize) {
+    return EFI_BAD_BUFFER_SIZE;
+  }
 
   Status = gBS->HandleProtocol (Handle, &gEfiEraseBlockProtocolGuid,
                                 (VOID **)&EraseProt);
