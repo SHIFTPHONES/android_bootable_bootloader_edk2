@@ -42,24 +42,24 @@ ELFINFO_MAG0_INDEX        = 0
 ELFINFO_MAG1_INDEX        = 1
 ELFINFO_MAG2_INDEX        = 2
 ELFINFO_MAG3_INDEX        = 3
-ELFINFO_MAG0              = '\x7f'
-ELFINFO_MAG1              = 'E'
-ELFINFO_MAG2              = 'L'
-ELFINFO_MAG3              = 'F'
+ELFINFO_MAG0              = b'\x7f'
+ELFINFO_MAG1              = b'E'
+ELFINFO_MAG2              = b'L'
+ELFINFO_MAG3              = b'F'
 ELFINFO_CLASS_INDEX       = 4
-ELFINFO_CLASS_32          = '\x01'
-ELFINFO_CLASS_64          = '\x02'
+ELFINFO_CLASS_32          = b'\x01'
+ELFINFO_CLASS_64          = b'\x02'
 ELFINFO_VERSION_INDEX     = 6
-ELFINFO_VERSION_CURRENT   = '\x01'
+ELFINFO_VERSION_CURRENT   = b'\x01'
 ELF_BLOCK_ALIGN           = 0x1000
 ALIGNVALUE_1MB             = 0x100000
 ALIGNVALUE_4MB            = 0x400000
-ELFINFO_DATA2LSB          = '\x01'
-ELFINFO_EXEC_ETYPE        = '\x02\x00'
-ELFINFO_ARM_MACHINETYPE   = '\x28\x00'
-ELFINFO_VERSION_EV_CURRENT = '\x01\x00\x00\x00'
+ELFINFO_DATA2LSB          = b'\x01'
+ELFINFO_EXEC_ETYPE        = b'\x02\x00'
+ELFINFO_ARM_MACHINETYPE   = b'\x28\x00'
+ELFINFO_VERSION_EV_CURRENT = b'\x01\x00\x00\x00'
 ELFINFO_SHOFF             = 0x00
-ELFINFO_PHNUM             = '\x01\x00'
+ELFINFO_PHNUM             = b'\x01\x00'
 ELFINFO_RESERVED          = 0x00
 
 # ELF Program Header Types
@@ -135,9 +135,9 @@ class Elf_Ehdr_common:
       self.e_version      = unpacked_data[3]
 
    def printValues(self):
-      print "ATTRIBUTE / VALUE"
+      print(r"ATTRIBUTE / VALUE")
       for attr, value in self.__dict__.iteritems():
-         print attr, value
+         print(attr, value)
 
 
 #----------------------------------------------------------------------------
@@ -166,9 +166,9 @@ class Elf32_Ehdr:
       self.e_shstrndx     = unpacked_data[13]
 
    def printValues(self):
-      print "ATTRIBUTE / VALUE"
+      print (r"ATTRIBUTE / VALUE")
       for attr, value in self.__dict__.iteritems():
-         print attr, value
+         print (attr, value)
 
    def getPackedData(self):
       values = [self.e_ident,
@@ -210,9 +210,9 @@ class Elf32_Phdr:
       self.p_align        = unpacked_data[7]
 
    def printValues(self):
-      print "ATTRIBUTE / VALUE"
+      print (r"ATTRIBUTE / VALUE")
       for attr, value in self.__dict__.iteritems():
-         print attr, value
+         print (attr, value)
 
    def getPackedData(self):
       values = [self.p_type,
@@ -253,9 +253,9 @@ class Elf64_Ehdr:
       self.e_shstrndx     = unpacked_data[13]
 
    def printValues(self):
-      print "ATTRIBUTE / VALUE"
+      print (r"ATTRIBUTE / VALUE")
       for attr, value in self.__dict__.iteritems():
-         print attr, value
+         print (attr, value)
 
    def getPackedData(self):
       values = [self.e_ident,
@@ -297,9 +297,9 @@ class Elf64_Phdr:
       self.p_align        = unpacked_data[7]
 
    def printValues(self):
-      print "ATTRIBUTE / VALUE"
+      print (r"ATTRIBUTE / VALUE")
       for attr, value in self.__dict__.iteritems():
-         print attr, value
+         print (attr, value)
 
    def getPackedData(self):
       values = [self.p_type,
@@ -322,7 +322,7 @@ class SegmentInfo:
    def __init__(self):
       self.flag  = 0
    def printValues(self):
-      print 'Flag: ' + str(self.flag)
+      print ('Flag: ' + str(self.flag))
 
 #----------------------------------------------------------------------------
 # CLASS DEFINITIONS END
@@ -338,7 +338,8 @@ class SegmentInfo:
 # with 0x00 bytes. Use Little-endian byte order.
 #----------------------------------------------------------------------------
 def convert_int_to_byte_string(n, l):
-    return b''.join([chr((n >> ((l - i - 1) * 8)) % 256) for i in xrange(l)][::-1])
+    #return b''.join(b[chr((n >> ((l - i - 1) * 8)) % 256) for i in range(l)][::-1])
+    return (n).to_bytes(l, byteorder="little")
 
 #----------------------------------------------------------------------------
 # Create default elf header
@@ -349,11 +350,11 @@ def create_elf_header( output_file_name,
                        is_elf_64_bit = False):
 
    if (output_file_name is None):
-      raise RuntimeError, "Requires a ELF header file"
+      raise RuntimeError("Requires a ELF header file")
 
    # Create a elf header and program header
    # Write the headers to the output file
-   elf_fp = file(output_file_name, "wb")
+   elf_fp = open(output_file_name, "wb")
 
    if (is_elf_64_bit is True):
       # ELf header
@@ -364,18 +365,18 @@ def create_elf_header( output_file_name,
       elf_fp.write(ELFINFO_CLASS_64)
       elf_fp.write(ELFINFO_DATA2LSB)
       elf_fp.write(ELFINFO_VERSION_CURRENT)
-      elf_fp.write(''.rjust(9, chr(ELFINFO_RESERVED)))
+      elf_fp.write(bytes(''.rjust(9, chr(ELFINFO_RESERVED)),'utf-8'))
       elf_fp.write(ELFINFO_EXEC_ETYPE)
       elf_fp.write(ELFINFO_ARM_MACHINETYPE)
       elf_fp.write(ELFINFO_VERSION_EV_CURRENT)
       elf_fp.write(convert_int_to_byte_string(image_dest, 8))
       elf_fp.write(convert_int_to_byte_string(ELF64_HDR_SIZE, 8))
       elf_fp.write(convert_int_to_byte_string(ELFINFO_SHOFF, 8))
-      elf_fp.write(''.rjust(4, chr(ELFINFO_RESERVED)))
+      elf_fp.write(bytes(''.rjust(4, chr(ELFINFO_RESERVED)),'utf-8'))
       elf_fp.write(convert_int_to_byte_string(ELF64_HDR_SIZE, 2))
       elf_fp.write(convert_int_to_byte_string(ELF64_PHDR_SIZE, 2))
       elf_fp.write(ELFINFO_PHNUM)
-      elf_fp.write(''.rjust(6, chr(ELFINFO_RESERVED)))
+      elf_fp.write(bytes(''.rjust(6, chr(ELFINFO_RESERVED)),'utf-8'))
 
       # Program Header
       elf_fp.write(convert_int_to_byte_string(LOAD_TYPE, 4))
@@ -395,18 +396,18 @@ def create_elf_header( output_file_name,
       elf_fp.write(ELFINFO_CLASS_32)
       elf_fp.write(ELFINFO_DATA2LSB)
       elf_fp.write(ELFINFO_VERSION_CURRENT)
-      elf_fp.write(''.rjust(9, chr(ELFINFO_RESERVED)))
+      elf_fp.write(bytes(''.rjust(9, chr(ELFINFO_RESERVED)),'utf-8'))
       elf_fp.write(ELFINFO_EXEC_ETYPE)
       elf_fp.write(ELFINFO_ARM_MACHINETYPE)
       elf_fp.write(ELFINFO_VERSION_EV_CURRENT)
       elf_fp.write(convert_int_to_byte_string(image_dest, 4))
       elf_fp.write(convert_int_to_byte_string(ELF32_HDR_SIZE, 4))
       elf_fp.write(convert_int_to_byte_string(ELFINFO_SHOFF, 4))
-      elf_fp.write(''.rjust(4, chr(ELFINFO_RESERVED)))
+      elf_fp.write(bytes(''.rjust(4, chr(ELFINFO_RESERVED)),'utf-8'))
       elf_fp.write(convert_int_to_byte_string(ELF32_HDR_SIZE, 2))
       elf_fp.write(convert_int_to_byte_string(ELF32_PHDR_SIZE, 2))
       elf_fp.write(ELFINFO_PHNUM)
-      elf_fp.write(''.rjust(6, chr(ELFINFO_RESERVED)))
+      elf_fp.write(bytes(''.rjust(6, chr(ELFINFO_RESERVED)),'utf-8'))
 
       # Program Header
       elf_fp.write(convert_int_to_byte_string(LOAD_TYPE, 4))
@@ -459,7 +460,7 @@ def preprocess_elf_file(elf_file_name):
    elf_header = Elf_Ehdr_common(elf_fp.read(ELF_HDR_COMMON_SIZE))
 
    if verify_elf_header(elf_header) is False:
-      raise RuntimeError, "ELF file failed verification: " + elf_file_name
+      raise RuntimeError("ELF file failed verification: " + elf_file_name)
 
    elf_fp.seek(0)
 
@@ -472,7 +473,7 @@ def preprocess_elf_file(elf_file_name):
 
    # Verify ELF header information
    if verify_elf_header(elf_header) is False:
-      raise RuntimeError, "ELF file failed verification: " + elf_file_name
+      raise RuntimeError("ELF file failed verification: " + elf_file_name)
 
    # Get program header size
    phdr_size = elf_header.e_phentsize
@@ -509,7 +510,7 @@ def OPEN(file_name, mode):
     try:
        fp = open(file_name, mode)
     except IOError:
-       raise RuntimeError, "The file could not be opened: " + file_name
+       raise RuntimeError("The file could not be opened: " + file_name)
 
     # File open has succeeded with the given mode, return the file object
     return fp
