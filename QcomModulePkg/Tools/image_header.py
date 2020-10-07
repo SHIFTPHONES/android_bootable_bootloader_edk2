@@ -30,9 +30,9 @@ import sys
 import elf_tools
 
 if len(sys.argv) < 5:
-   print "Incorrect Usage: image_header.py <source file> <target file> <image_destination> <mbn type> <opt: elf_type>"
-   print "Example: image_header.py ..\Bin64\ABL.fv ..\Bin64\unsigned\ABL.fv.elf 0x98100000 elf 64"
-   raise RuntimeError, "Usage: image_header.py <source file> <target file> <image_destination> <mbn type> <opt: elf_type>" 
+   print ("Incorrect Usage: image_header.py <source file> <target file> <image_destination> <mbn type> <opt: elf_type>")
+   print (r"Example: image_header.py ..\Bin64\ABL.fv ..\Bin64\unsigned\ABL.fv.elf 0x98100000 elf 64")
+   raise RuntimeError("Usage: image_header.py <source file> <target file> <image_destination> <mbn type> <opt: elf_type>" )
 
 gen_dict = {}
 source_full = sys.argv[1]
@@ -42,7 +42,7 @@ try:
    image_destination = eval(sys.argv[3])
 # Catch exceptions and do not evaluate
 except:
-   raise RuntimeError, "Invalid image destination address"
+   raise RuntimeError("Invalid image destination address")
 
 mbn_type = sys.argv[4]
 
@@ -73,7 +73,7 @@ if mbn_type == 'elf':
     # Create elf header for UEFI
     rv = elf_tools.create_elf_header(target_base + ".hd", image_destination, image_size, is_elf_64_bit = is_elf_64_bit)
     if rv:
-       raise RuntimeError, "Failed to create elf header" 
+       raise RuntimeError("Failed to create elf header")
 
     files_to_cat_in_order = [target_base + ".hd", source_full]
     elf_tools.concat_files (source_elf, files_to_cat_in_order)
