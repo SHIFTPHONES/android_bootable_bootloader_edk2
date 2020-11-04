@@ -866,9 +866,10 @@ HandleSparseImgFlash (IN CHAR16 *PartitionName,
     return EFI_VOLUME_CORRUPTED;
   }
   // Check image will fit on device
-  SparseImgData.PartitionSize =
-                              (SparseImgData.BlockIo->Media->LastBlock + 1)
-                               * SparseImgData.BlockIo->Media->BlockSize;
+  SparseImgData.PartitionSize = GetPartitionSize (SparseImgData.BlockIo);
+  if (!SparseImgData.PartitionSize) {
+    return EFI_BAD_BUFFER_SIZE;
+  }
 
   if (sz < sizeof (sparse_header_t)) {
     DEBUG ((EFI_D_ERROR, "Input image is invalid\n"));
@@ -1063,21 +1064,10 @@ HandleRawImgFlash (IN CHAR16 *PartitionName,
     return EFI_VOLUME_CORRUPTED;
   }
 
-  if (CHECK_ADD64 (BlockIo->Media->LastBlock, 1)) {
-    DEBUG ((EFI_D_ERROR, "Integer overflow while adding LastBlock and 1\n"));
-    return EFI_INVALID_PARAMETER;
-  }
-
-  if ((MAX_UINT64 / (BlockIo->Media->LastBlock + 1)) <
-      (UINT64)BlockIo->Media->BlockSize) {
-    DEBUG ((EFI_D_ERROR,
-            "Integer overflow while multiplying LastBlock and BlockSize\n"));
-    return EFI_BAD_BUFFER_SIZE;
-  }
-
   /* Check image will fit on device */
-  PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
-  if (PartitionSize < Size) {
+  PartitionSize = GetPartitionSize (BlockIo);
+  if (PartitionSize < Size ||
+      !PartitionSize) {
     DEBUG ((EFI_D_ERROR, "Partition not big enough.\n"));
     DEBUG ((EFI_D_ERROR, "Partition Size:\t%d\nImage Size:\t%d\n",
             PartitionSize, Size));
@@ -1137,10 +1127,9 @@ HandleUbiImgFlash (
   }
 
   /* Check if Image fits into partition */
-  PartitionSize =
-        ((BlockIo->Media->LastBlock + 1) * (UINT64)BlockIo->Media->BlockSize);
-
-  if (Size > PartitionSize) {
+  PartitionSize = GetPartitionSize (BlockIo);
+  if (Size > PartitionSize ||
+    !PartitionSize) {
     DEBUG ((EFI_D_ERROR, "Input Size is invalid\n"));
     return EFI_INVALID_PARAMETER;
   }
@@ -1851,8 +1840,11 @@ CmdFlash (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
       goto out;
     }
 
-    PartitionSize = (BlockIo->Media->LastBlock + 1)
-                        * (BlockIo->Media->BlockSize);
+    PartitionSize = GetPartitionSize (BlockIo);
+    if (!PartitionSize) {
+      FastbootFail ("Partition error size");
+      goto out;
+    }
 
     if ((PartitionSize > MaxDownLoadSize) &&
          !IsDisableParallelDownloadFlash ()) {
@@ -3480,11 +3472,12 @@ GetPartitionType (IN CHAR16 *PartName, OUT CHAR8 * PartType)
 }
 
 STATIC EFI_STATUS
-GetPartitionSize (IN CHAR16 *PartName, OUT CHAR8 * PartSize)
+GetPartitionSizeViaName (IN CHAR16 *PartName, OUT CHAR8 * PartSize)
 {
   EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
   EFI_HANDLE *Handle = NULL;
   EFI_STATUS Status = EFI_INVALID_PARAMETER;
+  UINT64 PartitionSize;
 
   Status = PartitionGetInfo (PartName, &BlockIo, &Handle);
   if (Status != EFI_SUCCESS) {
@@ -3496,9 +3489,12 @@ GetPartitionSize (IN CHAR16 *PartName, OUT CHAR8 * PartSize)
     return EFI_VOLUME_CORRUPTED;
   }
 
-  AsciiSPrint (PartSize, MAX_RSP_SIZE, " 0x%llx",
-               (UINT64) (BlockIo->Media->LastBlock + 1) *
-                   BlockIo->Media->BlockSize);
+  PartitionSize = GetPartitionSize (BlockIo);
+  if (!PartitionSize) {
+    return EFI_BAD_BUFFER_SIZE;
+  }
+
+  AsciiSPrint (PartSize, MAX_RSP_SIZE, " 0x%llx", PartitionSize);
   return EFI_SUCCESS;
 
 }
@@ -3542,7 +3538,7 @@ PublishGetVarPartitionInfo (
                             AsciiStrLen (
                               PublishedPartInfo[PtnLoopCount].part_name));
     if (!EFI_ERROR (Status)) {
-      Status = GetPartitionSize (
+      Status = GetPartitionSizeViaName (
                             PartitionNameUniCode,
                             PublishedPartInfo[PtnLoopCount].size_response);
       if (Status == EFI_SUCCESS) {

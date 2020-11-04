@@ -1037,7 +1037,11 @@ GetOvrdDtb ( VOID **DtboImgBuffer)
   }
 
   BlockIo = HandleInfoList[0].BlkIo;
-  DtboImgSz = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+  DtboImgSz = GetPartitionSize (BlockIo);
+  if (!DtboImgSz) {
+    Status = EFI_BAD_BUFFER_SIZE;
+    goto err;
+  }
   *DtboImgBuffer = AllocateZeroPool (DtboImgSz);
   if (*DtboImgBuffer == NULL) {
     DEBUG ((EFI_D_ERROR, "Override DTB: Buffer allocation failure\n"));
