@@ -223,4 +223,5 @@ EFI_STATUS HandleActiveSlotUnbootable (VOID);
 EFI_STATUS ClearUnbootable (VOID);
 BOOLEAN IsABRetryCountUpdateRequired (VOID);
 UINT32 PartitionVerifyMibibImage (UINT8 *Image);
+UINT64 GetPartitionSize (EFI_BLOCK_IO_PROTOCOL *BlockIo);
 #endif

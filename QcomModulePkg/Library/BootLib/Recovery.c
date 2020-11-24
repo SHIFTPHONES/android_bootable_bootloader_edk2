@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -73,8 +73,9 @@ ReadFromPartition (EFI_GUID *Ptype, VOID **Msg, UINT32 Size)
 
   BlkIo = HandleInfoList[0].BlkIo;
   MsgSize = ROUND_TO_PAGE (Size, BlkIo->Media->BlockSize - 1);
-  PartitionSize = (BlkIo->Media->LastBlock + 1) * BlkIo->Media->BlockSize;
-  if (MsgSize > PartitionSize) {
+  PartitionSize = GetPartitionSize (BlkIo);
+  if (MsgSize > PartitionSize ||
+    !PartitionSize) {
     return EFI_OUT_OF_RESOURCES;
   }
 
