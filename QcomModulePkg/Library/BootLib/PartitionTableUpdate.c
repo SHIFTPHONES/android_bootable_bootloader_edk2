@@ -195,6 +195,31 @@ STATIC BOOLEAN IsUpdatePartitionAttributes ()
   return FALSE;
 }
 
+UINT64 GetPartitionSize (EFI_BLOCK_IO_PROTOCOL *BlockIo)
+{
+  UINT64 PartitionSize;
+
+  if (!BlockIo) {
+    DEBUG ((EFI_D_ERROR, "Invalid parameter, pleae check BlockIo info!!!\n"));
+    return 0;
+  }
+
+  if (CHECK_ADD64 (BlockIo->Media->LastBlock, 1)) {
+    DEBUG ((EFI_D_ERROR, "Integer overflow while adding LastBlock and 1\n"));
+    return 0;
+  }
+
+  if ((MAX_UINT64 / (BlockIo->Media->LastBlock + 1)) <
+    (UINT64)BlockIo->Media->BlockSize) {
+    DEBUG ((EFI_D_ERROR,
+     "Integer overflow while multiplying LastBlock and BlockSize\n"));
+    return 0;
+  }
+
+  PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+  return  PartitionSize;
+}
+
 VOID UpdatePartitionAttributes (UINT32 UpdateType)
 {
   UINT32 BlkSz;
@@ -256,7 +281,10 @@ VOID UpdatePartitionAttributes (UINT32 UpdateType)
     }
 
     BlockIo = BlockIoHandle[0].BlkIo;
-    DeviceDensity = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+    DeviceDensity = GetPartitionSize (BlockIo);
+    if (!DeviceDensity) {
+      return;
+    }
     BlkSz = BlockIo->Media->BlockSize;
     PartEntriesblocks = MAX_PARTITION_ENTRIES_SZ / BlkSz;
     MaxGptPartEntrySzBytes = (GPT_HDR_BLOCKS + PartEntriesblocks) * BlkSz;
@@ -988,10 +1016,21 @@ WriteGpt (INT32 Lun, UINT32 Sz, UINT8 *Gpt)
   }
 
   BlockIo = BlockIoHandle[0].BlkIo;
-  DeviceDensity = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+  DeviceDensity = GetPartitionSize (BlockIo);
+  if (!DeviceDensity) {
+    return FAILURE;
+  }
   BlkSz = BlockIo->Media->BlockSize;
 
-  /* Verity that passed block has valid GPT primary header */
+  /* Verity that passed block has valid GPT primary header
+     * Sz is from mNumDataBytes and it will check at CmdDownload
+     * if it is mNumDataBytes > MaxDownLoadSize it will fail early and
+     * will not cause any oob
+     */
+  if (Sz <= BlkSz * 2) {
+    DEBUG ((EFI_D_ERROR, "Gpt Image size is invalid!\n"));
+    return FAILURE;
+  }
   PrimaryGptHdr = (Gpt + BlkSz);
   Ret = ParseGptHeader (&GptHeader, PrimaryGptHdr, DeviceDensity, BlkSz);
   if (Ret) {
@@ -1007,6 +1046,10 @@ WriteGpt (INT32 Lun, UINT32 Sz, UINT8 *Gpt)
   /* Back up partition is stored in the reverse order with back GPT, followed by
    * part entries, find the offset to back up GPT */
   Offset = (2 * PartEntryArrSz);
+  if (Sz < (Offset + (BlkSz * 3))) {
+    DEBUG ((EFI_D_ERROR, "Gpt Image size is invalid!!\n"));
+    return FAILURE;
+  }
   SecondaryGptHdr = Offset + BlkSz + PrimaryGptHdr;
   ParseSecondaryGpt = TRUE;
 
@@ -1081,7 +1124,7 @@ WriteGpt (INT32 Lun, UINT32 Sz, UINT8 *Gpt)
     return FAILURE;
   }
   FlashingGpt = 0;
-  gBS->SetMem ((VOID *)PrimaryGptHdr, Sz, 0x0);
+  gBS->SetMem ((VOID *)Gpt, Sz, 0x0);
 
   DEBUG ((EFI_D_ERROR, "Updated Partition Table Successfully\n"));
   return SUCCESS;

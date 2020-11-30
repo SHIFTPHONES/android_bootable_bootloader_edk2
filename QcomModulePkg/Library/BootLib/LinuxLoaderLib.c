@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -724,7 +724,10 @@ ErasePartition (EFI_BLOCK_IO_PROTOCOL *BlockIo, EFI_HANDLE *Handle)
   UINTN PartitionSize;
   UINTN TokenIndex;
 
-  PartitionSize = (BlockIo->Media->LastBlock + 1) * BlockIo->Media->BlockSize;
+  PartitionSize = GetPartitionSize (BlockIo);
+  if (!PartitionSize) {
+    return EFI_BAD_BUFFER_SIZE;
+  }
 
   Status = gBS->HandleProtocol (Handle, &gEfiEraseBlockProtocolGuid,
                                 (VOID **)&EraseProt);

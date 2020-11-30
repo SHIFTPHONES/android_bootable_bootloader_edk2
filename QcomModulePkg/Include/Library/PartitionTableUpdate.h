@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -72,7 +72,7 @@ typedef enum {
 #define GPT_HEADER_SIZE 92
 #define GPT_LBA 1
 #define GPT_PART_ENTRY_SIZE 128
-#define MAX_GPT_NAME_SIZE 36
+#define MAX_GPT_NAME_SIZE 72
 
 /* GPT Offsets */
 #define HEADER_SIZE_OFFSET 12
@@ -223,4 +223,5 @@ EFI_STATUS HandleActiveSlotUnbootable (VOID);
 EFI_STATUS ClearUnbootable (VOID);
 BOOLEAN IsABRetryCountUpdateRequired (VOID);
 UINT32 PartitionVerifyMibibImage (UINT8 *Image);
+UINT64 GetPartitionSize (EFI_BLOCK_IO_PROTOCOL *BlockIo);
 #endif
