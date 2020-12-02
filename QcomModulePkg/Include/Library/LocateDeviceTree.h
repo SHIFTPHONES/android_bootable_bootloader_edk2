@@ -118,7 +118,8 @@ typedef enum {
   PMIC_IDX1,
   PMIC_IDX2,
   PMIC_IDX3,
-  MAX_PMIC_IDX,
+  PMIC_IDX4,
+  MAX_PMIC_IDX = 0xF,
 } PMIC_INDEXES;
 
 typedef struct PmicIdInfo {
