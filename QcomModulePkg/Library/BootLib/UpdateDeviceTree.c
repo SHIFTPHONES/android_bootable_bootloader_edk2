@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -39,7 +39,6 @@
 #include <Protocol/EFIChipInfoTypes.h>
 #include <Protocol/EFIDDRGetConfig.h>
 #include <Protocol/EFIRng.h>
-#include <Protocol/EFIDisplayPwr.h>
 #include <Library/PartialGoods.h>
 #include <Library/FdtRw.h>
 
@@ -145,31 +144,6 @@ GetRandomSeed (UINT64 *RandomSeed)
   return Status;
 }
 
-STATIC VOID
-DisableDisplay (VOID)
-{
-  EFI_STATUS                     Status           = EFI_SUCCESS;
-  EFI_DISPLAY_POWER_PROTOCOL    *pDispPwrProtocol = NULL;
-
-  Status = gBS->LocateProtocol (&gEfiDisplayPowerStateProtocolGuid,
-                                NULL,
-                                (VOID **)&pDispPwrProtocol);
-
-  if ((EFI_SUCCESS != Status) ||
-      (NULL        == pDispPwrProtocol)) {
-    DEBUG ((EFI_D_ERROR,
-           "ERROR: Unable to get display power protocol,Status=%d\n", Status));
-  }
-  else {
-    Status = pDispPwrProtocol->SetDisplayPowerState (pDispPwrProtocol,
-                                                     EfiDisplayPowerStateOff);
-    if (EFI_SUCCESS != Status) {
-      DEBUG ((EFI_D_ERROR,
-             "ERROR: Fail to turn display off,Status=%d\n", Status));
-    }
-  }
-}
-
 STATIC EFI_STATUS
 UpdateSplashMemInfo (VOID *fdt)
 {
@@ -195,19 +169,9 @@ UpdateSplashMemInfo (VOID *fdt)
   /* Get offset of the splash memory reservation node */
   ret = FdtPathOffset (fdt, "/reserved-memory/splash_region");
   if (ret < 0) {
-    DEBUG ((EFI_D_WARN, "Splash region not found in device tree, " \
-                        "powering down the display and controller\n"));
-
-    /*
-     * This function call leads to the following:
-     * 1) Turn off display power
-     * 2) Disable display clocks
-     * 3) Reset display TE/RST pin
-     */
-    DisableDisplay ();
+    DEBUG ((EFI_D_ERROR, "ERROR: Could not get splash memory region node\n"));
     return EFI_NOT_FOUND;
   }
-
   offset = ret;
   DEBUG ((EFI_D_VERBOSE, "FB mem node name: %a\n",
           fdt_get_name (fdt, offset, NULL)));
