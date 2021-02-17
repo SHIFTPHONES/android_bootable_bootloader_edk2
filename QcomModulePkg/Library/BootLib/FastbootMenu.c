@@ -95,9 +95,9 @@ STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
      COMMON,
      0,
      NOACTION},
-    {{"FastBoot Mode"},
+    {{"Fastboot mode\n\n"},
      COMMON_FACTOR,
-     BGR_RED,
+     BGR_YELLOW,
      BGR_BLACK,
      COMMON,
      0,
@@ -158,9 +158,16 @@ STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
      COMMON,
      0,
      NOACTION},
-    {{"DEVICE STATE - "},
+    {{"\nDEVICE STATE - unlocked"},
      COMMON_FACTOR,
      BGR_RED,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"\nDEVICE STATE - locked"},
+     COMMON_FACTOR,
+     BGR_GREEN,
      BGR_BLACK,
      COMMON,
      0,
@@ -322,11 +329,14 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
           IsSecureBootEnabled () ? AsciiStrLen ("yes") : AsciiStrLen ("no"));
       break;
     case 10:
-      /* Get device status */
-      AsciiStrnCatS (
-          mFastbootCommonMsgInfo[i].Msg, sizeof (mFastbootCommonMsgInfo[i].Msg),
-          IsUnlocked () ? "unlocked" : "locked",
-          IsUnlocked () ? AsciiStrLen ("unlocked") : AsciiStrLen ("locked"));
+      /* Get device status, only show when unlocked */
+      if (!IsUnlocked ())
+        continue;
+      break;
+    case 11:
+      /* Get device status, only show when locked */
+      if (IsUnlocked ())
+        continue;
       break;
     }
 
