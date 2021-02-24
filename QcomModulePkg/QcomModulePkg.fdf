@@ -50,10 +50,10 @@
 
 [FD.QcomModule_EFI]
 BaseAddress   = 0x80200000|gEmbeddedTokenSpaceGuid.PcdEmbeddedFdBaseAddress  #The base address of the FLASH Device.
-Size          = 0x00022000|gEmbeddedTokenSpaceGuid.PcdEmbeddedFdSize         #The size in bytes of the FLASH Device
+Size          = 0x00044000|gEmbeddedTokenSpaceGuid.PcdEmbeddedFdSize         #The size in bytes of the FLASH Device
 ErasePolarity = 1
 BlockSize     = 0x200
-NumBlocks     = 0x110
+NumBlocks     = 0x220
 
 ################################################################################
 #
@@ -72,7 +72,7 @@ NumBlocks     = 0x110
 ################################################################################
 
 # 512 bytes of configuration header & 8 bytes of image header
-0x00000000|0x00022000
+0x00000000|0x00044000
 gEmbeddedTokenSpaceGuid.PcdFlashFvMainBase|gEmbeddedTokenSpaceGuid.PcdFlashFvMainSize
 FV = FVMAIN_COMPACT
 
