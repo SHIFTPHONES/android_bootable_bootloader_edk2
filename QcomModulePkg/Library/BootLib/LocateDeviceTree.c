@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -536,7 +536,7 @@ out:
 }
 
 STATIC BOOLEAN
-CheckAllBitsSet (UINT32 DtMatchVal)
+CheckAllBitsSet (UINT64 DtMatchVal)
 {
   return (DtMatchVal & ALL_BITS_SET) == (ALL_BITS_SET);
 }
@@ -576,22 +576,25 @@ ReadBestPmicMatch (CONST CHAR8 *PmicProp, INT32 PmicMaxIdx,
         break;
       }
 
-      if (CurPmicInfo.DtPmicRev[Idx] == (BoardPmicTarget (Idx)
-          & PMIC_REV_MASK)) {
-        CurPmicInfo.DtMatchVal |=
-          BIT ((PMIC_MATCH_EXACT_REV_IDX0 + Idx * PMIC_SHIFT_IDX));
-      } else if (CurPmicInfo.DtPmicRev[Idx] <
-            (BoardPmicTarget (Idx) & PMIC_REV_MASK)) {
-        CurPmicInfo.DtMatchVal |= BIT ((PMIC_MATCH_BEST_REV_IDX0 +
-            Idx * PMIC_SHIFT_IDX));
-      } else {
-        DEBUG ((EFI_D_VERBOSE, "Pmic revision does not match\n"));
-        break;
+      /* first match the first four pmic revision */
+      if (Idx < PMIC_IDX4) {
+        if (CurPmicInfo.DtPmicRev[Idx] == (BoardPmicTarget (Idx)
+            & PMIC_REV_MASK)) {
+          CurPmicInfo.DtMatchVal |=
+            BIT ((PMIC_MATCH_EXACT_REV_IDX0 + Idx * PMIC_SHIFT_IDX));
+        } else if (CurPmicInfo.DtPmicRev[Idx] <
+              (BoardPmicTarget (Idx) & PMIC_REV_MASK)) {
+          CurPmicInfo.DtMatchVal |= BIT ((PMIC_MATCH_BEST_REV_IDX0 +
+              Idx * PMIC_SHIFT_IDX));
+        } else {
+          DEBUG ((EFI_D_VERBOSE, "Pmic revision does not match\n"));
+          break;
+        }
       }
     }
 
-    DEBUG ((EFI_D_VERBOSE, "BestPmicInfo.DtMatchVal : %x"
-        " CurPmicInfo[%u]->DtMatchVal : %x\n", BestPmicInfo->DtMatchVal,
+    DEBUG ((EFI_D_VERBOSE, "BestPmicInfo.DtMatchVal : 0x%llx"
+        " CurPmicInfo[%u]->DtMatchVal : 0x%llx\n", BestPmicInfo->DtMatchVal,
         PmicEntIdx, CurPmicInfo.DtMatchVal));
     if (BestPmicInfo->DtMatchVal < CurPmicInfo.DtMatchVal) {
       gBS->CopyMem (BestPmicInfo, &CurPmicInfo,
@@ -895,8 +898,8 @@ ReadDtbFindMatch (DtInfo *CurDtbInfo, DtInfo *BestDtbInfo, UINT32 ExactMatch)
       CurDtbInfo->DtPmicRev[Idx] = BestPmicInfo.DtPmicRev[Idx];
     }
 
-    DEBUG ((EFI_D_VERBOSE, "CurDtbInfo->DtMatchVal : %x  "
-      "BestPmicInfo.DtMatchVal :%x\n", CurDtbInfo->DtMatchVal,
+    DEBUG ((EFI_D_VERBOSE, "CurDtbInfo->DtMatchVal : 0x%llx  "
+      "BestPmicInfo.DtMatchVal :0x%llx\n", CurDtbInfo->DtMatchVal,
       BestPmicInfo.DtMatchVal));
   } else {
     DEBUG ((EFI_D_VERBOSE, "qcom,pmic-id does not exit\n"));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -45,7 +45,7 @@
 #define CHIP_BASE_BAND_APQ "apq"
 #define CHIP_BASE_BAND_MDM "mdm"
 
-#define BIT(x) (1UL << x)
+#define BIT(x) (1ULL << x)
 
 extern RamPartitionEntry *RamPartitionEntries;
 
