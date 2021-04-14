@@ -1169,7 +1169,8 @@ CheckImageHeader (VOID *ImageHdrBuffer,
     SecondSize = ((boot_img_hdr *)(ImageHdrBuffer))->second_size;
     *PageSize = ((boot_img_hdr *)(ImageHdrBuffer))->page_size;
   } else {
-    if (CompareMem ((VOID *)((vendor_boot_img_hdr_v3 *)
+    if (!VendorImageHdrBuffer ||
+        CompareMem ((VOID *)((vendor_boot_img_hdr_v3 *)
                      (VendorImageHdrBuffer))->magic,
                      VENDOR_BOOT_MAGIC, VENDOR_BOOT_MAGIC_SIZE)) {
       DEBUG ((EFI_D_ERROR, "Invalid vendor_boot image header\n"));
