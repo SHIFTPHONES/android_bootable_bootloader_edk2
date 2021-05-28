@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -938,14 +938,14 @@ exit:
     return Status;
 }
 
-static BOOLEAN GetHeaderVersion (AvbSlotVerifyData *SlotData)
+static BOOLEAN GetHeaderVersion (AvbSlotVerifyData *SlotData, CHAR8 *ImageName)
 {
   BOOLEAN HeaderVersion = 0;
   UINTN LoadedIndex = 0;
   for (LoadedIndex = 0; LoadedIndex < SlotData->num_loaded_partitions;
          LoadedIndex++) {
     if (avb_strcmp (SlotData->loaded_partitions[LoadedIndex].partition_name,
-      "recovery") == 0 )
+      ImageName) == 0 )
       return ( (boot_img_hdr *)
         (SlotData->loaded_partitions[LoadedIndex].data))->header_version;
   }
@@ -1158,7 +1158,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
       Info->BootState = RED;
       goto out;
     }
-    BOOLEAN HeaderVersion = GetHeaderVersion (SlotData);
+    BOOLEAN HeaderVersion = GetHeaderVersion (SlotData, "recovery");
     DEBUG ( (EFI_D_VERBOSE, "Recovery HeaderVersion %d \n", HeaderVersion));
 
     if (HeaderVersion == BOOT_HEADER_VERSION_ZERO ||
@@ -1182,19 +1182,46 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
     NumRequestedPartition += 1;
 
+    Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
+               SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
+    if (AllowVerificationError &&
+               ResultShouldContinue (Result)) {
+      DEBUG ((EFI_D_VERBOSE, "State: Unlocked, AvbSlotVerify returned "
+                          "%a, continue boot\n",
+              avb_slot_verify_result_to_string (Result)));
+    } else if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Device State %a,AvbSlotVerify returned %a\n",
+             AllowVerificationError ? "Unlocked" : "Locked",
+            avb_slot_verify_result_to_string (Result)));
+      Status = EFI_LOAD_ERROR;
+      Info->BootState = RED;
+      goto out;
+    }
+    if (SlotData == NULL) {
+      Status = EFI_LOAD_ERROR;
+      Info->BootState = RED;
+      goto out;
+    }
+    BOOLEAN HeaderVersion = GetHeaderVersion (SlotData, "boot");
+    DEBUG ( (EFI_D_VERBOSE, "Boot HeaderVersion %d \n", HeaderVersion));
+
+
     if (Info->MultiSlotBoot) {
         CurrentSlot = GetCurrentSlotSuffix ();
     }
 
-    if (IsValidPartition (&CurrentSlot, L"vendor_boot")) {
+    if (IsValidPartition (&CurrentSlot, L"vendor_boot") &&
+       (HeaderVersion >= BOOT_HEADER_VERSION_THREE)) {
       AddRequestedPartition (RequestedPartitionAll, IMG_VENDOR_BOOT);
       NumRequestedPartition += 1;
+       if (SlotData != NULL) {
+          avb_slot_verify_data_free (SlotData);
+       }
+       Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
+                  SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
     } else {
-      DEBUG ((EFI_D_VERBOSE, "Invalid vendor_boot partition. Skipping\n"));
+      DEBUG ((EFI_D_ERROR, "Invalid vendor_boot partition. Skipping\n"));
     }
-
-    Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
-                SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
   }
 
   if (SlotData == NULL) {
