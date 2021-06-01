@@ -288,11 +288,10 @@ STATIC VOID GetDisplayCmdline (VOID)
   }
 
   Status = ReadDisplayCmdLine (&Src, &SrcLen);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((EFI_D_ERROR, "Unable to read display cmdline, %r\n", Status));
+  if (Status == EFI_SUCCESS) {
+    AsciiStrCatS (DisplayCmdLine, MAX_DISPLAY_CMD_LINE, Src);
   }
 
-  AsciiStrCatS (DisplayCmdLine, MAX_DISPLAY_CMD_LINE, Src);
 }
 
 /*
