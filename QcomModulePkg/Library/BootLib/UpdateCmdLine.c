@@ -3,7 +3,7 @@
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
- * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,7 +66,7 @@ STATIC CHAR8 *InitCmdline = INIT_BIN;
 STATIC CHAR8 *SkipRamFs = " skip_initramfs";
 
 /* Display command line related structures */
-#define MAX_DISPLAY_CMD_LINE 256
+#define MAX_DISPLAY_CMD_LINE (256 + MAX_DISPLAY_CMDLINE_LEN)
 STATIC CHAR8 DisplayCmdLine[MAX_DISPLAY_CMD_LINE];
 STATIC UINTN DisplayCmdLineLen = sizeof (DisplayCmdLine);
 
@@ -277,6 +277,8 @@ TargetBatterySocOk (UINT32 *BatteryVoltage)
 STATIC VOID GetDisplayCmdline (VOID)
 {
   EFI_STATUS Status;
+  CHAR8 *Src = NULL;
+  UINT32 SrcLen = 0;
 
   Status = gRT->GetVariable ((CHAR16 *)L"DisplayPanelConfiguration",
                              &gQcomTokenSpaceGuid, NULL, &DisplayCmdLineLen,
@@ -284,6 +286,12 @@ STATIC VOID GetDisplayCmdline (VOID)
   if (Status != EFI_SUCCESS) {
     DEBUG ((EFI_D_ERROR, "Unable to get Panel Config, %r\n", Status));
   }
+
+  Status = ReadDisplayCmdLine (&Src, &SrcLen);
+  if (Status == EFI_SUCCESS) {
+    AsciiStrCatS (DisplayCmdLine, MAX_DISPLAY_CMD_LINE, Src);
+  }
+
 }
 
 /*

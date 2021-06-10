@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -456,7 +456,8 @@ BoardPmicTarget (UINT32 PmicDeviceIndex)
     ASSERT (0);
   }
 
-  if (Revision >= PMIC_VERSION_REVISION) {
+  /* GetPmicInfoExt API is only supported for Protocol Revsion v3 */
+  if (Revision == PMIC_VERSION_REVISION) {
     Status = GetPmicInfoExt (PmicDeviceIndex, &pmic_info_ext);
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_VERBOSE, "Error finding board pmic info: %r\n", Status));
