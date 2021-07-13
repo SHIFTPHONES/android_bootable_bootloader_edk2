@@ -347,6 +347,27 @@ LoadVendorBootImageHeader (BootInfo *Info,
 }
 
 STATIC EFI_STATUS
+LoadBootImageHeader (BootInfo *Info,
+                          VOID **BootImageHdrBuffer,
+                          UINT32 *BootImageHdrSize)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  CHAR16 Pname[MAX_GPT_NAME_SIZE] = {0};
+
+  StrnCpyS (Pname, ARRAY_SIZE (Pname),
+            (CHAR16 *)L"boot", StrLen ((CHAR16 *)L"boot"));
+
+  if (Info->MultiSlotBoot) {
+    GUARD (StrnCatS (Pname, ARRAY_SIZE (Pname),
+                     GetCurrentSlotSuffix ().Suffix,
+                     StrLen (GetCurrentSlotSuffix ().Suffix)));
+  }
+
+  return LoadImageHeader (Pname, BootImageHdrBuffer, BootImageHdrSize);
+}
+
+
+STATIC EFI_STATUS
 LoadBootImageNoAuth (BootInfo *Info, UINT32 *PageSize, BOOLEAN *FastbootPath)
 {
   EFI_STATUS Status = EFI_SUCCESS;
@@ -1173,6 +1194,26 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     }
   } else {
     Slot CurrentSlot;
+    VOID *ImageHdrBuffer = NULL;
+    UINT32 ImageHdrSize = 0;
+
+    Status = LoadBootImageHeader (Info, &ImageHdrBuffer, &ImageHdrSize);
+
+    if (Status != EFI_SUCCESS ||
+        ImageHdrBuffer ==  NULL) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Failed to load image header: %r\n", Status));
+      Info->BootState = RED;
+      goto out;
+    } else if (ImageHdrSize < sizeof (boot_img_hdr)) {
+      DEBUG ((EFI_D_ERROR,
+              "ERROR: Invalid image header size: %u\n", ImageHdrSize));
+      Info->BootState = RED;
+      Status = EFI_BAD_BUFFER_SIZE;
+      goto out;
+    }
+
+    Info->HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
+    DEBUG ((EFI_D_VERBOSE, "Header version  %d\n", Info->HeaderVersion));
 
     if (!Info->NumLoadedImages) {
       AddRequestedPartition (RequestedPartitionAll, IMG_BOOT);
@@ -1182,53 +1223,24 @@ LoadImageAndAuthVB2 (BootInfo *Info)
     AddRequestedPartition (RequestedPartitionAll, IMG_DTBO);
     NumRequestedPartition += 1;
 
-    Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
-               SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
-    if (AllowVerificationError &&
-               ResultShouldContinue (Result)) {
-      DEBUG ((EFI_D_VERBOSE, "State: Unlocked, AvbSlotVerify returned "
-                          "%a, continue boot\n",
-              avb_slot_verify_result_to_string (Result)));
-    } else if (Result != AVB_SLOT_VERIFY_RESULT_OK) {
-      DEBUG ((EFI_D_ERROR, "ERROR: Device State %a,AvbSlotVerify returned %a\n",
-             AllowVerificationError ? "Unlocked" : "Locked",
-            avb_slot_verify_result_to_string (Result)));
-      Status = EFI_LOAD_ERROR;
-      Info->BootState = RED;
-      goto out;
-    }
-    if (SlotData == NULL) {
-      Status = EFI_LOAD_ERROR;
-      Info->BootState = RED;
-      goto out;
-    }
-    BOOLEAN HeaderVersion = GetHeaderVersion (SlotData, "boot");
-    DEBUG ( (EFI_D_VERBOSE, "Boot HeaderVersion %d \n", HeaderVersion));
-
-
     if (Info->MultiSlotBoot) {
         CurrentSlot = GetCurrentSlotSuffix ();
     }
 
     /* Load vendor boot in following conditions
-     * 1. In Ram load case where Header version is 0 because
-     * boot image is not loaded in the flow& Valid partition.
-     * 2. In Case of header version 3 & valid partititon.
+     * 1. In Case of header version 3
+     * 2. valid partititon.
      */
 
     if (IsValidPartition (&CurrentSlot, L"vendor_boot") &&
-       (HeaderVersion == BOOT_HEADER_VERSION_ZERO ||
-        HeaderVersion >= BOOT_HEADER_VERSION_THREE)) {
+       (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE)) {
       AddRequestedPartition (RequestedPartitionAll, IMG_VENDOR_BOOT);
       NumRequestedPartition += 1;
-       if (SlotData != NULL) {
-          avb_slot_verify_data_free (SlotData);
-       }
-       Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
-                  SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
     } else {
       DEBUG ((EFI_D_ERROR, "Invalid vendor_boot partition. Skipping\n"));
     }
+    Result = avb_slot_verify (Ops, (CONST CHAR8 *CONST *)RequestedPartition,
+                  SlotSuffix, VerifyFlags, VerityFlags, &SlotData);
   }
 
   if (SlotData == NULL) {
