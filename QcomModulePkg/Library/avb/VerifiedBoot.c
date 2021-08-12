@@ -1233,7 +1233,8 @@ LoadImageAndAuthVB2 (BootInfo *Info)
      */
 
     if (IsValidPartition (&CurrentSlot, L"vendor_boot") &&
-       (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE)) {
+       (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE ||
+        Info->HeaderVersion == BOOT_HEADER_VERSION_ZERO)) {
       AddRequestedPartition (RequestedPartitionAll, IMG_VENDOR_BOOT);
       NumRequestedPartition += 1;
     } else {
