@@ -207,14 +207,7 @@ UpdateDevInfo (CHAR16 *Pname, CHAR8 *ImgVersion)
 {
   EFI_STATUS Status = EFI_SUCCESS;
 
-  if (!StrCmp ((CONST CHAR16 *)Pname, (CONST CHAR16 *)L"bootloader")) {
-    AsciiStrnCpyS (DevInfo.bootloader_version, MAX_VERSION_LEN, PRODUCT_NAME,
-                   AsciiStrLen (PRODUCT_NAME));
-    AsciiStrnCatS (DevInfo.bootloader_version, MAX_VERSION_LEN, "-",
-                   AsciiStrLen ("-"));
-    AsciiStrnCatS (DevInfo.bootloader_version, MAX_VERSION_LEN, ImgVersion,
-                   AsciiStrLen (ImgVersion));
-  } else {
+  if (StrCmp ((CONST CHAR16 *)Pname, (CONST CHAR16 *)L"bootloader")) {
     AsciiStrnCpyS (DevInfo.radio_version, MAX_VERSION_LEN, PRODUCT_NAME,
                    AsciiStrLen (PRODUCT_NAME));
     AsciiStrnCatS (DevInfo.radio_version, MAX_VERSION_LEN, "-",
@@ -245,6 +238,9 @@ EFI_STATUS DeviceInfoInit (VOID)
 
     FirstReadDevInfo = FALSE;
   }
+
+  AsciiStrnCpyS (DevInfo.bootloader_version, MAX_VERSION_LEN, PRODUCT_BOOTLOADER_VERSION,
+                 AsciiStrLen (PRODUCT_BOOTLOADER_VERSION));
 
   EnableChargingScreen (TRUE);
 
