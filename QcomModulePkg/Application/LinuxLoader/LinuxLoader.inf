@@ -38,6 +38,7 @@
 	ArmPlatformPkg/ArmPlatformPkg.dec
 	MdeModulePkg/MdeModulePkg.dec
 	QcomModulePkg/QcomModulePkg.dec
+	AbmPkg/Abm.dec
 
 [LibraryClasses]
 	DxeServicesTableLib
@@ -61,6 +62,7 @@
 	EfiFileLib
 	FastbootLib
 	UbsanLib
+	AbmLib
 
 [Guids]
 	gEfiFileInfoGuid

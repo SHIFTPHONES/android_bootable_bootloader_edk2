@@ -1,0 +1,3 @@
+[submodule "AbmPkg"]
+	path = AbmPkg
+	url = https://github.com/Android-Boot-Manager/droidboot_generic_uefi
