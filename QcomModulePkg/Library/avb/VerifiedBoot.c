@@ -1474,6 +1474,11 @@ out:
 STATIC EFI_STATUS
 DisplayVerifiedBootScreen (BootInfo *Info)
 {
+  // SKIP IT FOR DEVELOPMENT
+  if ((1 + 1) == 2) {
+    return EFI_SUCCESS;
+  }
+
   EFI_STATUS Status = EFI_SUCCESS;
   CHAR8 FfbmStr[FFBM_MODE_BUF_SIZE] = {'\0'};
 
