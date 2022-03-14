@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2022, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1212,10 +1212,9 @@ LoadImageAndAuthVB2 (BootInfo *Info)
       goto out;
     }
 
-    Info->HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
-    DEBUG ((EFI_D_VERBOSE, "Header version  %d\n", Info->HeaderVersion));
-
     if (!Info->NumLoadedImages) {
+      Info->HeaderVersion = ((boot_img_hdr *)(ImageHdrBuffer))->header_version;
+      DEBUG ((EFI_D_VERBOSE, "Header version  %d\n", Info->HeaderVersion));
       AddRequestedPartition (RequestedPartitionAll, IMG_BOOT);
       NumRequestedPartition += 1;
     }
@@ -1233,8 +1232,7 @@ LoadImageAndAuthVB2 (BootInfo *Info)
      */
 
     if (IsValidPartition (&CurrentSlot, L"vendor_boot") &&
-       (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE ||
-        Info->HeaderVersion == BOOT_HEADER_VERSION_ZERO)) {
+       (Info->HeaderVersion >= BOOT_HEADER_VERSION_THREE)) {
       AddRequestedPartition (RequestedPartitionAll, IMG_VENDOR_BOOT);
       NumRequestedPartition += 1;
     } else {
