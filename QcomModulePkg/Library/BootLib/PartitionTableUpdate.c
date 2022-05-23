@@ -28,6 +28,7 @@
  */
 #include "PartitionTableUpdate.h"
 #include "AutoGen.h"
+#include <DeviceInfo.h>
 #include <Library/Board.h>
 #include <Library/BootLinux.h>
 #include <Library/LinuxLoaderLib.h>
@@ -1632,7 +1633,10 @@ FindBootableSlot (Slot *BootableSlot)
       (BootEntry->PartEntry.Attributes & PART_ATT_MAX_RETRY_COUNT_VAL) >>
       PART_ATT_MAX_RETRY_CNT_BIT;
 
-  if (Unbootable == 0 && BootSuccess == 1) {
+  if (IsDeveloperModeEnabled ()) {
+    DEBUG ((EFI_D_VERBOSE, "Developer mode is enabled, not checking, "
+                           "if slot %s is bootable\n", BootableSlot->Suffix));
+  } else if (Unbootable == 0 && BootSuccess == 1) {
     DEBUG (
         (EFI_D_VERBOSE, "Active Slot %s is bootable\n", BootableSlot->Suffix));
   } else if (Unbootable == 0 && BootSuccess == 0 && RetryCount > 0) {
