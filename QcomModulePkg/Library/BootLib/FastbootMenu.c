@@ -87,6 +87,19 @@ STATIC MENU_MSG_INFO mFastbootOptionTitle[] = {
      QMMI},
 };
 
+#define FASTBOOT_MSG_INDEX_HEADER                  0
+#define FASTBOOT_MSG_INDEX_FASTBOOT                1
+#define FASTBOOT_MSG_INDEX_PRODUCT_NAME            2
+#define FASTBOOT_MSG_INDEX_PRODUCT_MODEL           3
+#define FASTBOOT_MSG_INDEX_VARIANT                 4
+#define FASTBOOT_MSG_INDEX_BOOTLOADER_VERSION      5
+#define FASTBOOT_MSG_INDEX_BASEBAND_VERSION        6
+#define FASTBOOT_MSG_INDEX_SERIAL_NUMBER           7
+#define FASTBOOT_MSG_INDEX_HARDWARE_REVISION       8
+#define FASTBOOT_MSG_INDEX_SECURE_BOOT             9
+#define FASTBOOT_MSG_INDEX_DEVICE_STATE_UNLOCKED  10
+#define FASTBOOT_MSG_INDEX_DEVICE_STATE_LOCKED    11
+
 STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
     {{"\nPress volume key to select, "
       "and press power key to select\n\n"},
@@ -261,22 +274,22 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
   /* Update fastboot common message */
   for (i = 0; i < ARRAY_SIZE (mFastbootCommonMsgInfo); i++) {
     switch (i) {
-    case 0:
-    case 1:
+    case FASTBOOT_MSG_INDEX_HEADER:
+    case FASTBOOT_MSG_INDEX_FASTBOOT:
       break;
-    case 2:
+    case FASTBOOT_MSG_INDEX_PRODUCT_NAME:
       /* Get product name */
       AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
         sizeof (mFastbootCommonMsgInfo[i].Msg), PRODUCT_NAME,
         AsciiStrLen (PRODUCT_NAME));
       break;
-    case 3:
+    case FASTBOOT_MSG_INDEX_PRODUCT_MODEL:
       /* Get product model */
       AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
         sizeof (mFastbootCommonMsgInfo[i].Msg), PRODUCT_MODEL,
         AsciiStrLen (PRODUCT_MODEL));
       break;
-    case 4:
+    case FASTBOOT_MSG_INDEX_VARIANT:
       /* Get variant value */
       BoardHwPlatformName (StrTemp, sizeof (StrTemp));
       GetRootDeviceType (StrTemp1, sizeof (StrTemp1));
@@ -291,14 +304,14 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), StrTemp1,
                      sizeof (StrTemp1));
       break;
-    case 5:
+    case FASTBOOT_MSG_INDEX_BOOTLOADER_VERSION:
       /* Get bootloader version */
       GetBootloaderVersion (VersionTemp, sizeof (VersionTemp));
       AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
                      sizeof (mFastbootCommonMsgInfo[i].Msg), VersionTemp,
                      sizeof (VersionTemp));
       break;
-    case 6:
+    case FASTBOOT_MSG_INDEX_BASEBAND_VERSION:
       /* Get baseband version */
       ZeroMem (VersionTemp, sizeof (VersionTemp));
       GetRadioVersion (VersionTemp, sizeof (VersionTemp));
@@ -306,7 +319,7 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), VersionTemp,
                      sizeof (VersionTemp));
       break;
-    case 7:
+    case FASTBOOT_MSG_INDEX_SERIAL_NUMBER:
       /* Get serial number */
       ZeroMem (StrTemp, sizeof (StrTemp));
       BoardSerialNum (StrTemp, MAX_RSP_SIZE);
@@ -314,7 +327,7 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), StrTemp,
                      sizeof (StrTemp));
       break;
-    case 8:
+    case FASTBOOT_MSG_INDEX_HARDWARE_REVISION:
       /* Get hardware revision */
       ZeroMem (StrTemp, sizeof (StrTemp));
       BoardHardwareRevision (StrTemp, MAX_RSP_SIZE);
@@ -322,19 +335,19 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
                      sizeof (mFastbootCommonMsgInfo[i].Msg), StrTemp,
                      sizeof (StrTemp));
       break;
-    case 9:
+    case FASTBOOT_MSG_INDEX_SECURE_BOOT:
       /* Get secure boot value */
       AsciiStrnCatS (
           mFastbootCommonMsgInfo[i].Msg, sizeof (mFastbootCommonMsgInfo[i].Msg),
           IsSecureBootEnabled () ? "yes" : "no",
           IsSecureBootEnabled () ? AsciiStrLen ("yes") : AsciiStrLen ("no"));
       break;
-    case 10:
+    case FASTBOOT_MSG_INDEX_DEVICE_STATE_UNLOCKED:
       /* Get device status, only show when unlocked */
       if (!IsUnlocked ())
         continue;
       break;
-    case 11:
+    case FASTBOOT_MSG_INDEX_DEVICE_STATE_LOCKED:
       /* Get device status, only show when locked */
       if (IsUnlocked ())
         continue;
