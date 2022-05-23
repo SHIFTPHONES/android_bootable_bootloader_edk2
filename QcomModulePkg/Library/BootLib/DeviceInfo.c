@@ -57,6 +57,22 @@ BOOLEAN IsChargingScreenEnable (VOID)
   return DevInfo.is_charger_screen_enabled;
 }
 
+BOOLEAN IsUserPublicKeySet (VOID)
+{
+  CHAR8 *UserKeyBuffer = NULL;
+  UINT32 UserKeyLength = 0;
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  Status = GetUserKey(&UserKeyBuffer, &UserKeyLength);
+  if (Status != EFI_SUCCESS) {
+    DEBUG((EFI_D_ERROR, "GetUserKey failed!, %r\n", Status));
+    return FALSE;
+  }
+
+  DEBUG((EFI_D_INFO, "GetUserKey - public key length: %d\n", UserKeyLength));
+  return UserKeyLength > 0;
+}
+
 VOID
 GetDevInfo (DeviceInfo **DevInfoPtr)
 {
