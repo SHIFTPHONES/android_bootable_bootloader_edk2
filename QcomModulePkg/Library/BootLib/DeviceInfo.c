@@ -57,6 +57,11 @@ BOOLEAN IsChargingScreenEnable (VOID)
   return DevInfo.is_charger_screen_enabled;
 }
 
+BOOLEAN IsMainlineSupportEnabled (VOID)
+{
+  return DevInfo.is_mainline_support_enabled;
+}
+
 BOOLEAN IsUserPublicKeySet (VOID)
 {
   CHAR8 *UserKeyBuffer = NULL;
@@ -100,6 +105,24 @@ EnableChargingScreen (BOOLEAN IsEnabled)
     Status = ReadWriteDeviceInfo (WRITE_CONFIG, &DevInfo, sizeof (DevInfo));
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "Error %a charger screen: %r\n",
+              (IsEnabled ? "Enabling" : "Disabling"), Status));
+      return Status;
+    }
+  }
+
+  return Status;
+}
+
+EFI_STATUS
+EnableMainlineSupport (BOOLEAN IsEnabled)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (IsMainlineSupportEnabled () != IsEnabled) {
+    DevInfo.is_mainline_support_enabled = IsEnabled;
+    Status = ReadWriteDeviceInfo (WRITE_CONFIG, &DevInfo, sizeof (DevInfo));
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Error %a mainline support: %r\n",
               (IsEnabled ? "Enabling" : "Disabling"), Status));
       return Status;
     }
