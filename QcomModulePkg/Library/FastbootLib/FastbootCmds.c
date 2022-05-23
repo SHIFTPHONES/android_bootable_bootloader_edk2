@@ -3290,6 +3290,10 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
                IsChargingScreenEnable () ? "true" : "false");
   FastbootInfo (DeviceInfo);
   WaitForTransferComplete ();
+  AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "User public key set: %a",
+               IsUserPublicKeySet () ? "true" : "false");
+  FastbootInfo (DeviceInfo);
+  WaitForTransferComplete ();
   FastbootOkay ("");
 }
 
