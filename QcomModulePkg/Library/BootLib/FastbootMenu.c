@@ -87,6 +87,20 @@ STATIC MENU_MSG_INFO mFastbootOptionTitle[] = {
      0,
      QMMI},
 #endif
+    {{"Activate slot _a"},
+     BIG_FACTOR,
+     BGR_ORANGE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     SET_ACTIVE_SLOT_A},
+    {{"Activate slot _b"},
+     BIG_FACTOR,
+     BGR_ORANGE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     SET_ACTIVE_SLOT_B},
 };
 
 #define FASTBOOT_MSG_INDEX_HEADER                  0
