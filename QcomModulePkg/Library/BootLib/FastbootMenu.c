@@ -89,16 +89,17 @@ STATIC MENU_MSG_INFO mFastbootOptionTitle[] = {
 
 #define FASTBOOT_MSG_INDEX_HEADER                  0
 #define FASTBOOT_MSG_INDEX_FASTBOOT                1
-#define FASTBOOT_MSG_INDEX_PRODUCT_NAME            2
-#define FASTBOOT_MSG_INDEX_PRODUCT_MODEL           3
-#define FASTBOOT_MSG_INDEX_VARIANT                 4
-#define FASTBOOT_MSG_INDEX_BOOTLOADER_VERSION      5
-#define FASTBOOT_MSG_INDEX_BASEBAND_VERSION        6
-#define FASTBOOT_MSG_INDEX_SERIAL_NUMBER           7
-#define FASTBOOT_MSG_INDEX_HARDWARE_REVISION       8
-#define FASTBOOT_MSG_INDEX_SECURE_BOOT             9
-#define FASTBOOT_MSG_INDEX_DEVICE_STATE_UNLOCKED  10
-#define FASTBOOT_MSG_INDEX_DEVICE_STATE_LOCKED    11
+#define FASTBOOT_MSG_INDEX_CURRENT_SLOT            2
+#define FASTBOOT_MSG_INDEX_PRODUCT_NAME            3
+#define FASTBOOT_MSG_INDEX_PRODUCT_MODEL           4
+#define FASTBOOT_MSG_INDEX_VARIANT                 5
+#define FASTBOOT_MSG_INDEX_BOOTLOADER_VERSION      6
+#define FASTBOOT_MSG_INDEX_BASEBAND_VERSION        7
+#define FASTBOOT_MSG_INDEX_SERIAL_NUMBER           8
+#define FASTBOOT_MSG_INDEX_HARDWARE_REVISION       9
+#define FASTBOOT_MSG_INDEX_SECURE_BOOT            10
+#define FASTBOOT_MSG_INDEX_DEVICE_STATE_UNLOCKED  11
+#define FASTBOOT_MSG_INDEX_DEVICE_STATE_LOCKED    12
 
 STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
     {{"\nPress volume key to select, "
@@ -116,7 +117,14 @@ STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
      COMMON,
      0,
      NOACTION},
-    {{"PRODUCT_NAME - "},
+    {{"CURRENT_SLOT - "},
+     COMMON_FACTOR,
+     BGR_WHITE,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+    {{"\nPRODUCT_NAME - "},
      COMMON_FACTOR,
      BGR_WHITE,
      BGR_BLACK,
@@ -257,6 +265,8 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
   CHAR8 StrTemp[MAX_RSP_SIZE] = "";
   CHAR8 StrTemp1[MAX_RSP_SIZE] = "";
   CHAR8 VersionTemp[MAX_VERSION_LEN] = "";
+  CHAR8 SlotSuffixAscii[MAX_SLOT_SUFFIX_SZ] = "";
+  Slot BootSlot;
 
   ZeroMem (&OptionMenuInfo->Info, sizeof (MENU_OPTION_ITEM_INFO));
 
@@ -276,6 +286,16 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
     switch (i) {
     case FASTBOOT_MSG_INDEX_HEADER:
     case FASTBOOT_MSG_INDEX_FASTBOOT:
+      break;
+    case FASTBOOT_MSG_INDEX_CURRENT_SLOT:
+      /* Get current slot */
+      BootSlot = GetCurrentSlotSuffix();
+      if (!BootSlot.Suffix[0])
+        continue;
+      UnicodeStrToAsciiStr(BootSlot.Suffix, SlotSuffixAscii);
+      AsciiStrnCatS (mFastbootCommonMsgInfo[i].Msg,
+                     sizeof (mFastbootCommonMsgInfo[i].Msg), SlotSuffixAscii,
+                     sizeof (SlotSuffixAscii));
       break;
     case FASTBOOT_MSG_INDEX_PRODUCT_NAME:
       /* Get product name */
