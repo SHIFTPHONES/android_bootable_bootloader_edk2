@@ -42,6 +42,8 @@
 
 STATIC OPTION_MENU_INFO gMenuInfo;
 
+#define OPTIONS_COUNT_DEVELOPER_MODE 2
+
 STATIC MENU_MSG_INFO mFastbootOptionTitle[] = {
     {{"START"},
      BIG_FACTOR,
@@ -87,6 +89,21 @@ STATIC MENU_MSG_INFO mFastbootOptionTitle[] = {
      0,
      QMMI},
 #endif
+    /* Developer mode options */
+    {{"Activate slot _a"},
+     BIG_FACTOR,
+     BGR_ORANGE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     SET_ACTIVE_SLOT_A},
+    {{"Activate slot _b"},
+     BIG_FACTOR,
+     BGR_ORANGE,
+     BGR_BLACK,
+     OPTION_ITEM,
+     0,
+     SET_ACTIVE_SLOT_B},
 };
 
 #define FASTBOOT_MSG_INDEX_HEADER                  0
@@ -283,6 +300,7 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
   EFI_STATUS Status = EFI_SUCCESS;
   UINT32 Location = 0;
   UINT32 OptionItem = 0;
+  UINT32 OptionItemCount = 0;
   UINT32 Height = 0;
   UINT32 i = 0;
   UINT32 j = 0;
@@ -417,7 +435,11 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
   }
 
   OptionMenuInfo->Info.MenuType = DISPLAY_MENU_FASTBOOT;
-  OptionMenuInfo->Info.OptionNum = ARRAY_SIZE (mFastbootOptionTitle);
+
+  OptionItemCount = ARRAY_SIZE (mFastbootOptionTitle);
+  if (!IsDeveloperModeEnabled ())
+    OptionItemCount -= OPTIONS_COUNT_DEVELOPER_MODE;
+  OptionMenuInfo->Info.OptionNum = OptionItemCount;
 
   return Status;
 }
