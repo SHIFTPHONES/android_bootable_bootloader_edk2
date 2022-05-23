@@ -3011,6 +3011,34 @@ CmdOemDisableChargerScreen (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 }
 
 STATIC VOID
+CmdOemEnableMainlineOptimization (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
+{
+  EFI_STATUS Status;
+  DEBUG ((EFI_D_INFO, "Enabling mainline optimization\n"));
+
+  Status = EnableMainlineOptimization (TRUE);
+  if (Status != EFI_SUCCESS) {
+    FastbootFail ("Failed to enable mainline optimization");
+  } else {
+    FastbootOkay ("");
+  }
+}
+
+STATIC VOID
+CmdOemDisableMainlineOptimization (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
+{
+  EFI_STATUS Status;
+  DEBUG ((EFI_D_INFO, "Disabling mainline optimization\n"));
+
+  Status = EnableMainlineOptimization (FALSE);
+  if (Status != EFI_SUCCESS) {
+    FastbootFail ("Failed to disable mainline optimization");
+  } else {
+    FastbootOkay ("");
+  }
+}
+
+STATIC VOID
 CmdOemOffModeCharger (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
   CHAR8 *Ptr = NULL;
@@ -3253,6 +3281,10 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
   WaitForTransferComplete ();
   AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "User public key set: %a",
                IsUserPublicKeySet () ? "true" : "false");
+  FastbootInfo (DeviceInfo);
+  WaitForTransferComplete ();
+  AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "Mainline optimization enabled: %a",
+               IsMainlineOptimizationEnabled () ? "true" : "false");
   FastbootInfo (DeviceInfo);
   WaitForTransferComplete ();
   FastbootOkay ("");
@@ -3698,6 +3730,8 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
 #endif
       {"oem enable-charger-screen", CmdOemEnableChargerScreen},
       {"oem disable-charger-screen", CmdOemDisableChargerScreen},
+      {"oem enable-mainline-optimization", CmdOemEnableMainlineOptimization},
+      {"oem disable-mainline-optimization", CmdOemDisableMainlineOptimization},
       {"oem off-mode-charge", CmdOemOffModeCharger},
       {"oem select-display-panel", CmdOemSelectDisplayPanel},
       {"oem device-info", CmdOemDevinfo},

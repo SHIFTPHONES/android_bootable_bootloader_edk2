@@ -57,6 +57,11 @@ BOOLEAN IsChargingScreenEnable (VOID)
   return DevInfo.is_charger_screen_enabled;
 }
 
+BOOLEAN IsMainlineOptimizationEnabled (VOID)
+{
+  return DevInfo.is_mainline_optimization_enabled;
+}
+
 BOOLEAN IsUserPublicKeySet (VOID)
 {
   CHAR8 *UserKeyBuffer = NULL;
@@ -100,6 +105,24 @@ EnableChargingScreen (BOOLEAN IsEnabled)
     Status = ReadWriteDeviceInfo (WRITE_CONFIG, &DevInfo, sizeof (DevInfo));
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "Error %a charger screen: %r\n",
+              (IsEnabled ? "Enabling" : "Disabling"), Status));
+      return Status;
+    }
+  }
+
+  return Status;
+}
+
+EFI_STATUS
+EnableMainlineOptimization (BOOLEAN IsEnabled)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (IsMainlineOptimizationEnabled () != IsEnabled) {
+    DevInfo.is_mainline_optimization_enabled = IsEnabled;
+    Status = ReadWriteDeviceInfo (WRITE_CONFIG, &DevInfo, sizeof (DevInfo));
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Error %a mainline optimization: %r\n",
               (IsEnabled ? "Enabling" : "Disabling"), Status));
       return Status;
     }
