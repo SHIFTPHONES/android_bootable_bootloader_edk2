@@ -105,6 +105,8 @@ UpdateDeviceStatus (OPTION_MENU_INFO *MsgInfo, INTN Reason)
   EFI_STATUS Status = EFI_SUCCESS;
   EFI_GUID Ptype = gEfiMiscPartitionGuid;
   MemCardType CardType = UNKNOWN;
+  CHAR16 SuffixUnicode[MAX_SLOT_SUFFIX_SZ] = u"";
+  Slot BootSlot;
 
   /* Clear the screen */
   gST->ConOut->ClearScreen (gST->ConOut);
@@ -157,6 +159,26 @@ UpdateDeviceStatus (OPTION_MENU_INFO *MsgInfo, INTN Reason)
       WriteToPartition (&Ptype, FfbmPageBuffer, sizeof (FfbmPageBuffer));
     }
     RebootDevice (NORMAL_MODE);
+    break;
+  case SET_ACTIVE_SLOT_A:
+    AsciiStrToUnicodeStr ("_a", SuffixUnicode);
+    StrnCpyS (BootSlot.Suffix, ARRAY_SIZE (BootSlot.Suffix), SuffixUnicode,
+            StrLen (SuffixUnicode));
+    Status = SetActiveSlot (&BootSlot, TRUE);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Failed to set the active slot to _a\n"));
+    }
+    RebootDevice (FASTBOOT_MODE);
+    break;
+  case SET_ACTIVE_SLOT_B:
+    AsciiStrToUnicodeStr ("_b", SuffixUnicode);
+    StrnCpyS (BootSlot.Suffix, ARRAY_SIZE (BootSlot.Suffix), SuffixUnicode,
+            StrLen (SuffixUnicode));
+    Status = SetActiveSlot (&BootSlot, TRUE);
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Failed to set the active slot to _b\n"));
+    }
+    RebootDevice (FASTBOOT_MODE);
     break;
   }
 }
