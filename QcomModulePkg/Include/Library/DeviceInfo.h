@@ -56,6 +56,7 @@ typedef struct device_info {
   CHAR8 user_public_key[MAX_USER_KEY_SIZE];
   UINT64 rollback_index[MAX_VB_PARTITIONS];
   CHAR8 Display_Cmdline[MAX_DISPLAY_CMDLINE_LEN];
+  BOOLEAN is_mainline_optimization_enabled;
 } DeviceInfo;
 
 struct verified_boot_verity_mode {
@@ -72,6 +73,7 @@ BOOLEAN IsUnlocked (VOID);
 BOOLEAN IsUnlockCritical (VOID);
 BOOLEAN IsEnforcing (VOID);
 BOOLEAN IsChargingScreenEnable (VOID);
+BOOLEAN IsMainlineOptimizationEnabled (VOID);
 BOOLEAN IsUserPublicKeySet (VOID);
 VOID
 GetBootloaderVersion (CHAR8 *BootloaderVersion, UINT32 Len);
@@ -79,6 +81,8 @@ VOID
 GetRadioVersion (CHAR8 *RadioVersion, UINT32 Len);
 EFI_STATUS
 EnableChargingScreen (BOOLEAN IsEnabled);
+EFI_STATUS
+EnableMainlineOptimization (BOOLEAN IsEnabled);
 EFI_STATUS
 EnableEnforcingMode (BOOLEAN IsEnabled);
 EFI_STATUS
