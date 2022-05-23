@@ -72,6 +72,7 @@ BOOLEAN IsUnlocked (VOID);
 BOOLEAN IsUnlockCritical (VOID);
 BOOLEAN IsEnforcing (VOID);
 BOOLEAN IsChargingScreenEnable (VOID);
+BOOLEAN IsUserPublicKeySet (VOID);
 VOID
 GetBootloaderVersion (CHAR8 *BootloaderVersion, UINT32 Len);
 VOID
