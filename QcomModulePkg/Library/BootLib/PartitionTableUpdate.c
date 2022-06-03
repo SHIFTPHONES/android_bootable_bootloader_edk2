@@ -460,16 +460,37 @@ Exit:
   }
 }
 
+STATIC BOOLEAN IsSubStrPresentAtLast (
+  IN      CONST CHAR16              *String,
+  IN      CONST CHAR16              *SearchString
+  )
+{
+  UINT32 SrcLen = StrLen (String);
+  UINT32 SearchStrLen = StrLen (SearchString);
+
+  if (SrcLen < SearchStrLen) {
+    return FALSE;
+  }
+
+  if (!StrnCmp (String + SrcLen - SearchStrLen, SearchString, SearchStrLen)) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
 STATIC VOID
 MarkPtnActive (CHAR16 *ActiveSlot)
 {
   UINT32 i;
   for (i = 0; i < PartitionCount; i++) {
     /* Mark all the slots with current ActiveSlot as active */
-    if (StrStr (PtnEntries[i].PartEntry.PartitionName, ActiveSlot))
+    if (IsSubStrPresentAtLast (PtnEntries[i].PartEntry.PartitionName,
+         ActiveSlot)) {
       PtnEntries[i].PartEntry.Attributes |= PART_ATT_ACTIVE_VAL;
-    else
+    } else {
       PtnEntries[i].PartEntry.Attributes &= ~PART_ATT_ACTIVE_VAL;
+    }
   }
 
   /* Update the partition table */
