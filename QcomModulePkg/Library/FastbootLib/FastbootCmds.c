@@ -3072,6 +3072,34 @@ CmdOemDisableMainlineOptimization (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 }
 
 STATIC VOID
+CmdOemEnableDeveloperMode (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
+{
+  EFI_STATUS Status;
+  DEBUG ((EFI_D_INFO, "Enabling developer mode\n"));
+
+  Status = EnableDeveloperMode (TRUE);
+  if (Status != EFI_SUCCESS) {
+    FastbootFail ("Failed to enable developer mode");
+  } else {
+    FastbootOkay ("");
+  }
+}
+
+STATIC VOID
+CmdOemDisableDeveloperMode (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
+{
+  EFI_STATUS Status;
+  DEBUG ((EFI_D_INFO, "Disabling developer mode\n"));
+
+  Status = EnableDeveloperMode (FALSE);
+  if (Status != EFI_SUCCESS) {
+    FastbootFail ("Failed to disable developer mode");
+  } else {
+    FastbootOkay ("");
+  }
+}
+
+STATIC VOID
 CmdOemOffModeCharger (CONST CHAR8 *Arg, VOID *Data, UINT32 Size)
 {
   CHAR8 *Ptr = NULL;
@@ -3318,6 +3346,10 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
   WaitForTransferComplete ();
   AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "Mainline optimization enabled: %a",
                IsMainlineOptimizationEnabled () ? "true" : "false");
+  FastbootInfo (DeviceInfo);
+  WaitForTransferComplete ();
+  AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "Developer mode enabled: %a",
+               IsDeveloperModeEnabled () ? "true" : "false");
   FastbootInfo (DeviceInfo);
   WaitForTransferComplete ();
   FastbootOkay ("");
@@ -3763,6 +3795,8 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
 #endif
       {"oem enable-charger-screen", CmdOemEnableChargerScreen},
       {"oem disable-charger-screen", CmdOemDisableChargerScreen},
+      {"oem enable-developer-mode", CmdOemEnableDeveloperMode},
+      {"oem disable-developer-mode", CmdOemDisableDeveloperMode},
       {"oem enable-mainline-optimization", CmdOemEnableMainlineOptimization},
       {"oem disable-mainline-optimization", CmdOemDisableMainlineOptimization},
       {"oem off-mode-charge", CmdOemOffModeCharger},
