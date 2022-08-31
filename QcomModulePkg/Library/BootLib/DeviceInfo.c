@@ -355,6 +355,8 @@ EFI_STATUS DeviceInfoInit (VOID)
     }
     DevInfo.is_charger_screen_enabled = FALSE;
     DevInfo.verity_mode = TRUE;
+    DevInfo.is_developer_mode_enabled = FALSE;
+    DevInfo.is_mainline_optimization_enabled = FALSE;
     Status =
         ReadWriteDeviceInfo (WRITE_CONFIG, (VOID *)&DevInfo, sizeof (DevInfo));
     if (Status != EFI_SUCCESS) {
