@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "432dc36e_7e0e0df5",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000002
+      },
+      "writtenOn": "2022-08-31T10:58:30Z",
+      "side": 1,
+      "message": "While this works pretty nicely, we need to make sure to not enable it for normal users by mistake.\n\nReasoning for this: we got some cases already where people carried the device around in their pockets and squeezed them that unfortunately, that they have forced a reboot to bootloader and selected some options there.\n\nThis minimizes the risk of people switching slots, triggering userdata rollbacks and losing data.",
+      "revId": "e7ab0a7d98b05c1f394a44a7260ffad374ee6747",
+      "serverId": "5979fb85-960d-4ec4-8ce0-8568b21942fe"
+    }
+  ]
+}
