@@ -93,6 +93,7 @@ typedef enum {
   BGR_YELLOW,
   BGR_RED,
   BGR_GREEN,
+  BGR_GREEN_DARK,
   BGR_BLUE,
   BGR_CYAN,
   BGR_SILVER,
