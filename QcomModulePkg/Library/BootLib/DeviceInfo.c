@@ -62,6 +62,11 @@ BOOLEAN IsMainlineOptimizationEnabled (VOID)
   return DevInfo.is_mainline_optimization_enabled;
 }
 
+BOOLEAN IsDeveloperModeEnabled (VOID)
+{
+  return IsUnlocked () && DevInfo.is_developer_mode_enabled;
+}
+
 BOOLEAN IsUserPublicKeySet (VOID)
 {
   CHAR8 *UserKeyBuffer = NULL;
@@ -123,6 +128,24 @@ EnableMainlineOptimization (BOOLEAN IsEnabled)
     Status = ReadWriteDeviceInfo (WRITE_CONFIG, &DevInfo, sizeof (DevInfo));
     if (Status != EFI_SUCCESS) {
       DEBUG ((EFI_D_ERROR, "Error %a mainline optimization: %r\n",
+              (IsEnabled ? "Enabling" : "Disabling"), Status));
+      return Status;
+    }
+  }
+
+  return Status;
+}
+
+EFI_STATUS
+EnableDeveloperMode (BOOLEAN IsEnabled)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (IsDeveloperModeEnabled () != IsEnabled) {
+    DevInfo.is_developer_mode_enabled = IsEnabled;
+    Status = ReadWriteDeviceInfo (WRITE_CONFIG, &DevInfo, sizeof (DevInfo));
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR, "Error %a developer mode: %r\n",
               (IsEnabled ? "Enabling" : "Disabling"), Status));
       return Status;
     }
