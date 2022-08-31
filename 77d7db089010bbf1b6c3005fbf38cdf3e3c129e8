@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "36ac7809_428fa6b0",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000002
+      },
+      "writtenOn": "2022-08-31T10:28:31Z",
+      "side": 1,
+      "message": "Better now with PS2 (height of 10 instead of 9)",
+      "revId": "77d7db089010bbf1b6c3005fbf38cdf3e3c129e8",
+      "serverId": "5979fb85-960d-4ec4-8ce0-8568b21942fe"
+    }
+  ]
+}
