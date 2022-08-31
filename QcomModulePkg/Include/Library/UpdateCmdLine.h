@@ -46,7 +46,7 @@
 
 #define MAX_PATH_SIZE 72
 #define SERIAL_NUM_SIZE 64
-#define HW_REVISION_SIZE 64
+#define REVISION_SIZE 64
 
 typedef struct BootInfo BootInfo;
 
@@ -58,12 +58,14 @@ typedef struct UpdateCmdLineParamList {
   UINT32 CmdLineLen;
   UINT32 HaveCmdLine;
   UINT32 PauseAtBootUp;
+  CHAR8 *StrAblRev;
   CHAR8 *StrHardwareRev;
   CHAR8 *StrSerialNum;
   CHAR8 *SlotSuffixAscii;
   CHAR8 *ChipBaseBand;
   CHAR8 *DisplayCmdLine;
   CONST CHAR8 *CmdLine;
+  CONST CHAR8 *AblRevisionCmdLine;
   CONST CHAR8 *HardwareRevisionCmdLine;
   CONST CHAR8 *AlarmBootCmdLine;
   CONST CHAR8 *MdtpActiveFlag;
