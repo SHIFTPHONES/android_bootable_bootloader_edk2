@@ -116,6 +116,7 @@ STATIC MENU_MSG_INFO mFastbootOptionTitle[] = {
 #define FASTBOOT_MSG_INDEX_SECURE_BOOT            10
 #define FASTBOOT_MSG_INDEX_DEVICE_STATE_UNLOCKED  11
 #define FASTBOOT_MSG_INDEX_DEVICE_STATE_LOCKED    12
+#define FASTBOOT_MSG_INDEX_MAINLINE               13
 
 STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
     {{"\nPress volume key to select, "
@@ -210,6 +211,26 @@ STATIC MENU_MSG_INFO mFastbootCommonMsgInfo[] = {
      COMMON,
      0,
      NOACTION},
+    {{"\n"},
+     COMMON_FACTOR,
+     BGR_GREEN_DARK,
+     BGR_BLACK,
+     COMMON,
+     0,
+     NOACTION},
+};
+
+STATIC CONST CHAR8 MAINLINE_LOGO_PMOS[][MAX_RSP_SIZE] = {
+"         /\\\n",
+"        /  \\\n",
+"       /    \\\n",
+"       \\__   \\\n",
+"     /\\__ \\   \\\n",
+"    /   /  \\  _\\\n",
+"   /   /    \\/ __\n",
+"  /   / ______/  \\\n",
+" /    \\ \\         \\\n",
+"/_____/ /__________\\\n",
 };
 
 /**
@@ -278,6 +299,7 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
   UINT32 OptionItem = 0;
   UINT32 Height = 0;
   UINT32 i = 0;
+  UINT32 j = 0;
   CHAR8 StrTemp[MAX_RSP_SIZE] = "";
   CHAR8 StrTemp1[MAX_RSP_SIZE] = "";
   CHAR8 VersionTemp[MAX_VERSION_LEN] = "";
@@ -387,6 +409,16 @@ FastbootMenuShowScreen (OPTION_MENU_INFO *OptionMenuInfo)
       /* Get device status, only show when locked */
       if (IsUnlocked ())
         continue;
+      break;
+    case FASTBOOT_MSG_INDEX_MAINLINE:
+      if (!IsMainlineSupportEnabled ())
+        continue;
+
+      for (j = 0; j < ARRAY_SIZE (MAINLINE_LOGO_PMOS); j++) {
+        AsciiStrnCatS (
+            mFastbootCommonMsgInfo[i].Msg, sizeof (mFastbootCommonMsgInfo[i].Msg),
+            MAINLINE_LOGO_PMOS[j], sizeof (MAINLINE_LOGO_PMOS[j]));
+      }
       break;
     }
 
