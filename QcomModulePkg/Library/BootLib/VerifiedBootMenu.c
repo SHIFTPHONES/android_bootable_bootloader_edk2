@@ -212,7 +212,7 @@ STATIC MENU_MSG_INFO mOptionMenuMsgInfo[] = {
      COMMON,
      0,
      NOACTION},
-    {{"\nPress volume key to select, and press power key to select\n\n"},
+    {{"\nPress volume key to select, and press power key to confirm\n\n"},
      COMMON_FACTOR,
      BGR_WHITE,
      BGR_BLACK,
