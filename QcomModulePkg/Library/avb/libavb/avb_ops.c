@@ -352,6 +352,9 @@ AvbValidateVbmetaPublicKey(AvbOps *Ops, const uint8_t *PublicKeyData,
 	} else if (PublicKeyLength == ARRAY_SIZE(OEMPublicKey) &&
 	           CompareMem(PublicKeyData, OEMPublicKey, PublicKeyLength) == 0) {
 		*OutIsTrusted = true;
+	} else if (PublicKeyLength == ARRAY_SIZE(CalyxPublicKey) &&
+	           CompareMem(PublicKeyData, CalyxPublicKey, PublicKeyLength) == 0) {
+		*OutIsTrusted = true;
 	} else {
 		*OutIsTrusted = false;
 		SetMem(UserData->PublicKey, ARRAY_SIZE(UserData->PublicKey), 0);
@@ -410,6 +413,9 @@ AvbValidatePartitionPublicKey(AvbOps *Ops, const char* Partition,
                 UserData->IsUserKey = TRUE;
         } else if (PublicKeyLength == ARRAY_SIZE (OEMPublicKey) &&
 	           CompareMem(PublicKeyData, OEMPublicKey, PublicKeyLength) == 0) {
+		*OutIsTrusted = true;
+        } else if (PublicKeyLength == ARRAY_SIZE (CalyxPublicKey) &&
+	           CompareMem(PublicKeyData, CalyxPublicKey, PublicKeyLength) == 0) {
 		*OutIsTrusted = true;
 	} else {
 		*OutIsTrusted = false;
