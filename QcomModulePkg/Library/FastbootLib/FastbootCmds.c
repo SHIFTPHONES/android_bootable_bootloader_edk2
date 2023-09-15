@@ -1410,6 +1410,12 @@ CmdDownload (IN CONST CHAR8 *arg, IN VOID *data, IN UINT32 sz)
    * 8-character string.
    */
 
+  if (AsciiStrLen (NumBytesString) > ASCII_HEX_STRING_MAX_LENGTH ) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Invalid argument size\n"));
+    FastbootFail (" Invalid argument size");
+    return;
+  }
+
   // Parse out number of data bytes to expect
   mNumDataBytes = AsciiStrHexToUint64 (NumBytesString);
   if (mNumDataBytes == 0) {
