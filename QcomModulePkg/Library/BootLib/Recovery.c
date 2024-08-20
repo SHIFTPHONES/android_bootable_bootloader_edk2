@@ -405,7 +405,7 @@ GetFfbmCommand (CHAR8 *FfbmString, UINT32 Sz)
 EFI_STATUS
 GetOemSerialNum (CHAR8 *nv_serialnum)
 {
-  CONST CHAR8 *line_ind = "SN:";
+  CONST CHAR8 *line_ind = "SN=";
   CHAR8 *oem_page_buffer = NULL;
   CHAR8 *line_ptr = NULL;
   EFI_STATUS Status;
@@ -451,7 +451,7 @@ GetOemSerialNum (CHAR8 *nv_serialnum)
 EFI_STATUS
 GetOemHardwareRevision (CHAR8 *nv_hwrevision)
 {
-  CONST CHAR8 *line_ind = "HW:";
+  CONST CHAR8 *line_ind = "HW=";
   CHAR8 *oem_page_buffer = NULL;
   CHAR8 *line_ptr = NULL;
   EFI_STATUS Status;
