@@ -407,6 +407,8 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
   bool is_main_vbmeta;
   bool look_for_vbmeta_footer;
   AvbVBMetaData* vbmeta_image_data = NULL;
+  CHAR8 RollbackIndexStored[20];
+  CHAR8 RollbackIndexPartition[20];
 
   ret = AVB_SLOT_VERIFY_RESULT_OK;
 
@@ -697,6 +699,15 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
     goto out;
   }
+
+  /* Print stored rollback index */
+  avb_uint64tostr(RollbackIndexStored, sizeof (RollbackIndexStored), stored_rollback_index);
+  avb_errorv("Stored rollback index: ", RollbackIndexStored, "\n", NULL);
+
+  /* Print partition rollback index */
+  avb_uint64tostr(RollbackIndexPartition, sizeof (RollbackIndexPartition), vbmeta_header.rollback_index);
+  avb_errorv("Image rollback index (", full_partition_name, "): ", RollbackIndexPartition, "\n", NULL);
+
   if (vbmeta_header.rollback_index < stored_rollback_index) {
     avb_errorv(
         full_partition_name,
