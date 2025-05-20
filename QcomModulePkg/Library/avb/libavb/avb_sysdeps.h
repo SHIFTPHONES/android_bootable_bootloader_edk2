@@ -122,6 +122,8 @@ void avb_free(void* ptr);
 /* Returns the lenght of |str|, excluding the terminating NUL-byte. */
 size_t avb_strlen(const char* str) AVB_ATTR_WARN_UNUSED_RESULT;
 
+void avb_uint64tostr(CHAR8 *StartOfBuffer, UINT32 Len, uint64_t value);
+
 #ifdef __cplusplus
 }
 #endif

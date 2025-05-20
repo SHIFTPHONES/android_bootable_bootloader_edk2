@@ -120,3 +120,8 @@ void avb_free(void *ptr)
 {
 	FreePool(ptr);
 }
+
+void avb_uint64tostr(CHAR8 *StartOfBuffer, UINT32 Len, uint64_t value)
+{
+	AsciiSPrint (StartOfBuffer, Len, "%llu", value);
+}
