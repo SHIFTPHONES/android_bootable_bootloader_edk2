@@ -33,6 +33,7 @@
 #include <Library/PartitionTableUpdate.h>
 #include <Library/Recovery.h>
 #include <Library/StackCanary.h>
+#include <Library/VerifiedBoot.h>
 
 STATIC DeviceInfo DevInfo;
 STATIC BOOLEAN FirstReadDevInfo = TRUE;
@@ -282,6 +283,13 @@ SetDeviceUnlockValue (UINT32 Type, BOOLEAN State)
 
     DEBUG ((EFI_D_ERROR, "Unable to set the Value: %r", Status));
     return Status;
+  }
+
+  if (Type == UNLOCK && State) {
+    Status = ResetStoredRollbackIndices ();
+    if (Status != EFI_SUCCESS) {
+      DEBUG ((EFI_D_ERROR,"WARNING: Could not reset stored SPL level"));
+    }
   }
 
   gBS->SetMem ((VOID *)&Msg, sizeof (Msg), 0);
