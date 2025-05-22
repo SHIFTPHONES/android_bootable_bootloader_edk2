@@ -116,4 +116,18 @@ EFI_STATUS
 GetCertFingerPrint (UINT8 *FingerPrint,
                     UINTN FingerPrintLen,
                     UINTN *FingerPrintLenOut);
+
+/**
+ * @return The stored rollback index for specified location
+ */
+UINT64
+GetStoredRollbackIndexForLocation (UINT32 Location);
+
+/**
+ * Reset all stored rollback indices to 0.
+ *
+ * @return EFI_STATUS
+ */
+EFI_STATUS
+ResetStoredRollbackIndices ();
 #endif /* __VERIFIEDBOOT_H__ */

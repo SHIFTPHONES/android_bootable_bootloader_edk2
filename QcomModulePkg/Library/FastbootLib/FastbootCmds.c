@@ -95,6 +95,7 @@ found at
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/UnlockMenu.h>
 #include <Library/BootLinux.h>
+#include <Library/VerifiedBoot.h>
 #include <Uefi.h>
 
 #include <Guid/EventGroup.h>
@@ -3329,6 +3330,8 @@ STATIC VOID
 CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
 {
   CHAR8 DeviceInfo[MAX_RSP_SIZE];
+  UINT32 RollbackIndexLocation;
+  UINT64 StoredRollbackIndex;
 
   AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "Verity mode: %a",
                IsEnforcing () ? "true" : "false");
@@ -3358,6 +3361,34 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
                IsDeveloperModeEnabled () ? "true" : "false");
   FastbootInfo (DeviceInfo);
   WaitForTransferComplete ();
+
+  for (RollbackIndexLocation = 0; RollbackIndexLocation < 3; RollbackIndexLocation++) {
+    StoredRollbackIndex = GetStoredRollbackIndexForLocation(RollbackIndexLocation);
+    AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "Rollback index (%d): %ld",
+                 RollbackIndexLocation, StoredRollbackIndex);
+    FastbootInfo (DeviceInfo);
+    WaitForTransferComplete ();
+  }
+
+  FastbootOkay ("");
+}
+
+STATIC VOID
+CmdOemResetSpl (CONST CHAR8 *arg, VOID *data, UINT32 sz)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (!IsUnlocked()) {
+    FastbootFail ("Unlocked bootloader required");
+    return;
+  }
+
+  Status = ResetStoredRollbackIndices ();
+  if (Status != EFI_SUCCESS) {
+    FastbootFail ("Could not reset stored SPL level");
+    return;
+  }
+
   FastbootOkay ("");
 }
 
@@ -3808,6 +3839,7 @@ FastbootCommandSetup (IN VOID *Base, IN UINT64 Size)
       {"oem off-mode-charge", CmdOemOffModeCharger},
       {"oem select-display-panel", CmdOemSelectDisplayPanel},
       {"oem device-info", CmdOemDevinfo},
+      {"oem reset-spl", CmdOemResetSpl},
       {"continue", CmdContinue},
       {"reboot", CmdReboot},
 #ifdef DYNAMIC_PARTITION_SUPPORT

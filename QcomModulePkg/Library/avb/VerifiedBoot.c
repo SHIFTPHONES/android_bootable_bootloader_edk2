@@ -1854,3 +1854,95 @@ GetCertFingerPrint (UINT8 *FingerPrint,
 
   return Status;
 }
+
+UINT64
+GetStoredRollbackIndexForLocation (UINT32 Location)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  AvbOpsUserData *UserData = NULL;
+  AvbOps *Ops = NULL;
+  AvbIOResult IoRet;
+  uint64_t StoredRollbackIndex;
+
+  UserData = avb_calloc (sizeof (AvbOpsUserData));
+  if (UserData == NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to allocate AvbOpsUserData\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+
+  Ops = AvbOpsNew (UserData);
+  if (Ops == NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to allocate AvbOps\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+
+  IoRet = Ops->read_rollback_index (Ops, Location, &StoredRollbackIndex);
+  if (IoRet != AVB_IO_RESULT_OK) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to read rollback index for location %d\n", Location));
+
+    Status = EFI_WARN_WRITE_FAILURE;
+    goto out;
+  }
+
+out:
+  if (Ops != NULL) {
+    AvbOpsFree (Ops);
+  }
+  if (UserData != NULL) {
+    avb_free (UserData);
+  }
+
+  if (Status != EFI_SUCCESS) {
+    return 0;
+  }
+
+  return StoredRollbackIndex;
+}
+
+EFI_STATUS
+ResetStoredRollbackIndices ()
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  AvbOpsUserData *UserData = NULL;
+  AvbOps *Ops = NULL;
+  AvbIOResult IoRet;
+  UINT32 Location;
+
+  UserData = avb_calloc (sizeof (AvbOpsUserData));
+  if (UserData == NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to allocate AvbOpsUserData\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+
+  Ops = AvbOpsNew (UserData);
+  if (Ops == NULL) {
+    DEBUG ((EFI_D_ERROR, "ERROR: Failed to allocate AvbOps\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto out;
+  }
+
+  for (Location = 0; Location < 3; Location++) {
+    IoRet = Ops->write_rollback_index (Ops, Location, 0);
+    if (IoRet != AVB_IO_RESULT_OK) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Failed to store rollback index for location %d\n", Location));
+
+      Status = EFI_WARN_WRITE_FAILURE;
+      goto out;
+    }
+  }
+
+  Status = UpdateRollbackSyscall ();
+
+out:
+  if (Ops != NULL) {
+    AvbOpsFree (Ops);
+  }
+  if (UserData != NULL) {
+    avb_free (UserData);
+  }
+
+  return Status;
+}
