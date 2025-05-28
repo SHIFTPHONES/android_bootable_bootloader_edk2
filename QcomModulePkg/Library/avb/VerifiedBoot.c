@@ -1933,6 +1933,15 @@ ResetStoredRollbackIndices ()
       goto out;
     }
   }
+  for (Location = 11; Location < 13; Location++) {
+    IoRet = Ops->write_rollback_index (Ops, Location, 0);
+    if (IoRet != AVB_IO_RESULT_OK) {
+      DEBUG ((EFI_D_ERROR, "ERROR: Failed to store rollback index for location %d\n", Location));
+
+      Status = EFI_WARN_WRITE_FAILURE;
+      goto out;
+    }
+  }
 
   Status = UpdateRollbackSyscall ();
 
