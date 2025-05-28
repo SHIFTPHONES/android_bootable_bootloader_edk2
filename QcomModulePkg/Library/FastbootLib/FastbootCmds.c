@@ -3369,6 +3369,13 @@ CmdOemDevinfo (CONST CHAR8 *arg, VOID *data, UINT32 sz)
     FastbootInfo (DeviceInfo);
     WaitForTransferComplete ();
   }
+  for (RollbackIndexLocation = 11; RollbackIndexLocation < 13; RollbackIndexLocation++) {
+    StoredRollbackIndex = GetStoredRollbackIndexForLocation(RollbackIndexLocation);
+    AsciiSPrint (DeviceInfo, sizeof (DeviceInfo), "Rollback index (%d): %ld",
+                 RollbackIndexLocation, StoredRollbackIndex);
+    FastbootInfo (DeviceInfo);
+    WaitForTransferComplete ();
+  }
 
   FastbootOkay ("");
 }
